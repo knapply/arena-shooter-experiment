@@ -42,7 +42,9 @@ function hud() {
     if (rv) rv.textContent = " / " + (reserve[wi] === Infinity ? "∞" : reserve[wi]);
   }
   updAim();
-  $("kd").textContent = `${kills} K · ${deaths} D`;
+  $("kd").textContent = EXT
+    ? `${kills} K · ${deaths} D`
+    : `${kills} K · ${deaths} D · first to ${MODE_DATA.ffa.scoreLimit}`;
   $("uThrust").style.transform = `scaleX(${1 - me.thrustCD / 2.2})`;
   {
     const tk = 1 - me.thrustCD / 2.2;

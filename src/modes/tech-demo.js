@@ -309,7 +309,8 @@ function exitDemo() {
     if (hasTTS) speechSynthesis.cancel();
   } catch (e) {}
 }
-$("watch").onclick = startDemo;
+defineMode({ id: "tutorial", name: "Movement tutorial", start: startDemo });
+$("watch").onclick = () => startMode("tutorial");
 $("dExit").onclick = exitDemo;
 $("dSkip").onclick = () => nextSeg(seg + 1);
 addEventListener("keydown", e => {

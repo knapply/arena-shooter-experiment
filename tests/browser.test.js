@@ -100,6 +100,50 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       ev
     );
     check(medals > 0, "medals follow kill events", medals);
+    /* free-for-all has a match: first to the score limit wins, then a fresh match starts */
+    const ffa = await p.evaluate(async () => {
+      const seen = [];
+      const off = KA.EVENTS.on(
+        "*",
+        e => (e.type === "matchEnd" || e.type === "matchStart") && seen.push(e.type)
+      );
+      const lim = KA.MODE_DATA.ffa.scoreLimit;
+      const b = KA.bots[2];
+      for (let i = 0; i < lim; i++) {
+        b.body.reset();
+        b.body.spawnT = -99;
+        KA.dealDamage({ kind: "bot", ref: b }, 999, "rifle", true);
+      }
+      await new Promise(r => setTimeout(r, 400));
+      const banner = document.getElementById("cBanT").textContent;
+      const mid = KA.kills;
+      KA.MODE_DATA.ffa.restartDelay = 0.5;
+      await new Promise(r => setTimeout(r, 1200));
+      off();
+      return {
+        seen,
+        banner,
+        mid,
+        after: KA.kills,
+        modes: KA.modeList()
+          .map(m => m.id)
+          .join(","),
+      };
+    });
+    check(
+      ffa.seen[0] === "matchEnd" &&
+        ffa.seen.includes("matchStart") &&
+        ffa.banner === "Victory" &&
+        ffa.after === 0,
+      "free-for-all ends at the score limit and starts a new match",
+      ffa
+    );
+    check(
+      /ffa/.test(ffa.modes) && /ctf/.test(ffa.modes) && /tutorial/.test(ffa.modes),
+      "modes register with the mode framework",
+      ffa.modes
+    );
+    await p.evaluate(() => (KA.MODE_DATA.ffa.restartDelay = 8));
     /* Perfect: the magnum's minimum (4 to break shields, then a headshot) with no misses */
     const perfectRun = miss =>
       p.evaluate(miss => {

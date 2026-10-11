@@ -9,6 +9,7 @@ $("deploy").onclick = () => {
   botsOn = $("bots").checked;
   makeBots();
   EVENTS.setContext({ map: "arena", mode: "ffa" });
+  ffaStart();
   EVENTS.emit("matchStart", {});
   audio();
   vmArmor.color.set(myColor).multiplyScalar(0.55);

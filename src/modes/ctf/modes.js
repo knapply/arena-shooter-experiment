@@ -156,7 +156,7 @@
   /** the engine hooks for hosting a match (fresh, or taken over from a host who left) */
   function hostExt(host) {
     return {
-      respawnDelay: 6,
+      respawnDelay: K.MODE_DATA.ctf.respawn,
       respawn() {
         placeMe(G.human.team);
         G.human.carrying = null;
@@ -316,7 +316,7 @@
       }
     };
     const ext = {
-      respawnDelay: 6,
+      respawnDelay: K.MODE_DATA.ctf.respawn,
       respawn() {
         placeMe(G.human.team);
       },
@@ -686,6 +686,8 @@
     else if (e.code === "Escape") K.extStop();
   });
   /* ---------------- menu ---------------- */
-  $("ctfPlay").onclick = startPlay;
-  $("ctfSim").onclick = startSim;
+  K.defineMode({ id: "ctf", name: K.MODE_DATA.ctf.name, settings: K.MODE_DATA.ctf, start: startPlay });
+  K.defineMode({ id: "ctf-spectate", name: "AI vs AI", settings: K.MODE_DATA.ctf, start: startSim });
+  $("ctfPlay").onclick = () => K.startMode("ctf");
+  $("ctfSim").onclick = () => K.startMode("ctf-spectate");
 })();

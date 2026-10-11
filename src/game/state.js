@@ -247,7 +247,7 @@ function hurtMe(n, src) {
         weapon: src.w || "rifle",
         head: !!src.hd,
       });
-    respawnAt = now + ((EXT && EXT.respawnDelay) || 3);
+    respawnAt = now + ((EXT && EXT.respawnDelay) || MODE_DATA.ffa.respawn);
     $("dead").hidden = false;
     $("deadBy").textContent = "Taken out by " + name;
     rumble(0.9, 0.6, 260);

@@ -406,6 +406,7 @@ function frameBody(t) {
   updFX(dt);
   MAIN_NADES.step(dt);
   if (!EXT) updRigs(dt);
+  ffaTick(dt);
   updPickups(dt);
   updPoundRing();
   hitmT -= dt;

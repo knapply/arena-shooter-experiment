@@ -1001,7 +1001,8 @@
   TR.seek = t => {
     while (T < t - 1e-6) TR.step(Math.min(1 / 30, t - T));
   };
-  $("trailerBtn").onclick = () => TR.start();
+  K.defineMode({ id: "trailer", name: "Trailer", start: () => TR.start() });
+  $("trailerBtn").onclick = () => K.startMode("trailer");
   $("trExit").onclick = stop;
   $("trSound").onclick = () => {
     const ac = K.AC;
