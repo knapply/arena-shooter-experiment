@@ -165,7 +165,7 @@ function frame(t) {
 }
 function frameBody(t) {
   const raw = Math.max(1e-4, (t - last) / 1000);
-  let dt = Math.min(0.05, raw) * timeScale;
+  let dt = Math.min(0.05, raw) * timeScale * CINE.timeK(raw);
   last = t;
   now += dt;
   REC.tick(now);

@@ -89,6 +89,7 @@ const KA_API = {
   SPAWNS,
   makePilot,
   EVENTS,
+  CINE,
   MODE_DATA,
   defineMode,
   startMode,

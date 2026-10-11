@@ -1,0 +1,83 @@
+/* shared cinematic overlay: letterbox, title card, caption, flash (render/cinema.js) */
+#cine {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 25;
+  font-family: var(--f-display);
+}
+#cine .lb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  background: #000;
+  transition: height 0.35s ease;
+}
+#cine .lb.top {
+  top: 0;
+}
+#cine .lb.bot {
+  bottom: 0;
+}
+#cine.on .lb {
+  height: 10vh;
+}
+#cine .cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 3.5vh;
+  text-align: center;
+  font: 600 clamp(11px, 1.3vw, 15px) var(--f-mono);
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: #ffb347;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+#cine.capOn .cap {
+  opacity: 1;
+}
+#cine .card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  color: #eef4f6;
+  opacity: 0;
+  text-shadow: 0 2px 30px #000c;
+  transition: opacity 0.25s;
+}
+#cine .card.show {
+  opacity: 1;
+}
+#cine .card .eb {
+  font: 600 clamp(11px, 1.4vw, 16px) var(--f-mono);
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: #ffb347;
+  margin-bottom: 0.6em;
+}
+#cine .card .big {
+  font-weight: 700;
+  font-size: clamp(30px, 6vw, 88px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+#cine .card .sub {
+  font: 500 clamp(13px, 1.7vw, 22px) var(--f-display);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-top: 0.6em;
+  color: #cfdbe0;
+}
+#cine .fl {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+}

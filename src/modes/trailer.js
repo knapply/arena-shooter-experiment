@@ -247,7 +247,6 @@
   }
   /* ---------------- camera ---------------- */
   function cam(p, l, fov = 55, roll = 0, smooth = 0, dt = 0) {
-    const c = K.camera;
     if (smooth && camS.init) {
       const k = 1 - Math.exp(-smooth * dt);
       camS.p.lerp(p, k);
@@ -257,19 +256,9 @@
       camS.l.copy(l);
       camS.init = true;
     }
-    c.position.copy(camS.p);
-    if (shakeT > 0 && !K.reduceMotion) {
-      const s = shakeT * 0.35;
-      c.position.x += (Math.random() - 0.5) * s;
-      c.position.y += (Math.random() - 0.5) * s;
-      c.position.z += (Math.random() - 0.5) * s;
-    }
-    c.lookAt(camS.l);
-    if (roll) c.rotateZ(roll);
-    if (c.fov !== fov) {
-      c.fov = fov;
-      c.updateProjectionMatrix();
-    }
+    /* the shared camera toolkit places the camera (shake, roll, field of view) */
+    if (shakeT > 0) K.CINE.shake(shakeT);
+    K.CINE.apply({ p: camS.p, l: camS.l, fov }, 0, dt, roll);
   }
   const V = (x, y, z) => new V3(x, y, z);
   const behind = (a, back, side, up, out = new V3()) => {

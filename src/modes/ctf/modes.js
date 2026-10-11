@@ -497,18 +497,10 @@
         }
         f = focus;
       }
-      const b = f.body,
-        yaw = b.yaw;
-      const fx = -Math.sin(yaw),
-        fz = -Math.cos(yaw);
-      look.set(b.pos.x + fx * 3, b.pos.y + 1.3, b.pos.z + fz * 3);
-      want.set(b.pos.x - fx * 5.5 + fz * 1.6, b.pos.y + 2.6, b.pos.z - fz * 5.5 - fx * 1.6);
-      const head = new V3(b.pos.x, b.pos.y + 1.6, b.pos.z);
-      const dir = want.clone().sub(head);
-      const L = dir.length();
-      dir.multiplyScalar(1 / L);
-      const hit = K.rayWorld(head, dir, L);
-      if (hit < L) want.copy(head).addScaledVector(dir, Math.max(0.6, hit - 0.4));
+      /* the shared chase shot (over the shoulder, pulled in front of walls) */
+      const s = K.CINE.track(f, 5.5, 1.6, 2.6, 3)();
+      want.copy(s.p);
+      look.copy(s.l);
     }
     if (snap) {
       cpos.copy(want);
