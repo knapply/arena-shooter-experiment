@@ -17,7 +17,7 @@ src/
   weapons/             arsenal data, firing, viewmodels and their animation, grenades, pickups
   ui/                  HUD, reticle, settings screen
   game/                game state, deploy, main loop, the window.KA API
-  modes/               tech demo; ctf/ (map, nav, AI brain and agents, rules, UI, play and simulation modes)
+  modes/               movement tutorial; trailer and its synthesized score; ctf/ (map, nav, AI brain and agents, rules, UI, play and simulation modes)
   net/                 arena presence sync, CTF host and client, peer-to-peer room transport
 tests/                 headless sim, browser and render tests
 docs/MODULES.md        generated index of what each module declares
@@ -49,5 +49,7 @@ node tests/sim.test.js    # two headless AI matches
 node tests/browser.test.js
 THREE_PATH=path/to/three.min.js node tests/render.test.js
 ```
+
+The trailer (`modes/trailer.js`) is a pure function of trailer time: live it is clocked by the music's audio context; for video capture it is stepped frame by frame (`KA.trailer.record()`, `KA.trailer.step(dt)`), and the score (`modes/trailer-score.js`) renders to a file through an `OfflineAudioContext`.
 
 The browser tests use stubs in `tests/stubs/`: a minimal three.js stand-in and an in-memory PeerJS replacement, so two or three tabs can play online against each other without a network. The build refuses to emit a module containing a closing script tag or an unresolved template directive.

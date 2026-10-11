@@ -3,5 +3,5 @@ window.KA={get zoomLvl(){return zoomLvl;},get aiming(){return aiming;},updPickup
   tracer,spark,thrustPuff,dust,shock,shieldPop,dropMag,updFX,sfx,audio,distVol,say,VO,medal,hitMarker,pushFeed,renderFeed,toast,hurtMe,
   me,RELOAD_TIME,extPlay,extFull,extStop,isTouch,reduceMotion,
   get now(){return now;},get playing(){return playing;},get myName(){return myName;},get kills(){return kills;},get deaths(){return deaths;},get myColor(){return myColor;},
-  get reloadT(){return reloadT;},get lastFireT(){return lastFireT;},get EXT(){return EXT;}};
+  get reloadT(){return reloadT;},get lastFireT(){return lastFireT;},get EXT(){return EXT;},get AC(){return AC;},vmRoot,showWorld,hideBots,bindLabel};
 requestAnimationFrame(frame);

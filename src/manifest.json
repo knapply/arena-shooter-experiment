@@ -3,7 +3,8 @@
   "styles": [
     "styles/base.css",
     "styles/ctf.css",
-    "styles/p2p.css"
+    "styles/p2p.css",
+    "styles/trailer.css"
   ],
   "engine": [
     "core/prelude.js",
@@ -46,6 +47,8 @@
     "modes/ctf/ui.js",
     "net/ctf-host.js",
     "net/ctf-client.js",
-    "modes/ctf/modes.js"
+    "modes/ctf/modes.js",
+    "modes/trailer-score.js",
+    "modes/trailer.js"
   ]
 }

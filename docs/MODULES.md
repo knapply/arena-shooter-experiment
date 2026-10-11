@@ -45,3 +45,5 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/net/ctf-host.js` | 86 | `K` `V3` `NET` `r1` `ID_RE` `poll` `lastSent` `_s` `_o` |
 | `src/net/ctf-client.js` | 95 | `K` `V3` `r2` `MirrorAgent` |
 | `src/modes/ctf/modes.js` | 138 | `K` `V3` `wallLast` `G` `cpos` `pct` `myTeam` `setTeamPick` `lobbyText` `placeMe` `roster` `afterSwitch` `startPlay` `startHost` `startClient` `newMatch` `startSim` `simEvent` … |
+| `src/modes/trailer-score.js` | 123 | `BPM` `midi` `hz` `LENGTH` `PROG` `ROOT` `score` `api` |
+| `src/modes/trailer.js` | 201 | `K` `TR` `T` `camS` `NO` `_a` `ease` `COL` `actors` `mk` `hero` `cast` `put` `clearStage` `once` `drive` `onBody` `kill` … |

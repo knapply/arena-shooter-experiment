@@ -6,6 +6,10 @@ A fast, movement-focused arena shooter that runs entirely in the browser. Thrust
 
 **▶ Play:** https://knapply.github.io/arena-shooter-experiment/
 
+[![Kinetic Arena trailer](media/trailer-preview.gif)](https://knapply.github.io/arena-shooter-experiment/media/trailer.mp4)
+
+**🔊 [Watch the full trailer with sound](https://knapply.github.io/arena-shooter-experiment/media/trailer.mp4)** · captured straight from the game, with an original soundtrack synthesized in the browser. Or press **Watch trailer** in the game menu to play it live.
+
 ---
 
 ## Contents
@@ -21,6 +25,7 @@ A fast, movement-focused arena shooter that runs entirely in the browser. Thrust
 - [Browser support and performance](#browser-support-and-performance)
 - [Privacy and security](#privacy-and-security)
 - [Known limitations](#known-limitations)
+- [Development](#development)
 - [Roadmap](#roadmap)
 - [License](#license)
 
@@ -38,7 +43,9 @@ A fast, movement-focused arena shooter that runs entirely in the browser. Thrust
 - **Online play:** peer-to-peer rooms with a 5-character code or invite link, up to 8 players
 - **Controller support:** Xbox-style controllers with remapping, aim assist, response curves and vibration
 - **Deep settings:** graphics presets plus 50+ individual options, full keyboard and controller rebinding, and export/import of settings as a file
-- **Tech demo:** a narrated, self-playing showcase of the movement and combat systems
+- **Cinematic trailer:** a one-minute in-engine trailer with letterboxed cinematography, slow motion and an original choir-and-synthwave score, playable from the menu
+- **Animation:** procedural characters with distance-synced strides, hip-led strafing and backpedaling, feet that plant on stairs and ledges, spring-driven lean, landing compression, hit flinches, recoil and momentum-based death falls
+- **Movement tutorial:** a narrated, self-playing walkthrough of every movement and combat mechanic
 - **Procedural audio and announcer:** synthesized weapon and movement sounds, with spoken callouts using your browser's speech engine
 
 ## Game modes
@@ -48,7 +55,8 @@ A fast, movement-focused arena shooter that runs entirely in the browser. Thrust
 | **Arena** | 1–8 | Free-for-all on Foundry Basin. Practice drones fill in when it's quiet. |
 | **Capture the Flag** | 1–8 humans, 8 total | 4v4 on Twin Foundry. Bring the enemy flag to your stand while yours is home. First to 3 captures wins, with an 8-minute time limit. Humans take a bot's slot on their team. |
 | **AI vs AI** | Spectator | Two learning AI teams play CTF. Speed controls (1×/2×/4×), director, follow and tactical cameras, plus an intel panel showing each team's strategy odds and evolved play style. Includes a headless "Train 10 matches" button. |
-| **Tech demo** | Spectator | A scripted walkthrough of every movement and combat mechanic. |
+| **Trailer** | Spectator | A one-minute cinematic cut of the game with an original score, synced to the music. |
+| **Movement tutorial** | Spectator | A scripted walkthrough of every movement and combat mechanic, with the keys for each. |
 
 ## Playing with friends
 1. Open the game and click **Host a room**. You'll get a 5-character code.
@@ -134,12 +142,12 @@ Settings are saved in your browser automatically and can be exported to or impor
 - **Destruction:** off / explosives only / full, cover toughness, debris amount, rebuild timer
 
 ## Tech overview
-- **One self-contained HTML file.** No build step is needed to run it, and it can be opened directly from disk.
-- **Rendering:** [three.js](https://threejs.org/) r128 on WebGL, with a custom post-processing pipeline: half-float render target → bloom → composite with ACES tone mapping, FXAA, contrast-adaptive sharpening, saturation, vignette and grain. It falls back automatically if a shader fails to compile and has an exposure safety check.
-- **Characters:** procedural rigs with two-bone IK for elbows and knees, with pose blending for sprint, reload, slide, thrust and melee.
+- **One self-contained HTML file.** The shipped `index.html` runs straight from disk or any static host. It is built from modular source in `src/` (see [Development](#development)).
+- **Rendering:** [three.js](https://threejs.org/) r128 on WebGL with linear-space color management, and a custom post-processing pipeline: half-float render target → bloom → composite with ACES tone mapping, FXAA, contrast-adaptive sharpening, saturation, vignette and grain. It falls back automatically if a shader fails to compile and has an exposure safety check.
+- **Characters:** procedural rigs with two-bone IK for elbows and knees. The gait cycle advances by distance travelled so feet never skate, hips turn toward the direction of travel while the torso keeps aiming, feet raycast the ground, and damped springs drive lean, bank, landing compression, flinch and recoil. Deaths topple in the direction of momentum and the killing blow.
 - **Physics:** custom capsule-vs-box collision and raycasting, with a fixed 120 Hz step.
 - **Networking:** [PeerJS](https://peerjs.com/) (WebRTC data channels) in a star topology. The room host relays presence snapshots, and the CTF host is authoritative for AI, flags and score. Clients send state and hit reports, which the host checks for plausibility (range, line of sight, per-weapon damage caps and rate budgets).
-- **Audio:** sounds synthesized with the Web Audio API. The announcer uses the Speech Synthesis API.
+- **Audio:** every sound is synthesized with the Web Audio API, including the trailer score (choir formant synthesis, drums, bass, pads and lead, no samples), which can also render offline to a file. The announcer uses the Speech Synthesis API.
 - **Input:** an action-mapping layer over keyboard, mouse, Gamepad API and touch.
 - **No WebAssembly.** The game logic is JavaScript on the main thread, and the GPU is used for rendering.
 
@@ -168,10 +176,31 @@ External resources loaded at runtime:
 - Some restrictive networks block peer-to-peer connections, and there is no relay (TURN) server yet.
 - It's tuned for a small group. The maximum room size is 8.
 
+## Development
+The game is developed as modules and built into the single `index.html` that GitHub Pages serves.
+
+```
+src/        engine, rendering, world, characters, weapons, UI, networking and game modes
+tests/      headless AI matches, browser tests, real-WebGL render checks
+docs/       ARCHITECTURE.md (how modules connect, roadmap mapping) and a generated module index
+build.mjs   bundles src/ into index.html
+```
+
+```bash
+node build.mjs                 # build index.html
+node build.mjs --check         # verify index.html matches src/ (CI runs this)
+node tests/sim.test.js         # two full AI-vs-AI matches, headless
+npm install && npx playwright install chromium
+node tests/browser.test.js     # gameplay, settings and online rooms over a simulated network
+THREE_PATH=three.min.js node tests/render.test.js   # every graphics preset renders a normal frame
+```
+
+Every push runs the build check and all three test suites in GitHub Actions. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how modules connect and where each roadmap item lands.
+
 ## Roadmap
 - Host migration and an optional relay server for restrictive networks
 - More maps and modes (Slayer, King of the Hill, Oddball)
-- A modular source tree with automated tests and a build pipeline
+- Skinned character models with motion-captured animation layered under the procedural system
 - Moving AI and physics into a Web Worker and/or WebAssembly
 - A WebGPU renderer
 - Desktop packaging

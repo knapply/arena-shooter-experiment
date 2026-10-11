@@ -34,7 +34,7 @@ function makePilot(color,label){
   const armorM=new THREE.MeshStandardMaterial({color,roughness:.46,metalness:.5});armorM.color.multiplyScalar(.62);
   const suitM=new THREE.MeshStandardMaterial({color:"#1b2125",roughness:.82,metalness:.1});
   const trimM=new THREE.MeshStandardMaterial({color:"#363f45",roughness:.42,metalness:.75});
-  const visorM=new THREE.MeshStandardMaterial({color:"#d9a441",emissive:"#ff9a2e",emissiveIntensity:.35,roughness:.12,metalness:.9});
+  const visorM=new THREE.MeshStandardMaterial({color:"#6e4a16",emissive:"#ff9a2e",emissiveIntensity:.18,roughness:.08,metalness:.95});
   const shieldM=shieldMaterial();const shells=[];
   const add=(parent,g,mat,x,y,z,shell=true,sx,sy,sz)=>{const m=new THREE.Mesh(g,mat);m.position.set(x,y,z);if(sx)m.scale.set(sx,sy,sz);m.castShadow=CAST.has(g.userData.k);parent.add(m);
     if(shell){const s=new THREE.Mesh(g,shieldM);s.scale.setScalar(1.17);s.visible=false;s.renderOrder=5;m.add(s);shells.push(s);}return m;};

@@ -64,7 +64,13 @@ try{
  check(await visible(B,"#menu"),"friend returns to menu when the host leaves",await B.evaluate(()=>JSON.stringify({ext:!!KA.EXT,playing:KA.playing,paused:!document.getElementById("pause").hidden,ban:!document.getElementById("cBanner").hidden,dead:KA.me.dead,p2p:window.__p2p.state})));check(!(await visible(B,"#cBanner")),"match banner clears on the menu");
  /* ---------- sim + trailer start without errors ---------- */
  const S=await open(ctx,{tag:"S"});pages.push(S);await S.waitForTimeout(600);await S.click("#ctfSim");await S.waitForTimeout(2500);check(/\d:\d\d/.test(await text(S,"#cClock")||""),"AI vs AI runs",await text(S,"#cClock"));
- await S.click("#cExit");await S.waitForTimeout(300);await S.click("#watch");await S.waitForTimeout(2000);check(await visible(S,"#demoUI"),"tech demo starts");
+ await S.click("#cExit");await S.waitForTimeout(300);await S.click("#watch");await S.waitForTimeout(2000);check(await visible(S,"#demoUI"),"movement tutorial starts");
+ await S.click("#dExit");await S.waitForTimeout(300);
+ /* trailer: starts, shows a title card on schedule, survives the jump to the CTF montage, and exits cleanly */
+ await S.click("#trailerBtn");await S.waitForTimeout(2300);check(await S.evaluate(()=>KA.trailer.active&&!document.getElementById("trailer").hidden),"trailer starts");
+ check(await S.evaluate(()=>+getComputedStyle(document.getElementById("trCard")).opacity>.5),"trailer shows its opening title card");
+ await S.evaluate(()=>KA.trailer.seek(33.5));check(await S.evaluate(()=>!!CTF.UI.game()),"trailer cuts to the live CTF montage");
+ await S.keyboard.press("Escape");await S.waitForTimeout(300);check(await S.evaluate(()=>!KA.trailer.active&&document.getElementById("trailer").hidden&&!document.getElementById("menu").hidden&&!CTF.UI.game()),"trailer exits to the menu and cleans up");
 }catch(e){check(false,"test script error",e.message.split("\n")[0]);}
  const errs=pages.flatMap(p=>p.errors||[]);check(errs.length===0,"no page errors",errs.slice(0,5));
  await b.close();finish("browser");})();
