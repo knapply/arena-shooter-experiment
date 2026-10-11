@@ -284,6 +284,57 @@ function analyze(truth, seen) {
       );
       await ctx.close();
     }
+    /* the CTF match survives its host leaving: a player in it takes over */
+    {
+      const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });
+      const pg = [];
+      for (const tag of ["A", "B", "C"]) pg.push(await open(ctx, { tag, init: ["fake-peer.js"] }));
+      const [A, B, C] = pg;
+      await A.waitForTimeout(600);
+      await A.click("#p2pHost");
+      await A.waitForTimeout(800);
+      const code = await text(A, "#p2pCodeShow");
+      for (const p of [B, C]) {
+        await p.fill("#p2pCode", code);
+        await p.click("#p2pJoin");
+      }
+      await A.waitForTimeout(2500);
+      await A.click("#ctfPlay");
+      await A.waitForTimeout(2500);
+      await B.click("#ctfBlue");
+      await B.click("#ctfPlay");
+      await C.click("#ctfPlay");
+      await C.waitForTimeout(3500);
+      await A.evaluate(() => (CTF.UI.game().teams[0].score = 2));
+      await A.waitForTimeout(800);
+      await A.close();
+      await B.waitForTimeout(9000);
+      const after = await Promise.all(
+        [B, C].map(p =>
+          p.evaluate(() => {
+            const g = CTF.UI.game();
+            return {
+              inMatch: !!g && !g.over,
+              hosting: !!g && !g.map,
+              agents: g ? g.agents.length : 0,
+              score: g ? g.teams[0].score : -1,
+            };
+          })
+        )
+      );
+      check(
+        after.every(x => x.inMatch && x.agents === 8 && x.score === 2) &&
+          after.filter(x => x.hosting).length === 1,
+        "when the CTF host leaves, a player takes over the match and the score carries on",
+        after
+      );
+      check(
+        B.errors.length + C.errors.length === 0,
+        "CTF migration: no page errors",
+        [...B.errors, ...C.errors].slice(0, 3)
+      );
+      await ctx.close();
+    }
     /* handing the room to another player */
     {
       const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });

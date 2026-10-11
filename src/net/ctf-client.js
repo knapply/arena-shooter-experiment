@@ -136,7 +136,7 @@
     };
     /* the host's movement for everyone arrives on the fast channel, in roster order */
     NET.onFast = function (from, buf) {
-      if (from !== hostPeer) return;
+      if (from !== M.hostPeer) return;
       const m = K.MSG.decode(buf);
       if (!m || m.name !== "ctfMove" || m.data.rv !== M.rv) return;
       const d = m.data,
@@ -178,6 +178,35 @@
       };
       return p;
     });
+    /* host migration: if the match host disappears, a player in the match takes over hosting it.
+       Everyone picks the same successor: the room's backup host if they're in the match, otherwise
+       the lowest peer id among the players in it. */
+    M.succession = function (now) {
+      const nh = NET.ctfPeers().find(
+        p => p.presence.ph === "host" && p.presence.H && p.presence.H.id === mid && p.peer !== M.hostPeer
+      );
+      if (nh) {
+        M.hostPeer = nh.peer;
+        M.lastHost = now;
+        M.rv = -1;
+        if (M.onEvent) M.onEvent("hostMoved", { name: K.cleanName(nh.presence.n) });
+        return;
+      }
+      if (M.promoting || now - M.lastHost < 1500) return;
+      const mine = NET.myPeer();
+      const cands = [
+        mine,
+        ...NET.ctfPeers()
+          .filter(p => p.presence.ph === "client" && p.presence.mid === mid)
+          .map(p => p.peer),
+      ];
+      const st = window.KAHOST && window.KAHOST.net ? window.KAHOST.net.stats() : null;
+      const succ = st && cands.includes(st.backup) ? st.backup : cands.slice().sort()[0];
+      if (succ === mine && M.onPromote) {
+        M.promoting = true;
+        M.onPromote();
+      }
+    };
     M.byId = id => (id === myId ? me : M.map.get(id) || null);
     /* hits carry the host-clock time we were seeing the target at, so the host can check the shot
        against where they were on our screen (lag compensation) */
@@ -403,13 +432,13 @@
     M.step = function (dt) {
       M.t += dt;
       const now = performance.now();
-      const host = NET.ctfPeers().find(p => p.peer === hostPeer);
+      const host = NET.ctfPeers().find(p => p.peer === M.hostPeer);
       if (host) {
         const hp = host.presence;
         if (hp.ph !== "host" || !hp.H || hp.H.id !== mid)
-          M.lastHost = Math.min(M.lastHost, performance.now() - 4800);
+          M.lastHost = Math.min(M.lastHost, performance.now() - 7800);
         else M.apply(hp.H);
-      }
+      } else M.succession(now);
       for (const p of NET.ctfPeers()) {
         const pr = p.presence;
         if (pr.mid !== mid) continue;
@@ -427,7 +456,7 @@
             seen = s;
             if (h[1] !== myId || K.me.dead) continue;
             const w = String(h[3] || "rifle").slice(0, 8);
-            const by = p.peer === hostPeer && NET.okId(h[5]) ? h[5] : "h:" + p.peer;
+            const by = p.peer === M.hostPeer && NET.okId(h[5]) ? h[5] : "h:" + p.peer;
             const shooter = M.byId(by);
             if (shooter && shooter.team === me.team) continue;
             if (shooter && shooter.pos && !NET.plausible(shooter.pos, me, w)) continue;
@@ -435,7 +464,7 @@
             if (n > 0) K.hurtMe(n, { name: shooter ? shooter.name : "?", by, w, hd: !!h[4] });
           }
         M.seenHs.set(p.peer, seen);
-        if (p.peer !== hostPeer) {
+        if (p.peer !== M.hostPeer) {
           const fx = Array.isArray(pr.fx) ? pr.fx.slice(-4) : [];
           let sf = M.seenFx.get(p.peer);
           if (sf == null) {
@@ -484,7 +513,7 @@
         }
       }
       M.nades.step(dt);
-      if (performance.now() - M.lastHost > 5000 && !M.over) {
+      if (performance.now() - M.lastHost > 8000 && !M.over && !M.promoting) {
         M.over = true;
         M.hostGone = true;
         M.winner = -1;
@@ -511,7 +540,7 @@
             sh: Math.ceil(m.shield),
             dead: m.dead,
           }),
-          hostPeer
+          M.hostPeer
         );
       }
       M.sendT -= dt;

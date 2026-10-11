@@ -381,14 +381,14 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     pages.push(C);
     await C.waitForTimeout(1500);
     check(/Connected/.test(await text(C, "#p2pMsg")), "invite link joins automatically");
-    await A.evaluate(() => KA.extStop());
     await A.close();
     await B.bringToFront();
-    /* background tabs pause animation frames */ for (let i = 0; i < 30 && !(await visible(B, "#menu")); i++)
-      await B.waitForTimeout(500);
+    /* the friend in the match takes it over (background tabs pause animation frames, so poll) */
+    const hostingB = () => B.evaluate(() => !!CTF.UI.game() && !CTF.UI.game().map && !CTF.UI.game().over);
+    for (let i = 0; i < 30 && !(await hostingB()); i++) await B.waitForTimeout(500);
     check(
-      await visible(B, "#menu"),
-      "friend returns to menu when the host leaves",
+      await hostingB(),
+      "the friend takes over the match when the host leaves",
       await B.evaluate(() =>
         JSON.stringify({
           ext: !!KA.EXT,
@@ -400,7 +400,12 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
         })
       )
     );
-    check(!(await visible(B, "#cBanner")), "match banner clears on the menu");
+    await B.evaluate(() => KA.extStop());
+    await B.waitForTimeout(400);
+    check(
+      (await visible(B, "#menu")) && !(await visible(B, "#cBanner")),
+      "leaving the match returns to a clean menu"
+    );
     /* ---------- sim + trailer start without errors ---------- */
     const S = await open(ctx, { tag: "S" });
     pages.push(S);

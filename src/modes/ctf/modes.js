@@ -143,7 +143,19 @@
     UI.onEvent = null;
     const host = CTF.Host(G);
     host.wrap();
-    const ext = {
+    K.extPlay(hostExt(host), { color: CTF.TEAM_HEX[myTeam] });
+    G.human.name = K.myName;
+    G.start();
+    UI.line(
+      "sys",
+      `You're on ${TN[myTeam]}. Bring the enemy flag to your stand while yours is home. J or D-pad up switches teams.`
+    );
+    if (CTF.NET.room) UI.line("sys", "Friends in your room can join from the menu.");
+    K.say("Capture the flag", true);
+  }
+  /** the engine hooks for hosting a match (fresh, or taken over from a host who left) */
+  function hostExt(host) {
+    return {
       respawnDelay: 6,
       respawn() {
         placeMe(G.human.team);
@@ -187,15 +199,100 @@
         $("swTeam").hidden = true;
       },
     };
-    K.extPlay(ext, { color: CTF.TEAM_HEX[myTeam] });
+  }
+  /* host migration: the old host left and we are the successor. Rebuild a real match from what our
+     mirror knew (time, score, flags, every agent's place, kills and deaths) and start hosting it
+     under the same match id, so the other players carry on without rejoining. */
+  function promote(M) {
+    const broken = [...K.DESTR.broken.keys()];
+    const snap = {
+      t: M.t,
+      tl: M.timeLimit,
+      sc: [M.teams[0].score, M.teams[1].score],
+      ag: [...M.map.values()]
+        .filter(a => !a.human)
+        .map(a => ({
+          id: a.id,
+          team: a.team,
+          idx: a.idx,
+          name: a.name,
+          p: a.body.pos.clone(),
+          y: a.body.yaw,
+          k: a.k,
+          d: a.d,
+          dead: a.dead,
+        })),
+      fl: M.flags.map(f => ({
+        state: f.state,
+        p: f.pos.clone(),
+        by: f.carrier ? f.carrier.id : null,
+        dropT: f.dropT,
+      })),
+      pu: M.pickups.map(p => p.availIn),
+      me: { k: M.human.k, d: M.human.d, team: M.human.team, id: M.human.id },
+    };
+    UI.detach();
+    K.DESTR.locked = false;
+    const diff = $("ctfDiff").value;
+    G = CTF.Game({
+      mode: "play",
+      render: true,
+      diff: [diff, diff],
+      humanTeam: snap.me.team,
+      humanId: snap.me.id,
+    });
     G.human.name = K.myName;
     G.start();
-    UI.line(
-      "sys",
-      `You're on ${TN[myTeam]}. Bring the enemy flag to your stand while yours is home. J or D-pad up switches teams.`
-    );
-    if (CTF.NET.room) UI.line("sys", "Friends in your room can join from the menu.");
-    K.say("Capture the flag", true);
+    K.syncBroken(broken);
+    G.t = snap.t;
+    G.timeLimit = snap.tl;
+    G.teams[0].score = snap.sc[0];
+    G.teams[1].score = snap.sc[1];
+    G.human.k = snap.me.k;
+    G.human.d = snap.me.d;
+    const byOld = new Map([[snap.me.id, G.human]]);
+    for (const t of [0, 1]) {
+      const mine = G.teams[t].agents.filter(a => !a.human);
+      const old = snap.ag.filter(a => a.team === t).sort((a, b) => a.idx - b.idx);
+      mine.forEach((a, i) => {
+        const o = old[i];
+        if (!o) return;
+        byOld.set(o.id, a);
+        a.name = o.name;
+        a.body.pos.copy(o.p);
+        a.body.yaw = o.y;
+        a.k = o.k;
+        a.d = o.d;
+        if (o.dead) {
+          a.dead = true;
+          a.respawnAt = G.t + 3;
+        }
+      });
+    }
+    snap.fl.forEach((f, t) => {
+      const F = G.flags[t];
+      const c = f.by ? byOld.get(f.by) : null;
+      if (f.state === "carried" && c) {
+        F.state = "carried";
+        F.carrier = c;
+        c.carrying = F;
+      } else if (f.state !== "home") {
+        /* carried by someone we can't map yet (another player): drop it where it was */
+        F.state = "dropped";
+        F.dropT = f.state === "dropped" ? f.dropT : G.t;
+      }
+      F.pos.copy(f.p);
+    });
+    G.pickups.forEach((p, i) => (p.availAt = G.t + (snap.pu[i] || 0)));
+    UI.attach(G, "play");
+    UI.quiet = false;
+    UI.onEvent = null;
+    const host = CTF.Host(G);
+    host.mid = M.mid;
+    host.wrap();
+    Object.assign(K.EXT, hostExt(host));
+    UI.line("sys", "The host left. You're hosting the match now.");
+    K.say("You are the host", true);
   }
   function startClient(h) {
     CTF.enterMap();
@@ -203,9 +300,14 @@
     overT = 0;
     const myId = "h:" + CTF.NET.myPeer();
     G = CTF.Mirror(h.peer, h.mid, myId, myTeam);
+    const M = G;
+    M.onPromote = () => {
+      if (G === M) promote(M);
+    };
     UI.attach(G, "play");
     UI.quiet = false;
-    UI.onEvent = t => {
+    UI.onEvent = (t, d) => {
+      if (t === "hostMoved") UI.line("sys", `The host left. ${d.name} is hosting the match now.`);
       if (t === "hostLeft") {
         $("cBanT").textContent = "Host left";
         $("cBanT").style.color = "";
