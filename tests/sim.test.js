@@ -44,4 +44,23 @@ for (let m = 0; m < 2; m++) {
   K.DESTR.onChange = ob;
 }
 check(pickups > 0, "the sniper gets picked up", pickups);
+/* determinism: same seed and inputs → same match (replays and bug reproduction depend on it) */
+{
+  const run = seed => {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const G = CTF.Game({ mode: "sim", render: false, seed });
+    const log = [];
+    G.onEvent = (t, d) => {
+      if (t === "kill") log.push([G.t.toFixed(3), d.killer && d.killer.idx, d.victim.idx, d.type]);
+    };
+    G.start();
+    for (let n = 0; n < 30 * 60 && !G.over; n++) G.step(1 / 30);
+    return JSON.stringify([log, G.agents.map(a => a.body.pos.toArray().map(v => v.toFixed(4)))]);
+  };
+  const a = run(42),
+    b = run(42),
+    c = run(43);
+  check(a === b, "same seed replays the same match", a.length);
+  check(a !== c, "a different seed plays differently");
+}
 finish("sim");

@@ -6,12 +6,12 @@
     NAV = CTF.NAV;
   const V3 = T.Vector3,
     clamp = K.clamp,
-    rnd = K.rnd;
+    rnd = (a, b) => a + K.rand() * (b - a);
   const gauss = () => {
     let u = 0,
       v = 0;
-    while (!u) u = Math.random();
-    while (!v) v = Math.random();
+    while (!u) u = K.rand();
+    while (!v) v = K.rand();
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   };
   const _v = new V3(),
@@ -69,7 +69,7 @@
       this.target = null;
       this.acqT = 0;
       this.lastSeen = new Map();
-      this.seeT = Math.random() * 0.1;
+      this.seeT = K.rand() * 0.1;
       this.strafeDir = 1;
       this.strafeT = 0;
       this.jinkT = 1;
@@ -124,7 +124,7 @@
       this.target = null;
       this.nadeInv.frag = 2;
       this.nadeInv.plasma = 1;
-      this.nadeCD = 2 + Math.random() * 2;
+      this.nadeCD = 2 + K.rand() * 2;
       this.path = null;
       this.carrying = null;
       this.poundHold = 0;
@@ -207,7 +207,7 @@
         }
       }
       if (best !== this.target) {
-        if (best) this.acqT = G.t + this.skill().react * (0.8 + Math.random() * 0.5);
+        if (best) this.acqT = G.t + this.skill().react * (0.8 + K.rand() * 0.5);
         this.target = best;
       }
       if (this.target && (!this.target.alive || G.t - (this.lastSeen.get(this.target.id) || -9) > 0.6))
@@ -376,7 +376,7 @@
       this.repathT -= dt;
       const gc = NAV.nearest(this.goal.x, this.goal.z, this.goal.y);
       if (!this.path || this.repathT <= 0 || (gc !== this.goalCell && this.repathT < 0.6)) {
-        this.repathT = 0.9 + Math.random() * 0.6;
+        this.repathT = 0.9 + K.rand() * 0.6;
         this.goalCell = gc;
         this.path = NAV.path(cur, gc, this.brain().costFn(this), 3500);
         this.pathI = 0;
@@ -440,7 +440,7 @@
         tgt.body.shield > 25 &&
         this.role !== "carry" &&
         this.role !== "chase" &&
-        Math.random() < dt * (1.6 - genes.aggr)
+        K.rand() < dt * (1.6 - genes.aggr)
       ) {
         this.fallback = true;
         br.say(G, this, "low", "Shields down, falling back");
@@ -469,7 +469,7 @@
             this.strafeDir *= -1;
             const base = 0.55,
               v = genes.strafeVar;
-            this.strafeT = base * (1 - v * 0.8) + Math.random() * base * 2 * v;
+            this.strafeT = base * (1 - v * 0.8) + K.rand() * base * 2 * v;
           }
           const side = _e.set(Math.cos(lookYaw), 0, -Math.sin(lookYaw)).multiplyScalar(this.strafeDir);
           const toT = _w.set(dx, 0, dz).normalize();
@@ -487,12 +487,12 @@
           // movement tech
           this.jinkT -= dt;
           if (this.jinkT <= 0 && b.ground) {
-            this.jinkT = 1.2 + Math.random() * 2;
-            if (Math.random() < 0.35) inp.jumpP = true;
+            this.jinkT = 1.2 + K.rand() * 2;
+            if (K.rand() < 0.35) inp.jumpP = true;
           }
-          if (b.thrustCD <= 0 && G.t - this.lastHitT < 0.4 && Math.random() < dt * 8 * genes.thrustDodge) {
+          if (b.thrustCD <= 0 && G.t - this.lastHitT < 0.4 && K.rand() < dt * 8 * genes.thrustDodge) {
             inp.thrust = true;
-            wish.copy(side).multiplyScalar(Math.random() < 0.5 ? 1 : -1);
+            wish.copy(side).multiplyScalar(K.rand() < 0.5 ? 1 : -1);
           }
           if (
             !b.ground &&
@@ -500,14 +500,14 @@
             dy < -2 &&
             hd < 4.5 &&
             b.pound === 0 &&
-            Math.random() < dt * 6 * genes.pound &&
+            K.rand() < dt * 6 * genes.pound &&
             tgt.body.shield < 70
           ) {
             this.poundHold = 0.62;
           }
           if (!b.ground && !this.poundHold && dy < -1.2 && b.stabT < 1) inp.aim = true; // stabilize over them
           if (range < 2.3 && b.meleeCD <= 0) inp.meleeP = true;
-          else if (range < 6 && b.sprintT > 0.85 && Math.random() < dt * 10 * genes.charge) {
+          else if (range < 6 && b.sprintT > 0.85 && K.rand() < dt * 10 * genes.charge) {
             inp.meleeP = true;
           }
           if (
@@ -516,7 +516,7 @@
             b.thrustCD <= 0 &&
             tgt.body.shield <= 0 &&
             b.shield > 30 &&
-            Math.random() < dt * 2 * genes.aggr
+            K.rand() < dt * 2 * genes.aggr
           ) {
             inp.thrust = true;
             wish.copy(toT);
@@ -527,7 +527,7 @@
       } else {
         if (dir) {
           inp.sprint = true;
-          if (b.sprint && this.path && this.mustMove && Math.random() < dt * 0.15) inp.crouchP = true;
+          if (b.sprint && this.path && this.mustMove && K.rand() < dt * 0.15) inp.crouchP = true;
         }
         if (this.reloadT <= 0 && this.mag < 18 && G.t - this.lastHitT > 2) this.reloadT = K.RELOAD_TIME;
       }
@@ -548,7 +548,7 @@
           const dx = this.pos.x - n.pos.x,
             dz = this.pos.z - n.pos.z,
             d = Math.hypot(dx, dz);
-          if (d < 4.8 && Math.random() < 0.9) {
+          if (d < 4.8 && K.rand() < 0.9) {
             wish.set(dx / (d || 1), 0, dz / (d || 1));
             inp.sprint = true;
             inp.aim = false;
@@ -614,7 +614,7 @@
       const t = this.target;
       if (t && G.t >= this.acqT && this.nadeInv.plasma > 0) {
         const d = eye.distanceTo(t.pos);
-        if (d > 5 && d < 13 && Math.random() < 0.35 + 0.4 * br.genes.aggr)
+        if (d > 5 && d < 13 && K.rand() < 0.35 + 0.4 * br.genes.aggr)
           return { type: "plasma", at: t.chest(new V3()).addScaledVector(t.body.vel, d / 17) };
       }
       if (this.nadeInv.frag > 0) {
@@ -635,7 +635,7 @@
             best = m;
           }
         }
-        if (best && bs >= 2 && Math.random() < 0.65) {
+        if (best && bs >= 2 && K.rand() < 0.65) {
           const fl = Math.min(1.1, eye.distanceTo(best.pos) / 17);
           return {
             type: "frag",
@@ -646,7 +646,7 @@
           };
         }
       }
-      this.nadeCD = 0.8 + Math.random();
+      this.nadeCD = 0.8 + K.rand();
       return null;
     }
     throwNade(type, at) {
@@ -669,7 +669,7 @@
         return;
       }
       this.nadeInv[type]--;
-      this.nadeCD = 5 + Math.random() * 3;
+      this.nadeCD = 5 + K.rand() * 3;
       o.addScaledVector(v.clone().normalize(), 0.45);
       b.yaw = Math.atan2(-v.x, -v.z);
       G.nades.throw(type, o, v, this.nadeOwner());
@@ -735,7 +735,7 @@
       const react = S.react * 0.6;
       const since = G.t - tr.t;
       let lead = vl * react;
-      if (since + react > br.model.enemyRev * (0.9 + Math.random() * 0.2)) lead = -lead * 0.4; // predicted reversal
+      if (since + react > br.model.enemyRev * (0.9 + K.rand() * 0.2)) lead = -lead * 0.4; // predicted reversal
       out.copy(head).addScaledVector(lat, lead * 0.85);
       const mv = Math.hypot(this.body.vel.x, this.body.vel.z);
       const sig = S.err * (1 + mv * 0.05 + (this.body.ground ? 0 : 0.6)) * range;

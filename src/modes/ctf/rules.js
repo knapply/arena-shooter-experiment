@@ -14,7 +14,10 @@
       navReady = true;
     }
     CTF.enterMap();
+    /* seeded before anything random happens, so seed + inputs reproduce the match */
+    const seed = K.RNG.seed(opts.seed);
     const G = {
+      seed,
       t: 0,
       mode: opts.mode,
       render: !!opts.render,
@@ -174,7 +177,7 @@
           if (!e.alive) continue;
           md = Math.min(md, Math.hypot(e.pos.x - s[0], e.pos.z - s[2]));
         }
-        const v = md + Math.random() * 3;
+        const v = md + K.rand() * 3;
         if (v > bv) {
           bv = v;
           best = s;
@@ -231,7 +234,7 @@
         const r = killer.pos.distanceTo(p);
         G.teams[killer.team].brain.duel(r, true);
         G.teams[victim.team].brain.duel(r, false);
-        if (!victim.human && Math.random() < 0.5)
+        if (!victim.human && K.rand() < 0.5)
           G.teams[victim.team].brain.say(
             G,
             victim,

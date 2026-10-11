@@ -147,9 +147,7 @@
   function say(t) {
     if (!UI.quiet) K.say(t, true);
   }
-  /* CTF agents in the engine's id scheme: you are "local", other people "peer:<id>", AI "ctf:<id>" */
-  const pid = a =>
-    !a ? "world" : a.local ? "local" : /^h:/.test(a.id) ? "peer:" + a.id.slice(2) : "ctf:" + a.id;
+  const pid = a => K.pidOf(a);
   /** forward CTF rule events into the engine's event stream (feed, medals, future stats) */
   function forward(type, d) {
     const E = K.EVENTS;

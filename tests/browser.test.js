@@ -100,6 +100,25 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       ev
     );
     check(medals > 0, "medals follow kill events", medals);
+    /* recorder: a rolling record of every pilot that kill cams and highlights replay from */
+    const rec = await p.evaluate(() => {
+      const f = KA.REC.frames();
+      const t = KA.now - 0.5;
+      const s = KA.REC.sample("bot:1", t),
+        me = KA.REC.sample("local", t);
+      return {
+        frames: f.length,
+        span: +(f[f.length - 1].t - f[0].t).toFixed(1),
+        ids: KA.REC.ids().sort().join(","),
+        bot: !!s && Number.isFinite(s.x) && typeof s.st.ground === "boolean",
+        me: !!me && Number.isFinite(me.yaw),
+      };
+    });
+    check(
+      rec.frames > 30 && rec.bot && rec.me && /bot:1/.test(rec.ids) && /local/.test(rec.ids),
+      "the recorder keeps every pilot's pose",
+      rec
+    );
     /* destruction */
     const d = await p.evaluate(() => {
       const D = KA.DESTR;

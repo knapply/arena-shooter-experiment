@@ -14,13 +14,24 @@
 /** @type {Map<string, Pilot>} */
 const PILOTS = new Map();
 
+/** the stable id of anything pilot-shaped: registered pilots keep theirs; CTF agents map to
+    "local", "peer:<peerId>" (other people) or "ctf:<agentId>" (AI) */
+function pidOf(p) {
+  if (!p) return "world";
+  if (p instanceof Pilot) return p.id;
+  if (p.local) return "local";
+  const id = String(p.id);
+  return id.startsWith("h:") ? "peer:" + id.slice(2) : "ctf:" + id;
+}
 /** copy a body's transform onto its rig and animate it; works for anything with {body, rig} */
 function posePilot(p, dt, extra) {
   const rg = p.rig;
   if (!rg) return;
   rg.root.position.copy(p.body.pos);
   rg.root.rotation.y = p.body.yaw;
-  rigEvents(rg, rg.update(dt, bodyState(p.body, extra)));
+  const st = bodyState(p.body, extra);
+  if (REC.sampling) REC.put(pidOf(p), p.body.pos, st);
+  rigEvents(rg, rg.update(dt, st));
 }
 
 class Pilot {

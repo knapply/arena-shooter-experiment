@@ -3,6 +3,7 @@
   "styles": ["styles/base.css", "styles/ctf.css", "styles/p2p.css", "styles/trailer.css"],
   "engine": [
     "core/store.js",
+    "core/rng.js",
     "core/prelude.js",
     "game/events.js",
     "core/settings.js",
@@ -14,6 +15,7 @@
     "world/maps/arena.js",
     "world/physics.js",
     "characters/rig.js",
+    "game/recorder.js",
     "game/pilot.js",
     "weapons/viewmodels.js",
     "weapons/arsenal.js",

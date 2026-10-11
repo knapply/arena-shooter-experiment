@@ -35,23 +35,23 @@
     flankBias: 0.5,
   };
   CTF.GENES = GENES;
-  const rint = n => (Math.random() * n) | 0;
+  const rint = n => (K.rand() * n) | 0;
   function gammaSample(k) {
     if (k < 1) {
-      return gammaSample(1 + k) * Math.pow(Math.random(), 1 / k);
+      return gammaSample(1 + k) * Math.pow(K.rand(), 1 / k);
     }
     const d = k - 1 / 3,
       c = 1 / Math.sqrt(9 * d);
     for (;;) {
       let x, v;
       do {
-        const u1 = Math.random(),
-          u2 = Math.random();
+        const u1 = K.rand(),
+          u2 = K.rand();
         x = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
         v = 1 + c * x;
       } while (v <= 0);
       v = v * v * v;
-      const u = Math.random();
+      const u = K.rand();
       if (u < 1 - 0.0331 * x * x * x * x) return d * v;
       if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
     }
@@ -538,7 +538,7 @@
       for (const k in GENES) {
         let v = m.genes[k];
         if (!won && enemyGenes) v += (enemyGenes[k] - v) * 0.35;
-        v += (Math.random() * 2 - 1) * sigma;
+        v += (K.rand() * 2 - 1) * sigma;
         m.genes[k] = Math.max(0, Math.min(1, v));
       }
       const top = Object.entries(this.matchStratCounts).sort((a, b) => b[1] - a[1])[0];

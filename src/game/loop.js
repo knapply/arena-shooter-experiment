@@ -141,10 +141,24 @@ function perf(raw) {
   } else prGood = 0;
 }
 /* each animation frame: measured for the performance overlay */
+/** add your own pose to this frame's recording (you have no third-person rig to record from) */
+function recLocal() {
+  if (!REC.sampling || !playing || demo) return;
+  REC.put(
+    "local",
+    me.pos,
+    bodyState(me, {
+      reload: reloadT > 0 ? 1 - reloadT / RELOAD_TIME : -1,
+      fire: now - lastFireT < 0.1,
+      wpn: wi,
+    })
+  );
+}
 function frame(t) {
   requestAnimationFrame(frame);
   perfBegin();
   frameBody(t);
+  recLocal();
   updNetHud();
   perfEnd();
 }
@@ -153,6 +167,7 @@ function frameBody(t) {
   let dt = Math.min(0.05, raw);
   last = t;
   now += dt;
+  REC.tick(now);
   perf(raw);
   frameHits = hitActs;
   hitActs = new Set();
@@ -441,6 +456,7 @@ function updRigs(dt) {
       fire: !!(s & 4096),
       wpn: s & 32768 ? 2 : s & 8192 ? 1 : 0,
     };
+    if (REC.sampling) REC.put(r.id, root.position, st);
     rigEvents(r.rig, r.rig.update(dt, st));
     /* keep the pilot's body where it is drawn, so body-based features (kill cams, events) see it */
     r.body.pos.copy(root.position);
