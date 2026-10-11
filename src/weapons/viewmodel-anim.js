@@ -12,6 +12,14 @@ function updVM(dt,c){
   if(c.pound1){_c.x+=rnd(-.006,.006);_c.y+=rnd(-.006,.006);}
   if(c.thrust&&!ads){_c.x-=c.lr*.004;_e1.z+=c.lr*.01;}
   _c.y-=c.landDip*(ads?.06:.25);_e1.z+=c.strafe*(ads?.008:.06);
+  /* inertia: the weapon lags behind changes in velocity (springs), floats up on a jump and settles on landing */
+  if(c.vel){const cy=Math.cos(c.yaw),sy=Math.sin(c.yaw),vr=c.vel.x*cy-c.vel.z*sy,vf=-c.vel.x*sy-c.vel.z*cy,idt=1/Math.max(dt,1e-3);
+    const ar=clamp((vr-vmS.lvx)*idt,-60,60),au=clamp((c.vel.y-vmS.lvy)*idt,-60,60),af=clamp((vf-vmS.lfw)*idt,-60,60);vmS.lvx=vr;vmS.lvy=c.vel.y;vmS.lfw=vf;
+    vmS.inX.v-=ar*.0009;vmS.inY.v-=au*.0006;vmS.inZ.v+=af*.0006;
+    if(vmS.air&&c.ground)vmS.inY.v-=.12;vmS.air=!c.ground;}
+  const ik=ads?.25:1;_c.x+=spring(vmS.inX,0,dt,3.2,.55)*ik;_c.y+=(spring(vmS.inY,0,dt,3,.5)+(c.ground?0:clamp(-(c.vel?c.vel.y:0)*.0025,-.02,.03)))*ik;_c.z+=spring(vmS.inZ,0,dt,3.5,.6)*ik;
+  _e1.z-=vmS.inX.x*1.6*ik;_e1.x+=vmS.inY.x*1.2*ik;
+  if(!c.moving&&!c.sprint&&c.ground){const b=Math.sin(now*1.6);_c.y+=b*.0018*(ads?.3:1);_e1.x+=b*.002*(ads?.3:1);}
   if(switchT>0){const s=Math.sin(Math.min(1,switchT/.36)*Math.PI);_c.y-=.22*s;_e1.x-=.6*s;}
   if(c.reload>=0){const r=c.reload;if(r>.76&&r<.84)_c.y+=.02*Math.sin((r-.76)/.08*Math.PI);if(r>.86&&r<.94)_e1.z+=.12*Math.sin((r-.86)/.08*Math.PI);}
   const sw=ads?.25:1;

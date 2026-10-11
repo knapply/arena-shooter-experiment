@@ -69,7 +69,7 @@ makeBots();
 function hideBots(){for(const b of bots){b.rig.root.visible=false;}for(const r of remotes.values())if(r.rig)r.rig.root.visible=false;}
 function showWorld(){for(const b of bots)b.rig.root.visible=!b.body.dead;for(const r of remotes.values())if(r.rig)r.rig.root.visible=!r.dead;}
 function extPlay(ext,opts){EXT=ext;audio();VO.on=$("vo").checked;myName=($("callsign").value||"Pilot").trim().slice(0,14)||"Pilot";savePrefs();
-  vmArmor.color.set(opts&&opts.color||myColor);hideBots();if(document.activeElement)document.activeElement.blur();
+  vmArmor.color.set(opts&&opts.color||myColor).multiplyScalar(.55);hideBots();if(document.activeElement)document.activeElement.blur();
   playing=true;paused=false;reloadT=0;prevReload=0;refill();kills=0;deaths=0;streak=0;multi=0;firstBlood=false;lastKiller=null;feed.length=0;renderFeed();
   me.reset();if(EXT.respawn)EXT.respawn();$("dead").hidden=true;$("menu").hidden=true;$("hud").hidden=false;if(isTouch)$("touch").hidden=false;else if(!padRecent())lock();}
 function extFull(ext){EXT=ext;audio();VO.on=$("vo").checked;hideBots();playing=false;$("menu").hidden=true;vmRoot.visible=false;}

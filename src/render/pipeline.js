@@ -3,7 +3,7 @@ var gfxReady=false;
 const GFX={on:true,rt:null,b1:null,b2:null,w:1,h:1,dyn:1,webgl2:!!renderer.capabilities.isWebGL2,cam:new THREE.OrthographicCamera(-1,1,1,-1,0,1),env:null,failed:false,lastKey:""};
 renderer.toneMapping=THREE.NoToneMapping;renderer.outputEncoding=THREE.LinearEncoding;
 const FSV="varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}";
-const brightMat=new THREE.ShaderMaterial({uniforms:{t:{value:null},th:{value:.72}},vertexShader:FSV,depthTest:false,depthWrite:false,
+const brightMat=new THREE.ShaderMaterial({uniforms:{t:{value:null},th:{value:.9}},vertexShader:FSV,depthTest:false,depthWrite:false,
   fragmentShader:"uniform sampler2D t;uniform float th;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb;float l=max(c.r,max(c.g,c.b));gl_FragColor=vec4(c*smoothstep(th,th+.55,l),1.);}"});
 const blurMat=new THREE.ShaderMaterial({uniforms:{t:{value:null},dir:{value:new THREE.Vector2()}},vertexShader:FSV,depthTest:false,depthWrite:false,
   fragmentShader:"uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb*.227027;c+=texture2D(t,vUv+dir*1.3846).rgb*.316216;c+=texture2D(t,vUv-dir*1.3846).rgb*.316216;c+=texture2D(t,vUv+dir*3.2308).rgb*.07027;c+=texture2D(t,vUv-dir*3.2308).rgb*.07027;gl_FragColor=vec4(c,1.);}"});
@@ -24,8 +24,8 @@ const compMat=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,vertexS
   " c+=aces(texture2D(tB,uv).rgb*expo)*bloom;",
   " float l=luma(c);c=max(mix(vec3(l),c,sat),0.);",
   " vec2 q=uv-.5;c*=1.-vig*smoothstep(.3,.95,length(q)*1.25);",
-  " float g=fract(sin(dot(uv+fract(time),vec2(12.9898,78.233)))*43758.5453);c+=(g-.5)*grain;",
-  " gl_FragColor=vec4(pow(clamp(c,0.,1.),vec3(1./2.2)),1.);}"].join("\n")});
+  " float g=fract(sin(dot(uv+fract(time),vec2(12.9898,78.233)))*43758.5453);vec3 o=pow(clamp(c,0.,1.),vec3(1./2.2));",
+  " gl_FragColor=vec4(o+(g-.5)*grain*.6,1.);}" /* grain after gamma so dark areas are not swamped by noise */].join("\n")});
 const fsQuad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),compMat);fsQuad.frustumCulled=false;const fsScene=new THREE.Scene();fsScene.add(fsQuad);
 const UPS={native:1,quality:.77,balanced:.67,performance:.5,ultraperf:.33};
 function gfxScale(){return Math.max(.25,Math.min(2,(UPS[SET.upscale]||1)*SET.renderScale*GFX.dyn));}

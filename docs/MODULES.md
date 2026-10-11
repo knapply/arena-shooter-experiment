@@ -8,27 +8,27 @@ Engine modules share one scope and load in this order; mode modules are self-con
 |---|---|---|
 | `src/core/prelude.js` | 14 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` |
 | `src/core/settings.js` | 105 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `SCHEMA` `PRESETS` `PRESET_KEYS` `SKEY` `SET` `BIND` `CODE_RE` `cleanSettings` `loadSettings` `saveSettings` `exportSettings` `importSettings` `applyPreset` … |
-| `src/render/renderer.js` | 22 | `canvas` `renderer` `scene` `camera` `resize` `sun` |
+| `src/render/renderer.js` | 29 | `canvas` `renderer` `scene` `camera` `resize` `sun` `_skyP` |
 | `src/render/pipeline.js` | 89 | `GFX` `FSV` `brightMat` `blurMat` `compMat` `fsQuad` `UPS` `gfxScale` `gfxResize` `fsPass` `gfxChecked` `renderFrame` `gfxFrames` `exposureCheck` `recompileAll` `radialTex` `SOFT` `STAR` … |
 | `src/render/environment.js` | 25 | `buildEnv` `lastRefl` `applyGfx` `pc` `scaleBoxUV` |
 | `src/world/destruction.js` | 43 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` `destrTick` `resetDestruction` `boxById` `applyBreaks` `syncBroken` |
 | `src/world/maps/arena.js` | 41 | `gridTex` `MATS` `MAPG` `SOLID` `box` `strip` `stairs` `SPAWNS` |
 | `src/world/physics.js` | 95 | `R` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
-| `src/characters/rig.js` | 174 | `DOWN` `_a` `solve2` `capsule` `GEO` `CAST` `shieldMaterial` `POSE` `GRIP` `RIG_RELOAD` `reloadKey` `glowMat` `makePilot` `bodyState` |
-| `src/weapons/viewmodels.js` | 55 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlass` `vmBox` `dot` `vmGun` `vmMag` `HOLO` `vmPis` `vmPisMag` `PIS` `VM_RELOAD` `PIS_RELOAD` `VMW` `vmHand` … |
+| `src/characters/rig.js` | 251 | `DOWN` `_a` `solve2` `capsule` `GEO` `CAST` `shieldMaterial` `POSE` `GRIP` `RIG_RELOAD` `reloadKey` `spr` `spring` `glowMat` `makePilot` `bodyState` |
+| `src/weapons/viewmodels.js` | 70 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlove` `vmPlate` `vmGlass` `vmBox` `dot` `vmGun` `vmMag` `HOLO` `vmPis` `vmPisMag` `PIS` `VM_RELOAD` `PIS_RELOAD` … |
 | `src/weapons/arsenal.js` | 18 | `WEAPONS` `slots` `ammo` `W` `zoomK` `showVM` `wpnHud` `setSlot` `setWeapon` `giveWeapon` `refill` |
 | `src/render/fx.js` | 40 | `FX` `fxGet` `fxKill` `fxPush` `tracerGeo` `tracer` `sparkMat` `spark` `puffMat` `thrustPuff` `dustMat` `dust` `ringGeo` `ring` `shock` `flashMat` `blast` `magGeo` … |
 | `src/weapons/grenades.js` | 58 | `NADES` `NG` `fragGeo` `plasMat` `fxPut` `losClear` `inBox` `solveThrow` `nadeDmg` `NadeWorld` `MAIN_NADES` `nadeInv` `nadeRefill` `updNadeHud` `swapNade` `playerNadeOwner` `throwNade` |
 | `src/core/audio.js` | 41 | `AC` `audio` `NOISE` `env` `nz` `tone` `SFX_LAST` `sfx` `distVol` |
 | `src/core/announcer.js` | 29 | `VO` `hasTTS` `pickVoice` `lastSay` `say` `MEDAL` `medal` `streak` `onKill` |
 | `src/game/state.js` | 62 | `EXT` `me` `myName` `kills` `RELOAD_TIME` `hitsOut` `remotes` `bots` `feed` `spawnPoint` `spawn` `BOT_NAMES` `BOT_COLORS` `makeBots` `losTo` `botStep` `hurtMe` `pushFeed` … |
-| `src/weapons/firing.js` | 39 | `targets` `dealDamage` `emitFx` `v3a` `fire` `startReload` `meleeHit` `slamDamage` |
+| `src/weapons/firing.js` | 41 | `targets` `HEAVY` `dealDamage` `emitFx` `v3a` `fire` `startReload` `meleeHit` `slamDamage` |
 | `src/core/input.js` | 46 | `pad` `codesDown` `A` `P` `pressCode` `mouseL` `touch` `lock` |
 | `src/core/gamepad.js` | 51 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 14 | `savePrefs` `leaveGame` |
 | `src/net/arena-net.js` | 58 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `room` `sendPresence` `remoteFor` `applyPeer` `updateLive` |
 | `src/ui/hud.js` | 24 | `renderScores` `xhEls` `hud` |
-| `src/weapons/viewmodel-anim.js` | 37 | `updVM` |
+| `src/weapons/viewmodel-anim.js` | 45 | `updVM` |
 | `src/game/loop.js` | 113 | `pend` `last` `meEvent` `chargeCheck` `myFeel` `fpsAcc` `perf` `frame` `updRigs` `rigEvents` |
 | `src/modes/tech-demo.js` | 97 | `demo` `dummies` `placeDummy` `placeMe` `once` `PI` `SEGS` `nextSeg` `startDemo` `exitDemo` `demoFrame` |
 | `src/ui/settings-ui.js` | 77 | `T_KEYS` `SUI` `el` `setMsg` `openSettings` `closeSettings` `onSetChange` `renderSettings` `renderKeys` `renderPadBinds` `padCapture` `renderKeyHelp` `hudHook` `hideBots` `showWorld` `extPlay` `extFull` `extStop` |

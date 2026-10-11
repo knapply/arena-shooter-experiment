@@ -84,7 +84,7 @@ function frame(t){requestAnimationFrame(frame);const raw=Math.max(1e-4,(t-last)/
   camRoll+=(rollT-camRoll)*Math.min(1,dt*8);
   camera.rotation.order="YXZ";camera.rotation.y=me.yaw;camera.rotation.x=me.pitch+recoil+flinch;camera.rotation.z=camRoll+(me.stabbing?Math.sin(now*6)*.01:0);
   fovK=Math.max(0,fovK-dt*3);const fb=SET.fov;const zf=aiming?zoomK():1;const tf=fb/zf+(aiming?0:(me.sprint?7:0)+(me.slideT>0?5:0)+fovK*10);camera.fov+=(tf-camera.fov)*Math.min(1,dt*(zf>3?30:12));if(!(camera.fov>1&&camera.fov<170))camera.fov=fb;camera.updateProjectionMatrix();
-  updVM(dt,{aim:aiming,sprint:me.sprint&&me.ground,reload:reloadT>0?1-reloadT/W().reload:-1,melee:me.meleeT>0?1-me.meleeT/.4:me.chargeT>0?.5:-1,clamber:!!me.clamber,low:me.pound===1||!!me.clamber,pound1:me.pound===1,thrust:me.thrustT>0,lr,strafe:clamp(lr/6,-1,1),stepPh:stepAcc,moving:hs>1&&me.ground,landDip});
+  updVM(dt,{aim:aiming,sprint:me.sprint&&me.ground,reload:reloadT>0?1-reloadT/W().reload:-1,melee:me.meleeT>0?1-me.meleeT/.4:me.chargeT>0?.5:-1,clamber:!!me.clamber,low:me.pound===1||!!me.clamber,pound1:me.pound===1,thrust:me.thrustT>0,lr,strafe:clamp(lr/6,-1,1),stepPh:stepAcc,moving:hs>1&&me.ground,landDip,vel:me.vel,yaw:me.yaw,ground:me.ground});
   flashT=Math.max(0,flashT-dt);flash.intensity=flashT>0?2.2:0;flashSprite.material.opacity=flashT>0?.95:0;flashSprite.material.rotation=Math.random()*6;
   updFX(dt);MAIN_NADES.step(dt);if(!EXT)updRigs(dt);updPickups(dt);updPoundRing();
   hitmT-=dt;$("hitm").style.opacity=hitmT>0?1:0;vigT=Math.max(0,vigT-dt);$("vig").style.opacity=Math.max(vigT*1.8,me.shield<=0&&!me.dead?.4:0);

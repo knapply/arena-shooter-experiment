@@ -2,7 +2,7 @@
 function savePrefs(){try{localStorage.setItem("ka-pilot",JSON.stringify({n:myName,c:myColor,vo:VO.on}));}catch(e){}}
 $("deploy").onclick=()=>{
   myName=($("callsign").value||"Pilot").trim().slice(0,14)||"Pilot";VO.on=$("vo").checked;savePrefs();
-  botsOn=$("bots").checked;makeBots();audio();vmArmor.color.set(myColor);
+  botsOn=$("bots").checked;makeBots();audio();vmArmor.color.set(myColor).multiplyScalar(.55);
   if(document.activeElement)document.activeElement.blur();
   spawn(me);playing=true;reloadT=0;refill();streak=0;multi=0;$("menu").hidden=true;$("hud").hidden=false;if(isTouch)$("touch").hidden=false;else if(!padRecent())lock();
   sfx("stinger");say("Arena online",true);

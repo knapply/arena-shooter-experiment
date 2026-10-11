@@ -35,7 +35,7 @@ class Agent{
     if(this.remote){if(this.G.netHit)this.G.netHit(this,n,{w:type,hd:head,by:attacker||this.G.human});return{died:false,sh:b.shield>0,name:this.name};}const had=b.shield>0;const died=b.damage(n,this.G.t);
     if(!died&&this.G.t<b.spawnT+1.2)return{died:false,sh:had,name:this.name};
     attacker=attacker||this.G.human;this.lastAttacker=attacker;this.lastHitT=this.G.t;
-    if(this.rig&&this.G.render)this.rig.flashHit();
+    if(this.rig&&this.G.render)this.rig.flashHit(attacker&&attacker.pos);
     if(attacker&&!attacker.human&&b.shield<=0&&had)this.G.teams[attacker.team].brain.callFocus(this.G,attacker,this);
     if(!this.target&&attacker&&attacker.alive){this.target=attacker;this.acqT=this.G.t+this.skill().react*.7;}
     if(died)this.G.kill(this,attacker,type,head);

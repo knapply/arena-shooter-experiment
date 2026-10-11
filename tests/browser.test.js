@@ -53,7 +53,7 @@ try{
  const alive=async q=>{for(let i=0;i<40&&await q.evaluate(()=>KA.me.dead);i++)await q.waitForTimeout(250);};await alive(B);
  const s0=await B.evaluate(()=>KA.me.shield);await A.evaluate(()=>{const t=KA.EXT.targets().find(t=>t.ref.remote&&t.ref.human);if(t)t.ref.onHit(16,"rifle",false);});await A.waitForTimeout(900);
  check(await B.evaluate(()=>KA.me.shield)<s0,"host's hit damages the friend",[s0,await B.evaluate(()=>KA.me.shield)]);
- await alive(B);await B.bringToFront();await B.mouse.click(640,400);await B.waitForTimeout(150);await A.evaluate(()=>{KA.EXT.pickups()[0].availAt=0;});await B.waitForTimeout(300);const go=()=>B.evaluate(()=>{KA.me.pos.set(1.25,3.05,0);KA.me.vel.set(0,0,0);KA.me.spawnT=KA.now;});
+ await alive(B);await B.bringToFront();await B.mouse.click(640,400);await B.waitForTimeout(150);/* bots already carrying a sniper will not race the friend to the pedestal */await A.evaluate(()=>{for(const a of CTF.UI.game().agents)if(!a.human)a.sniper=12;KA.EXT.pickups()[0].availAt=0;});await B.waitForTimeout(300);const go=()=>B.evaluate(()=>{KA.me.pos.set(1.25,3.05,0);KA.me.vel.set(0,0,0);KA.me.spawnT=KA.now;});
  await B.keyboard.down("KeyE");for(let i=0;i<6;i++){await go();await B.waitForTimeout(100);}await B.keyboard.up("KeyE");await B.waitForTimeout(1000);
  check(await B.evaluate(()=>KA.wi)===2,"friend picks up the CTF sniper");check(await A.evaluate(()=>!KA.EXT.pickups()[0].avail),"host marks the sniper taken");
  await B.keyboard.press("KeyJ");await B.waitForTimeout(2000);check((await roster(A)).length===8,"team switch keeps 4v4");

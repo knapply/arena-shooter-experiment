@@ -44,7 +44,7 @@ CTF.Game=function(opts){
   G.start=function(){for(const p of G.pickups)p.availAt=0;K.resetDestruction();if(G.render)K.DESTR.bodies=()=>G.agents.map(a=>a.body);for(const a of G.agents){if(!a.human)a.spawn(G.spawnPoint(a.team));}
     for(const tm of G.teams){tm.brain.chooseStrategy(G);G.segT[tm.team]=0;}G.emit("start");};
   G.kill=function(victim,killer,type,head){if(victim.dead&&!victim.human)return;
-    if(!victim.local){victim.dead=true;victim.respawnAt=G.t+6;if(victim.rig&&G.render)victim.rig.die();}
+    if(!victim.local){victim.dead=true;victim.respawnAt=G.t+6;if(victim.rig&&G.render)victim.rig.die(killer&&killer!==victim?killer.pos:null,/sniper|charge|frag|stick|pound/.test(type||"")?2:1);}
     victim.d++;if(killer&&killer!==victim)killer.k++;
     const p=victim.pos.clone();
     if(victim.carrying){const f=victim.carrying;f.state="dropped";f.carrier=null;f.dropT=G.t;f.pos.set(p.x,K.groundBelow(p.x,p.z,p.y+.5,.05),p.z);victim.carrying=null;

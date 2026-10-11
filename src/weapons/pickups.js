@@ -3,7 +3,7 @@ const PICKMAT=new THREE.MeshStandardMaterial({color:"#2a3338",roughness:.4,metal
 function weaponModel(){const g=new THREE.Group();const b=(w,h,d,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;g.add(o);return o;};
   b(.08,.12,1.1,PICKMAT,0,0,0);b(.07,.05,.5,PICKACC,0,.08,-.1);b(.07,.16,.25,PICKMAT,0,-.02,.52);b(.05,.14,.07,PICKMAT,0,-.12,.25);
   const s=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,.32,10),PICKMAT);s.rotation.x=Math.PI/2;s.position.set(0,.13,.05);g.add(s);return g;}
-function labelSprite(){const c=document.createElement("canvas");c.width=256;c.height=64;const x=c.getContext("2d");const tex=new THREE.CanvasTexture(c);
+function labelSprite(){const c=document.createElement("canvas");c.width=256;c.height=64;const x=c.getContext("2d");const tex=new THREE.CanvasTexture(c);tex.encoding=THREE.sRGBEncoding;
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));s.scale.set(1.9,.48,1);
   s.userData.draw=(t,col)=>{x.clearRect(0,0,256,64);x.font="600 30px Chakra Petch, Arial Narrow, sans-serif";x.textAlign="center";x.fillStyle="#0b1216cc";const w=Math.min(250,x.measureText(t).width+26);x.fillRect(128-w/2,8,w,44);x.fillStyle=col;x.fillText(t,128,40);tex.needsUpdate=true;};return s;}
 const PK_VIS=new Map();

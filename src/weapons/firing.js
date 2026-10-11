@@ -3,11 +3,13 @@ function targets(){if(EXT&&EXT.targets)return EXT.targets();const t=[];
   if(demo){for(const d of dummies)if(d.active&&!d.body.dead)t.push({kind:"bot",ref:d,pos:d.body.pos,h:d.body.h});return t;}
   for(const b of bots)if(!b.body.dead)t.push({kind:"bot",ref:b,pos:b.body.pos,h:b.body.h});
   for(const [peer,r] of remotes)if(r.has&&!r.dead&&r.rig)t.push({kind:"peer",ref:r,peer,pos:r.rig.root.position,h:r.crouch?H_CROUCH:H_STAND});return t;}
+const HEAVY=new Set(["sniper","charge","frag","stick","pound"]);const hitPower=w=>HEAVY.has(w)?2:1;
 function dealDamage(t,n,type,head){
   if(t.kind==="ext"){const r=t.ref.onHit(n,type,head);hitMarker(r.died?"kill":r.sh?"sh":"");if(r.died){kills++;onKill(type,head,r.name);}return;}
   if(t.kind==="bot"){const b=t.ref;const had=b.body.shield>0;const died=b.body.damage(n,now);hitMarker(died?"kill":had?"sh":"");
-    if(died){kills++;b.d++;b.respawn=now+3;b.rig.die();spark(b.body.pos.clone().add(new V3(0,1.1,0)),14);pushFeed(myName,b.name,true,false);onKill(type,head,b.name);}}
-  else{const r=t.ref;hitsOut.push({s:++hitSeq,t:t.peer,d:n,w:type,hd:head?1:0,at:Date.now()});while(hitsOut.length>12)hitsOut.shift();hitMarker(r.sh>0?"sh":"");r.rig.flashHit();}
+    if(!died)b.rig.flashHit(camera.position);
+    if(died){kills++;b.d++;b.respawn=now+3;b.rig.die(camera.position,hitPower(type));spark(b.body.pos.clone().add(new V3(0,1.1,0)),14);pushFeed(myName,b.name,true,false);onKill(type,head,b.name);}}
+  else{const r=t.ref;hitsOut.push({s:++hitSeq,t:t.peer,d:n,w:type,hd:head?1:0,at:Date.now()});while(hitsOut.length>12)hitsOut.shift();hitMarker(r.sh>0?"sh":"");r.rig.flashHit(camera.position);}
 }
 function emitFx(k,a,b,g){if(EXT&&EXT.onFx)EXT.onFx(k,a,b,g);fxOut.push({s:++fxSeq,k,a,b,g});while(fxOut.length>6)fxOut.shift();}
 function v3a(v){return[r2(v.x),r2(v.y),r2(v.z)];}

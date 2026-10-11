@@ -1,17 +1,17 @@
 /* ============ map ============ */
 function gridTex(base,line,n){const c=document.createElement("canvas");c.width=c.height=256;const x=c.getContext("2d");x.fillStyle=base;x.fillRect(0,0,256,256);x.strokeStyle=line;x.lineWidth=2;for(let i=0;i<=n;i++){const p=i*256/n;x.beginPath();x.moveTo(p,0);x.lineTo(p,256);x.stroke();x.beginPath();x.moveTo(0,p);x.lineTo(256,p);x.stroke();}
-for(let i=0;i<500;i++){x.fillStyle=`rgba(255,255,255,${Math.random()*0.03})`;x.fillRect(Math.random()*256,Math.random()*256,2,2);}const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.encoding=THREE.sRGBEncoding;t.anisotropy=4;return t;}
+for(let i=0;i<500;i++){x.fillStyle=`rgba(255,255,255,${Math.random()*0.03})`;x.fillRect(Math.random()*256,Math.random()*256,2,2);}const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.encoding=THREE.sRGBEncoding;t.anisotropy=4;return t;}
 const MATS={
-  floor:new THREE.MeshStandardMaterial({map:gridTex("#2a343a","#36444b",4),roughness:.92}),
-  wall:new THREE.MeshStandardMaterial({color:"#3b474d",roughness:.85}),
-  core:new THREE.MeshStandardMaterial({color:"#4c565c",roughness:.7,metalness:.15}),
-  base:new THREE.MeshStandardMaterial({color:"#424d54",roughness:.8,metalness:.1}),
-  cover:new THREE.MeshStandardMaterial({color:"#5a646b",roughness:.75}),
-  step:new THREE.MeshStandardMaterial({color:"#465158",roughness:.85}),
+  floor:new THREE.MeshStandardMaterial({map:gridTex("#2b353b","#3c4950",4),roughness:.92}),
+  wall:new THREE.MeshStandardMaterial({color:"#6b7880",roughness:.85}),
+  core:new THREE.MeshStandardMaterial({color:"#6e7980",roughness:.7,metalness:.15}),
+  base:new THREE.MeshStandardMaterial({color:"#646f78",roughness:.8,metalness:.1}),
+  cover:new THREE.MeshStandardMaterial({color:"#808b93",roughness:.75}),
+  step:new THREE.MeshStandardMaterial({color:"#69757d",roughness:.85}),
   strip:new THREE.MeshBasicMaterial({color:"#ffb347"}),
   stripB:new THREE.MeshBasicMaterial({color:"#62cdff"})
 };
-for(const k of["wall","core","base","cover","step"])detailMat(MATS[k]);MATS.floor.userData.rough=.92;MATS.strip.color.multiplyScalar(2.4);MATS.stripB.color.multiplyScalar(2.4);
+for(const k of["wall","core","base","cover","step"])detailMat(MATS[k]);MATS.floor.userData.rough=.92;MATS.floor.userData.envK=.3;MATS.wall.userData.envK=.6;MATS.strip.color.multiplyScalar(2.4);MATS.stripB.color.multiplyScalar(2.4);
 let MAPG=new THREE.Group();scene.add(MAPG);const ARENA_G=MAPG;
 const SOLID=[];
 function box(cx,y0,cz,w,h,d,mat,solid=true){

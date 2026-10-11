@@ -1,7 +1,7 @@
 function buildEnv(){if(GFX.env)return GFX.env;try{const pm=new THREE.PMREMGenerator(renderer);const es=new THREE.Scene();
   // vertex-colored sky built from standard materials, so the capture is encoded the way the reflection shader expects
   {const g=new THREE.SphereGeometry(50,32,16);const p=g.attributes.position;const col=new Float32Array(p.count*3);const C=(a,b,t)=>a+(b-a)*Math.max(0,Math.min(1,t));
-    for(let i=0;i<p.count;i++){const h=p.getY(i)/50;const t1=(h+.3)/.35,t2=(h-.1)/.7;let r=C(.18,.55,t1),gg=C(.15,.45,t1),b=C(.13,.38,t1);r=C(r,.12,t2);gg=C(gg,.17,t2);b=C(b,.24,t2);col[i*3]=r*.8;col[i*3+1]=gg*.8;col[i*3+2]=b*.8;}
+    for(let i=0;i<p.count;i++){const h=p.getY(i)/50;const t1=(h+.3)/.35,t2=(h-.1)/.7;let r=C(.18,.55,t1),gg=C(.15,.45,t1),b=C(.13,.38,t1);r=C(r,.12,t2);gg=C(gg,.17,t2);b=C(b,.24,t2);col[i*3]=Math.pow(r,2.2);col[i*3+1]=Math.pow(gg,2.2);col[i*3+2]=Math.pow(b,2.2);}
     g.setAttribute("color",new THREE.BufferAttribute(col,3));es.add(new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
     const sunM=new THREE.Mesh(new THREE.SphereGeometry(2.2,12,8),new THREE.MeshBasicMaterial({color:0xfff0d8}));sunM.material.color.multiplyScalar(3);sunM.position.set(.5,.75,.3).normalize().multiplyScalar(45);es.add(sunM);}
   const strip=(c,x,y,z,w,h,d)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:c}));m.position.set(x,y,z);m.material.color.multiplyScalar(1.6);es.add(m);};
@@ -10,7 +10,7 @@ function buildEnv(){if(GFX.env)return GFX.env;try{const pm=new THREE.PMREMGenera
 let lastRefl=null,lastShadow=null;
 function applyGfx(){
   const refl=SET.reflections;if(refl!==lastRefl){lastRefl=refl;scene.environment=refl==="off"?null:buildEnv();
-    scene.traverse(o=>{const m=o.material;if(!m||!m.isMeshStandardMaterial)return;m.envMapIntensity=refl==="glossy"?1.1:.7;if(m.userData.rough!=null)m.roughness=refl==="glossy"?Math.max(.25,m.userData.rough-.3):m.userData.rough;m.needsUpdate=true;});}
+    scene.traverse(o=>{const m=o.material;if(!m||!m.isMeshStandardMaterial)return;m.envMapIntensity=(refl==="glossy"?1.4:1)*(m.userData.envK!=null?m.userData.envK:1);if(m.userData.rough!=null)m.roughness=refl==="glossy"?Math.max(.25,m.userData.rough-.3):m.userData.rough;m.needsUpdate=true;});}
   const q=SET.shadows;if(q!==lastShadow){lastShadow=q;const on=q!=="off";sun.castShadow=on;const size={low:512,medium:1024,high:2048,ultra:4096}[q]||1024;
     if(on&&sun.shadow.mapSize.x!==size){sun.shadow.mapSize.set(size,size);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
     const ty=q==="low"?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;if(renderer.shadowMap.type!==ty){renderer.shadowMap.type=ty;recompileAll();}}

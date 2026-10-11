@@ -9,7 +9,7 @@ class MirrorAgent{
   get alive(){return!this.dead;}
   get pos(){return this.body.pos;}
   chest(out){return(out||new V3()).copy(this.body.pos).add(new V3(0,this.body.h*.68,0));}
-  onHit(n,type,head){this.M.queueHit(this.id,n,type,head);if(this.rig)this.rig.flashHit();return{died:false,sh:this.body.shield>0,name:this.name};}
+  onHit(n,type,head){this.M.queueHit(this.id,n,type,head);if(this.rig)this.rig.flashHit(K.me.pos);return{died:false,sh:this.body.shield>0,name:this.name};}
 }
 CTF.Mirror=function(hostPeer,mid,myId,team){
   if(!CTF.NAV.ok)CTF.NAV.build(CTF.buildMap().solids);
