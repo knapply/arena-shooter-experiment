@@ -445,6 +445,35 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       ),
       "trailer exits to the menu and cleans up"
     );
+    /* ---------- AI training runs on a background thread when served over http ---------- */
+    const W = await open(ctx, { tag: "W", http: true });
+    pages.push(W);
+    await W.waitForTimeout(600);
+    const tr = await W.evaluate(
+      () =>
+        new Promise(ok => {
+          const t0 = performance.now();
+          let frames = 0;
+          (function f() {
+            frames++;
+            requestAnimationFrame(f);
+          })();
+          const h = CTF.train(1, null, res =>
+            ok({
+              res,
+              worker: h.worker,
+              saved: !!KA.STORE.load("ctfBrain"),
+              fps: Math.round((frames * 1000) / (performance.now() - t0)),
+            })
+          );
+          setTimeout(() => ok({ timeout: true, worker: h.worker }), 60000);
+        })
+    );
+    check(
+      tr.worker && !tr.timeout && tr.saved && tr.res,
+      "AI training runs in the background worker and saves what it learned",
+      tr
+    );
     /* ---------- developer console (?dev) ---------- */
     const D = await open(ctx, { tag: "dev", hash: "#dev" });
     pages.push(D);

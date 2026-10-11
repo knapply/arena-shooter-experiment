@@ -12,7 +12,25 @@ async function launch(opts = {}) {
     : [];
   return chromium.launch({ executablePath: process.env.CHROME_PATH || undefined, args });
 }
-async function open(ctx, { tag = "", init = [], realThree = false, hash = "" } = {}) {
+/* http: true serves the repo from a fake origin (http://ka.test/), as GitHub Pages would: needed for
+   anything a file:// page can't do, such as the simulation worker */
+async function serveRepo(ctx) {
+  if (ctx.__served) return;
+  ctx.__served = true;
+  await ctx.route("http://ka.test/**", r => {
+    const rel = decodeURIComponent(new URL(r.request().url()).pathname).replace(/^\/+/, "") || "index.html";
+    const f = path.join(ROOT, rel);
+    if (!f.startsWith(ROOT) || !fs.existsSync(f)) return r.fulfill({ status: 404, body: "" });
+    const type = /\.js$/.test(f)
+      ? "application/javascript"
+      : /\.html$/.test(f)
+        ? "text/html"
+        : "application/octet-stream";
+    r.fulfill({ contentType: type, body: fs.readFileSync(f) });
+  });
+}
+async function open(ctx, { tag = "", init = [], realThree = false, hash = "", http = false } = {}) {
+  if (http) await serveRepo(ctx);
   const p = await ctx.newPage();
   p.errors = [];
   p.on("pageerror", e => p.errors.push(tag + " " + e.message));
@@ -26,7 +44,7 @@ async function open(ctx, { tag = "", init = [], realThree = false, hash = "" } =
       : fs.readFileSync(path.join(__dirname, "..", "stubs", "three-browser.js"), "utf8");
   await p.route("**/three.min.js", r => r.fulfill({ contentType: "application/javascript", body: three }));
   await p.route("https://fonts.googleapis.com/**", r => r.fulfill({ contentType: "text/css", body: "" }));
-  await p.goto(GAME + hash);
+  await p.goto((http ? "http://ka.test/index.html" : GAME) + hash);
   return p;
 }
 const text = (p, s) =>

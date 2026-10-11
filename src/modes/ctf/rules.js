@@ -404,8 +404,48 @@
     };
     return G;
   };
-  /* run N headless matches in the background, persisting what each team learns */
+  /* run N headless matches on a background thread (sim-worker.js) when the page is served over
+     http(s); otherwise (opened as a file) in slices on the main thread. Learning is saved either way. */
   CTF.train = function (n, onProgress, onDone) {
+    let w = null;
+    try {
+      if (typeof Worker === "function" && /^https?:/.test(location.protocol)) w = new Worker("sim-worker.js");
+    } catch (e) {
+      w = null;
+    }
+    if (!w) return trainHere(n, onProgress, onDone);
+    let fell = false;
+    const fallback = () => {
+      if (fell) return;
+      fell = true;
+      w.terminate();
+      handle = trainHere(n, onProgress, onDone);
+    };
+    /** @type {{ cancel(): void }} */
+    let handle = {
+      cancel() {
+        w.terminate();
+      },
+    };
+    w.onerror = fallback;
+    w.onmessage = e => {
+      const m = e.data || {};
+      if (m.type === "progress" && onProgress) onProgress(m.i, m.n, m.res);
+      else if (m.type === "done") {
+        if (m.models) K.STORE.save("ctfBrain", m.models);
+        w.terminate();
+        if (onDone) onDone(m.res);
+      }
+    };
+    w.postMessage({ type: "train", n, models: K.STORE.load("ctfBrain") });
+    return {
+      cancel: () => handle.cancel(),
+      get worker() {
+        return !fell;
+      },
+    };
+  };
+  function trainHere(n, onProgress, onDone) {
     let i = 0,
       G = null,
       cancelled = false;
@@ -439,5 +479,5 @@
         cancelled = true;
       },
     };
-  };
+  }
 })();

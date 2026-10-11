@@ -6,8 +6,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
+import { createRequire } from "node:module";
 import { transformSync } from "esbuild";
 import { ROOT, read, manifest, declarations } from "./tools/modules.mjs";
+
+const simBundle = createRequire(import.meta.url)("./tools/sim-bundle.cjs");
 
 export function build({ dev = false } = {}) {
   const man = manifest();
@@ -43,7 +46,10 @@ export function build({ dev = false } = {}) {
       .map(x => "`" + x + "`")
       .join(" ")}${d.length > 18 ? ` … (+${d.length - 18})` : ""} |\n`;
   }
-  return { html, doc, sandbox: sandboxDoc(), modules: man.engine.length + man.modes.length };
+  /* the background simulation worker ships next to index.html (pages served over http/https use it;
+     opened as a file, the game falls back to simulating on the main thread) */
+  const worker = js(simBundle(read, man));
+  return { html, doc, sandbox: sandboxDoc(), worker, modules: man.engine.length + man.modes.length };
 }
 
 /** docs/SANDBOX.md: the kill-time table, computed from the same data the game uses */
@@ -79,12 +85,14 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1].endsWith(
   }
   const out = path.join(ROOT, "index.html"),
     docOut = path.join(ROOT, "docs", "MODULES.md"),
-    sbOut = path.join(ROOT, "docs", "SANDBOX.md");
+    sbOut = path.join(ROOT, "docs", "SANDBOX.md"),
+    wkOut = path.join(ROOT, "sim-worker.js");
   if (process.argv.includes("--check")) {
     const stale = [
       [out, res.html],
       [docOut, res.doc],
       [sbOut, res.sandbox],
+      [wkOut, res.worker],
     ]
       .filter(([f, c]) => !fs.existsSync(f) || fs.readFileSync(f, "utf8") !== c)
       .map(([f]) => path.relative(ROOT, f));
@@ -99,6 +107,7 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1].endsWith(
   fs.writeFileSync(out, res.html);
   fs.writeFileSync(docOut, res.doc);
   fs.writeFileSync(sbOut, res.sandbox);
+  fs.writeFileSync(wkOut, res.worker);
   console.log(
     `built index.html${dev ? " (dev, unminified)" : ""} (${(res.html.length / 1024).toFixed(0)} KB, ${res.modules} modules)`
   );

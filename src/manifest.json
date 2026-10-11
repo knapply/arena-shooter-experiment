@@ -56,5 +56,28 @@
     "modes/ctf/modes.js",
     "modes/trailer-score.js",
     "modes/trailer.js"
-  ]
+  ],
+  "worker": {
+    "_comment": "Background simulation worker (sim-worker.js): the simulation modules with rendering stubbed out. tests/lib/headless.js loads the same list.",
+    "env": ["worker/sim-env.js", "worker/three-lite.js"],
+    "prelude": "worker/sim-prelude.js",
+    "engine": [
+      "core/store.js",
+      "core/rng.js",
+      "data/weapons.js",
+      "world/destruction.js",
+      "world/maps/arena.js",
+      "world/physics.js",
+      "weapons/grenades.js"
+    ],
+    "exports": "worker/sim-exports.js",
+    "modes": [
+      "modes/ctf/map.js",
+      "modes/ctf/nav.js",
+      "modes/ctf/brain.js",
+      "modes/ctf/agent.js",
+      "modes/ctf/rules.js"
+    ],
+    "entry": "worker/sim-entry.js"
+  }
 }

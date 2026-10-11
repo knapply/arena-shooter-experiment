@@ -1,3 +1,6 @@
+/* ============ THREE-LITE: just enough of three.js for the simulation to run without a GPU ============
+   Real vectors (the simulation's math), and everything else (meshes, materials, scenes) as inert
+   stand-ins. Used by the background simulation worker and by the headless tests. */
 class V {
   constructor(x = 0, y = 0, z = 0) {
     this.x = x;
@@ -103,7 +106,7 @@ function U() {
   });
   return p;
 }
-module.exports = new Proxy(
+const THREE = new Proxy(
   { Vector3: V },
   {
     get(t, k) {
@@ -116,3 +119,5 @@ module.exports = new Proxy(
     },
   }
 );
+
+if (typeof module !== "undefined") module.exports = THREE;

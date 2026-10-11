@@ -8,6 +8,7 @@ npx --no-install prettier --check "src/**/*.{js,css}" "tests/**/*.js" "tools/**/
 npx --no-install tsc -p .
 npx --no-install eslint .
 node tools/check-unused.mjs > /dev/null
+node build.mjs > /dev/null   # rebuild first so index.html and sim-worker.js always match src/
 node build.mjs --check
 node tests/sim.test.js > /tmp/ka-sim.log || { cat /tmp/ka-sim.log; exit 1; }
 node tests/messages.test.js > /tmp/ka-msg.log || { grep FAIL /tmp/ka-msg.log; exit 1; }
