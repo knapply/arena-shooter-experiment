@@ -1,0 +1,5 @@
+#p2p .p2pin{font:600 18px var(--f-mono);letter-spacing:.3em;text-transform:uppercase;width:7.2em;background:transparent;color:var(--ink);border:1px solid var(--line);padding:12px}
+#p2p .p2pin:focus{outline:2px solid var(--thrust);outline-offset:2px}
+.p2pcode{font:600 14px var(--f-display);letter-spacing:.16em;text-transform:uppercase;color:var(--ink)}
+.p2pcode b{font-family:var(--f-mono);font-size:22px;color:var(--thrust);letter-spacing:.25em;margin-left:8px}
+#p2pMsg.bad{color:#ff8a7a}

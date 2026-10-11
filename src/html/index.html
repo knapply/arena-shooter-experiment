@@ -1,0 +1,154 @@
+<title>Kinetic Arena</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+<!--@styles-->
+</style>
+
+<canvas id="game"></canvas>
+<div id="fps" aria-hidden="true">-- fps</div>
+
+<div class="hud" id="hud" hidden>
+  <div id="speed"></div>
+  <div id="sflash"></div>
+  <div id="vig"></div>
+  <div id="xh"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="dot"></i></div>
+  <div id="hitm"></div>
+  <div id="scope" hidden><div class="lens"></div><div class="ret"><i class="a"></i><i class="b"></i><i class="c"></i><i class="d"></i><i class="o"></i></div><div class="sinfo"><b id="sZoom">2×</b><span id="sRange">– m</span></div></div>
+  <svg id="thrustArc" viewBox="0 0 60 60" aria-hidden="true"><path d="M8 44 A26 26 0 0 1 8 16" fill="none" stroke="#dbe6ea33" stroke-width="3"/><path id="thrustFill" d="M8 44 A26 26 0 0 1 8 16" fill="none" stroke="#ffb347" stroke-width="3" stroke-dasharray="44" stroke-dashoffset="0"/></svg>
+  <div id="prompt" hidden></div>
+  <svg id="pound" viewBox="0 0 84 84"><circle cx="42" cy="42" r="38" fill="none" stroke="#ffb347" stroke-width="3" stroke-dasharray="239" stroke-dashoffset="239" id="poundArc" transform="rotate(-90 42 42)"/></svg>
+  <div class="status"><span><i class="dotlive" id="liveDot"></i><b id="liveTxt">Solo</b></span><span id="kd">0 K · 0 D</span></div>
+  <div id="feed"></div>
+  <div id="medals"></div>
+  <div id="toast"></div>
+  <div class="vitals" id="vitals">
+    <div class="lbl"><span>Shield</span><span id="shN">70</span></div>
+    <div class="bar"><b id="shb"></b></div>
+    <div class="lbl"><span>Hull</span><span id="hpN">45</span></div>
+    <div class="bar thin"><b id="hpb"></b></div>
+  </div>
+  <div class="kit">
+    <div class="chip" id="cThrust">Thrust<u id="uThrust"></u></div>
+    <div class="chip" id="cSlide">Slide</div>
+    <div class="chip" id="cStab">Stabilize</div>
+    <div class="chip" id="cPound">Pound</div>
+    <div class="chip" id="cCharge">Charge</div>
+  </div>
+  <div class="ammo"><div class="n"><span id="mag">32</span><small id="rsv"> / ∞</small></div><div class="w" id="wname">VK-7 pulse carbine</div><div class="w" id="gnade">› Frag 2   Plasma 2</div></div>
+</div>
+
+<div id="dfade"></div>
+<div id="demoUI" hidden>
+  <div class="dcap">
+    <div class="dprog" id="dProg"></div>
+    <div class="dhead"><span class="eyebrow" id="dStep">Tech demo</span><div class="dnav"><button class="dbtn" id="dSkip">Next move</button><button class="dbtn" id="dExit">Exit demo</button></div></div>
+    <h2 id="dTitle"></h2>
+    <p id="dText"></p>
+    <div class="dkeys" id="dKeys"></div>
+  </div>
+</div>
+
+<div id="dead" hidden><div><b>Down</b><span id="deadBy"></span><span id="deadT"></span></div></div>
+
+<div id="scores" hidden><h2>Arena roster</h2><table><thead><tr><th>Pilot</th><th>K</th><th>D</th></tr></thead><tbody id="sbody"></tbody></table></div>
+
+<div id="touch" hidden>
+  <div id="stick"><div id="knob"></div></div>
+  <button class="tb big" id="tFire" style="right:30px;bottom:150px">Fire</button>
+  <button class="tb" id="tJump" style="right:130px;bottom:96px">Jump</button>
+  <button class="tb" id="tThrust" style="right:130px;bottom:170px">Thrust</button>
+  <button class="tb" id="tCrouch" style="right:40px;bottom:60px">Crouch</button>
+  <button class="tb" id="tAim" style="right:200px;bottom:150px">Aim</button>
+  <button class="tb" id="tMelee" style="right:120px;bottom:244px">Melee</button>
+  <button class="tb" id="tSprint" style="right:200px;bottom:74px">Sprint</button>
+  <button class="tb" id="tReload" style="right:200px;bottom:226px">Reload</button>
+  <button id="tscore">Roster</button>
+</div>
+
+<div class="ovl" id="menu">
+  <div class="panel">
+    <div class="eyebrow">Arena 01 · Foundry Basin</div>
+    <h1>Kinetic <em>Arena</em></h1>
+    <p class="lede">Thrust, slide, clamber, hover and slam. Host a room and friends with the code drop into the same arena in real time. Practice drones keep you company when it's empty.</p>
+    <div class="row">
+      <label class="f" for="callsign">Callsign<input type="text" id="callsign" maxlength="14" value="Pilot" autocomplete="off"></label>
+      <div class="swl">Armor<div class="row" id="swatches"></div></div>
+    </div>
+    <div class="row">
+      <button class="go" id="deploy">Deploy</button>
+      <button class="ghost" id="watch">Watch tech demo</button>
+      <button class="ghost" id="openSet">Settings</button>
+    </div>
+    <div class="row">
+      <label class="tog" for="bots"><input type="checkbox" id="bots" checked> Practice drones</label>
+      <label class="tog" for="vo"><input type="checkbox" id="vo" checked> Announcer</label>
+    </div>
+    <div class="modes" id="p2p">
+      <div class="eyebrow">Play with friends · peer to peer</div>
+      <div class="row" id="p2pIdle"><button class="go" id="p2pHost">Host a room</button><input id="p2pCode" class="p2pin" maxlength="5" placeholder="Code" autocomplete="off" spellcheck="false" aria-label="Room code"><button class="ghost" id="p2pJoin">Join</button></div>
+      <div class="row" id="p2pLive" hidden><span class="p2pcode">Room<b id="p2pCodeShow"></b></span><button class="ghost" id="p2pCopy">Copy invite</button></div>
+      <div class="net" id="p2pMsg" aria-live="polite">Host a room, then send friends the 5-character code. They open this same file and join with it. Everyone needs an internet connection.</div>
+    </div>
+    <div class="modes">
+      <div class="eyebrow">Capture the flag · Twin Foundry</div>
+      <div class="row teampick" role="group" aria-label="Team"><span class="tlab">Team</span><button class="tbtn r" id="ctfRed" aria-pressed="true">Red</button><button class="tbtn b" id="ctfBlue" aria-pressed="false">Blue</button></div>
+      <div class="row"><button class="go" id="ctfPlay">Play CTF</button><button class="ghost" id="ctfSim">Watch AI vs AI</button></div>
+      <div class="net" id="ctfNet" aria-live="polite">Checking for other pilots…</div>
+      <div class="row"><label class="tog" for="ctfDiff">Bot skill <select id="ctfDiff"><option value="normal">Normal</option><option value="heroic" selected>Heroic</option><option value="legendary">Legendary</option></select></label></div>
+      <p class="lede">4 on 4, first to 3 captures on a mirrored map. Friends in your room join the same match and take a bot's slot. Switch sides any time with J, D-pad up, or the pause menu.</p>
+    </div>
+    <div class="net" id="netState">Solo for now · host or join a room to play with friends</div>
+    <div class="keys" id="keysDesk">
+      <kbd>WASD · Mouse</kbd><span>Move, look</span>
+      <kbd>Shift</kbd><span>Sprint <b>(delays shield recharge)</b></span>
+      <kbd>Q / E</kbd><span>Thruster dash, ground or air</span>
+      <kbd>C</kbd><span>Slide out of a sprint or a dash · <b>Ground pound</b> held in the air</span>
+      <kbd>Space</kbd><span>Jump · hold W at a ledge to clamber · jump out of a slide to keep speed</span>
+      <kbd>Right mouse</kbd><span>Aim · <b>Stabilize</b> hover in the air</span>
+      <kbd>F</kbd><span>Melee · <b>Charge</b> after sprinting</span>
+      <kbd>Left mouse · R</kbd><span>Fire · reload</span>
+      <kbd>1 · 2 · Wheel</kbd><span>Carbine or sidearm</span>
+      <kbd>G · T</kbd><span>Throw grenade · swap frag and plasma</span>
+      <kbd>Tab</kbd><span>Roster</span>
+    </div>
+    <div class="keys" id="keysPad">
+      <kbd>Xbox controller (default)</kbd><span>Left stick move · right stick look · click left stick to sprint</span>
+      <kbd>A · B</kbd><span>Jump · crouch, slide, <b>pound</b> held in the air</span>
+      <kbd>LT · RT</kbd><span>Aim and <b>stabilize</b> · fire</span>
+      <kbd>LB · RB</kbd><span>Thrust · throw grenade</span>
+      <kbd>X · Y · R stick</kbd><span>Reload · switch weapon · melee</span>
+      <kbd>D-pad ◂ ▸</kbd><span>Frag or plasma</span>
+      <kbd>Menu · View</kbd><span>Pause · roster · menus use D-pad and A</span>
+    </div>
+    <div class="keys" id="keysTouch" hidden>
+      <kbd>Left stick</kbd><span>Move · push to the rim to sprint</span>
+      <kbd>Drag right side</kbd><span>Look</span>
+      <kbd>Crouch</kbd><span>Slide while sprinting · hold in the air to pound</span>
+      <kbd>Aim in air</kbd><span>Stabilize hover</span>
+    </div>
+  </div>
+</div>
+
+<div class="ovl sovl" id="settings" hidden>
+  <div class="spanel" role="dialog" aria-label="Settings">
+    <div class="shead"><div class="eyebrow">Settings · saved automatically</div><div class="stabs" id="setTabs" role="tablist"></div></div>
+    <div class="sbody" id="setBody"></div>
+    <div class="sio" id="setIO" hidden><textarea id="setText" spellcheck="false" aria-label="Settings file contents"></textarea>
+      <div class="row"><button class="dbtn" id="setCopy">Copy</button><button class="dbtn" id="setApply">Apply import</button><label class="dbtn filebtn" for="setFile">Choose file</label><input type="file" id="setFile" accept=".json,application/json" hidden></div></div>
+    <div class="sfoot"><span class="smsg" id="setMsg" aria-live="polite"></span><div class="row"><button class="dbtn" id="setReset">Reset tab</button><button class="dbtn" id="setImport">Import</button><button class="dbtn" id="setExport">Export</button><button class="go" id="setDone">Done</button></div></div>
+  </div>
+</div>
+<div class="ovl" id="pause" hidden>
+  <div class="panel">
+    <div class="eyebrow">Paused · still in the arena</div>
+    <h1>Hold <em>Position</em></h1>
+    <div class="row"><button class="go" id="resume">Resume</button><button class="ghost" id="swTeam" hidden>Switch team</button><button class="ghost" id="pauseSet">Settings</button><button class="ghost" id="leave">Main menu</button></div>
+    <p class="lede">You stay visible to other pilots while paused.</p>
+  </div>
+</div>
+
+<!--@partial html/ctf-hud.html-->
+<!--@script net/p2p-transport.js-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!--@game-->

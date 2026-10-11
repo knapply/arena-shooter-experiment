@@ -1,0 +1,25 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: index.html matches src/
+        run: node build.mjs --check
+      - name: Headless AI matches
+        run: node tests/sim.test.js
+      - name: Install browser
+        run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
+      - name: Browser tests
+        run: node tests/browser.test.js
+      - name: Render tests (software WebGL)
+        run: |
+          curl -sSL -o /tmp/three.min.js https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
+          THREE_PATH=/tmp/three.min.js node tests/render.test.js

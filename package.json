@@ -1,0 +1,16 @@
+{
+  "name": "kinetic-arena",
+  "private": true,
+  "description": "Browser arena shooter: single-file build from modular source",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check",
+    "test:sim": "node tests/sim.test.js",
+    "test:browser": "node tests/browser.test.js",
+    "test:render": "node tests/render.test.js",
+    "test": "node build.mjs --check && node tests/sim.test.js && node tests/browser.test.js && node tests/render.test.js"
+  },
+  "devDependencies": {
+    "playwright": "1.48.2"
+  }
+}

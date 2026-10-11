@@ -1,0 +1,38 @@
+/* ============ outgoing combat ============ */
+function targets(){if(EXT&&EXT.targets)return EXT.targets();const t=[];
+  if(demo){for(const d of dummies)if(d.active&&!d.body.dead)t.push({kind:"bot",ref:d,pos:d.body.pos,h:d.body.h});return t;}
+  for(const b of bots)if(!b.body.dead)t.push({kind:"bot",ref:b,pos:b.body.pos,h:b.body.h});
+  for(const [peer,r] of remotes)if(r.has&&!r.dead&&r.rig)t.push({kind:"peer",ref:r,peer,pos:r.rig.root.position,h:r.crouch?H_CROUCH:H_STAND});return t;}
+function dealDamage(t,n,type,head){
+  if(t.kind==="ext"){const r=t.ref.onHit(n,type,head);hitMarker(r.died?"kill":r.sh?"sh":"");if(r.died){kills++;onKill(type,head,r.name);}return;}
+  if(t.kind==="bot"){const b=t.ref;const had=b.body.shield>0;const died=b.body.damage(n,now);hitMarker(died?"kill":had?"sh":"");
+    if(died){kills++;b.d++;b.respawn=now+3;b.rig.die();spark(b.body.pos.clone().add(new V3(0,1.1,0)),14);pushFeed(myName,b.name,true,false);onKill(type,head,b.name);}}
+  else{const r=t.ref;hitsOut.push({s:++hitSeq,t:t.peer,d:n,w:type,hd:head?1:0,at:Date.now()});while(hitsOut.length>12)hitsOut.shift();hitMarker(r.sh>0?"sh":"");r.rig.flashHit();}
+}
+function emitFx(k,a,b,g){if(EXT&&EXT.onFx)EXT.onFx(k,a,b,g);fxOut.push({s:++fxSeq,k,a,b,g});while(fxOut.length>6)fxOut.shift();}
+function v3a(v){return[r2(v.x),r2(v.y),r2(v.z)];}
+
+function fire(src){
+  if(reloadT>0)return;if(mag<=0){startReload();return;}
+  mag--;ammo[wi]=mag;fireCD=W().rate;lastFireT=now;semiLatch=true;
+  const o=src?src.o:camera.getWorldPosition(new V3());const d=new V3();if(src)d.copy(src.d);else camera.getWorldDirection(d);
+  const moving=Math.hypot(me.vel.x,me.vel.z)>1;let spread=(aiming?W().adsSpread:W().spread)+(moving?.006:0)+(me.ground?0:.008);spread+=bloom;bloom=Math.min(.03,bloom+W().bloom);
+  d.x+=rnd(-spread,spread);d.y+=rnd(-spread,spread);d.z+=rnd(-spread,spread);d.normalize();
+  const wh=rayWorldHit(o,d,120),wt=wh.t;let best=null;
+  for(const t of targets()){const h=rayTarget(o,d,t.pos,t.h,wt);if(h&&(!best||h.t<best.h.t))best={t,h};}
+  const end=o.clone().addScaledVector(d,best?best.h.t:Math.min(wt,120));
+  const muzzle=src?src.muzzle:VMW[wi].g.localToWorld(W().muzzle.clone());
+  tracer(muzzle,end,wi===2?0x9fd8ff:0xffd28a,wi===2?.6:.1);
+  if(best){const shielded=best.t.ref.body?best.t.ref.body.shield>0:best.t.ref.sh>0;const hd=best.h.head&&(W().headAlways||!shielded);dealDamage(best.t,hd?W().head:W().body,W().dmg,hd);spark(end,2,shielded?0xffd36b:0xff7a6a);}else if(wt<120){spark(end);if(wh.b)damageBox(wh.b,Math.min(W().body,40)*.6,end,"bullet",true);}
+  emitFx("shot",v3a(muzzle),v3a(end));
+  sfx(W().snd);rumble(W().rum[0],W().rum[1],W().rum[2]);recoil+=W().recoil;flashT=.05;vmS.kick=1;
+  if(mag===0)startReload();
+}
+function startReload(){if(reloadT>0||mag>=W().mag||switchT>0||reserve[wi]<=0)return;reloadT=W().reload;zoomLvl=0;}
+function meleeHit(range,dmg,type){
+  const f=me.fwd();let best=null,bd=range;
+  for(const t of targets()){const dx=t.pos.x-me.pos.x,dz=t.pos.z-me.pos.z,dy=t.pos.y-me.pos.y;const dist=Math.hypot(dx,dz);if(Math.abs(dy)>1.6)continue;
+    if(dist<bd&&(dx*f.x+dz*f.z)/Math.max(dist,.01)>.55){bd=dist;best=t;}}
+  if(best){const tsh=best.ref.body?best.ref.body.shield:(best.ref.sh||0);dealDamage(best,type==="charge"&&tsh<=0?999:dmg,type,false);shakeT=Math.max(shakeT,.15);sfx("land",.8);return true;}return false;
+}
+function slamDamage(p){for(const t of targets()){const dd=t.pos.distanceTo(p);if(dd<5)dealDamage(t,Math.round(120-dd*18),"pound",false);}}

@@ -1,0 +1,14 @@
+/* Headless CTF: two full AI-vs-AI matches with destruction and the sniper pickup. */
+const {check,finish}=require("./lib/check.js");const CTF=require("./lib/headless.js");const K=window.KA;
+CTF.NAV.build(CTF.buildMap().solids);
+let ok=0;for(const v of CTF.NAV.ok)ok+=v;check(ok>4000,"nav grid has walkable cells",ok);
+const p=CTF.NAV.path(CTF.NAV.nearest(0,-43,2.4),CTF.NAV.nearest(0,43,2.4));check(p&&p.length>20,"base-to-base path exists",p&&p.length);
+for(let m=0;m<2;m++){const G=CTF.Game({mode:"sim",render:false});const ev={};const kinds={};let breaks=0;const ob=K.DESTR.onChange;K.DESTR.onChange=(b,r)=>{if(!r)breaks++;if(ob)ob(b,r);};
+  G.onEvent=(t,d)=>{ev[t]=(ev[t]||0)+1;if(t==="kill")kinds[d.type]=(kinds[d.type]||0)+1;};let comms=0;G.onComms=()=>comms++;G.start();const t0=Date.now();
+  while(!G.over)G.step(1/30);const ms=Date.now()-t0;
+  check(G.over&&G.t>0,`match ${m+1} finishes`,`${G.teams[0].score}-${G.teams[1].score} in ${G.t|0}s, ${ms}ms cpu`);
+  check((ev.kill||0)>40,`match ${m+1} has combat`,ev.kill);check((ev.flagTaken||0)>0,`match ${m+1} flags get pulled`,ev.flagTaken);
+  check((ev.pickup||0)>0,`match ${m+1} sniper gets picked up`,ev.pickup);check(comms>20,`match ${m+1} team comms`,comms);
+  check(breaks>0,`match ${m+1} cover gets destroyed`,breaks);check(ms<60000,`match ${m+1} runs fast enough headless`,ms+"ms");
+  K.DESTR.onChange=ob;}
+finish("sim");
