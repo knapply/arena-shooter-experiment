@@ -1,6 +1,6 @@
 /* Browser tests: arena weapons and pickups, settings and rebinding, destruction, online rooms and CTF over a simulated peer network. */
 const { check, finish } = require("./lib/check.js");
-const { launch, open, text, visible, roster } = require("./lib/browser.js");
+const { launch, open, text, visible, roster, closeTab } = require("./lib/browser.js");
 const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
   connected: true,
   axes,
@@ -381,7 +381,7 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     pages.push(C);
     await C.waitForTimeout(1500);
     check(/Connected/.test(await text(C, "#p2pMsg")), "invite link joins automatically");
-    await A.close();
+    await closeTab(A);
     await B.bringToFront();
     /* the friend in the match takes it over (background tabs pause animation frames, so poll) */
     const hostingB = () => B.evaluate(() => !!CTF.UI.game() && !CTF.UI.game().map && !CTF.UI.game().over);

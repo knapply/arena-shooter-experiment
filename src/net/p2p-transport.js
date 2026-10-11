@@ -1006,6 +1006,33 @@
       if (T.codePeer) T.codePeer.destroy();
     } catch (e) {}
   });
+  /* silence detection: a closed tab or a dead network doesn't always close the connection promptly,
+     but everyone pings once a second, so 12 s of silence means the other side is gone */
+  const SILENT_MS = 12000;
+  setInterval(() => {
+    if (!T.connected) return;
+    const now = performance.now();
+    if (!T.hub && T.hubConn && !T.migrating && now - T.hubConn.rx.last > SILENT_MS) {
+      hubLost();
+      return;
+    }
+    if (T.hub)
+      for (const [id, l] of T.conns)
+        if (now - l.rx.last > SILENT_MS) {
+          T.conns.delete(id);
+          l.close();
+          const m = { t: "x", id };
+          apply(m);
+          send(m);
+          members();
+          status();
+        }
+    for (const [id, l] of T.fast)
+      if (now - l.rx.last > SILENT_MS) {
+        l.close();
+        T.fast.delete(id);
+      }
+  }, 1000);
   /* every 2 s: the hub shares round trips and the member list; clients report their direct-link pings */
   setInterval(() => {
     if (!T.connected) return;

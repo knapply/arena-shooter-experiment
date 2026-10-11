@@ -47,6 +47,14 @@ async function open(ctx, { tag = "", init = [], realThree = false, hash = "", ht
   await p.goto((http ? "http://ka.test/index.html" : GAME) + hash);
   return p;
 }
+/** close a tab the way a browser does: pagehide first (the game says goodbye), then close */
+async function closeTab(p) {
+  try {
+    await p.evaluate(() => dispatchEvent(new Event("pagehide")));
+    await p.waitForTimeout(150);
+  } catch (e) {}
+  await p.close();
+}
 const text = (p, s) =>
   p.evaluate(s => {
     const e = document.querySelector(s);
@@ -63,4 +71,4 @@ const roster = p =>
     KA.EXT.scores(tb);
     return [...tb.rows].map(r => r.cells[0].textContent);
   });
-module.exports = { launch, open, text, visible, roster, ROOT };
+module.exports = { launch, open, text, visible, roster, ROOT, closeTab };

@@ -5,7 +5,7 @@
      NET_JSON=out.json node tests/...  also write the metrics to a file */
 const fs = require("fs");
 const { check, finish } = require("./lib/check.js");
-const { launch, open, text } = require("./lib/browser.js");
+const { launch, open, text, closeTab } = require("./lib/browser.js");
 const CONDITIONS = [
   { name: "ideal", sim: { latency: 0, jitter: 0, loss: 0 }, maxDelay: 160, maxP95: 0.4, maxJumps: 12 },
   {
@@ -323,7 +323,7 @@ function analyze(truth, seen) {
         await p.click("#deploy");
       }
       await A.waitForTimeout(1500);
-      await A.close();
+      await closeTab(A);
       await B.waitForTimeout(5000);
       const after = await Promise.all(
         [B, C].map(p =>
@@ -365,7 +365,7 @@ function analyze(truth, seen) {
       await C.waitForTimeout(3500);
       await A.evaluate(() => (CTF.UI.game().teams[0].score = 2));
       await A.waitForTimeout(800);
-      await A.close();
+      await closeTab(A);
       await B.waitForTimeout(9000);
       const after = await Promise.all(
         [B, C].map(p =>
