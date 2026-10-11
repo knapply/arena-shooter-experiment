@@ -1,0 +1,6 @@
+index.html
+docs/MODULES.md
+media/
+node_modules/
+src/html/
+*.md

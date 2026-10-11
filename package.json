@@ -4,13 +4,22 @@
   "description": "Browser arena shooter: single-file build from modular source",
   "scripts": {
     "build": "node build.mjs",
+    "build:dev": "node build.mjs --dev",
     "check": "node build.mjs --check",
+    "format": "prettier --write \"src/**/*.{js,css}\" \"tests/**/*.js\" \"tools/**/*.{js,mjs}\" \"*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.{js,css}\" \"tests/**/*.js\" \"tools/**/*.{js,mjs}\" \"*.mjs\"",
+    "lint": "eslint . && node tools/check-unused.mjs",
     "test:sim": "node tests/sim.test.js",
     "test:browser": "node tests/browser.test.js",
     "test:render": "node tests/render.test.js",
     "test": "node build.mjs --check && node tests/sim.test.js && node tests/browser.test.js && node tests/render.test.js"
   },
   "devDependencies": {
-    "playwright": "1.48.2"
+    "acorn": "8.18.0",
+    "esbuild": "0.28.2",
+    "eslint": "10.1.0",
+    "playwright": "1.48.2",
+    "prettier": "3.8.1",
+    "typescript": "6.0.2"
   }
 }

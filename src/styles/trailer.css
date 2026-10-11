@@ -1,19 +1,125 @@
 /* trailer: letterbox, title cards, logo lockup, scope and flash */
-#trailer{position:fixed;inset:0;pointer-events:none;z-index:30;font-family:var(--f-display)}
-#trailer .lb{position:absolute;left:0;right:0;height:11.5vh;background:#000;}
-#trailer .lb.top{top:0}#trailer .lb.bot{bottom:0}
-#trCard{position:absolute;letter-spacing:0;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:#eef4f6;opacity:0;text-shadow:0 2px 30px #000c}
-#trCard .eb{font:600 clamp(11px,1.4vw,16px) var(--f-mono);letter-spacing:.5em;text-transform:uppercase;color:#ffb347;margin-bottom:.8em}
-#trCard .big{letter-spacing:inherit;font-weight:700;font-size:clamp(34px,7vw,104px);letter-spacing:.14em;text-transform:uppercase;line-height:1}
-#trCard .sub{font:500 clamp(14px,1.9vw,26px) var(--f-display);letter-spacing:.18em;text-transform:uppercase;margin-top:.7em;color:#cfdbe0}
-#trCard.punch .big{font-size:clamp(48px,11vw,170px);letter-spacing:.2em}
-#trTitle{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;opacity:0}
-#trTitle .logo{font-weight:700;font-size:clamp(34px,7.4vw,124px);letter-spacing:.12em;text-transform:uppercase;color:#f4f8fa;text-shadow:0 0 40px #ffb34766,0 0 120px #62cdff33}
-#trTitle .logo em{font-style:normal;color:#ffb347}
-#trTitle .tag{font:600 clamp(12px,1.6vw,20px) var(--f-mono);letter-spacing:.42em;text-transform:uppercase;color:#9fe1ff;margin-top:1.2em;opacity:0}
-#trFlash{position:absolute;inset:0;background:#fff;opacity:0}
-#trScope{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 0 27vh,#000 27.3vh)}
-#trScope i{position:absolute;left:50%;top:50%;width:54vh;height:54vh;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #9fd8ff55;
-  background:linear-gradient(#9fd8ffaa,#9fd8ffaa) center/1px 100% no-repeat,linear-gradient(#9fd8ffaa,#9fd8ffaa) center/100% 1px no-repeat}
-#trailer .trnav{position:absolute;right:16px;top:calc(11.5vh + 12px);display:flex;gap:8px;pointer-events:auto}
-#trailer.rec .trnav{display:none}
+#trailer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  font-family: var(--f-display);
+}
+#trailer .lb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 11.5vh;
+  background: #000;
+}
+#trailer .lb.top {
+  top: 0;
+}
+#trailer .lb.bot {
+  bottom: 0;
+}
+#trCard {
+  position: absolute;
+  letter-spacing: 0;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  color: #eef4f6;
+  opacity: 0;
+  text-shadow: 0 2px 30px #000c;
+}
+#trCard .eb {
+  font: 600 clamp(11px, 1.4vw, 16px) var(--f-mono);
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: #ffb347;
+  margin-bottom: 0.8em;
+}
+#trCard .big {
+  letter-spacing: inherit;
+  font-weight: 700;
+  font-size: clamp(34px, 7vw, 104px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+#trCard .sub {
+  font: 500 clamp(14px, 1.9vw, 26px) var(--f-display);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-top: 0.7em;
+  color: #cfdbe0;
+}
+#trCard.punch .big {
+  font-size: clamp(48px, 11vw, 170px);
+  letter-spacing: 0.2em;
+}
+#trTitle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  opacity: 0;
+}
+#trTitle .logo {
+  font-weight: 700;
+  font-size: clamp(34px, 7.4vw, 124px);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f4f8fa;
+  text-shadow:
+    0 0 40px #ffb34766,
+    0 0 120px #62cdff33;
+}
+#trTitle .logo em {
+  font-style: normal;
+  color: #ffb347;
+}
+#trTitle .tag {
+  font: 600 clamp(12px, 1.6vw, 20px) var(--f-mono);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: #9fe1ff;
+  margin-top: 1.2em;
+  opacity: 0;
+}
+#trFlash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+}
+#trScope {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, transparent 0 27vh, #000 27.3vh);
+}
+#trScope i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54vh;
+  height: 54vh;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid #9fd8ff55;
+  background:
+    linear-gradient(#9fd8ffaa, #9fd8ffaa) center/1px 100% no-repeat,
+    linear-gradient(#9fd8ffaa, #9fd8ffaa) center/100% 1px no-repeat;
+}
+#trailer .trnav {
+  position: absolute;
+  right: 16px;
+  top: calc(11.5vh + 12px);
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+#trailer.rec .trnav {
+  display: none;
+}
