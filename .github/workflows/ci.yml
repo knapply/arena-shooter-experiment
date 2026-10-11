@@ -39,3 +39,5 @@ jobs:
         run: |
           curl -sSL -o /tmp/three.min.js https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
           THREE_PATH=/tmp/three.min.js node tests/render.test.js
+      - name: Visual regression (approved screenshots in tests/visual)
+        run: THREE_PATH=/tmp/three.min.js node tests/visual.test.js

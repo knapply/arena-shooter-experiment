@@ -191,8 +191,8 @@ const CON = (() => {
       a => ((godMode = onOff(a[0], godMode)), "god " + (godMode ? "on" : "off")),
     ],
     timescale: [
-      "timescale x — 0.1 to 4 (slow motion or fast forward)",
-      a => ((timeScale = clamp(num(a[0], 1), 0.1, 4)), "time scale " + timeScale),
+      "timescale x — 0 to 4 (0 freezes the world; slow motion or fast forward)",
+      a => ((timeScale = clamp(num(a[0], 1), 0, 4)), "time scale " + timeScale),
     ],
     bots: [
       "bots on|off — arena practice drones",

@@ -12,6 +12,7 @@
     "test:sim": "node tests/sim.test.js",
     "test:browser": "node tests/browser.test.js",
     "test:render": "node tests/render.test.js",
+    "test:visual": "node tests/visual.test.js",
     "test:net": "node tests/net.test.js",
     "test:messages": "node tests/messages.test.js",
     "test:store": "node tests/store.test.js",

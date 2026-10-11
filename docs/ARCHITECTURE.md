@@ -61,6 +61,10 @@ In a dev build (`npm run dev`) or with `#dev` in the page address, backquote ope
 
 `tests/lib/scenario.js` runs scripted situations against the real movement, collision, hit and rules code in Node, in milliseconds: place pilots, give them inputs per tick, then assert on positions, events and hits. `tests/scenarios.test.js` holds the current movement "feel contract" (walk, sprint, strafe, thrust, jump, slide, pound), hit registration (head and body boxes, crouching, walls) and CTF rules (pickup, capture, drop, reset). Sandbox tuning should change those numbers deliberately, in the same commit.
 
+## Visual regression
+
+`tests/visual.test.js` renders the menu, an arena view, a pilot close-up and a trailer frame with real three.js in software WebGL (the world frozen with `timescale 0`) and compares each with the approved screenshot in `tests/visual/` on a 160x90 downscale (mean difference ≤ 6/255, ≤ 3% of pixels changed a lot). When a look changes on purpose, approve it with `VISUAL_UPDATE=1 THREE_PATH=... node tests/visual.test.js` and commit the new PNGs; a failing run writes `<name>.actual.png` next to the approved one.
+
 ## Code quality
 
 - **Formatting:** Prettier (`npm run format`), checked in CI.
