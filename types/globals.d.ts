@@ -38,6 +38,8 @@ interface NetStats {
   peers: Record<string, { rtt: number; direct: boolean }>;
 }
 interface HostServices {
+  /** network protocol version the game speaks; set by the game, read by the transport during the join handshake */
+  protocol?: number;
   net?: { stats(): NetStats; sim: { latency: number; jitter: number; loss: number }; setSim(o: Partial<{ latency: number; jitter: number; loss: number }>): void };
   use(name: "room"): Promise<PresenceRoom | null>;
   use(name: "downloads"): Promise<{ save(o: { filename: string; data: string }): Promise<void> } | null>;

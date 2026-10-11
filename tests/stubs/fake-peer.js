@@ -48,13 +48,13 @@
         else me.emit("open", me.id);
       }, 120);
     }
-    connect(to) {
+    connect(to, opts) {
       const cid = Math.random().toString(36).slice(2);
       const c = new Conn(cid, to, this.id);
       this.pending = setTimeout(() => {
         if (!c.open) this.emit("error", { type: "peer-unavailable" });
       }, 400);
-      ch.postMessage({ type: "conn", cid, from: this.id, to });
+      ch.postMessage({ type: "conn", cid, from: this.id, to, meta: (opts && opts.metadata) || null });
       return c;
     }
     reconnect() {}
@@ -77,6 +77,7 @@
       const p = peers.get(m.to);
       if (!p) return;
       const c = new Conn(m.cid, m.from, p.id);
+      c.metadata = m.meta;
       p.emit("connection", c);
       ch.postMessage({ type: "ack", cid: m.cid, to: m.from });
       setTimeout(() => {

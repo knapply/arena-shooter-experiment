@@ -148,6 +148,22 @@ function analyze(truth, seen) {
       );
       await ctx.close();
     }
+    /* protocol handshake: a friend on another build is told why they cannot join */
+    {
+      const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });
+      const A = await open(ctx, { tag: "A", init: ["fake-peer.js"] }),
+        B = await open(ctx, { tag: "B", init: ["fake-peer.js"] });
+      await A.waitForTimeout(600);
+      await B.evaluate(() => (window.KAHOST.protocol = 999));
+      await A.click("#p2pHost");
+      await A.waitForTimeout(800);
+      await B.fill("#p2pCode", await text(A, "#p2pCodeShow"));
+      await B.click("#p2pJoin");
+      await B.waitForTimeout(1500);
+      const m = (await text(B, "#p2pMsg")) || "";
+      check(/different versions/.test(m), "a different game version gets a clear message", m);
+      await ctx.close();
+    }
   } catch (e) {
     check(false, "test script error", e.message.split("\n")[0]);
   }

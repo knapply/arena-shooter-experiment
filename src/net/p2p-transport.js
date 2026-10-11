@@ -39,6 +39,8 @@
     const m = /[?&#]netsim=(\d+),(\d+),(\d+(?:\.\d+)?)/.exec(location.search + location.hash);
     if (m) Object.assign(NETSIM, { latency: +m[1], jitter: +m[2], loss: Math.min(0.5, +m[3] / 100) });
   }
+  /** the game's network protocol version (set by the game when it loads) */
+  const myProtocol = () => (window.KAHOST && +window.KAHOST.protocol) || 0;
   const simActive = () => NETSIM.latency > 0 || NETSIM.jitter > 0 || NETSIM.loss > 0;
 
   /* ---- link: one data connection plus its measurements (round trip, jitter, loss, bandwidth) ---- */
@@ -305,6 +307,17 @@
       });
       return;
     }
+    /* protocol handshake: a friend on a different build is told why instead of getting garbage */
+    const theirs = c.metadata && +c.metadata.pv;
+    if (myProtocol() && theirs && theirs !== myProtocol()) {
+      c.on("open", () => {
+        try {
+          c.send({ t: "ver", pv: myProtocol() });
+        } catch (e) {}
+        setTimeout(() => c.close(), 300);
+      });
+      return;
+    }
     const bucket = { tok: 120, t: performance.now() };
     const link = new Link(c, m => {
       const now = performance.now();
@@ -346,6 +359,14 @@
       msg("That room is full (8 players).", true);
       return;
     }
+    if (m.t === "ver") {
+      T.versionMismatch = true;
+      msg(
+        `You and the host are on different versions of the game (yours ${myProtocol()}, theirs ${+m.pv | 0}). Both reload the page to get the latest, then try again.`,
+        true
+      );
+      return;
+    }
     if (m.t === "all" && Array.isArray(m.list)) {
       for (const x of m.list.slice(0, 64)) if (okMsg(x)) apply(x);
       return;
@@ -362,7 +383,8 @@
       if (R && left.length) R.fire([], left, []);
     }
     for (const R of T.rooms.values()) R.closed();
-    msg("The room closed (the host left). Reload the page to host or join again.", true);
+    if (!T.versionMismatch)
+      msg("The room closed (the host left). Reload the page to host or join again.", true);
     setUI("closed");
   }
   /* ---- PeerJS loading ---- */
@@ -491,7 +513,11 @@
     );
     peer.on("open", id => {
       T.myId = id;
-      const c = peer.connect(PREFIX + code, { reliable: true, serialization: "json" });
+      const c = peer.connect(PREFIX + code, {
+        reliable: true,
+        serialization: "json",
+        metadata: { pv: myProtocol() },
+      });
       const link = new Link(c, clientData);
       c.on("open", () => {
         if (done) return;

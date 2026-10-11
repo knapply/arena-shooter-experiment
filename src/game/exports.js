@@ -83,6 +83,7 @@ const KA_API = {
   SPAWNS,
   makePilot,
   EVENTS,
+  MSG,
   dealDamage,
   get bots() {
     return bots;

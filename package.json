@@ -13,7 +13,8 @@
     "test:browser": "node tests/browser.test.js",
     "test:render": "node tests/render.test.js",
     "test:net": "node tests/net.test.js",
-    "test": "node build.mjs --check && tsc -p . && eslint . && node tests/sim.test.js && node tests/perf.test.js && node tests/browser.test.js && node tests/net.test.js && node tests/render.test.js",
+    "test:messages": "node tests/messages.test.js",
+    "test": "node build.mjs --check && tsc -p . && eslint . && node tests/sim.test.js && node tests/messages.test.js && node tests/perf.test.js && node tests/browser.test.js && node tests/net.test.js && node tests/render.test.js",
     "typecheck": "tsc -p .",
     "dev": "node tools/dev-server.mjs",
     "test:perf": "node tests/perf.test.js"

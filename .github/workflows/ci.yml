@@ -23,6 +23,8 @@ jobs:
         run: node build.mjs --check
       - name: Headless AI matches
         run: node tests/sim.test.js
+      - name: Network message registry
+        run: node tests/messages.test.js
       - name: Performance budgets (size, simulation)
         run: node tests/perf.test.js
       - name: Install browser
