@@ -73,28 +73,26 @@ function pkVisual(p) {
   return v;
 }
 /* arena: the sniper sits on the pedestal block on top of the central core */
-const ARENA_PICKS = [
-  {
-    id: "arena-sniper",
-    type: 2,
-    pos: new V3(0, 4.5, 0),
-    respawn: 90,
-    availAt: 0,
-    get avail() {
-      return now >= this.availAt;
-    },
-    get availIn() {
-      return Math.max(0, this.availAt - now);
-    },
-    take() {
-      if (!this.avail) return false;
-      this.availAt = now + this.respawn;
-      emitFx("pk", [0, 0, 0], [0, 0, 0], 0);
-      EVENTS.emit("pickup", { pilot: "local", item: this.id });
-      return true;
-    },
+const ARENA_PICKS = MAPS.arena.pickups.map(d => ({
+  id: d.id,
+  type: WEAPON_DATA.findIndex(w => w.key === d.weapon),
+  pos: new V3(d.p[0], d.p[1], d.p[2]),
+  respawn: d.respawn,
+  availAt: 0,
+  get avail() {
+    return now >= this.availAt;
   },
-];
+  get availIn() {
+    return Math.max(0, this.availAt - now);
+  },
+  take() {
+    if (!this.avail) return false;
+    this.availAt = now + this.respawn;
+    emitFx("pk", [0, 0, 0], [0, 0, 0], 0);
+    EVENTS.emit("pickup", { pilot: "local", item: this.id });
+    return true;
+  },
+}));
 let pkHold = 0,
   pkNear = null;
 const pkAnn = new Map();

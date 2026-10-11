@@ -38,13 +38,17 @@ const MATS = {
   step: new THREE.MeshStandardMaterial({ color: "#69757d", roughness: 0.85 }),
   strip: new THREE.MeshBasicMaterial({ color: "#ffb347" }),
   stripB: new THREE.MeshBasicMaterial({ color: "#62cdff" }),
+  /* team materials (capture the flag) */
+  redStrip: new THREE.MeshBasicMaterial({ color: "#ff6a5c" }),
+  blueStrip: new THREE.MeshBasicMaterial({ color: "#5aa9ff" }),
+  redBase: new THREE.MeshStandardMaterial({ color: "#4d3d3c", roughness: 0.8, metalness: 0.1 }),
+  blueBase: new THREE.MeshStandardMaterial({ color: "#3a4654", roughness: 0.8, metalness: 0.1 }),
 };
-for (const k of ["wall", "core", "base", "cover", "step"]) detailMat(MATS[k]);
+for (const k of ["wall", "core", "base", "cover", "step", "redBase", "blueBase"]) detailMat(MATS[k]);
 MATS.floor.userData.rough = 0.92;
 MATS.floor.userData.envK = 0.3;
 MATS.wall.userData.envK = 0.6;
-MATS.strip.color.multiplyScalar(2.4);
-MATS.stripB.color.multiplyScalar(2.4);
+for (const k of ["strip", "stripB", "redStrip", "blueStrip"]) MATS[k].color.multiplyScalar(2.4);
 let MAPG = new THREE.Group();
 scene.add(MAPG);
 const ARENA_G = MAPG;
@@ -162,70 +166,28 @@ function stairs(x, z, dx, dz, n, top, width) {
     box(cx, 0, cz, dx ? depth : width, h, dz ? depth : width, "step");
   }
 }
-box(0, -1, 0, 84, 1, 84, "floor");
-box(0, 0, -37, 76, 7, 2, "wall");
-box(0, 0, 37, 76, 7, 2, "wall");
-box(-37, 0, 0, 2, 7, 76, "wall");
-box(37, 0, 0, 2, 7, 76, "wall");
-box(0, 0, 0, 10, 3.2, 10, "core");
-strip(0, 3.2, -4.95, 10, 0.1);
-strip(0, 3.2, 4.95, 10, 0.1);
-box(0, 3.2, 0, 1.4, 1.3, 1.4, "cover");
-stairs(0, 5, 0, 1, 8, 3.2, 3);
-stairs(0, -5, 0, -1, 8, 3.2, 3);
-box(6.6, 0, 0, 3.2, 5.2, 3.2, "base");
-box(-6.6, 0, 0, 3.2, 5.2, 3.2, "base");
-strip(6.6, 5.2, 0, 3.2, 3.2, "stripB");
-strip(-6.6, 5.2, 0, 3.2, 3.2, "stripB");
-[
-  [1, 1],
-  [-1, 1],
-  [1, -1],
-  [-1, -1],
-].forEach(([sx, sz]) => {
-  box(24 * sx, 0, 24 * sz, 10, 2.6, 10, "base");
-  box(24 * sx + 3.6 * sx, 2.6, 24 * sz + 3.6 * sz, 2.8, 1.2, 2.8, "cover");
-  stairs(24 * sx - 5 * sx, 24 * sz, -sx, 0, 6, 2.6, 3);
-  strip(24 * sx - 4.95 * sx, 2.6, 24 * sz, 0.1, 10);
-});
-box(0, 0, 18, 7, 2.5, 2, "cover");
-box(0, 0, -18, 7, 2.5, 2, "cover");
-box(18, 0, 0, 2, 2.5, 7, "cover");
-box(-18, 0, 0, 2, 2.5, 7, "cover");
-[
-  [13, 13],
-  [-13, 13],
-  [13, -13],
-  [-13, -13],
-].forEach(([x, z]) => {
-  box(x, 0, z, 4, 1.3, 1.2, "cover");
-  box(x + (x > 0 ? 2.5 : -2.5), 0, z + (z > 0 ? -2 : 2), 1.2, 1.3, 3, "cover");
-});
-box(29, 0, 0, 3, 6, 3, "wall");
-box(-29, 0, 0, 3, 6, 3, "wall");
-box(0, 0, 29, 3, 6, 3, "wall");
-box(0, 0, -29, 3, 6, 3, "wall");
-/* skill route: a 2.2 m ledge on the inner face of each tall pillar. Clamber onto it, then a
-   crouch-jump (hold crouch in the air) reaches the 6 m perch; a plain jump falls just short. */
-box(26.9, 0, 0, 1.2, 2.2, 3, "step");
-box(-26.9, 0, 0, 1.2, 2.2, 3, "step");
-box(0, 0, 26.9, 3, 2.2, 1.2, "step");
-box(0, 0, -26.9, 3, 2.2, 1.2, "step");
-box(10, 0, -34.5, 10, 2.4, 3, "base");
-box(-10, 0, 34.5, 10, 2.4, 3, "base");
-box(34.5, 0, 10, 3, 2.4, 10, "base");
-box(-34.5, 0, -10, 3, 2.4, 10, "base");
-mergeMapGroup(ARENA_G);
-const SPAWNS = [
-  [24, 2.6, 24],
-  [-24, 2.6, -24],
-  [24, 2.6, -24],
-  [-24, 2.6, 24],
-  [0, 0, 22],
-  [0, 0, -22],
-  [22, 0, 0],
-  [-22, 0, 0],
-  [0, 3.2, 2],
-  [10, 0, -30],
-  [-10, 0, 30],
-];
+/** build a map document's pieces into a group; returns the collision boxes (the caller decides when
+    they become the active world) and the box record of every piece by its stable id */
+function buildMap(doc, group) {
+  const prev = MAPG,
+    saved = SOLID.splice(0);
+  MAPG = group;
+  /** @type {Map<string, any>} */
+  const byId = new Map();
+  for (const pc of mapPieces(doc)) {
+    if (pc.type === "box") {
+      const b = box(pc.p[0] + 0, pc.p[1], pc.p[2] + 0, pc.s[0], pc.s[1], pc.s[2], pc.mat);
+      b.pid = pc.id;
+      byId.set(pc.id, b);
+    } else if (pc.type === "strip") strip(pc.p[0] + 0, pc.p[1], pc.p[2] + 0, pc.s[0], pc.s[1], pc.mat);
+    else if (pc.type === "stairs")
+      stairs(pc.p[0] + 0, pc.p[1] + 0, pc.dir[0], pc.dir[1], pc.steps, pc.top, pc.width);
+  }
+  mergeMapGroup(group);
+  const solids = SOLID.splice(0);
+  SOLID.push(...saved);
+  MAPG = prev;
+  return { solids, byId };
+}
+SOLID.push(...buildMap(MAPS.arena, ARENA_G).solids);
+const SPAWNS = MAPS.arena.spawns.ffa;

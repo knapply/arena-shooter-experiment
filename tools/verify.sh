@@ -14,6 +14,7 @@ node tests/sim.test.js > /tmp/ka-sim.log || { cat /tmp/ka-sim.log; exit 1; }
 node tests/messages.test.js > /tmp/ka-msg.log || { grep FAIL /tmp/ka-msg.log; exit 1; }
 node tests/store.test.js > /tmp/ka-store.log || { grep FAIL /tmp/ka-store.log; exit 1; }
 node tests/scenarios.test.js > /tmp/ka-scn.log || { grep FAIL /tmp/ka-scn.log; exit 1; }
+node tests/maps.test.js > /tmp/ka-maps.log || { grep FAIL /tmp/ka-maps.log; exit 1; }
 node tests/perf.test.js
 node tests/browser.test.js > /tmp/ka-browser.log || { grep -E "FAIL|passed" /tmp/ka-browser.log; exit 1; }
 node tests/net.test.js > /tmp/ka-net.log || { cat /tmp/ka-net.log; exit 1; }

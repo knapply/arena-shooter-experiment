@@ -10,114 +10,25 @@
   CTF.TEAM_NAMES = ["Red", "Blue"];
   CTF.TEAM_HEX = ["#ff6a5c", "#5aa9ff"];
   CTF.TEAM_INT = [0xff6a5c, 0x5aa9ff];
-  CTF.FLAG_HOME = [new T.Vector3(0, 2.4, -43), new T.Vector3(0, 2.4, 43)];
-  CTF.SPAWNS = [
-    [
-      [-6, 2.4, -45.5],
-      [6, 2.4, -45.5],
-      [-14, 0, -46],
-      [14, 0, -46],
-      [-19, 0, -38],
-      [19, 0, -38],
-      [-3, 2.4, -46.5],
-      [3, 2.4, -46.5],
-    ],
-  ];
-  /* power weapon: sniper on the cover block atop the mid tower, grabbable from the tower roof */
-  CTF.PICKUP_DEFS = [{ id: "ctf-sniper", type: 2, pos: new T.Vector3(0, 4.2, 0), respawn: 90 }];
-  CTF.SPAWNS.push(CTF.SPAWNS[0].map(([x, y, z]) => [-x, y, -z]));
-  CTF.BOUNDS = { x0: -26, x1: 26, z0: -50, z1: 50 };
+  /* everything about the map's layout comes from its data document (data/maps.js) */
+  const MAP = K.MAPS.ctf;
+  CTF.MAP = MAP;
+  CTF.FLAG_HOME = MAP.flags.map(p => new T.Vector3(p[0], p[1], p[2]));
+  CTF.SPAWNS = MAP.spawns.teams.map(t => t.map(p => p.slice()));
+  CTF.PICKUP_DEFS = MAP.pickups.map(p => ({
+    id: p.id,
+    type: K.WEAPON_DATA.findIndex(w => w.key === p.weapon),
+    pos: new T.Vector3(p.p[0], p.p[1], p.p[2]),
+    respawn: p.respawn,
+  }));
+  CTF.BOUNDS = Object.assign({}, MAP.bounds);
 
   let built = null;
   CTF.buildMap = function () {
     if (built) return built;
-    const M = K.MATS;
-    M.redStrip = new T.MeshBasicMaterial({ color: "#ff6a5c" });
-    M.blueStrip = new T.MeshBasicMaterial({ color: "#5aa9ff" });
-    M.redBase = new T.MeshStandardMaterial({ color: "#4d3d3c", roughness: 0.8, metalness: 0.1 });
-    M.blueBase = new T.MeshStandardMaterial({ color: "#3a4654", roughness: 0.8, metalness: 0.1 });
-    K.detailMat(M.redBase);
-    K.detailMat(M.blueBase);
-    M.redStrip.color.multiplyScalar(2.4);
-    M.blueStrip.color.multiplyScalar(2.4);
     const g = new T.Group();
     K.scene.add(g);
-    K.setMapGroup(g);
-    const saved = K.SOLID.splice(0);
-    const B = (cx, y0, cz, w, h, d, m) => K.box(cx, y0, cz, w, h, d, m);
-    // S = place a part and its 180° rotated twin (same w/d under half-turn)
-    const S = (cx, y0, cz, w, h, d, m) => {
-      B(cx, y0, cz, w, h, d, m);
-      if (cx !== 0 || cz !== 0) B(-cx, y0, -cz, w, h, d, m);
-    };
-    const ST = (x, z, dx, dz, n, top, w) => {
-      K.stairs(x, z, dx, dz, n, top, w);
-      K.stairs(-x, -z, -dx, -dz, n, top, w);
-    };
-    const TS = (cx, y, cz, w, d) => {
-      K.strip(cx, y, cz, w, d, "redStrip");
-      K.strip(-cx, y, -cz, w, d, "blueStrip");
-    };
-    // shell
-    B(0, -1, 0, 56, 1, 104, "floor");
-    B(0, 0, -51, 56, 7, 2, "wall");
-    B(0, 0, 51, 56, 7, 2, "wall");
-    B(-27, 0, 0, 2, 7, 104, "wall");
-    B(27, 0, 0, 2, 7, 104, "wall");
-    // bases (team tinted)
-    B(0, 0, -42, 18, 2.4, 10, "redBase");
-    B(0, 0, 42, 18, 2.4, 10, "blueBase");
-    TS(0, 2.4, -37.05, 18, 0.1);
-    TS(-8.95, 2.4, -42, 0.1, 10);
-    TS(8.95, 2.4, -42, 0.1, 10);
-    ST(5, -37, 0, 1, 6, 2.4, 3);
-    ST(-5, -37, 0, 1, 6, 2.4, 3);
-    S(11.5, 0, -42, 4, 1.2, 6, "step");
-    S(-11.5, 0, -42, 4, 1.2, 6, "step");
-    S(-5, 2.4, -39.6, 1.2, 1.2, 2.4, "cover");
-    S(5, 2.4, -39.6, 1.2, 1.2, 2.4, "cover");
-    S(-7.4, 2.4, -46, 1.6, 3, 1.6, "wall");
-    S(7.4, 2.4, -46, 1.6, 3, 1.6, "wall");
-    S(0, 0, -29.5, 6, 1.3, 1.2, "cover");
-    S(-14, 0, -33, 1.2, 1.3, 4, "cover");
-    S(14, 0, -33, 1.2, 1.3, 4, "cover");
-    // lane dividers
-    S(-10, 0, -18, 1.2, 3.6, 14, "wall");
-    S(10, 0, -18, 1.2, 3.6, 14, "wall");
-    S(-10, 0, -6.5, 1.2, 1.2, 3, "step");
-    S(10, 0, -6.5, 1.2, 1.2, 3, "step");
-    // mid tower
-    B(0, 0, 0, 9, 3, 9, "core");
-    B(0, 3, 0, 1.4, 1.2, 1.4, "cover");
-    ST(0, 4.5, 0, 1, 7, 3, 3);
-    S(-6.5, 0, 0, 2, 1.4, 5, "cover");
-    S(6.5, 0, 0, 2, 1.4, 5, "cover");
-    K.strip(0, 3, -4.45, 9, 0.1, "redStrip");
-    K.strip(0, 3, 4.45, 9, 0.1, "blueStrip");
-    // side catwalks along the outer walls
-    B(-24.5, 0, 0, 3, 2.6, 22, "base");
-    B(24.5, 0, 0, 3, 2.6, 22, "base");
-    ST(-24.5, -11, 0, -1, 6, 2.6, 3);
-    ST(24.5, -11, 0, -1, 6, 2.6, 3);
-    K.strip(-23.05, 2.6, 0, 0.1, 22, "stripB");
-    K.strip(23.05, 2.6, 0, 0.1, 22, "stripB");
-    // lane cover
-    S(-18, 0, -16, 3.2, 1.3, 1.2, "cover");
-    S(18, 0, -22, 3.2, 1.3, 1.2, "cover");
-    S(-18.5, 0, -27, 1.2, 1.3, 3.2, "cover");
-    S(18.5, 0, -11, 1.2, 1.3, 3.2, "cover");
-    S(0, 0, -15, 4, 1.3, 1.2, "cover");
-    S(-4.5, 0, -21, 1.2, 2, 3, "cover");
-    S(4.5, 0, -24, 1.2, 2, 3, "cover");
-    // perch pillars (clamber via step blocks, pound launch points)
-    S(-17, 0, -23.5, 2.4, 4.2, 2.4, "wall");
-    S(-17, 0, -21.1, 2.4, 2, 2.4, "step");
-    S(17, 0, -14, 2.4, 4.2, 2.4, "wall");
-    S(17, 0, -16.4, 2.4, 2, 2.4, "step");
-    K.mergeMapGroup(g);
-    const solids = K.SOLID.splice(0);
-    K.SOLID.push(...saved);
-    K.setMapGroup(K.ARENA_G);
+    const { solids } = K.buildMap(MAP, g);
     g.visible = false;
     built = { group: g, solids, arena: null };
     return built;
@@ -163,7 +74,7 @@
   };
 
   /* lanes, team-relative: 0 = carrier's left wing, 1 = mid, 2 = right wing (mirrored so both teams describe the same geometry the same way) */
-  CTF.worldLane = x => (x < -9.5 ? 0 : x > 9.5 ? 2 : 1);
+  CTF.worldLane = x => (x < -MAP.lanes.split ? 0 : x > MAP.lanes.split ? 2 : 1);
   CTF.relLane = (team, x) => {
     const w = CTF.worldLane(x);
     return team === 0 ? w : 2 - w;
@@ -171,7 +82,7 @@
   CTF.LANE_NAMES = ["left", "mid", "right"];
   /* lane waypoint x for a team going on its own relative lane */
   CTF.laneX = (team, lane) => {
-    const wx = [-18, 0, 18][lane];
+    const wx = MAP.lanes.x[lane];
     return team === 0 ? wx : -wx;
   };
 

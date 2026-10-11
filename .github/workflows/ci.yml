@@ -23,8 +23,8 @@ jobs:
         run: node build.mjs --check
       - name: Headless AI matches
         run: node tests/sim.test.js
-      - name: Network message registry and save data
-        run: node tests/messages.test.js && node tests/store.test.js
+      - name: Message registry, save data and map documents
+        run: node tests/messages.test.js && node tests/store.test.js && node tests/maps.test.js
       - name: Scenarios (movement, hit registration, mode rules)
         run: node tests/scenarios.test.js
       - name: Performance budgets (size, simulation)

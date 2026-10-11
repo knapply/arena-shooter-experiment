@@ -1,5 +1,9 @@
 /* ============ SIM EXPORTS: the slice of window.KA the CTF simulation uses ============ */
 window.KA = {
+  MAPS,
+  buildMap,
+  validateMap,
+  mapPieces,
   mergeMapGroup,
   STORE,
   RNG,
