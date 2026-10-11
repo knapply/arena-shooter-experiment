@@ -148,6 +148,95 @@ function analyze(truth, seen) {
       );
       await ctx.close();
     }
+    /* mesh, fast channel and host migration with three players */
+    {
+      const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });
+      const pg = [];
+      for (const tag of ["A", "B", "C"]) pg.push(await open(ctx, { tag, init: ["fake-peer.js"] }));
+      const [A, B, C] = pg;
+      await A.waitForTimeout(600);
+      await A.click("#p2pHost");
+      await A.waitForTimeout(800);
+      const code = await text(A, "#p2pCodeShow");
+      for (const p of [B, C]) {
+        await p.fill("#p2pCode", code);
+        await p.click("#p2pJoin");
+      }
+      await A.waitForTimeout(3500);
+      const sB = await B.evaluate(() => window.__p2p.state),
+        sC = await C.evaluate(() => window.__p2p.state);
+      const ids = await Promise.all(pg.map(p => p.evaluate(() => window.KAHOST.net.stats().me)));
+      check(
+        sB.fast.includes(ids[2]) && sC.fast.includes(ids[1]) && sB.fast.includes(ids[0]),
+        "players open direct links to each other (full mesh)",
+        { B: sB.fast.length, C: sC.fast.length }
+      );
+      check(
+        !!sB.backup && sB.backup === sC.backup && sB.backup !== ids[0],
+        "the host names a backup",
+        sB.backup
+      );
+      await C.evaluate(() => {
+        window.__got = [];
+        window.KA.room.onFast((from, buf) => window.__got.push([from, new Uint8Array(buf)[0]]));
+      });
+      await B.evaluate(() => window.KA.room.fast(new Uint8Array([7, 1, 2, 3]).buffer));
+      await C.waitForTimeout(300);
+      const got = await C.evaluate(() => window.__got);
+      check(
+        got.some(g => g[0] === ids[1] && g[1] === 7),
+        "fast packets arrive directly",
+        got
+      );
+      for (const p of pg) {
+        await p.evaluate(() => {
+          document.getElementById("bots").checked = false;
+        });
+        await p.click("#deploy");
+      }
+      await A.waitForTimeout(1500);
+      await A.close();
+      await B.waitForTimeout(5000);
+      const after = await Promise.all(
+        [B, C].map(p =>
+          p.evaluate(() => ({
+            st: window.__p2p.state,
+            live: [...window.KA.remotes.values()].filter(r => r.has).length,
+            msg: document.getElementById("p2pMsg").textContent,
+          }))
+        )
+      );
+      const hubs = after.filter(x => x.st.hub).length;
+      check(
+        hubs === 1 && after.every(x => x.st.connected && x.live === 1),
+        "when the host leaves, the backup takes over and the others stay in the room",
+        after.map(x => ({ hub: x.st.hub, connected: x.st.connected, live: x.live, msg: x.msg.slice(0, 60) }))
+      );
+      await ctx.close();
+    }
+    /* handing the room to another player */
+    {
+      const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });
+      const A = await open(ctx, { tag: "A", init: ["fake-peer.js"] }),
+        B = await open(ctx, { tag: "B", init: ["fake-peer.js"] });
+      await A.waitForTimeout(600);
+      await A.click("#p2pHost");
+      await A.waitForTimeout(800);
+      await B.fill("#p2pCode", await text(A, "#p2pCodeShow"));
+      await B.click("#p2pJoin");
+      await A.waitForTimeout(2500);
+      const bId = await B.evaluate(() => window.KAHOST.net.stats().me);
+      await A.evaluate(id => window.KAHOST.net.handover(id), bId);
+      await A.waitForTimeout(3500);
+      const sa = await A.evaluate(() => window.__p2p.state),
+        sb = await B.evaluate(() => window.__p2p.state);
+      check(
+        sb.hub && !sa.hub && sa.connected && sa.hubId === bId,
+        "the host can hand the room to another player",
+        { a: sa, b: { hub: sb.hub, peers: sb.peers } }
+      );
+      await ctx.close();
+    }
     /* protocol handshake: a friend on another build is told why they cannot join */
     {
       const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });

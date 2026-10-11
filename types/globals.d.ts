@@ -27,7 +27,7 @@ interface PresenceRoom {
   emit?(...a: any[]): Promise<void>;
   on?(...a: any[]): () => void;
 }
-interface NetLinkStats { peer: string; name: string; rtt: number; jitter: number; loss: number; inBps: number; outBps: number; inMsgs: number; outMsgs: number; age: number }
+interface NetLinkStats { peer: string; name: string; fast?: boolean; rtt: number; jitter: number; loss: number; inBps: number; outBps: number; inMsgs: number; outMsgs: number; age: number }
 interface NetStats {
   role: "offline" | "host" | "client";
   code: string | null;
@@ -36,11 +36,16 @@ interface NetStats {
   links: NetLinkStats[];
   /** round trip to every known peer: direct links, or through the room host */
   peers: Record<string, { rtt: number; direct: boolean }>;
+  /** who takes over if the host leaves */
+  backup?: string | null;
+  members?: string[];
+  /** host only: a player who would make a better host */
+  suggest?: { peer: string; ms: number; mine: number } | null;
 }
 interface HostServices {
   /** network protocol version the game speaks; set by the game, read by the transport during the join handshake */
   protocol?: number;
-  net?: { stats(): NetStats; sim: { latency: number; jitter: number; loss: number }; setSim(o: Partial<{ latency: number; jitter: number; loss: number }>): void };
+  net?: { stats(): NetStats; sim: { latency: number; jitter: number; loss: number }; setSim(o: Partial<{ latency: number; jitter: number; loss: number }>): void; handover?(to?: string): boolean };
   use(name: "room"): Promise<PresenceRoom | null>;
   use(name: "downloads"): Promise<{ save(o: { filename: string; data: string }): Promise<void> } | null>;
   use(name: string): Promise<any>;

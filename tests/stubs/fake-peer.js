@@ -1,5 +1,5 @@
 (function () {
-  // test double for PeerJS over BroadcastChannel
+  // test double for PeerJS over BroadcastChannel: labelled connections, metadata, and binary data
   const ch = new BroadcastChannel("fakepeer");
   const peers = new Map(),
     conns = new Map();
@@ -15,17 +15,23 @@
       for (const f of this.h[e] || []) f(...a);
     }
   }
+  const clone = d => (d instanceof ArrayBuffer ? d.slice(0) : JSON.parse(JSON.stringify(d)));
   class Conn extends Em {
-    constructor(cid, peer, owner) {
+    constructor(cid, peer, owner, opts) {
       super();
       this.cid = cid;
       this.peer = peer;
       this.owner = owner;
       this.open = false;
+      this.label = (opts && opts.label) || "";
+      this.reliable = !(opts && opts.reliable === false);
+      this.serialization = (opts && opts.serialization) || "binary";
+      this.metadata = (opts && opts.metadata) || null;
       conns.set(cid + "|" + owner, this);
     }
     send(d) {
-      ch.postMessage({ type: "data", cid: this.cid, to: this.peer, data: JSON.parse(JSON.stringify(d)) });
+      if (!this.open) return;
+      ch.postMessage({ type: "data", cid: this.cid, to: this.peer, data: clone(d) });
     }
     close() {
       if (!this.open) return;
@@ -50,17 +56,24 @@
     }
     connect(to, opts) {
       const cid = Math.random().toString(36).slice(2);
-      const c = new Conn(cid, to, this.id);
-      this.pending = setTimeout(() => {
-        if (!c.open) this.emit("error", { type: "peer-unavailable" });
+      const c = new Conn(cid, to, this.id, opts);
+      setTimeout(() => {
+        if (!c.open && !this.destroyed) this.emit("error", { type: "peer-unavailable" });
       }, 400);
-      ch.postMessage({ type: "conn", cid, from: this.id, to, meta: (opts && opts.metadata) || null });
+      ch.postMessage({
+        type: "conn",
+        cid,
+        from: this.id,
+        to,
+        opts: { label: c.label, reliable: c.reliable, serialization: c.serialization, metadata: c.metadata },
+      });
       return c;
     }
     reconnect() {}
     destroy() {
       this.destroyed = true;
       peers.delete(this.id);
+      ch.postMessage({ type: "gone", id: this.id });
       for (const c of conns.values()) if (c.owner === this.id) c.close();
     }
   }
@@ -76,8 +89,7 @@
     if (m.type === "conn") {
       const p = peers.get(m.to);
       if (!p) return;
-      const c = new Conn(m.cid, m.from, p.id);
-      c.metadata = m.meta;
+      const c = new Conn(m.cid, m.from, p.id, m.opts);
       p.emit("connection", c);
       ch.postMessage({ type: "ack", cid: m.cid, to: m.from });
       setTimeout(() => {
@@ -103,6 +115,13 @@
         c.emit("close");
       }
     }
+    /* a closed tab takes its connections with it */
+    if (m.type === "gone")
+      for (const c of conns.values())
+        if (c.peer === m.id && c.open) {
+          c.open = false;
+          c.emit("close");
+        }
   };
   window.Peer = Peer;
   window.__pad = null;
