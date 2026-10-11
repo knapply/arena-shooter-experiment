@@ -1,5 +1,7 @@
 # Kinetic Arena
 
+[![Views](https://hits.sh/github.com/knapply/arena-shooter-experiment.svg?label=views&color=46d6ff&labelColor=1b2329)](https://hits.sh/github.com/knapply/arena-shooter-experiment/)
+
 A fast, movement-focused arena shooter that runs entirely in the browser. Thrust, slide, clamber, hover and ground-pound through a symmetric arena, fight practice drones solo, or play 4v4 Capture the Flag with friends over a direct peer-to-peer connection. No install, no accounts, no downloads.
 
 **▶ Play:** https://knapply.github.io/arena-shooter-experiment/
