@@ -425,6 +425,7 @@ function frameBody(t) {
   sendPresence(false);
   hud();
   killCamTick();
+  hlTick();
   if (REPLAY.active) REPLAY.frame(Math.min(0.05, raw));
   renderFrame();
 }

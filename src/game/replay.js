@@ -71,7 +71,8 @@ const REPLAY = (() => {
       for (const id of ids) {
         const s = R.sample(id, R.t);
         const g = ghostFor(id);
-        if (!s || R.hide.includes(id)) {
+        const hidden = typeof R.hide === "function" ? R.hide(R.t - R.t0) : R.hide;
+        if (!s || hidden.includes(id)) {
           g.root.visible = false;
           continue;
         }

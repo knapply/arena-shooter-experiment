@@ -47,6 +47,7 @@
     "weapons/viewmodel-anim.js",
     "ui/console.js",
     "game/replay.js",
+    "game/highlights.js",
     "game/loop.js",
     "modes/tech-demo.js",
     "ui/settings-ui.js",

@@ -27,7 +27,7 @@ function startMode(id, opts) {
 const modeList = () => [...MODE_DEFS.values()].map(d => ({ id: d.id, name: d.name }));
 
 /* ---- free-for-all: first to the score limit, or the most kills when time runs out ---- */
-const FFA = { t0: 0, over: false, overT: 0 };
+const FFA = { t0: 0, over: false, overT: 0, potg: false };
 defineMode({
   id: "ffa",
   name: MODE_DATA.ffa.name,
@@ -52,7 +52,12 @@ function ffaTick(dt) {
   const S = MODE_DATA.ffa;
   if (FFA.over) {
     FFA.overT += dt;
-    if (FFA.overT > S.restartDelay) ffaRestart();
+    /* Play of the Game after a beat, then a fresh match once it's done */
+    if (!FFA.potg && FFA.overT > 1.5) {
+      FFA.potg = true;
+      if (playOfTheGame()) $("cBanner").hidden = true;
+    }
+    if (FFA.overT > S.restartDelay && FFA.potg && !HL.playing) ffaRestart();
     return;
   }
   const top = ffaStandings()[0];
@@ -61,6 +66,7 @@ function ffaTick(dt) {
 function ffaEnd(top) {
   FFA.over = true;
   FFA.overT = 0;
+  FFA.potg = false;
   EVENTS.emit("matchEnd", { winner: top.id, winnerName: top.name });
   $("cBanT").textContent = top.me ? "Victory" : `${top.name} wins`;
   $("cBanT").style.color = top.me ? "#ffb347" : "";

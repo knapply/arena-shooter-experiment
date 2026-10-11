@@ -139,12 +139,21 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       const banner = document.getElementById("cBanT").textContent;
       const mid = KA.kills;
       KA.MODE_DATA.ffa.restartDelay = 0.5;
-      await new Promise(r => setTimeout(r, 1200));
+      /* Play of the Game plays after a beat; skip it and a new match starts */
+      await new Promise(r => setTimeout(r, 2200));
+      const potg = {
+        playing: KA.HL.playing,
+        top: KA.HL.top.length,
+        card: document.querySelector("#cine .card").textContent,
+      };
+      KA.REPLAY.skip();
+      await new Promise(r => setTimeout(r, 800));
       off();
       return {
         seen,
         banner,
         mid,
+        potg,
         after: KA.kills,
         modes: KA.modeList()
           .map(m => m.id)
@@ -158,6 +167,11 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
         ffa.after === 0,
       "free-for-all ends at the score limit and starts a new match",
       ffa
+    );
+    check(
+      ffa.potg.playing && /Play of the game/i.test(ffa.potg.card) && /kills in/.test(ffa.potg.card),
+      "the match ends with a Play of the Game replay of the best moment",
+      ffa.potg
     );
     check(
       /ffa/.test(ffa.modes) && /ctf/.test(ffa.modes) && /tutorial/.test(ffa.modes),

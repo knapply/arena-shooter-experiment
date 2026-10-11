@@ -26,6 +26,7 @@
     followIdx = 0,
     snap = true,
     training = null,
+    potgDone = false,
     intelT = 0,
     orbit = 0;
   const cpos = new V3(),
@@ -136,6 +137,7 @@
     CTF.enterMap();
     mode = "play";
     overT = 0;
+    potgDone = false;
     const myId = "h:" + (CTF.NET.myPeer() || "local");
     G = CTF.Game({ mode: "play", render: true, diff: [diff, diff], humanTeam: myTeam, humanId: myId });
     UI.attach(G, "play");
@@ -175,7 +177,11 @@
         if (G.over) {
           if (!overT) showBanner();
           overT += wallDt();
-          if (overT > 8) K.extStop();
+          if (overT > 1.5 && !potgDone) {
+            potgDone = true;
+            K.playOfTheGame(() => ($("cBanner").hidden = false));
+          }
+          if (overT > 8 && !K.HL.playing) K.extStop();
         }
       },
       onPlayerDeath(src) {
@@ -298,6 +304,7 @@
     CTF.enterMap();
     mode = "play";
     overT = 0;
+    potgDone = false;
     const myId = "h:" + CTF.NET.myPeer();
     G = CTF.Mirror(h.peer, h.mid, myId, myTeam);
     const M = G;
@@ -334,7 +341,11 @@
         if (G.over) {
           if (!overT && !G.hostGone) showBanner();
           overT += wallDt();
-          if (overT > (G.hostGone ? 3 : 8)) K.extStop();
+          if (overT > 1.5 && !potgDone && !G.hostGone) {
+            potgDone = true;
+            K.playOfTheGame(() => ($("cBanner").hidden = false));
+          }
+          if (overT > (G.hostGone ? 3 : 8) && !K.HL.playing) K.extStop();
         }
       },
       onPlayerDeath(src) {
@@ -384,6 +395,7 @@
     UI.quiet = speed > 2;
     UI.extraHud = null;
     overT = 0;
+    potgDone = false;
     focus = null;
     focusT = 0;
     snap = true;
