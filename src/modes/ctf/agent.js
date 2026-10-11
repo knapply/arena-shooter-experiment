@@ -48,6 +48,8 @@
       this.name = name;
       this.human = !!human;
       this.remote = !!remote;
+      /* same controller vocabulary as engine pilots (see game/pilot.js) */
+      this.ctl = human && !remote ? "local" : remote ? "net" : "ai";
       this.body = human && !remote ? K.me : new K.Body();
       this.rig = null;
       this.dead = false;

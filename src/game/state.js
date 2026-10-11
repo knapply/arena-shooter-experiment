@@ -15,12 +15,21 @@ let kills = 0,
   respawnAt = 0,
   lastFireT = -9;
 const RELOAD_TIME = 1.8;
+/* you, as a pilot: same id scheme as everyone else; name and score read through to the live values */
+const mePilot = addPilot(new Pilot({ id: "local", ctl: "local", body: me, rig: false }));
+Object.defineProperties(mePilot, {
+  name: { get: () => myName },
+  color: { get: () => myColor },
+  k: { get: () => kills },
+  d: { get: () => deaths },
+});
 const hitsOut = [];
 let hitSeq = 0;
 const fxOut = [];
 let fxSeq = 0;
 let dth = null;
 let deathSeq = 0;
+/** @type {Map<string, any>} */
 const remotes = new Map();
 let bots = [];
 let botsOn = true;
@@ -57,16 +66,12 @@ function spawn(b) {
 const BOT_NAMES = ["Drone-04", "Drone-11", "Drone-27"];
 const BOT_COLORS = ["#8b9aa3", "#a0a8ad", "#7f8f99"];
 function makeBots() {
-  bots.forEach(b => scene.remove(b.rig.root));
+  bots.forEach(b => b.dispose());
   bots = [];
   if (!botsOn) return;
   for (let i = 0; i < 3; i++) {
-    const b = {
-      name: BOT_NAMES[i],
-      body: new Body(),
-      rig: makePilot(BOT_COLORS[i], BOT_NAMES[i]),
-      k: 0,
-      d: 0,
+    const p = addPilot(new Pilot({ id: "bot:" + i, name: BOT_NAMES[i], color: BOT_COLORS[i], ctl: "ai" }));
+    const b = Object.assign(p, {
       wp: null,
       fireCD: 0,
       think: 0,
@@ -76,7 +81,7 @@ function makeBots() {
       mag: 24,
       reloadT: 0,
       firedT: -9,
-    };
+    });
     spawn(b.body);
     b.rig.setLabel(b.name, "practice drone");
     bots.push(b);

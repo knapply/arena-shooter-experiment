@@ -11,17 +11,15 @@ function makeDummies() {
   if (dummies.length) return;
   dummies = [0, 1].map(i => {
     const n = "Target-0" + (i + 1);
-    const d = {
-      name: n,
-      body: new Body(),
-      rig: makePilot("#8b9aa3", n),
-      k: 0,
-      d: 0,
-      respawn: 0,
-      fireCD: 0,
-      active: false,
-      strafe: false,
-    };
+    const d = Object.assign(
+      addPilot(new Pilot({ id: "dummy:" + i, name: n, color: "#8b9aa3", ctl: "script" })),
+      {
+        respawn: 0,
+        fireCD: 0,
+        active: false,
+        strafe: false,
+      }
+    );
     d.rig.setLabel(n, "demo target");
     d.rig.root.visible = false;
     return d;
@@ -409,10 +407,7 @@ function demoFrame(dt) {
         } else spark(b);
       }
     }
-    const rg = d.rig;
-    rg.root.position.copy(B.pos);
-    rg.root.rotation.y = B.yaw;
-    rigEvents(rg, rg.update(dt, bodyState(B, { fire: fired })));
+    d.pose(dt, { fire: fired });
   }
   const rg = demoRig;
   rg.root.position.copy(me.pos);

@@ -253,7 +253,8 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
         KA.me.spawnT = KA.now;
       });
     await B.keyboard.down("KeyE");
-    for (let i = 0; i < 6; i++) {
+    /* hold until it lands (up to 4 s) so a slow frame rate on CI does not cut the hold short */
+    for (let i = 0; i < 40 && (await B.evaluate(() => KA.wi)) !== 2; i++) {
       await go();
       await B.waitForTimeout(100);
     }

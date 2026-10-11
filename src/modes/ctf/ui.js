@@ -105,19 +105,11 @@
       const r = a.rig;
       if (!r) continue;
       if (a.dead && !r.dead) r.die();
-      r.root.position.copy(a.body.pos);
-      r.root.rotation.y = a.body.yaw;
-      K.rigEvents(
-        r,
-        r.update(
-          dt,
-          K.bodyState(a.body, {
-            reload: a.reloadT > 0 ? 1 - a.reloadT / K.RELOAD_TIME : -1,
-            fire: G.t - a.firedT < 0.1,
-            wpn: a.sniper > 0 ? 2 : a.wpn,
-          })
-        )
-      );
+      K.posePilot(a, dt, {
+        reload: a.reloadT > 0 ? 1 - a.reloadT / K.RELOAD_TIME : -1,
+        fire: G.t - a.firedT < 0.1,
+        wpn: a.sniper > 0 ? 2 : a.wpn,
+      });
       if (mode === "sim" && a._lab !== a.role) {
         a._lab = a.role;
         r.setLabel(a.name, a.role);

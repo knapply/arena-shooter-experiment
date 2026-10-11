@@ -94,7 +94,7 @@ function sendPresence(force) {
 function remoteFor(peer) {
   let r = remotes.get(peer);
   if (!r) {
-    r = {
+    r = Object.assign(new Pilot({ id: "peer:" + peer, ctl: "net", rig: false }), {
       peer,
       has: false,
       seenHit: -1,
@@ -117,7 +117,8 @@ function remoteFor(peer) {
       st: 0,
       rlStart: -1,
       mlStart: -1,
-    };
+    });
+    addPilot(r);
     remotes.set(peer, r);
   }
   return r;
@@ -127,7 +128,7 @@ function applyPeer(pe) {
   const r0 = remotes.get(pe.peer);
   if (!pr.p || !Array.isArray(pr.p) || pr.m === "ctf") {
     if (r0) {
-      if (r0.rig) scene.remove(r0.rig.root);
+      r0.dispose();
       remotes.delete(pe.peer);
     }
     return;
@@ -249,7 +250,7 @@ function updateLive() {
       for (const p of ch.left) {
         const rr = remotes.get(p.peer);
         if (rr) {
-          if (rr.rig) scene.remove(rr.rig.root);
+          rr.dispose();
           remotes.delete(p.peer);
         }
       }

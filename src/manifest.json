@@ -1,11 +1,6 @@
 {
   "_comment": "Load order. Engine modules share one scope (concatenated inside a single strict-mode closure, in this order). Mode modules are self-contained closures that talk to the engine through window.KA.",
-  "styles": [
-    "styles/base.css",
-    "styles/ctf.css",
-    "styles/p2p.css",
-    "styles/trailer.css"
-  ],
+  "styles": ["styles/base.css", "styles/ctf.css", "styles/p2p.css", "styles/trailer.css"],
   "engine": [
     "core/prelude.js",
     "core/settings.js",
@@ -17,6 +12,7 @@
     "world/maps/arena.js",
     "world/physics.js",
     "characters/rig.js",
+    "game/pilot.js",
     "weapons/viewmodels.js",
     "weapons/arsenal.js",
     "render/fx.js",

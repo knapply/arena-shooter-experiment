@@ -16,36 +16,37 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/maps/arena.js` | 143 | `gridTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `strip` `stairs` `SPAWNS` |
 | `src/world/physics.js` | 456 | `R` `GRAV` `H_STAND` `H_CROUCH` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
 | `src/characters/rig.js` | 946 | `DOWN` `_a` `_b` `_c` `_q1` `_q2` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `solve2` `capsule` `GEO` `geo` … (+14) |
+| `src/game/pilot.js` | 64 | `PILOTS` `posePilot` `Pilot` `addPilot` `pilotById` |
 | `src/weapons/viewmodels.js` | 260 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlove` `vmPlate` `vmGlass` `vmBox` `dot` `vmGun` `vmMag` `HOLO` `vmPis` `vmPisMag` `PIS` `VM_RELOAD` `PIS_RELOAD` … (+9) |
 | `src/weapons/arsenal.js` | 150 | `WEAPONS` `slots` `cur` `wi` `switchT` `semiLatch` `zoomLvl` `descoped` `flinch` `ammo` `reserve` `W` `zoomK` `showVM` `wpnHud` `setSlot` `setWeapon` `giveWeapon` … (+1) |
 | `src/render/fx.js` | 248 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `tracerGeo` `tracer` `sparkMat` `spark` `puffMat` `thrustPuff` `dustMat` `dust` `ringGeo` `ring` `shock` … (+8) |
 | `src/weapons/grenades.js` | 255 | `NADES` `NG` `_n1` `_n2` `fragGeo` `fragMat` `plasMat` `fxPut` `losClear` `inBox` `solveThrow` `nadeDmg` `NadeWorld` `MAIN_NADES` `nadeInv` `nadeSel` `nadeCD` `nadeRefill` … (+4) |
 | `src/core/audio.js` | 198 | `AC` `master` `audio` `NOISE` `noise` `env` `nz` `tone` `SFX_LAST` `sfxVoices` `sfxVoiceT` `sfx` `distVol` |
 | `src/core/announcer.js` | 146 | `VO` `hasTTS` `pickVoice` `lastSay` `say` `MEDAL` `medal` `streak` `multi` `lastKillT` `firstBlood` `lastKiller` `onKill` |
-| `src/game/state.js` | 279 | `EXT` `me` `myName` `playing` `paused` `now` `kills` `deaths` `mag` `reloadT` `fireCD` `myPeer` `killedBy` `respawnAt` `lastFireT` `RELOAD_TIME` `hitsOut` `hitSeq` … (+28) |
+| `src/game/state.js` | 284 | `EXT` `me` `myName` `playing` `paused` `now` `kills` `deaths` `mag` `reloadT` `fireCD` `myPeer` `killedBy` `respawnAt` `lastFireT` `RELOAD_TIME` `mePilot` `hitsOut` … (+29) |
 | `src/weapons/firing.js` | 145 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `fire` `startReload` `meleeHit` `slamDamage` |
 | `src/core/input.js` | 238 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `A` `P` `pressCode` `mouseL` `mouseR` `aiming` … (+7) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 53 | `savePrefs` `leaveGame` |
-| `src/net/arena-net.js` | 271 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `room` `lastSend` `sendPresence` `remoteFor` `applyPeer` `updateLive` |
+| `src/net/arena-net.js` | 272 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `room` `lastSend` `sendPresence` `remoteFor` `applyPeer` `updateLive` |
 | `src/ui/hud.js` | 76 | `renderScores` `xhEls` `hud` |
 | `src/ui/net-panel.js` | 90 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/weapons/viewmodel-anim.js` | 137 | `updVM` |
-| `src/game/loop.js` | 474 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+11) |
-| `src/modes/tech-demo.js` | 478 | `demo` `seg` `segT` `snapCam` `demoRig` `segOnce` `camLook` `dummies` `makeDummies` `placeDummy` `placeMe` `once` `PI` `SEGS` `nextSeg` `startDemo` `exitDemo` `demoFrame` |
+| `src/game/loop.js` | 465 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+11) |
+| `src/modes/tech-demo.js` | 473 | `demo` `seg` `segT` `snapCam` `demoRig` `segOnce` `camLook` `dummies` `makeDummies` `placeDummy` `placeMe` `once` `PI` `SEGS` `nextSeg` `startDemo` `exitDemo` `demoFrame` |
 | `src/ui/settings-ui.js` | 432 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `closeSettings` `onSetChange` `renderSettings` `renderKeys` `renderPadBinds` `padCapture` `renderKeyHelp` `hudHook` `hideBots` `showWorld` `extPlay` `extFull` … (+1) |
 | `src/weapons/pickups.js` | 178 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
-| `src/game/exports.js` | 156 | `KA_API` |
+| `src/game/exports.js` | 162 | `KA_API` |
 | `src/modes/ctf/map.js` | 266 |  |
 | `src/modes/ctf/nav.js` | 302 |  |
 | `src/modes/ctf/brain.js` | 568 |  |
-| `src/modes/ctf/agent.js` | 889 |  |
+| `src/modes/ctf/agent.js` | 891 |  |
 | `src/modes/ctf/rules.js` | 441 |  |
-| `src/modes/ctf/ui.js` | 387 |  |
+| `src/modes/ctf/ui.js` | 379 |  |
 | `src/net/ctf-host.js` | 461 |  |
 | `src/net/ctf-client.js` | 474 |  |
 | `src/modes/ctf/modes.js` | 596 |  |
 | `src/modes/trailer-score.js` | 700 |  |
-| `src/modes/trailer.js` | 1023 |  |
+| `src/modes/trailer.js` | 1016 |  |

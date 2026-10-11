@@ -49,16 +49,14 @@
   /* ---------------- actors: real bodies and rigs driven by scripted input ---------------- */
   const actors = [];
   function mk(color) {
-    const a = {
-      body: new K.Body(),
-      rig: K.makePilot(color, ""),
+    const a = Object.assign(K.addPilot(new K.Pilot({ id: "actor:" + actors.length, color, ctl: "script" })), {
       wpn: 1,
       firedT: -9,
       on: false,
       acc: 0,
       once: new Set(),
       reload: -1,
-    };
+    });
     a.rig.showTag(false);
     a.rig.root.visible = false;
     actors.push(a);
@@ -120,12 +118,7 @@
       a.acc -= H;
       n++;
     }
-    a.rig.root.position.copy(a.body.pos);
-    a.rig.root.rotation.y = a.body.yaw;
-    K.rigEvents(
-      a.rig,
-      a.rig.update(dt, K.bodyState(a.body, { fire: T - a.firedT < 0.1, wpn: a.wpn, reload: a.reload }))
-    );
+    a.pose(dt, { fire: T - a.firedT < 0.1, wpn: a.wpn, reload: a.reload });
   }
   function onBody(a, ty, d) {
     if (ty === "slam") {

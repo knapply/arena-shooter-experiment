@@ -439,22 +439,13 @@ function updRigs(dt) {
       wpn: s & 32768 ? 2 : s & 8192 ? 1 : 0,
     };
     rigEvents(r.rig, r.rig.update(dt, st));
+    /* keep the pilot's body where it is drawn, so body-based features (kill cams, events) see it */
+    r.body.pos.copy(root.position);
+    r.body.yaw = root.rotation.y;
+    r.body.pitch = r.pitch;
   }
-  for (const b of bots) {
-    const rg = b.rig;
-    rg.root.position.copy(b.body.pos);
-    rg.root.rotation.y = b.body.yaw;
-    rigEvents(
-      rg,
-      rg.update(
-        dt,
-        bodyState(b.body, {
-          reload: b.reloadT > 0 ? 1 - b.reloadT / RELOAD_TIME : -1,
-          fire: now - b.firedT < 0.1,
-        })
-      )
-    );
-  }
+  for (const b of bots)
+    b.pose(dt, { reload: b.reloadT > 0 ? 1 - b.reloadT / RELOAD_TIME : -1, fire: now - b.firedT < 0.1 });
 }
 function rigEvents(rig, ev) {
   if (!ev) return;
