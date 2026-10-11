@@ -75,6 +75,31 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     await p.keyboard.press("Digit2");
     await p.waitForTimeout(500);
     check((await p.evaluate(() => KA.wi)) === 0, "slot 2 switches to the carbine");
+    /* event stream: a kill carries stable ids, weapon, map and mode; feed and medals follow it */
+    const ev = await p.evaluate(() => {
+      const b = KA.bots[0];
+      const seen = [];
+      const off = KA.EVENTS.on("*", e => seen.push(e));
+      b.body.spawnT = -99;
+      KA.dealDamage({ kind: "bot", ref: b }, 999, "rifle", true);
+      off();
+      const k = seen.find(e => e.type === "kill");
+      return {
+        kill: k && [k.killer, k.victim, k.weapon, k.head, k.map, k.mode].join(","),
+        damage: seen.some(e => e.type === "damage" && e.victim === "bot:0"),
+        medal: seen.length > 0,
+        feed: document.getElementById("feed").textContent,
+        pilot: !!KA.pilotById("bot:0") && KA.pilotById("local").name === "Pilot",
+      };
+    });
+    await p.waitForTimeout(300);
+    const medals = await p.evaluate(() => KA.EVENTS.recent(30).filter(e => e.type === "medal").length);
+    check(
+      ev.kill === "local,bot:0,rifle,true,arena,ffa" && ev.damage && /Drone-04/.test(ev.feed) && ev.pilot,
+      "kill events carry ids, weapon, map and mode; the feed follows them",
+      ev
+    );
+    check(medals > 0, "medals follow kill events", medals);
     /* destruction */
     const d = await p.evaluate(() => {
       const D = KA.DESTR;

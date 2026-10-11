@@ -90,6 +90,7 @@ const ARENA_PICKS = [
       if (!this.avail) return false;
       this.availAt = now + this.respawn;
       emitFx("pk", [0, 0, 0], [0, 0, 0], 0);
+      EVENTS.emit("pickup", { pilot: "local", item: this.id });
       return true;
     },
   },

@@ -204,6 +204,14 @@ function hurtMe(n, src) {
   } else flinch = Math.min(0.06, flinch + n * 0.0016);
   const hadShield = me.shield > 0;
   const died = me.damage(n, now);
+  EVENTS.emit("damage", {
+    by: src.bot ? src.bot.id : src.peer ? "peer:" + src.peer : src.agent ? src.agent.id : "world",
+    victim: "local",
+    amount: n,
+    weapon: src.w || "rifle",
+    head: !!src.hd,
+    shieldBroken: hadShield && me.shield <= 0,
+  });
   if (hadShield) {
     sflashT = Math.max(sflashT, me.shield <= 0 ? 1 : 0.55);
     sfx(me.shield <= 0 ? "pop" : "shieldhit");
@@ -229,7 +237,16 @@ function hurtMe(n, src) {
       hd: src.hd ? 1 : 0,
       t: Date.now(),
     };
-    pushFeed(name, myName, false, true);
+    /* modes with their own rules (CTF) report the kill through their own event */
+    if (!EXT)
+      EVENTS.emit("kill", {
+        killer: src.bot ? src.bot.id : src.peer ? "peer:" + src.peer : src.w === "self" ? "local" : "world",
+        killerName: src.w === "self" ? myName : name,
+        victim: "local",
+        victimName: myName,
+        weapon: src.w || "rifle",
+        head: !!src.hd,
+      });
     respawnAt = now + ((EXT && EXT.respawnDelay) || 3);
     $("dead").hidden = false;
     $("deadBy").textContent = "Taken out by " + name;
@@ -238,6 +255,11 @@ function hurtMe(n, src) {
   }
 }
 
+/* the kill feed is a subscriber; spectator modes keep it quiet */
+EVENTS.on("kill", e => {
+  if (!/spectate|trailer/.test(e.mode))
+    pushFeed(e.killerName, e.victimName, e.killer === "local", e.victim === "local");
+});
 function pushFeed(a, b, mine, victim) {
   feed.unshift({ a, b, mine, victim, t: now });
   if (feed.length > 5) feed.pop();

@@ -3,6 +3,7 @@
   "styles": ["styles/base.css", "styles/ctf.css", "styles/p2p.css", "styles/trailer.css"],
   "engine": [
     "core/prelude.js",
+    "game/events.js",
     "core/settings.js",
     "render/renderer.js",
     "render/pipeline.js",

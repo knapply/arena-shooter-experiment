@@ -10,10 +10,13 @@ $("deploy").onclick = () => {
   savePrefs();
   botsOn = $("bots").checked;
   makeBots();
+  EVENTS.setContext({ map: "arena", mode: "ffa" });
+  EVENTS.emit("matchStart", {});
   audio();
   vmArmor.color.set(myColor).multiplyScalar(0.55);
   if (document.activeElement) /** @type {HTMLElement} */ (document.activeElement).blur();
   spawn(me);
+  EVENTS.emit("spawn", { pilot: "local" });
   playing = true;
   reloadT = 0;
   refill();

@@ -901,6 +901,7 @@
   /* ---------------- start / stop ---------------- */
   function begin(record) {
     cast();
+    K.EVENTS.setContext({ map: "arena", mode: "trailer" });
     K.audio();
     T = 0;
     shotI = -1;

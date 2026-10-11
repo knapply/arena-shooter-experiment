@@ -32,9 +32,9 @@ const KA_API = {
     return myPeer;
   },
   addKill(type, head, victim) {
+    /* medals come from the mode's kill event; this only credits the score and marker */
     kills++;
     hitMarker("kill");
-    onKill(type, head, victim);
   },
   setArmor(c) {
     vmArmor.color.set(c).multiplyScalar(0.55);
@@ -82,6 +82,11 @@ const KA_API = {
   rayBox,
   SPAWNS,
   makePilot,
+  EVENTS,
+  dealDamage,
+  get bots() {
+    return bots;
+  },
   Pilot,
   PILOTS,
   addPilot,

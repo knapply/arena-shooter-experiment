@@ -257,6 +257,7 @@ function nextSeg(i) {
 }
 function startDemo() {
   makeDummies();
+  EVENTS.setContext({ map: "arena", mode: "tutorial" });
   audio();
   VO.on = $("vo").checked;
   demo = true;
@@ -285,6 +286,7 @@ function startDemo() {
 }
 function exitDemo() {
   demo = false;
+  EVENTS.setContext({ map: "arena", mode: "ffa" });
   $("demoUI").hidden = true;
   $("hud").hidden = true;
   $("hud").classList.remove("demo");

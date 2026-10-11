@@ -22,6 +22,7 @@
   UI.attach = function (game, m) {
     G = game;
     mode = m;
+    K.EVENTS.setContext({ map: "ctf", mode: m === "sim" ? "ctf-spectate" : "ctf" });
     UI.rigAll();
     if (!FLAGS) FLAGS = [CTF.makeFlag(0), CTF.makeFlag(1)];
     flagObjs = FLAGS;
@@ -61,6 +62,7 @@
     $("cMarks").textContent = "";
     marks = [];
     G = null;
+    K.EVENTS.setContext({ map: "arena", mode: "ffa" });
   };
   UI.game = () => G;
   /* rigs are cached per team slot and reused across matches; humans get their slot's armor */
@@ -145,7 +147,34 @@
   function say(t) {
     if (!UI.quiet) K.say(t, true);
   }
+  /* CTF agents in the engine's id scheme: you are "local", other people "peer:<id>", AI "ctf:<id>" */
+  const pid = a =>
+    !a ? "world" : a.local ? "local" : /^h:/.test(a.id) ? "peer:" + a.id.slice(2) : "ctf:" + a.id;
+  /** forward CTF rule events into the engine's event stream (feed, medals, future stats) */
+  function forward(type, d) {
+    const E = K.EVENTS;
+    if (type === "kill")
+      E.emit("kill", {
+        killer: pid(d.killer),
+        killerName: d.killer ? d.killer.name : "Fall",
+        victim: pid(d.victim),
+        victimName: d.victim.name,
+        weapon: d.type || "rifle",
+        head: !!d.head,
+      });
+    else if (type === "flagTaken" || type === "flagDrop" || type === "flagReturn" || type === "capture")
+      E.emit(type, {
+        pilot: pid(d.by),
+        pilotName: d.by ? d.by.name : "",
+        team: d.flag ? d.flag.team : d.team,
+      });
+    else if (type === "flagReset") E.emit(type, { team: d.flag.team });
+    else if (type === "pickup") E.emit("pickup", { pilot: pid(d.by), item: d.id });
+    else if (type === "start") E.emit("matchStart", {});
+    else if (type === "end") E.emit("matchEnd", { winner: d.winner });
+  }
   function onEvent(type, d) {
+    forward(type, d || {});
     const hum = G.human,
       ht = hum ? hum.team : -1;
     switch (type) {
@@ -156,7 +185,6 @@
           "kill",
           `${k ? k.name : "Fall"} › ${v.name}${d.type === "pound" ? " · pound" : d.type === "charge" ? " · charge" : d.type === "melee" ? " · melee" : d.head ? " · headshot" : ""}`
         );
-        if (mode === "play" && !v.local) K.pushFeed(k ? k.name : "Fall", v.name, !!(k && k.local), false);
         break;
       }
       case "flagTaken": {

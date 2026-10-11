@@ -210,18 +210,25 @@ function applyPeer(pe) {
   if (dt_ && (dt_.s | 0) > r.seenDth) {
     r.seenDth = dt_.s | 0;
     let killer = dt_.bn ? cleanName(dt_.bn) : "Unknown";
-    let mine = false;
+    let kid = "world";
     if (dt_.by && dt_.by === myPeer) {
       killer = myName;
-      mine = true;
+      kid = "local";
       kills++;
       hitMarker("kill");
-      onKill(String(dt_.w || "rifle"), !!dt_.hd, r.name);
     } else if (dt_.by) {
       const kr = remotes.get(dt_.by);
       if (kr) killer = kr.name;
+      kid = "peer:" + cleanName(dt_.by, 64);
     }
-    pushFeed(killer, r.name, mine, false);
+    EVENTS.emit("kill", {
+      killer: kid,
+      killerName: killer,
+      victim: r.id,
+      victimName: r.name,
+      weapon: cleanName(String(dt_.w || "rifle"), 12),
+      head: !!dt_.hd,
+    });
   }
 }
 function updateLive() {

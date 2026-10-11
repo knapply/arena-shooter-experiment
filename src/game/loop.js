@@ -238,7 +238,10 @@ function frameBody(t) {
   if (me.dead) {
     if (now > respawnAt) {
       if (EXT && EXT.respawn) EXT.respawn();
-      else spawn(me);
+      else {
+        spawn(me);
+        EVENTS.emit("spawn", { pilot: "local" });
+      }
       $("dead").hidden = true;
       reloadT = 0;
       refill();

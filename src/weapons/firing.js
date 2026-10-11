@@ -19,16 +19,21 @@ function dealDamage(t, n, type, head) {
   if (t.kind === "ext") {
     const r = t.ref.onHit(n, type, head);
     hitMarker(r.died ? "kill" : r.sh ? "sh" : "");
-    if (r.died) {
-      kills++;
-      onKill(type, head, r.name);
-    }
+    if (r.died) kills++; /* the mode emits the kill event (and with it the medals) */
     return;
   }
   if (t.kind === "bot") {
     const b = t.ref;
     const had = b.body.shield > 0;
     const died = b.body.damage(n, now);
+    EVENTS.emit("damage", {
+      by: "local",
+      victim: b.id,
+      amount: n,
+      weapon: type,
+      head: !!head,
+      shieldBroken: had && b.body.shield <= 0,
+    });
     hitMarker(died ? "kill" : had ? "sh" : "");
     if (!died) b.rig.flashHit(camera.position);
     if (died) {
@@ -37,8 +42,14 @@ function dealDamage(t, n, type, head) {
       b.respawn = now + 3;
       b.rig.die(camera.position, hitPower(type));
       spark(b.body.pos.clone().add(new V3(0, 1.1, 0)), 14);
-      pushFeed(myName, b.name, true, false);
-      onKill(type, head, b.name);
+      EVENTS.emit("kill", {
+        killer: "local",
+        killerName: myName,
+        victim: b.id,
+        victimName: b.name,
+        weapon: type,
+        head: !!head,
+      });
     }
   } else {
     const r = t.ref;

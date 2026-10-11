@@ -72,6 +72,7 @@ const MEDAL = {
 function medal(key) {
   const m = MEDAL[key];
   if (!m) return;
+  EVENTS.emit("medal", { pilot: "local", medal: key });
   const el = document.createElement("div");
   el.className = "medal";
   const i = document.createElement("i");
@@ -101,6 +102,7 @@ function onKill(type, head, victim) {
     ks.push("first");
   }
   if (multi >= 2) ks.push(multi === 2 ? "double" : multi === 3 ? "triple" : multi === 4 ? "quad" : "mass");
+  if (streak % 5 === 0 && streak <= 20) EVENTS.emit("spree", { pilot: "local", count: streak });
   if (streak === 5) ks.push("spree");
   else if (streak === 10) ks.push("rampage");
   else if (streak === 15) ks.push("unstop");
@@ -143,3 +145,7 @@ function onKill(type, head, victim) {
     setTimeout(() => say(MEDAL[top][1], true), 120);
   }
 }
+/* medals and sprees follow your kills, whichever mode or network path credited them */
+EVENTS.on("kill", e => {
+  if (e.killer === "local" && e.victim !== "local") onKill(e.weapon, e.head, e.victimName);
+});
