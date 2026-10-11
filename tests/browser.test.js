@@ -237,15 +237,12 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       s0,
       await B.evaluate(() => KA.me.shield),
     ]);
-    await A.evaluate(() => {
-      for (const a of CTF.UI.game().agents) if (!a.human) a.respawnAt = 0;
-    });
     await alive(B);
     await B.bringToFront();
     await B.mouse.click(640, 400);
     await B.waitForTimeout(150);
-    /* bots already carrying a sniper will not race the friend to the pedestal */ await A.evaluate(() => {
-      for (const a of CTF.UI.game().agents) if (!a.human) a.sniper = 12;
+    /* bots stay benched so none races the friend to the pedestal */
+    await A.evaluate(() => {
       KA.EXT.pickups()[0].availAt = 0;
     });
     await B.waitForTimeout(300);
@@ -264,6 +261,9 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     await B.waitForTimeout(1000);
     check((await B.evaluate(() => KA.wi)) === 2, "friend picks up the CTF sniper");
     check(await A.evaluate(() => !KA.EXT.pickups()[0].avail), "host marks the sniper taken");
+    await A.evaluate(() => {
+      for (const a of CTF.UI.game().agents) if (!a.human) a.respawnAt = 0;
+    });
     await B.keyboard.press("KeyJ");
     await B.waitForTimeout(2000);
     check((await roster(A)).length === 8, "team switch keeps 4v4");
