@@ -34,7 +34,7 @@ const prelude = `const V3=THREE.Vector3;const POOL=new Map();const SET={destruct
 const detailMat=()=>{};const scaleBoxUV=()=>{};const pc=n=>n;const num=(v,lo,hi,d)=>{v=+v;return Number.isFinite(v)?Math.max(lo,Math.min(hi,v)):(d||0);};
 const me={pos:new V3()};const bots=[];const scene=new THREE.Scene();scene.fog={};const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));const rnd=(a,b)=>a+Math.random()*(b-a);
 `;
-const exportsJs = `window.KA={STORE,RNG,rand,WEAPON_DATA,killStats,detailMat,DESTR,damageBox,damageRadius,rayWorldHit,resetDestruction,NadeWorld,NADES,MAIN_NADES,nadeDmg,losClear,solveThrow,toast(){},THREE,clamp,rnd,scene,SOLID,MATS,box,strip,stairs,ARENA_G,setMapGroup(g){MAPG=g;},
+const exportsJs = `window.KA={mergeMapGroup,STORE,RNG,rand,WEAPON_DATA,killStats,detailMat,DESTR,damageBox,damageRadius,rayWorldHit,resetDestruction,NadeWorld,NADES,MAIN_NADES,nadeDmg,losClear,solveThrow,toast(){},THREE,clamp,rnd,scene,SOLID,MATS,box,strip,stairs,ARENA_G,setMapGroup(g){MAPG=g;},
  Body,R,H_STAND,H_CROUCH,GRAV,groundBelow,freeAt,rayWorld,rayTarget,rayBox,RELOAD_TIME:1.8,myName:"You",wi:1,
  hurtMe(){},tracer(){},spark(){},sfx(){},distVol(){return 0},shock(){},thrustPuff(){},dust(){},updPickups(){}};`;
 (0, eval)(`(function(){${prelude}\n${ENGINE.map(read).join("\n")}\n${exportsJs}})()`);

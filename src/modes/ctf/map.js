@@ -114,6 +114,7 @@
     S(-17, 0, -21.1, 2.4, 2, 2.4, "step");
     S(17, 0, -14, 2.4, 4.2, 2.4, "wall");
     S(17, 0, -16.4, 2.4, 2, 2.4, "step");
+    K.mergeMapGroup(g);
     const solids = K.SOLID.splice(0);
     K.SOLID.push(...saved);
     K.setMapGroup(K.ARENA_G);

@@ -68,6 +68,7 @@ const KA_API = {
   strip,
   stairs,
   ARENA_G,
+  mergeMapGroup,
   setMapGroup(g) {
     MAPG = g;
   },

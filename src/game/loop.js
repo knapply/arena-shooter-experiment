@@ -424,12 +424,13 @@ function frameBody(t) {
   hud();
   renderFrame();
 }
+const _est = new V3();
 function updRigs(dt) {
   const tnow = performance.now() / 1000;
   for (const r of remotes.values()) {
     if (!r.rig || !r.has) continue;
     const age = Math.min(0.15, tnow - r.rx);
-    const est = r.tgt.clone().addScaledVector(r.vel, age);
+    const est = _est.copy(r.tgt).addScaledVector(r.vel, age);
     const root = r.rig.root;
     if (root.position.distanceTo(est) > 6) root.position.copy(est);
     else root.position.lerp(est, 1 - Math.exp(-18 * dt));

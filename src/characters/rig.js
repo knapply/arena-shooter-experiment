@@ -69,6 +69,56 @@ const CAST = new Set([
   "gaunt",
   "pack",
 ]);
+/* ---- draw-call budget: each bone's static parts become one mesh per material, and their shield
+   shells one shell mesh per bone. A pilot goes from ~70 visible meshes to ~35. Merged geometry is
+   cached by position in the rig, so every pilot shares it. */
+const MERGED = new Map();
+function mergeParts(root, keep, shieldM, shells) {
+  const nodes = [];
+  root.traverse(o => {
+    if (!o.isMesh && !o.isSprite && o.children.length) nodes.push(o);
+  });
+  const roles = new Map();
+  const role = m => (roles.has(m) ? roles.get(m) : roles.set(m, roles.size).get(m));
+  nodes.forEach((n, ni) => {
+    const parts = n.children.filter(
+      c => c.isMesh && c.material !== shieldM && !keep.has(c) && c.children.every(k => k.material === shieldM)
+    );
+    if (parts.length < 2) return;
+    const byMat = new Map();
+    for (const m of parts) {
+      m.updateMatrix();
+      if (!byMat.has(m.material)) byMat.set(m.material, []);
+      byMat.get(m.material).push(m);
+    }
+    const shellItems = [];
+    for (const [mat, list] of byMat) {
+      const key = ni + ":" + role(mat);
+      if (!MERGED.has(key)) MERGED.set(key, mergeGeos(list.map(m => [m.geometry, m.matrix])));
+      const mm = new THREE.Mesh(MERGED.get(key), mat);
+      mm.castShadow = list.some(m => m.castShadow);
+      n.add(mm);
+      for (const m of list) {
+        for (const s of m.children) {
+          s.updateMatrix();
+          shellItems.push([s.geometry, new THREE.Matrix4().multiplyMatrices(m.matrix, s.matrix)]);
+          const i = shells.indexOf(s);
+          if (i >= 0) shells.splice(i, 1);
+        }
+        n.remove(m);
+      }
+    }
+    if (shellItems.length) {
+      const key = ni + ":shell";
+      if (!MERGED.has(key)) MERGED.set(key, mergeGeos(shellItems));
+      const s = new THREE.Mesh(MERGED.get(key), shieldM);
+      s.visible = false;
+      s.renderOrder = 5;
+      n.add(s);
+      shells.push(s);
+    }
+  });
+}
 function shieldMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: { uI: { value: 0 }, uT: { value: 0 }, uC: { value: new THREE.Color("#ffd36b") } },
@@ -485,6 +535,7 @@ function makePilot(color, label) {
   tag.scale.set(1.8, 0.45, 1);
   tag.position.y = 2.25;
   root.add(tag);
+  mergeParts(root, new Set([mag]), shieldM, shells);
   scene.add(root);
   /* animation state. Springs give lean, bounce, flinch and recoil some follow-through instead of linear blends. */
   const S = {

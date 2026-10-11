@@ -65,6 +65,88 @@ function box(cx, y0, cz, w, h, d, mat, solid = true) {
   if (solid) SOLID.push(b);
   return b;
 }
+/** merge [geometry, matrix] pairs into one indexed geometry (positions, normals, and UVs when all have them) */
+function mergeGeos(items) {
+  let nv = 0,
+    ni = 0;
+  const uv = items.every(([g]) => !!g.attributes.uv);
+  for (const [g] of items) {
+    nv += g.attributes.position.count;
+    ni += g.index ? g.index.count : g.attributes.position.count;
+  }
+  const pos = new Float32Array(nv * 3),
+    nor = new Float32Array(nv * 3),
+    uvs = uv ? new Float32Array(nv * 2) : null,
+    idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+  const v = new THREE.Vector3(),
+    nm = new THREE.Matrix3();
+  let vo = 0,
+    io = 0;
+  for (const [g, m] of items) {
+    nm.getNormalMatrix(m);
+    const P = g.attributes.position,
+      N = g.attributes.normal,
+      U = g.attributes.uv,
+      c = P.count;
+    for (let i = 0; i < c; i++) {
+      const o = (vo + i) * 3;
+      v.fromBufferAttribute(P, i).applyMatrix4(m);
+      pos[o] = v.x;
+      pos[o + 1] = v.y;
+      pos[o + 2] = v.z;
+      v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize();
+      nor[o] = v.x;
+      nor[o + 1] = v.y;
+      nor[o + 2] = v.z;
+      if (uvs) {
+        uvs[(vo + i) * 2] = U.getX(i);
+        uvs[(vo + i) * 2 + 1] = U.getY(i);
+      }
+    }
+    if (g.index) for (let i = 0; i < g.index.count; i++) idx[io++] = g.index.getX(i) + vo;
+    else for (let i = 0; i < c; i++) idx[io++] = vo + i;
+    vo += c;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  out.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
+  if (uvs) out.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  out.setIndex(new THREE.BufferAttribute(idx, 1));
+  out.computeBoundingSphere();
+  return out;
+}
+/* draw-call budget: everything in a map that never changes (floor, walls, steps, trim) is merged into
+   one mesh per material once the map is built. Destructible cover keeps its own meshes. */
+function mergeMapGroup(group) {
+  if (!Array.isArray(group.children)) return;
+  const destr = new Set(DESTR.all.map(b => b.mesh));
+  const buckets = new Map();
+  for (const m of group.children.slice()) {
+    if (!m.isMesh || destr.has(m)) continue;
+    const k = m.material.uuid + (m.castShadow ? "s" : "");
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(m);
+  }
+  for (const list of buckets.values()) {
+    if (list.length < 2) continue;
+    const merged = new THREE.Mesh(
+      mergeGeos(
+        list.map(m => {
+          m.updateMatrix();
+          return [m.geometry, m.matrix];
+        })
+      ),
+      list[0].material
+    );
+    merged.castShadow = list[0].castShadow;
+    merged.receiveShadow = true;
+    for (const m of list) {
+      group.remove(m);
+      m.geometry.dispose();
+    }
+    group.add(merged);
+  }
+}
 function strip(cx, y, cz, w, d, mat = "strip") {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, d), MATS[mat]);
   m.position.set(cx, y + 0.03, cz);
@@ -133,6 +215,7 @@ box(10, 0, -34.5, 10, 2.4, 3, "base");
 box(-10, 0, 34.5, 10, 2.4, 3, "base");
 box(34.5, 0, 10, 3, 2.4, 10, "base");
 box(-34.5, 0, -10, 3, 2.4, 10, "base");
+mergeMapGroup(ARENA_G);
 const SPAWNS = [
   [24, 2.6, 24],
   [-24, 2.6, -24],
