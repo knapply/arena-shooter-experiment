@@ -90,8 +90,14 @@ const stats = async p => {
     await p.evaluate(() => KA.extStop());
     await p.waitForTimeout(400);
     await p.click("#ctfSim");
-    await p.waitForTimeout(4000);
-    const c = await info();
+    await p.waitForTimeout(2500);
+    /* the spectator camera moves on its own, so take the worst of several samples */
+    let c = { calls: 0, tris: 0 };
+    for (let i = 0; i < 16; i++) {
+      await p.waitForTimeout(400);
+      const v = await info();
+      c = { calls: Math.max(c.calls, v.calls), tris: Math.max(c.tris, v.tris) };
+    }
     check(c.calls <= B.ctf.drawCalls && c.tris <= B.ctf.triangles, "CTF view within draw budget", c);
     check(p.errors.length === 0, "budget scenes have no errors", p.errors.slice(0, 3));
     await p.close();
