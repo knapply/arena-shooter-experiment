@@ -1,4 +1,5 @@
-const $ = id => document.getElementById(id);
+/** @type {(id: string) => El} */
+const $ = id => /** @type {El} */ (document.getElementById(id));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rnd = (a, b) => a + Math.random() * (b - a);
 const r2 = v => Math.round(v * 100) / 100;
@@ -21,10 +22,10 @@ COLORS.forEach(c => {
   b.className = "sw";
   b.style.background = c;
   b.setAttribute("aria-label", "Armor color " + c);
-  b.setAttribute("aria-pressed", c === myColor);
+  b.setAttribute("aria-pressed", String(c === myColor));
   b.onclick = () => {
     myColor = c;
-    [...$("swatches").children].forEach(x => x.setAttribute("aria-pressed", x === b));
+    [...$("swatches").children].forEach(x => x.setAttribute("aria-pressed", String(x === b)));
   };
   $("swatches").appendChild(b);
 });

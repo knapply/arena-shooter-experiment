@@ -20,7 +20,7 @@ function openSettings(from) {
   renderSettings();
   setMsg("");
   $("setIO").hidden = true;
-  const f = $("settings").querySelector(".stab[aria-selected=true]");
+  const f = /** @type {HTMLElement} */ ($("settings").querySelector(".stab[aria-selected=true]"));
   if (f) f.focus();
 }
 function closeSettings() {
@@ -276,7 +276,8 @@ $("setApply").onclick = () => {
   if (r.ok) renderSettings();
 };
 $("setFile").onchange = e => {
-  const f = e.target.files && e.target.files[0];
+  const inp = /** @type {HTMLInputElement} */ (e.target);
+  const f = inp.files && inp.files[0];
   if (!f) return;
   if (f.size > 200000) {
     setMsg("That file is too large to be a settings file.", true);
@@ -290,7 +291,7 @@ $("setFile").onchange = e => {
     if (r.ok) renderSettings();
   };
   rd.readAsText(f);
-  e.target.value = "";
+  inp.value = "";
 };
 addEventListener(
   "mousedown",
@@ -316,6 +317,7 @@ function renderKeyHelp() {
   const box = $("keysDesk");
   if (!box) return;
   box.textContent = "";
+  /** @type {[string[], string][]} */
   const rows = [
     [["forward", "left", "back", "right"], "Move · mouse to look"],
     [["sprint"], "Sprint (delays shield recharge)"],
@@ -342,7 +344,8 @@ const hudHook = () => {
   document.documentElement.style.setProperty("--xh", SET.xhColor);
   $("xh").style.scale = String(SET.xhSize);
   for (const s of [".vitals", ".ammo", ".kit", "#medals", ".status", "#feed"])
-    document.querySelectorAll(s).forEach(e => (e.style.zoom = SET.hudScale));
+    for (const e of /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(s)))
+      e.style.zoom = String(SET.hudScale);
   if (master) master.gain.value = SET.master * SET.sfx;
 };
 for (const m of [sparkMat, flashMat, shardMat, plasMat, glowMat]) m.map = SOFT;
@@ -376,7 +379,7 @@ function extPlay(ext, opts) {
   savePrefs();
   vmArmor.color.set((opts && opts.color) || myColor).multiplyScalar(0.55);
   hideBots();
-  if (document.activeElement) document.activeElement.blur();
+  if (document.activeElement) /** @type {HTMLElement} */ (document.activeElement).blur();
   playing = true;
   paused = false;
   reloadT = 0;

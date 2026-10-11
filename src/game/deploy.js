@@ -12,7 +12,7 @@ $("deploy").onclick = () => {
   makeBots();
   audio();
   vmArmor.color.set(myColor).multiplyScalar(0.55);
-  if (document.activeElement) document.activeElement.blur();
+  if (document.activeElement) /** @type {HTMLElement} */ (document.activeElement).blur();
   spawn(me);
   playing = true;
   reloadT = 0;

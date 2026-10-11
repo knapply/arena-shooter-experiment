@@ -191,6 +191,7 @@
     };
     const evObj = id => M.byId(id) || { name: "?", local: false, human: false, team: -1, pos: new V3() };
     /* ---- read the host's snapshot ---- */
+    /** @param {HostSnapshot} Hs untrusted: every field is validated below */
     M.apply = function (Hs) {
       if (!Hs || typeof Hs !== "object" || Hs.id !== mid) return;
       M.lastHost = performance.now();

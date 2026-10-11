@@ -247,7 +247,10 @@ function nextSeg(i) {
     e.textContent = x.replace(/\{(\w+)\}/g, (m, a) => bindLabel(a).split(" / ")[0]);
     k.appendChild(e);
   });
-  [...$("dProg").children].forEach((el, j) => (el.firstChild.style.transform = `scaleX(${j < seg ? 1 : 0})`));
+  [...$("dProg").children].forEach((el, j) => {
+    const fill = /** @type {HTMLElement} */ (el.firstChild);
+    fill.style.transform = `scaleX(${j < seg ? 1 : 0})`;
+  });
   try {
     $("dfade").animate([{ opacity: 1 }, { opacity: 0 }], { duration: reduceMotion ? 1 : 450 });
   } catch (e) {}
@@ -461,17 +464,14 @@ function demoFrame(dt) {
   updRigs(dt);
   hud();
   const hs = Math.hypot(me.vel.x, me.vel.z);
-  $("speed").style.opacity = reduceMotion
-    ? 0
-    : me.thrustT > 0
-      ? 0.6
-      : me.pound === 2
-        ? 0.7
-        : clamp((hs - 10) / 6, 0, 0.5);
+  $("speed").style.opacity = String(
+    reduceMotion ? 0 : me.thrustT > 0 ? 0.6 : me.pound === 2 ? 0.7 : clamp((hs - 10) / 6, 0, 0.5)
+  );
   toastT -= dt;
-  if (toastT <= 0) $("toast").style.opacity = 0;
+  if (toastT <= 0) $("toast").style.opacity = "0";
   const bar = $("dProg").children[seg];
-  if (bar) bar.firstChild.style.transform = `scaleX(${Math.min(1, segT / S.dur)})`;
+  if (bar)
+    /** @type {HTMLElement} */ (bar.firstChild).style.transform = `scaleX(${Math.min(1, segT / S.dur)})`;
   if (segT >= S.dur + 0.6) nextSeg(seg + 1);
   renderFrame();
 }

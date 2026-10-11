@@ -158,11 +158,11 @@
     function drone(t, note, dur, vel = 0.08) {
       const f = hz(note);
       const g = ctx.createGain();
-      for (const [type, m, a] of [
+      for (const [type, m, a] of /** @type {[OscillatorType, number, number][]} */ ([
         ["sine", 1, 1],
         ["triangle", 2, 0.35],
         ["sine", 0.5, 0.6],
-      ]) {
+      ])) {
         const o = ctx.createOscillator();
         o.type = type;
         o.frequency.value = f * m;
@@ -296,10 +296,10 @@
       lp.frequency.exponentialRampToValueAtTime(260, t + dur * 0.9);
       const g = ctx.createGain();
       gainEnv(g, t, 0.004, 0.5 * vel, dur * 0.5, dur * 0.45);
-      for (const [type, m, a] of [
+      for (const [type, m, a] of /** @type {[OscillatorType, number, number][]} */ ([
         ["sawtooth", 1, 0.7],
         ["square", 0.5, 0.5],
-      ]) {
+      ])) {
         const o = ctx.createOscillator();
         o.type = type;
         o.frequency.value = f * m;
@@ -506,6 +506,7 @@
     /* A: chant (bars 1-8) */
     drone(at(0), "D2", 16, 0.09);
     drone(at(0), "A2", 16, 0.05);
+    /** @type {[string, number][]} */
     const chant = [
       ["D3", 2],
       ["F3", 1],
@@ -525,6 +526,7 @@
       b += l;
     }
     b = 16;
+    /** @type {[string, number][]} */
     const chant2 = [
       ["D3", 2],
       ["F3", 1],

@@ -84,6 +84,7 @@ const T_GFX = "Graphics",
   T_GAME = "Gameplay",
   T_AUD = "Audio",
   T_DES = "Destruction";
+/** @type {SettingDef[]} */
 const SCHEMA = [
   {
     k: "preset",
@@ -699,6 +700,8 @@ const PRESETS = {
 };
 const PRESET_KEYS = Object.keys(PRESETS.high);
 const SKEY = "ka-settings-v1";
+/** current settings, keyed by SettingDef.k */
+/** @type {Record<string, any>} */
 const SET = {};
 for (const s of SCHEMA) SET[s.k] = s.def;
 let BIND = JSON.parse(JSON.stringify(DEF_BIND)),

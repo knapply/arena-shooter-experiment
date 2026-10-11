@@ -206,11 +206,11 @@ function padMenu(dt) {
             ? $("ctfHud")
             : null;
   if (!ov) return;
-  const items = [...ov.querySelectorAll("button,select,input")].filter(
+  const items = /** @type {El[]} */ ([...ov.querySelectorAll("button,select,input")]).filter(
     el => el.offsetParent !== null && !el.disabled
   );
   if (!items.length) return;
-  let i = items.indexOf(document.activeElement),
+  let i = items.indexOf(/** @type {El} */ (document.activeElement)),
     dir = 0;
   if (gpDown(GPB.DOWN) || gpDown(GPB.RIGHT)) dir = 1;
   if (gpDown(GPB.UP) || gpDown(GPB.LEFT)) dir = -1;

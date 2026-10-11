@@ -57,7 +57,7 @@ addEventListener("keydown", e => {
     rebindCapture(e.code, e);
     return;
   }
-  const tg = e.target.tagName;
+  const tg = /** @type {HTMLElement} */ (e.target).tagName;
   if (tg === "INPUT" || tg === "TEXTAREA" || tg === "SELECT") return;
   if (e.repeat) {
     if (CODE2ACT.has(e.code) && playing) e.preventDefault();

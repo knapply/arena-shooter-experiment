@@ -5,12 +5,12 @@
     CTF = window.CTF;
   const V3 = T.Vector3,
     num = K.num;
-  const NET = (CTF.NET = {
+  const NET = (CTF.NET = /** @type {NetApi} */ ({
     room: null,
     named: false,
     base: { m: "ctf", n: "Pilot", tm: 0, ph: "menu" },
     onPeers: null,
-  });
+  }));
   const r1 = v => Math.round(v * 10) / 10,
     r2 = v => Math.round(v * 100) / 100;
   const ID_RE = /^[a-z0-9:_-]{1,48}$/i;
@@ -225,6 +225,7 @@
       H.fx.push([++H.fxS, "n", ...a, ...b, g | 0]);
       if (H.fx.length > 4) H.fx.shift();
     };
+    /** @returns {HostSnapshot} */
     H.snapshot = function () {
       const ST = { home: 0, carried: 1, dropped: 2 };
       return {

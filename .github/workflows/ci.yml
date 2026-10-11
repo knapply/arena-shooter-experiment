@@ -17,6 +17,8 @@ jobs:
         run: npm run format:check
       - name: Lint
         run: npm run lint
+      - name: Type check
+        run: npm run typecheck
       - name: index.html matches src/
         run: node build.mjs --check
       - name: Headless AI matches

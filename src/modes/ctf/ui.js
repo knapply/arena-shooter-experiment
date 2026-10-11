@@ -7,7 +7,9 @@
     $ = K.$;
   const V3 = T.Vector3;
   const TN = CTF.TEAM_NAMES;
-  const UI = (CTF.UI = { quiet: false, onEvent: null });
+  /** when each comms line was posted, for fading old lines */
+  const commsT = new WeakMap();
+  const UI = (CTF.UI = /** @type {CTFUI} */ ({ quiet: false, onEvent: null }));
   let G = null,
     mode = null,
     flagObjs = [],
@@ -229,7 +231,7 @@
       el.appendChild(b);
     }
     el.appendChild(document.createTextNode(text));
-    el._t = performance.now();
+    commsT.set(el, performance.now());
     box.appendChild(el);
     while (box.children.length > (mode === "play" ? 6 : 9)) box.firstChild.remove();
   }
@@ -257,7 +259,7 @@
       }
     const now = performance.now();
     for (const el of $("cComms").children) {
-      const age = now - el._t;
+      const age = now - (commsT.get(el) || now);
       el.classList.toggle("old", age > 7000);
       if (age > 16000) el.remove();
     }

@@ -1,4 +1,5 @@
-window.KA = {
+/* The engine API used by mode modules (CTF, trailer, tests). Its TypeScript type is inferred from this object. */
+const KA_API = {
   get zoomLvl() {
     return zoomLvl;
   },
@@ -143,4 +144,5 @@ window.KA = {
   hideBots,
   bindLabel,
 };
+window.KA = /** @type {KAApi} */ (KA_API);
 requestAnimationFrame(frame);

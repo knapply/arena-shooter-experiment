@@ -259,14 +259,14 @@ function renderFeed() {
 let toastT = 0;
 function toast(t) {
   $("toast").textContent = t;
-  $("toast").style.opacity = 1;
+  $("toast").style.opacity = "1";
   toastT = 1.2;
 }
 let hitmT = 0;
 function hitMarker(kind) {
   const h = $("hitm");
   h.className = kind === "kill" ? "kill" : kind === "sh" ? "sh" : "";
-  h.style.opacity = 1;
+  h.style.opacity = "1";
   hitmT = kind === "kill" ? 0.4 : 0.15;
   if (SET.hitSounds) sfx(kind === "sh" ? "hitsh" : "hit");
 }

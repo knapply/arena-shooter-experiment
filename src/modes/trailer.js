@@ -9,14 +9,14 @@
     V3 = THREE.Vector3,
     CTF = window.CTF,
     SC = K.trailerScore;
-  const TR = (K.trailer = {
+  const TR = (K.trailer = /** @type {KAExtensions["trailer"]} */ ({
     active: false,
     recording: false,
     get t() {
       return T;
     },
     END: 66,
-  });
+  }));
   let T = 0,
     shotI = -1,
     music = null,
@@ -175,7 +175,7 @@
       color = 0xffd9a0,
       snd = "pshot",
       power = 1.4,
-      life,
+      life = undefined,
     } = {}
   ) {
     const fw = _a.set(-Math.sin(a.body.yaw), 0, -Math.cos(a.body.yaw)),
@@ -332,20 +332,21 @@
       el.style.filter = `blur(${((1 - pin) * 8 + pout * 6).toFixed(1)}px)`;
       el.style.letterSpacing = `${((c.punch ? 0.2 : 0.13) + (1 - pin) * 0.35).toFixed(3)}em`;
       el.style.transform = `translateY(-50%) scale(${(1 + (c.punch ? 0.06 : 0.02) * (T - c.t)).toFixed(4)})`;
-    } else el.style.opacity = 0;
+    } else el.style.opacity = "0";
     let f = 0;
     for (const t of FLASH) if (T >= t) f = Math.max(f, 1 - (T - t) / 0.45);
     $("trFlash").style.opacity = Math.max(0, f).toFixed(3);
     const tt = T - 56,
       lb = tt < 0 ? 11.5 : 11.5 * (1 - ease(tt / 0.8));
-    for (const x of document.querySelectorAll("#trailer .lb")) x.style.height = lb.toFixed(2) + "vh";
+    for (const x of /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll("#trailer .lb")))
+      x.style.height = lb.toFixed(2) + "vh";
     const ti = $("trTitle"),
       lg = ease(tt / 1.6),
       tg = ease((tt - 1.4) / 0.8);
-    ti.style.opacity = tt < 0 ? 0 : Math.min(1, tt / 0.9).toFixed(3);
+    ti.style.opacity = String(tt < 0 ? 0 : Math.min(1, tt / 0.9).toFixed(3));
     ti.style.filter = `blur(${((1 - lg) * 14).toFixed(1)}px)`;
     ti.style.transform = `translateY(-50%) scale(${(1.25 - 0.25 * lg + (tt > 0 ? tt * 0.008 : 0)).toFixed(4)})`;
-    ti.querySelector(".tag").style.opacity = tg.toFixed(3);
+    /** @type {HTMLElement} */ (ti.querySelector(".tag")).style.opacity = tg.toFixed(3);
     if (T > TR.END - 1.6)
       $("trailer").style.background = `rgba(0,0,0,${ease((T - (TR.END - 1.6)) / 1.4).toFixed(3)})`;
     else $("trailer").style.background = "";
@@ -921,7 +922,7 @@
     ov.hidden = false;
     ov.classList.toggle("rec", !!record);
     $("trCard").className = "";
-    $("trCard").style.opacity = 0;
+    $("trCard").style.opacity = "0";
     $("trScope").hidden = true;
     const fp = $("fps");
     if (fp) fp.style.visibility = "hidden";

@@ -20,6 +20,8 @@ src/
   modes/               movement tutorial; trailer and its synthesized score; ctf/ (map, nav, AI brain and agents, rules, UI, play and simulation modes)
   net/                 arena presence sync, CTF host and client, peer-to-peer room transport
 tests/                 headless sim, browser and render tests
+types/                 TypeScript declarations: globals, the KA API type, wire formats, settings schema
+tools/                 build helpers (module scope analysis, unused-name check), trailer recorder
 docs/MODULES.md        generated index of what each module declares
 ```
 
@@ -39,6 +41,12 @@ docs/MODULES.md        generated index of what each module declares
 | Web Worker / WebAssembly | `world/physics.js` (`Body`, raycasts), `modes/ctf/nav.js`, and `modes/ctf/agent.js` are pure simulation with no DOM access and are already exercised headless by `tests/lib/headless.js` |
 | WebGPU renderer, newer three.js | `render/*` only; gameplay code does not touch the pipeline |
 | Desktop packaging | wraps the built `index.html` unchanged |
+
+## Code quality
+
+- **Formatting:** Prettier (`npm run format`), checked in CI.
+- **Linting:** ESLint with a generated shared-scope config: each engine module is linted with the names declared by the other engine modules as globals, so a misspelled or missing name anywhere fails the build. `tools/check-unused.mjs` reports engine declarations nothing uses.
+- **Types:** TypeScript checks every source file as JavaScript (`npm run typecheck`, no rewrite). The engine API's type is inferred from the object in `src/game/exports.js`, so mode modules are checked against the real API. Wire formats and the settings schema are declared in `types/`.
 
 ## Building and testing
 

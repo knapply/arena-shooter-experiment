@@ -4,6 +4,7 @@ function renderScores() {
     EXT.scores($("sbody"));
     return;
   }
+  /** @type {{ n: string, c: string, k: number, d: number, me?: boolean }[]} */
   const rows = [{ n: myName + " (you)", c: myColor, k: kills, d: deaths, me: true }];
   for (const r of remotes.values()) if (r.has) rows.push({ n: r.name, c: r.color, k: r.k, d: r.d });
   for (const b of bots) rows.push({ n: b.name + " · drone", c: "#8b9aa3", k: b.k, d: b.d });
@@ -19,22 +20,22 @@ function renderScores() {
     sw.style.background = r.c;
     a.append(sw, document.createTextNode(r.n));
     const k = document.createElement("td");
-    k.textContent = r.k;
+    k.textContent = String(r.k);
     const d = document.createElement("td");
-    d.textContent = r.d;
+    d.textContent = String(r.d);
     tr.append(a, k, d);
     tb.appendChild(tr);
   }
 }
-const xhEls = ["t", "b", "l", "r"].map(c => document.querySelector("#xh ." + c));
+const xhEls = ["t", "b", "l", "r"].map(c => /** @type {HTMLElement} */ (document.querySelector("#xh ." + c)));
 function hud() {
   $("shb").style.transform = `scaleX(${me.shield / 70})`;
   $("hpb").style.transform = `scaleX(${me.health / 45})`;
   $("shb").className = shbHit > 0 ? "hit" : rechargeShown > 0 ? "charge" : "";
-  $("shN").textContent = Math.ceil(me.shield);
-  $("hpN").textContent = Math.ceil(me.health);
+  $("shN").textContent = String(Math.ceil(me.shield));
+  $("hpN").textContent = String(Math.ceil(me.health));
   $("vitals").classList.toggle("low", me.shield <= 0 && !me.dead);
-  $("mag").textContent = reloadT > 0 ? "··" : mag;
+  $("mag").textContent = String(reloadT > 0 ? "··" : mag);
   {
     const rv = $("rsv");
     if (rv) rv.textContent = " / " + (reserve[wi] === Infinity ? "∞" : reserve[wi]);
@@ -60,14 +61,14 @@ function hud() {
   $("cCharge").className = "chip" + (me.chargeT > 0 ? " on" : me.sprintT > 0.85 ? " ready" : "");
   const pa = $("pound");
   if (me.pound === 1) {
-    pa.style.opacity = 1;
-    $("poundArc").setAttribute("stroke-dashoffset", 239 * (1 - Math.min(1, me.poundT / 0.55)));
-  } else pa.style.opacity = 0;
+    pa.style.opacity = "1";
+    $("poundArc").setAttribute("stroke-dashoffset", String(239 * (1 - Math.min(1, me.poundT / 0.55))));
+  } else pa.style.opacity = "0";
   const sp = (aiming ? 4 : 9) + bloom * 400 + recoil * 200;
   xhEls[0].style.transform = `translateY(${-sp / 3}px)`;
   xhEls[1].style.transform = `translateY(${sp / 3}px)`;
   xhEls[2].style.transform = `translateX(${-sp / 3}px)`;
   xhEls[3].style.transform = `translateX(${sp / 3}px)`;
-  $("xh").style.opacity = aiming ? 0 : 1;
+  $("xh").style.opacity = String(aiming ? 0 : 1);
   if (!$("scores").hidden) renderScores();
 }

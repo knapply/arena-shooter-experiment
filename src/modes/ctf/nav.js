@@ -3,7 +3,7 @@
   const K = window.KA,
     T = K.THREE,
     CTF = window.CTF;
-  const NAV = (CTF.NAV = {});
+  const NAV = (CTF.NAV = /** @type {Record<string, any>} */ ({}));
   const X0 = -26,
     Z0 = -50,
     W = 52,

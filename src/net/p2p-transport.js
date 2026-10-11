@@ -26,7 +26,8 @@
     code: null,
     busy: false,
   };
-  const $ = id => document.getElementById(id);
+  /** @type {(id: string) => El} */
+  const $ = id => /** @type {El} */ (document.getElementById(id));
   const st = r => {
     let m = T.store.get(r);
     if (!m) {

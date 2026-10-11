@@ -2,7 +2,7 @@
 (function () {
   const K = window.KA,
     T = K.THREE;
-  const CTF = (window.CTF = {});
+  const CTF = (window.CTF = /** @type {CTFNamespace} */ ({}));
   CTF.TEAM_COLORS = [
     ["#ff6a5c", "#e8584b", "#ff8a70", "#d64a3e"],
     ["#5aa9ff", "#4a8fe0", "#7cc0ff", "#3f7ad0"],
