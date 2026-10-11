@@ -280,6 +280,7 @@ function frameBody(t) {
       crouchP: P("crouch"),
       jumpP: P("jump"),
       aim: aimHeld,
+      aimMul: W().zoom[0] >= 3 ? 0.72 : 0.9,
       meleeP: P("melee"),
     };
     if (touch.sprint && inp.f < 0.3) touch.sprint = false;

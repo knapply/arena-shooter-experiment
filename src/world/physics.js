@@ -305,7 +305,10 @@ class Body {
       v.z += wish.z * 6 * dt;
       if (!inp.crouch && this.slideT < 0.55) this.slideT = 0;
     } else if (this.pound === 0) {
-      const speed = (this.crouch ? 3.2 : this.sprint ? 9.0 : inp.aim ? 4.6 : 6.4) * (this.speedMul || 1);
+      /* aiming slows you a little with low-zoom scopes and more with a sniper scope (inp.aimMul) */
+      const speed =
+        (this.crouch ? 3.2 : this.sprint ? 9.0 : inp.aim ? 6.4 * (inp.aimMul || 0.72) : 6.4) *
+        (this.speedMul || 1);
       const tx = wish.x * speed,
         tz = wish.z * speed;
       if (this.ground) {
@@ -315,7 +318,9 @@ class Body {
           v.x = tx + (v.x - tx) * k;
           v.z = tz + (v.z - tz) * k;
         } else {
-          const a = 70 * dt;
+          /* strafing as a skill: reversing direction bites harder (95) than speeding up (70), so a
+             well-timed change of direction is quick enough to make someone miss, but not instant */
+          const a = (tx * v.x + tz * v.z < 0 ? 95 : 70) * dt;
           v.x += clamp(tx - v.x, -a, a);
           v.z += clamp(tz - v.z, -a, a);
         }

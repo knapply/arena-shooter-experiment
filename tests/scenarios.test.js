@@ -28,6 +28,43 @@ const fix = v => +v.toFixed(2);
     scenario({ pilots: { a: { pos: RUN, yaw: 0 } }, seconds: 1, input: () => ({ a: { s: 1 } }) })
   );
   check(Math.abs(strafe - walk) < 0.3, "strafing is as fast as running forward", fix(strafe));
+  /* strafing: time to go from full speed one way to 90% the other way */
+  let flipT = null;
+  scenario({
+    pilots: { a: { pos: [-22, 0, -6], yaw: 0 } },
+    seconds: 1.6,
+    input: t => ({ a: { s: t < 1 ? 1 : -1 } }),
+    every: (t, P) => {
+      if (flipT == null && t > 1 && P.a.vel.x < -6.4 * 0.9) flipT = t - 1;
+    },
+  });
+  check(
+    flipT != null && between(flipT, 0.12, 0.18),
+    "a full strafe reversal takes ~0.15 s",
+    flipT && fix(flipT)
+  );
+  let upT = null;
+  scenario({
+    pilots: { a: { pos: [-22, 0, -6], yaw: 0 } },
+    seconds: 0.5,
+    input: () => ({ a: { s: 1 } }),
+    every: (t, P) => {
+      if (upT == null && P.a.vel.x > 6.4 * 0.9) upT = t;
+    },
+  });
+  check(
+    upT != null && between(upT, 0.06, 0.12),
+    "starting from rest to full strafe takes ~0.08 s",
+    upT && fix(upT)
+  );
+  const ads = ran(
+    scenario({
+      pilots: { a: { pos: RUN, yaw: 0 } },
+      seconds: 1,
+      input: () => ({ a: { s: 1, aim: true, aimMul: 0.9 } }),
+    })
+  );
+  check(between(ads, 5.2, 6), "strafing while aiming a low-zoom scope keeps 90% speed", fix(ads));
   const w06 = ran(
     scenario({ pilots: { a: { pos: RUN, yaw: EAST } }, seconds: 0.6, input: () => ({ a: { f: 1 } }) })
   );
