@@ -95,12 +95,8 @@
     };
     return m;
   }
-  const KEY = "ka-ctf-brain-v1";
   CTF.loadModels = function () {
-    let s = null;
-    try {
-      s = JSON.parse(localStorage.getItem(KEY) || "null");
-    } catch (e) {}
+    const s = K.STORE.load("ctfBrain");
     if (!s || !Array.isArray(s) || s.length !== 2) return [freshModel(), freshModel()];
     return s.map(cleanModel);
   };
@@ -149,22 +145,16 @@
     return f;
   }
   CTF.saveModels = function (brains) {
-    try {
-      localStorage.setItem(
-        KEY,
-        JSON.stringify(
-          brains.map(b => {
-            b.model.danger = b.danger.toJSON();
-            return b.model;
-          })
-        )
-      );
-    } catch (e) {}
+    K.STORE.save(
+      "ctfBrain",
+      brains.map(b => {
+        b.model.danger = b.danger.toJSON();
+        return b.model;
+      })
+    );
   };
   CTF.resetModels = function () {
-    try {
-      localStorage.removeItem(KEY);
-    } catch (e) {}
+    K.STORE.remove("ctfBrain");
   };
 
   /* ---------- zone names for callouts (team-relative) ---------- */

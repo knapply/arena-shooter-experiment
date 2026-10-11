@@ -1,8 +1,6 @@
 /* ============ deploy ============ */
 function savePrefs() {
-  try {
-    localStorage.setItem("ka-pilot", JSON.stringify({ n: myName, c: myColor, vo: VO.on }));
-  } catch (e) {}
+  STORE.save("pilot", { n: myName, c: myColor, vo: VO.on });
 }
 $("deploy").onclick = () => {
   myName = ($("callsign").value || "Pilot").trim().slice(0, 14) || "Pilot";

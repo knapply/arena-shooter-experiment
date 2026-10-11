@@ -8,14 +8,14 @@ const reduceMotion = matchMedia("(prefers-reduced-motion:reduce)").matches;
 const V3 = THREE.Vector3;
 const COLORS = ["#ffb347", "#62cdff", "#ff6f91", "#8be38b", "#c9a7ff", "#f2f2f2"];
 let myColor = COLORS[0];
-try {
-  const s = JSON.parse(localStorage.getItem("ka-pilot") || "null");
+{
+  const s = STORE.load("pilot");
   if (s) {
     if (s.n) $("callsign").value = s.n;
     if (COLORS.includes(s.c)) myColor = s.c;
     if (s.vo === false) $("vo").checked = false;
   }
-} catch (e) {}
+}
 
 COLORS.forEach(c => {
   const b = document.createElement("button");

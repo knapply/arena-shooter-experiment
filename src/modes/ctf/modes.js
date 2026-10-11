@@ -38,14 +38,10 @@
 
   /* ---------------- play: offline, online host, or online client ---------------- */
   let myTeam = 0;
-  try {
-    myTeam = localStorage.getItem("ka-ctf-team") === "1" ? 1 : 0;
-  } catch (e) {}
+  myTeam = K.STORE.load("ctfTeam") === 1 ? 1 : 0;
   function setTeamPick(t) {
     myTeam = t;
-    try {
-      localStorage.setItem("ka-ctf-team", String(t));
-    } catch (e) {}
+    K.STORE.save("ctfTeam", t);
     $("ctfRed").setAttribute("aria-pressed", String(t === 0));
     $("ctfBlue").setAttribute("aria-pressed", String(t === 1));
     if (mode !== "play") {
@@ -120,9 +116,7 @@
   }
   function afterSwitch(t) {
     myTeam = t;
-    try {
-      localStorage.setItem("ka-ctf-team", String(t));
-    } catch (e) {}
+    K.STORE.save("ctfTeam", t);
     K.setArmor(CTF.TEAM_HEX[t]);
     if (!K.me.dead) K.EXT.respawn();
     UI.rigAll();

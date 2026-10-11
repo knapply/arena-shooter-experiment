@@ -2,6 +2,7 @@
   "_comment": "Load order. Engine modules share one scope (concatenated inside a single strict-mode closure, in this order). Mode modules are self-contained closures that talk to the engine through window.KA.",
   "styles": ["styles/base.css", "styles/ctf.css", "styles/p2p.css", "styles/trailer.css"],
   "engine": [
+    "core/store.js",
     "core/prelude.js",
     "game/events.js",
     "core/settings.js",

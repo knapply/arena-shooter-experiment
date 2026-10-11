@@ -719,7 +719,6 @@ const PRESETS = {
   },
 };
 const PRESET_KEYS = Object.keys(PRESETS.high);
-const SKEY = "ka-settings-v1";
 /** current settings, keyed by SettingDef.k */
 /** @type {Record<string, any>} */
 const SET = {};
@@ -769,9 +768,9 @@ function cleanSettings(o) {
 }
 function loadSettings() {
   try {
-    const raw = localStorage.getItem(SKEY);
-    if (!raw) return;
-    const r = cleanSettings(JSON.parse(raw));
+    const d = STORE.load("settings");
+    if (!d) return;
+    const r = cleanSettings(d);
     Object.assign(SET, r.out);
     Object.assign(BIND, r.kb);
     Object.assign(PADB, r.pb);
@@ -779,9 +778,7 @@ function loadSettings() {
   } catch (e) {}
 }
 function saveSettings() {
-  try {
-    localStorage.setItem(SKEY, exportSettings());
-  } catch (e) {}
+  STORE.save("settings", { settings: SET, keys: BIND, pad: PADB });
 }
 function exportSettings() {
   return JSON.stringify({ app: "kinetic-arena", version: 1, settings: SET, keys: BIND, pad: PADB }, null, 2);

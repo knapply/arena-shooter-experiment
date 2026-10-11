@@ -6,9 +6,10 @@ Engine modules share one scope and load in this order; mode modules are self-con
 
 | Module | Lines | Top-level declarations |
 |---|---|---|
+| `src/core/store.js` | 166 | `STORE` |
 | `src/core/prelude.js` | 36 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` |
 | `src/game/events.js` | 66 | `EVENTS` |
-| `src/core/settings.js` | 865 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `SCHEMA` `PRESETS` `PRESET_KEYS` `SKEY` `SET` `BIND` `PADB` `CODE_RE` … (+12) |
+| `src/core/settings.js` | 862 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `SCHEMA` `PRESETS` `PRESET_KEYS` `SET` `BIND` `PADB` `CODE_RE` `cleanSettings` … (+11) |
 | `src/render/renderer.js` | 76 | `canvas` `renderer` `scene` `camera` `resize` `sun` `_skyP` |
 | `src/render/pipeline.js` | 379 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `compMat` `fsQuad` `fsScene` `UPS` `gfxScale` `gfxResize` `fsPass` `gfxChecked` `renderFrame` `gfxFrames` `pxBuf` `exposureCheck` `recompileAll` … (+9) |
 | `src/render/environment.js` | 122 | `buildEnv` `lastRefl` `lastShadow` `applyGfx` `pc` `scaleBoxUV` |
@@ -28,7 +29,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/firing.js` | 156 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `fire` `startReload` `meleeHit` `slamDamage` |
 | `src/core/input.js` | 238 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `A` `P` `pressCode` `mouseL` `mouseR` `aiming` … (+7) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
-| `src/game/deploy.js` | 56 | `savePrefs` `leaveGame` |
+| `src/game/deploy.js` | 54 | `savePrefs` `leaveGame` |
 | `src/net/messages.js` | 360 | `MSG` |
 | `src/net/arena-net.js` | 279 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `room` `lastSend` `sendPresence` `remoteFor` `applyPeer` `updateLive` |
 | `src/ui/hud.js` | 76 | `renderScores` `xhEls` `hud` |
@@ -40,15 +41,15 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/pickups.js` | 179 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
-| `src/game/exports.js` | 169 | `KA_API` |
+| `src/game/exports.js` | 170 | `KA_API` |
 | `src/modes/ctf/map.js` | 266 |  |
 | `src/modes/ctf/nav.js` | 302 |  |
-| `src/modes/ctf/brain.js` | 568 |  |
+| `src/modes/ctf/brain.js` | 558 |  |
 | `src/modes/ctf/agent.js` | 891 |  |
 | `src/modes/ctf/rules.js` | 441 |  |
 | `src/modes/ctf/ui.js` | 407 |  |
 | `src/net/ctf-host.js` | 461 |  |
 | `src/net/ctf-client.js` | 474 |  |
-| `src/modes/ctf/modes.js` | 596 |  |
+| `src/modes/ctf/modes.js` | 590 |  |
 | `src/modes/trailer-score.js` | 700 |  |
 | `src/modes/trailer.js` | 1017 |  |
