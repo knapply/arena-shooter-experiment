@@ -68,6 +68,7 @@ const MEDAL = {
   revenge: ["R", "Revenge", "#c9a7ff"],
   kill: ["K", "Kill", "#7f939c"],
   airborne: ["A", "Airborne", "#62cdff"],
+  perfect: ["✦", "Perfect", "#ffd36b"],
 };
 function medal(key) {
   const m = MEDAL[key];
@@ -92,7 +93,7 @@ let streak = 0,
   lastKillT = -99,
   firstBlood = false,
   lastKiller = null;
-function onKill(type, head, victim) {
+function onKill(type, head, victim, perfect) {
   streak++;
   multi = now - lastKillT < 4.5 ? multi + 1 : 1;
   lastKillT = now;
@@ -113,6 +114,7 @@ function onKill(type, head, victim) {
   else if (type === "charge") ks.push("charge");
   else if (type === "melee") ks.push("melee");
   else if (head) ks.push("head");
+  if (perfect) ks.push("perfect");
   if (!me.ground && type === "rifle") ks.push("airborne");
   if (lastKiller && victim === lastKiller) {
     ks.push("revenge");
@@ -129,6 +131,7 @@ function onKill(type, head, victim) {
     "unstop",
     "rampage",
     "spree",
+    "perfect",
     "first",
     "revenge",
     "stick",
@@ -147,5 +150,6 @@ function onKill(type, head, victim) {
 }
 /* medals and sprees follow your kills, whichever mode or network path credited them */
 EVENTS.on("kill", e => {
-  if (e.killer === "local" && e.victim !== "local") onKill(e.weapon, e.head, e.victimName);
+  if (e.killer === "local" && e.victim !== "local")
+    onKill(e.weapon, e.head, e.victimName, perfectKill(e.victim));
 });

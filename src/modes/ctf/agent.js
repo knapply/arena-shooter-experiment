@@ -7,6 +7,8 @@
   const V3 = T.Vector3,
     clamp = K.clamp,
     rnd = (a, b) => a + K.rand() * (b - a);
+  const RIFLE = K.WEAPON_DATA[0],
+    SNIPER = K.WEAPON_DATA[2];
   const gauss = () => {
     let u = 0,
       v = 0;
@@ -785,7 +787,7 @@
       if (best) {
         this.hits++;
         const hd = best.h.head;
-        const dmg = hd ? 999 : 60;
+        const dmg = hd ? SNIPER.head : SNIPER.body;
         this.brain().model.acc[0]++;
         if (best.e.human) G.hurtHuman(best.e, dmg, { name: this.name, agent: this, w: "sniper", hd });
         else best.e.onHit(dmg, "sniper", hd, this);
@@ -797,7 +799,7 @@
       const G = this.G,
         b = this.body;
       this.mag--;
-      this.fireCD = this.carrying ? 0.16 : 0.105;
+      this.fireCD = this.carrying ? 0.16 : RIFLE.rate;
       this.firedT = G.t;
       this.shots++;
       const eye = this.eye(new V3());
@@ -829,8 +831,9 @@
       if (!best && wh.b) K.damageBox(wh.b, 5.4, eye.clone().addScaledVector(d, wt), "bullet", G.render);
       if (best) {
         this.hits++;
-        const dmg = best.h.head && best.e.body.shield <= 0 ? 16 : 9;
-        /* arena rule: headshot bonus only once shields are down */ const br = this.brain();
+        /* same numbers as the player's carbine (data/weapons.js); headshot bonus once shields are down */
+        const dmg = best.h.head && best.e.body.shield <= 0 ? RIFLE.head : RIFLE.body;
+        const br = this.brain();
         br.model.acc[0]++;
         if (best.e.human)
           G.hurtHuman(best.e, dmg, { name: this.name, agent: this, w: "rifle", hd: best.h.head });

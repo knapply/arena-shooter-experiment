@@ -87,6 +87,33 @@ const fix = v => +v.toFixed(2);
   check(!tap.events.some(e => e.type === "slam"), "releasing early cancels the pound");
 }
 
+/* ---------- kill times (data/weapons.js) ---------- */
+{
+  const [carbine, magnum, sniper] = K.WEAPON_DATA;
+  const km = K.killStats(magnum);
+  check(
+    km.best.shots === 5 && Math.abs(km.best.time - 1.05) < 0.05,
+    "magnum perfect kill: 5 shots in ~1.05 s",
+    km.best
+  );
+  const kc = K.killStats(carbine);
+  check(
+    between(kc.best.time, 0.9, 1.4) && kc.body.time - kc.best.time <= 0.2,
+    "carbine kills in ~1.1-1.2 s",
+    kc
+  );
+  const ks = K.killStats(sniper);
+  check(ks.best.shots === 1 && ks.body.shots === 2, "sniper: one headshot or two body shots", ks);
+  check(
+    K.WEAPON_DATA.filter(w => w.precision).every(w => w.spread === 0 && w.adsSpread === 0 && w.bloom === 0),
+    "precision weapons have no random spread"
+  );
+  check(
+    K.WEAPON_DATA.every(w => Math.exp(-w.recover * w.rate) < 0.01 || !w.precision),
+    "precision recoil returns to center before the next shot"
+  );
+}
+
 /* ---------- hit registration ---------- */
 {
   const T = scenario({

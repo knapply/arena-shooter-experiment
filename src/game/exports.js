@@ -8,6 +8,7 @@ const KA_API = {
   },
   updPickups,
   giveWeapon,
+  refill,
   DESTR,
   damageBox,
   damageRadius,
@@ -83,6 +84,8 @@ const KA_API = {
   SPAWNS,
   makePilot,
   EVENTS,
+  WEAPON_DATA,
+  killStats,
   CON,
   REC,
   pidOf,
@@ -91,6 +94,7 @@ const KA_API = {
   STORE,
   MSG,
   dealDamage,
+  fire,
   get bots() {
     return bots;
   },

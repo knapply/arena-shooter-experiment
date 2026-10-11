@@ -68,6 +68,30 @@ function v3a(v) {
   return [r2(v.x), r2(v.y), r2(v.z)];
 }
 
+/* ---- Perfect kills: the weapon's minimum shots, every shot on target, with a precision weapon ---- */
+const engage = new Map();
+function targetId(t) {
+  return t.kind === "bot" ? t.ref.id : t.kind === "peer" ? "peer:" + t.peer : pidOf(t.ref);
+}
+/** count one shot: a hit adds to that target's run, a miss spoils every run in progress */
+function engageShot(id) {
+  if (!id) {
+    for (const r of engage.values()) r.miss = true;
+    return;
+  }
+  let r = engage.get(id);
+  if (!r || r.w !== wi || now - r.last > 4) engage.set(id, (r = { w: wi, hits: 0, miss: false, last: now }));
+  r.hits++;
+  r.last = now;
+}
+/** called when you kill someone: was it perfect? (clears that target's run either way) */
+function perfectKill(id) {
+  const r = engage.get(id);
+  engage.delete(id);
+  if (!r || r.miss) return false;
+  const w = WEAPONS[r.w];
+  return !!w.precision && !w.headAlways && r.hits === killStats(w).best.shots;
+}
 function fire(src) {
   if (reloadT > 0) return;
   if (mag <= 0) {
@@ -83,13 +107,16 @@ function fire(src) {
   const d = new V3();
   if (src) d.copy(src.d);
   else camera.getWorldDirection(d);
-  const moving = Math.hypot(me.vel.x, me.vel.z) > 1;
-  let spread = (aiming ? W().adsSpread : W().spread) + (moving ? 0.006 : 0) + (me.ground ? 0 : 0.008);
-  spread += bloom;
-  bloom = Math.min(0.03, bloom + W().bloom);
-  d.x += rnd(-spread, spread);
-  d.y += rnd(-spread, spread);
-  d.z += rnd(-spread, spread);
+  /* precision weapons go exactly where the reticle is; automatics keep spread and bloom */
+  if (!W().precision) {
+    const moving = Math.hypot(me.vel.x, me.vel.z) > 1;
+    let spread = (aiming ? W().adsSpread : W().spread) + (moving ? 0.006 : 0) + (me.ground ? 0 : 0.008);
+    spread += bloom;
+    bloom = Math.min(0.03, bloom + W().bloom);
+    d.x += rnd(-spread, spread);
+    d.y += rnd(-spread, spread);
+    d.z += rnd(-spread, spread);
+  }
   d.normalize();
   const wh = rayWorldHit(o, d, 120),
     wt = wh.t;
@@ -101,6 +128,7 @@ function fire(src) {
   const end = o.clone().addScaledVector(d, best ? best.h.t : Math.min(wt, 120));
   const muzzle = src ? src.muzzle : VMW[wi].g.localToWorld(W().muzzle.clone());
   tracer(muzzle, end, wi === 2 ? 0x9fd8ff : 0xffd28a, wi === 2 ? 0.6 : 0.1);
+  engageShot(best ? targetId(best.t) : null);
   if (best) {
     const shielded = best.t.ref.body ? best.t.ref.body.shield > 0 : best.t.ref.sh > 0;
     const hd = best.h.head && (W().headAlways || !shielded);

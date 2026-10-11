@@ -17,6 +17,7 @@
     "characters/rig.js",
     "game/recorder.js",
     "game/pilot.js",
+    "data/weapons.js",
     "weapons/viewmodels.js",
     "weapons/arsenal.js",
     "render/fx.js",

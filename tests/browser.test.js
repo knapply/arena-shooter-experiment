@@ -100,6 +100,36 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       ev
     );
     check(medals > 0, "medals follow kill events", medals);
+    /* Perfect: the magnum's minimum (4 to break shields, then a headshot) with no misses */
+    const perfectRun = miss =>
+      p.evaluate(miss => {
+        const b = KA.bots[1];
+        b.dead = false;
+        b.body.dead = false;
+        b.body.reset();
+        b.body.pos.set(-22, 0, 10);
+        b.body.spawnT = -99;
+        b.respawn = 1e9;
+        KA.refill();
+        const o = new KA.THREE.Vector3(-22, 1.6, -10);
+        const at = y => new KA.THREE.Vector3(-22, y, 10).sub(o).normalize();
+        const shot = y => KA.fire({ o, d: at(y), muzzle: o });
+        const seen = [];
+        const off = KA.EVENTS.on("medal", e => seen.push(e.medal));
+        for (let i = 0; i < 4; i++) shot(1.0);
+        if (miss) shot(9);
+        shot(b.body.pos.y + b.body.h - 0.24);
+        return new Promise(r =>
+          setTimeout(() => {
+            off();
+            r({ dead: b.body.dead, medals: seen });
+          }, 1200)
+        );
+      }, miss);
+    const pf = await perfectRun(false);
+    check(pf.dead && pf.medals.includes("perfect"), "a 5-shot magnum kill earns Perfect", pf);
+    const npf = await perfectRun(true);
+    check(npf.dead && !npf.medals.includes("perfect"), "a missed shot in between does not", npf);
     /* recorder: a rolling record of every pilot that kill cams and highlights replay from */
     const rec = await p.evaluate(() => {
       const f = KA.REC.frames();

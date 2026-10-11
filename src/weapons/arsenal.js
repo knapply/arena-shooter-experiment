@@ -1,74 +1,8 @@
 /* weapons: Arena-style rules. Headshot damage only applies once shields are down, except the sniper. */
-const WEAPONS = [
-  {
-    key: "carbine",
-    name: "VK-7 pulse carbine",
-    mag: 32,
-    reserve: Infinity,
-    rate: 0.1,
-    auto: true,
-    body: 9,
-    head: 11,
-    reload: 1.8,
-    spread: 0.012,
-    adsSpread: 0.004,
-    bloom: 0.004,
-    recoil: 0.016,
-    zoom: [1.4],
-    muzzle: new V3(0, 0.01, -0.6),
-    dmg: "rifle",
-    snd: "shot",
-    rum: [0.08, 0.18, 35],
-    kick: 0.03,
-    scope: "holo",
-  },
-  {
-    key: "pistol",
-    name: "M9 magnum",
-    mag: 12,
-    reserve: Infinity,
-    rate: 0.26,
-    auto: false,
-    body: 20,
-    head: 50,
-    reload: 1.3,
-    spread: 0.008,
-    adsSpread: 0.0008,
-    bloom: 0.012,
-    recoil: 0.045,
-    zoom: [1.8],
-    muzzle: new V3(0, 0.026, -0.16),
-    dmg: "pistol",
-    snd: "pshot",
-    rum: [0.25, 0.35, 70],
-    kick: 0.06,
-    scope: "smart",
-  },
-  {
-    key: "sniper",
-    name: "SRS-9 sniper rifle",
-    mag: 4,
-    reserve: 8,
-    rate: 0.62,
-    auto: false,
-    body: 60,
-    head: 999,
-    headAlways: true,
-    reload: 2.4,
-    spread: 0.035,
-    adsSpread: 0,
-    bloom: 0,
-    recoil: 0.07,
-    zoom: [5, 10],
-    muzzle: new V3(0, 0.015, -0.95),
-    dmg: "sniper",
-    snd: "sshot",
-    rum: [0.7, 0.6, 140],
-    kick: 0.1,
-    scope: "sniper",
-    power: true,
-  },
-];
+/* the numbers live in data/weapons.js; here they get engine types */
+const WEAPONS = WEAPON_DATA.map(w =>
+  Object.assign({}, w, { muzzle: new V3(w.muzzle[0], w.muzzle[1], w.muzzle[2]) })
+);
 const slots = [1, 0];
 let cur = 0,
   wi = 1,
@@ -142,6 +76,7 @@ function refill() {
   cur = 0;
   wi = 1;
   mag = ammo[wi];
+  reloadT = 0;
   zoomLvl = 0;
   showVM();
   wpnHud();

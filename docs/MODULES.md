@@ -21,14 +21,15 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/characters/rig.js` | 946 | `DOWN` `_a` `_b` `_c` `_q1` `_q2` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `solve2` `capsule` `GEO` `geo` … (+14) |
 | `src/game/recorder.js` | 85 | `REC` |
 | `src/game/pilot.js` | 75 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |
+| `src/data/weapons.js` | 108 | `PILOT_SHIELD` `PILOT_HEALTH` `WEAPON_DATA` `killStats` |
 | `src/weapons/viewmodels.js` | 260 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlove` `vmPlate` `vmGlass` `vmBox` `dot` `vmGun` `vmMag` `HOLO` `vmPis` `vmPisMag` `PIS` `VM_RELOAD` `PIS_RELOAD` … (+9) |
-| `src/weapons/arsenal.js` | 150 | `WEAPONS` `slots` `cur` `wi` `switchT` `semiLatch` `zoomLvl` `descoped` `flinch` `ammo` `reserve` `W` `zoomK` `showVM` `wpnHud` `setSlot` `setWeapon` `giveWeapon` … (+1) |
+| `src/weapons/arsenal.js` | 85 | `WEAPONS` `slots` `cur` `wi` `switchT` `semiLatch` `zoomLvl` `descoped` `flinch` `ammo` `reserve` `W` `zoomK` `showVM` `wpnHud` `setSlot` `setWeapon` `giveWeapon` … (+1) |
 | `src/render/fx.js` | 248 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `tracerGeo` `tracer` `sparkMat` `spark` `puffMat` `thrustPuff` `dustMat` `dust` `ringGeo` `ring` `shock` … (+8) |
 | `src/weapons/grenades.js` | 255 | `NADES` `NG` `_n1` `_n2` `fragGeo` `fragMat` `plasMat` `fxPut` `losClear` `inBox` `solveThrow` `nadeDmg` `NadeWorld` `MAIN_NADES` `nadeInv` `nadeSel` `nadeCD` `nadeRefill` … (+4) |
 | `src/core/audio.js` | 198 | `AC` `master` `audio` `NOISE` `noise` `env` `nz` `tone` `SFX_LAST` `sfxVoices` `sfxVoiceT` `sfx` `distVol` |
-| `src/core/announcer.js` | 152 | `VO` `hasTTS` `pickVoice` `lastSay` `say` `MEDAL` `medal` `streak` `multi` `lastKillT` `firstBlood` `lastKiller` `onKill` |
+| `src/core/announcer.js` | 156 | `VO` `hasTTS` `pickVoice` `lastSay` `say` `MEDAL` `medal` `streak` `multi` `lastKillT` `firstBlood` `lastKiller` `onKill` |
 | `src/game/state.js` | 306 | `EXT` `me` `myName` `playing` `paused` `now` `kills` `deaths` `mag` `reloadT` `fireCD` `myPeer` `killedBy` `respawnAt` `lastFireT` `RELOAD_TIME` `mePilot` `hitsOut` … (+29) |
-| `src/weapons/firing.js` | 156 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `fire` `startReload` `meleeHit` `slamDamage` |
+| `src/weapons/firing.js` | 184 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `engage` `targetId` `engageShot` `perfectKill` `fire` `startReload` `meleeHit` `slamDamage` |
 | `src/core/input.js` | 238 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `A` `P` `pressCode` `mouseL` `mouseR` `aiming` … (+7) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 54 | `savePrefs` `leaveGame` |
@@ -44,11 +45,11 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/pickups.js` | 179 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
-| `src/game/exports.js` | 175 | `KA_API` |
+| `src/game/exports.js` | 179 | `KA_API` |
 | `src/modes/ctf/map.js` | 266 |  |
 | `src/modes/ctf/nav.js` | 304 |  |
 | `src/modes/ctf/brain.js` | 558 |  |
-| `src/modes/ctf/agent.js` | 891 |  |
+| `src/modes/ctf/agent.js` | 894 |  |
 | `src/modes/ctf/rules.js` | 444 |  |
 | `src/modes/ctf/ui.js` | 405 |  |
 | `src/net/ctf-host.js` | 461 |  |

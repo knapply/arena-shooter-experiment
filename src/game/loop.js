@@ -338,7 +338,7 @@ function frameBody(t) {
       fire();
   }
   bloom = Math.max(0, bloom - dt * 0.05);
-  recoil = Math.max(0, recoil - dt * 0.12);
+  recoil *= Math.exp(-dt * W().recover);
   flinch *= Math.exp(-9 * dt);
   if (EXT) {
     if (EXT.tick) EXT.tick(dt);
