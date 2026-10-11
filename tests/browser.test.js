@@ -100,6 +100,27 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       ev
     );
     check(medals > 0, "medals follow kill events", medals);
+    /* kill cam: dying replays the last seconds from the killer's eyes, then shows the recap */
+    const kc = await p.evaluate(async () => {
+      const b = KA.bots[0];
+      KA.me.spawnT = -99;
+      KA.me.shield = 0;
+      KA.hurtMe(999, { bot: b, w: "rifle", hd: true });
+      await new Promise(r => setTimeout(r, 1300));
+      const during = { active: KA.REPLAY.active, cap: document.querySelector("#cine .cap").textContent };
+      await new Promise(r => setTimeout(r, 4200));
+      return { during, after: KA.REPLAY.active, recap: document.getElementById("deadBy").textContent };
+    });
+    check(
+      kc.during.active &&
+        /Kill cam/.test(kc.during.cap) &&
+        !kc.after &&
+        /Drone-04/.test(kc.recap) &&
+        /headshot/.test(kc.recap),
+      "dying plays a kill cam from the killer's eyes, then the death recap",
+      kc
+    );
+    await p.waitForTimeout(1500);
     /* free-for-all has a match: first to the score limit wins, then a fresh match starts */
     const ffa = await p.evaluate(async () => {
       const seen = [];

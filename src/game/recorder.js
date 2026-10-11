@@ -9,6 +9,8 @@ const REC = (() => {
     KEEP = 45;
   /** @type {{ t: number, poses: Map<string, { x: number, y: number, z: number, st: any }> }[]} */
   let frames = [];
+  /** id -> { color, name }: how to draw a pilot in a replay */
+  const meta = new Map();
   let cur = null,
     lastT = -1;
   const lerpAng = (a, b, k) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * k;
@@ -36,16 +38,30 @@ const REC = (() => {
     },
     clear() {
       frames = [];
+      meta.clear();
       cur = null;
       lastT = -1;
     },
     frames: () => frames,
+    setMeta(id, m) {
+      meta.set(id, m);
+    },
+    metaOf: id => meta.get(id) || null,
+    hasMeta: id => meta.has(id),
+    /** a copy of the frames between t0 and t1, kept after the rolling window moves on (highlights) */
+    clip(t0, t1) {
+      return frames.filter(f => f.t >= t0 && f.t <= t1).map(f => ({ t: f.t, poses: new Map(f.poses) }));
+    },
     /** frames with t0 <= t <= t1 */
     range(t0, t1) {
       return frames.filter(f => f.t >= t0 && f.t <= t1);
     },
     /** one pilot's interpolated pose at time t: {x, y, z, yaw, pitch, st}, or null if not recorded */
     sample(id, t) {
+      return REC.sampleIn(frames, id, t);
+    },
+    /** the same, over any list of frames (a saved clip) */
+    sampleIn(frames, id, t) {
       let lo = -1;
       for (let i = frames.length - 1; i >= 0; i--)
         if (frames[i].t <= t && frames[i].poses.has(id)) {

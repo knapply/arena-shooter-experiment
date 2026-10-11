@@ -377,7 +377,8 @@ function extPlay(ext, opts) {
   VO.on = $("vo").checked;
   myName = ($("callsign").value || "Pilot").trim().slice(0, 14) || "Pilot";
   savePrefs();
-  vmArmor.color.set((opts && opts.color) || myColor).multiplyScalar(0.55);
+  myArmor = (opts && opts.color) || myColor;
+  vmArmor.color.set(myArmor).multiplyScalar(0.55);
   hideBots();
   if (document.activeElement) /** @type {HTMLElement} */ (document.activeElement).blur();
   playing = true;

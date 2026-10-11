@@ -30,7 +30,13 @@ function posePilot(p, dt, extra) {
   rg.root.position.copy(p.body.pos);
   rg.root.rotation.y = p.body.yaw;
   const st = bodyState(p.body, extra);
-  if (REC.sampling) REC.put(pidOf(p), p.body.pos, st);
+  if (REC.sampling) {
+    const id = pidOf(p);
+    REC.put(id, p.body.pos, st);
+    if (!REC.hasMeta(id)) REC.setMeta(id, { color: rg.color, name: p.name || "" });
+  }
+  /* during a replay the live rigs stay hidden */
+  if (REPLAY.active) return;
   rigEvents(rg, rg.update(dt, st));
 }
 

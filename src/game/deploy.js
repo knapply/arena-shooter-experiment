@@ -12,6 +12,7 @@ $("deploy").onclick = () => {
   ffaStart();
   EVENTS.emit("matchStart", {});
   audio();
+  myArmor = myColor;
   vmArmor.color.set(myColor).multiplyScalar(0.55);
   if (document.activeElement) /** @type {HTMLElement} */ (document.activeElement).blur();
   spawn(me);

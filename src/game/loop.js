@@ -144,6 +144,7 @@ function perf(raw) {
 /** add your own pose to this frame's recording (you have no third-person rig to record from) */
 function recLocal() {
   if (!REC.sampling || !playing || demo) return;
+  if (!REC.hasMeta("local")) REC.setMeta("local", { color: myArmor, name: myName });
   REC.put(
     "local",
     me.pos,
@@ -423,6 +424,8 @@ function frameBody(t) {
   if (toastT <= 0) $("toast").style.opacity = "0";
   sendPresence(false);
   hud();
+  killCamTick();
+  if (REPLAY.active) REPLAY.frame(Math.min(0.05, raw));
   renderFrame();
 }
 const _est = new V3(),
@@ -472,7 +475,10 @@ function updRigs(dt) {
       fire: !!(s & 4096),
       wpn: s & 32768 ? 2 : s & 8192 ? 1 : 0,
     };
-    if (REC.sampling) REC.put(r.id, root.position, st);
+    if (REC.sampling) {
+      REC.put(r.id, root.position, st);
+      if (!REC.hasMeta(r.id)) REC.setMeta(r.id, { color: r.color, name: r.name });
+    }
     rigEvents(r.rig, r.rig.update(dt, st));
     /* keep the pilot's body where it is drawn, so body-based features (kill cams, events) see it */
     r.body.pos.copy(root.position);

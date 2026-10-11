@@ -8,9 +8,9 @@ Engine modules share one scope and load in this order; mode modules are self-con
 |---|---|---|
 | `src/core/store.js` | 166 | `STORE` |
 | `src/core/rng.js` | 29 | `RNG` `rand` |
-| `src/core/prelude.js` | 36 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` |
+| `src/core/prelude.js` | 38 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
 | `src/game/events.js` | 66 | `EVENTS` |
-| `src/core/settings.js` | 862 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `SCHEMA` `PRESETS` `PRESET_KEYS` `SET` `BIND` `PADB` `CODE_RE` `cleanSettings` … (+11) |
+| `src/core/settings.js` | 870 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `SCHEMA` `PRESETS` `PRESET_KEYS` `SET` `BIND` `PADB` `CODE_RE` `cleanSettings` … (+11) |
 | `src/render/renderer.js` | 76 | `canvas` `renderer` `scene` `camera` `resize` `sun` `_skyP` |
 | `src/render/pipeline.js` | 379 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `compMat` `fsQuad` `fsScene` `UPS` `gfxScale` `gfxResize` `fsPass` `gfxChecked` `renderFrame` `gfxFrames` `pxBuf` `exposureCheck` `recompileAll` … (+9) |
 | `src/render/environment.js` | 122 | `buildEnv` `lastRefl` `lastShadow` `applyGfx` `pc` `scaleBoxUV` |
@@ -20,9 +20,9 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/destruction.js` | 241 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` `destrTick` `resetDestruction` `boxById` `applyBreaks` `syncBroken` |
 | `src/world/maps/arena.js` | 194 | `gridTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `mergeGeos` `mergeMapGroup` `strip` `stairs` `buildMap` `SPAWNS` |
 | `src/world/physics.js` | 465 | `R` `GRAV` `H_STAND` `H_CROUCH` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
-| `src/characters/rig.js` | 997 | `DOWN` `_a` `_b` `_c` `_q1` `_q2` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `solve2` `capsule` `GEO` `geo` … (+16) |
-| `src/game/recorder.js` | 85 | `REC` |
-| `src/game/pilot.js` | 75 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |
+| `src/characters/rig.js` | 998 | `DOWN` `_a` `_b` `_c` `_q1` `_q2` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `solve2` `capsule` `GEO` `geo` … (+16) |
+| `src/game/recorder.js` | 101 | `REC` |
+| `src/game/pilot.js` | 81 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |
 | `src/data/weapons.js` | 108 | `PILOT_SHIELD` `PILOT_HEALTH` `WEAPON_DATA` `killStats` |
 | `src/weapons/viewmodels.js` | 260 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlove` `vmPlate` `vmGlass` `vmBox` `dot` `vmGun` `vmMag` `HOLO` `vmPis` `vmPisMag` `PIS` `VM_RELOAD` `PIS_RELOAD` … (+9) |
 | `src/weapons/arsenal.js` | 85 | `WEAPONS` `slots` `cur` `wi` `switchT` `semiLatch` `zoomLvl` `descoped` `flinch` `ammo` `reserve` `W` `zoomK` `showVM` `wpnHud` `setSlot` `setWeapon` `giveWeapon` … (+1) |
@@ -35,7 +35,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/firing.js` | 190 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `engage` `SHOT` `targetId` `engageShot` `perfectKill` `fire` `startReload` `meleeHit` `slamDamage` |
 | `src/core/input.js` | 238 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `A` `P` `pressCode` `mouseL` `mouseR` `aiming` … (+7) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
-| `src/game/deploy.js` | 55 | `savePrefs` `leaveGame` |
+| `src/game/deploy.js` | 56 | `savePrefs` `leaveGame` |
 | `src/game/modes.js` | 84 | `MODE_DEFS` `defineMode` `startMode` `modeList` `FFA` `ffaStandings` `ffaStart` `ffaTick` `ffaEnd` `ffaRestart` |
 | `src/net/messages.js` | 330 | `MSG` |
 | `src/net/playback.js` | 91 | `Playback` |
@@ -44,13 +44,14 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/ui/net-panel.js` | 90 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/weapons/viewmodel-anim.js` | 137 | `updVM` |
 | `src/ui/console.js` | 304 | `DEV` `timeScale` `godMode` `CON` |
-| `src/game/loop.js` | 500 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+14) |
+| `src/game/replay.js` | 153 | `REPLAY` `KILLCAM` `killCamTick` |
+| `src/game/loop.js` | 506 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+14) |
 | `src/modes/tech-demo.js` | 476 | `demo` `seg` `segT` `snapCam` `demoRig` `segOnce` `camLook` `dummies` `makeDummies` `placeDummy` `placeMe` `once` `PI` `SEGS` `nextSeg` `startDemo` `exitDemo` `demoFrame` |
-| `src/ui/settings-ui.js` | 432 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `closeSettings` `onSetChange` `renderSettings` `renderKeys` `renderPadBinds` `padCapture` `renderKeyHelp` `hudHook` `hideBots` `showWorld` `extPlay` `extFull` … (+1) |
+| `src/ui/settings-ui.js` | 433 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `closeSettings` `onSetChange` `renderSettings` `renderKeys` `renderPadBinds` `padCapture` `renderKeyHelp` `hudHook` `hideBots` `showWorld` `extPlay` `extFull` … (+1) |
 | `src/weapons/pickups.js` | 177 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
-| `src/game/exports.js` | 192 | `KA_API` |
+| `src/game/exports.js` | 193 | `KA_API` |
 | `src/modes/ctf/map.js` | 178 |  |
 | `src/modes/ctf/nav.js` | 304 |  |
 | `src/modes/ctf/brain.js` | 558 |  |

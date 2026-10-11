@@ -81,3 +81,10 @@
   background: #fff;
   opacity: 0;
 }
+
+/* while a replay plays, the live HUD and death screen step aside */
+body.replaying #hud,
+body.replaying #dead,
+body.replaying #xh {
+  visibility: hidden;
+}

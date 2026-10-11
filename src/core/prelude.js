@@ -8,6 +8,8 @@ const reduceMotion = matchMedia("(prefers-reduced-motion:reduce)").matches;
 const V3 = THREE.Vector3;
 const COLORS = ["#ffb347", "#62cdff", "#ff6f91", "#8be38b", "#c9a7ff", "#f2f2f2"];
 let myColor = COLORS[0];
+/** your armor color right now (your color in the arena, your team's in team modes) */
+let myArmor = myColor;
 {
   const s = STORE.load("pilot");
   if (s) {

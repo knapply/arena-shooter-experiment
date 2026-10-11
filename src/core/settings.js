@@ -569,6 +569,14 @@ const SCHEMA = [
     fmt: v => Math.round(v * 100) + "%",
   },
   { k: "speedLines", tab: T_GAME, label: "Speed lines", type: "toggle", def: true },
+  {
+    k: "killCam",
+    tab: T_GAME,
+    label: "Kill cam",
+    type: "toggle",
+    def: true,
+    desc: "After you die, replay the last seconds through your killer's eyes. Jump skips it.",
+  },
   { k: "hitSounds", tab: T_GAME, label: "Hit marker sounds", type: "toggle", def: true },
   {
     k: "master",

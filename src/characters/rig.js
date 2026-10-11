@@ -536,6 +536,7 @@ function makePilot(color, label) {
   tag.position.y = 2.25;
   root.add(tag);
   mergeParts(root, new Set([mag]), shieldM, shells);
+  root.userData.pilotRig = true;
   scene.add(root);
   /* animation state. Springs give lean, bounce, flinch and recoil some follow-through instead of linear blends. */
   const S = {
