@@ -38,7 +38,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/pickups.js` | 178 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
-| `src/game/exports.js` | 162 | `KA_API` |
+| `src/game/exports.js` | 163 | `KA_API` |
 | `src/modes/ctf/map.js` | 266 |  |
 | `src/modes/ctf/nav.js` | 302 |  |
 | `src/modes/ctf/brain.js` | 568 |  |

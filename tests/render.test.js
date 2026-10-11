@@ -67,7 +67,25 @@ const stats = async p => {
       p.evaluate(() => ({ calls: KA.renderer.info.render.calls, tris: KA.renderer.info.render.triangles }));
     await p.click("#deploy");
     await p.waitForTimeout(2500);
-    const a = await info();
+    /* spawn points are random, so measure the worst view from every spawn at eight headings */
+    let a = { calls: 0, tris: 0 };
+    const nSp = await p.evaluate(() => KA.SPAWNS.length);
+    for (let i = 0; i < nSp; i++)
+      for (let k = 0; k < 8; k++) {
+        await p.evaluate(
+          ([i, yaw]) => {
+            const s = KA.SPAWNS[i];
+            KA.me.pos.set(s[0], s[1], s[2]);
+            KA.me.vel.set(0, 0, 0);
+            KA.me.yaw = yaw;
+            KA.me.pitch = 0;
+          },
+          [i, (k * Math.PI) / 4]
+        );
+        await p.waitForTimeout(120);
+        const v = await info();
+        a = { calls: Math.max(a.calls, v.calls), tris: Math.max(a.tris, v.tris) };
+      }
     check(a.calls <= B.arena.drawCalls && a.tris <= B.arena.triangles, "arena view within draw budget", a);
     await p.evaluate(() => KA.extStop());
     await p.waitForTimeout(400);

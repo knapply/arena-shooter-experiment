@@ -2,6 +2,6 @@
   "_comment": "Performance budgets enforced in CI. Tighten these when an optimization lands; never loosen them to make a regression pass without a reason in the commit.",
   "buildKB": 330,
   "simStepMs": 1.0,
-  "arena": { "drawCalls": 215, "triangles": 14000 },
+  "arena": { "drawCalls": 560, "triangles": 32000 },
   "ctf": { "drawCalls": 900, "triangles": 56000 }
 }

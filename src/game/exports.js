@@ -80,6 +80,7 @@ const KA_API = {
   rayWorld,
   rayTarget,
   rayBox,
+  SPAWNS,
   makePilot,
   Pilot,
   PILOTS,
