@@ -50,12 +50,16 @@ function allowDamage(peer, n, w) {
   return n;
 }
 let room = null,
-  lastSend = 0;
-function sendPresence(force) {
-  if (!room || !playing || EXT) return;
-  if (!force && now - lastSend < 0.045) return;
-  lastSend = now;
-  const st =
+  lastSend = 0,
+  lastFast = 0,
+  fastSeq = 0,
+  sentEv = "";
+/* movement goes over the fast channel ~40 times a second when the transport has one; presence
+   (names, scores, hits, effects, deaths) is reliable and sent ~10 times a second, or at once when
+   there is a new hit, effect or death to deliver */
+const FAST_HZ = 40;
+function myBits() {
+  return (
     (me.crouch ? 1 : 0) |
     (me.sprint ? 2 : 0) |
     (me.slideT > 0 ? 4 : 0) |
@@ -70,7 +74,46 @@ function sendPresence(force) {
     (me.pound === 2 ? 2048 : 0) |
     (now - lastFireT < 0.12 ? 4096 : 0) |
     (wi === 1 ? 8192 : 0) |
-    (wi === 2 ? 32768 : 0);
+    (wi === 2 ? 32768 : 0)
+  );
+}
+function sendPresence(force) {
+  if (!room || !playing || EXT) return;
+  const fast = typeof room.fast === "function";
+  if (fast && now - lastFast >= 1 / FAST_HZ - 0.002) {
+    lastFast = now;
+    room.fast(
+      MSG.encode("arenaState", {
+        seq: ++fastSeq & 0xffff,
+        ts: Math.round(performance.now()) >>> 0,
+        p: me.pos,
+        v: me.vel,
+        y: me.yaw,
+        pt: me.pitch,
+        st: myBits(),
+        sh: Math.ceil(me.shield),
+        dead: me.dead,
+        k: kills,
+        d: deaths,
+      })
+    );
+  }
+  const ev =
+    hitSeq +
+    "," +
+    fxSeq +
+    "," +
+    deathSeq +
+    "," +
+    DESTR.recent.length +
+    ":" +
+    DESTR.recent[DESTR.recent.length - 1];
+  const fresh = ev !== sentEv;
+  if (!force && !fresh && now - lastSend < (fast ? 0.1 : 0.045)) return;
+  if (!force && fresh && now - lastSend < 0.016) return;
+  sentEv = ev;
+  lastSend = now;
+  const st = myBits();
   room
     .presence({
       n: myName,
@@ -117,11 +160,42 @@ function remoteFor(peer) {
       st: 0,
       rlStart: -1,
       mlStart: -1,
+      pb: new Playback(),
+      fastAt: -9,
     });
     addPilot(r);
     remotes.set(peer, r);
   }
   return r;
+}
+function remoteState(r, st, sh, dead) {
+  if (st & 64 && !(r.st & 64)) r.rlStart = now;
+  if (st & 128 && !(r.st & 128)) r.mlStart = now;
+  r.st = st;
+  r.crouch = !!(st & 1);
+  r.sh = sh;
+  if (r.rig) {
+    if (dead && !r.dead) r.rig.die();
+    else if (!dead && r.dead) r.rig.revive();
+  }
+  r.dead = dead;
+}
+/** movement from the fast channel: into the player's playback buffer */
+function onFastPacket(from, buf) {
+  const m = MSG.decode(buf);
+  if (!m || m.name !== "arenaState" || EXT) return;
+  const r = remotes.get(from);
+  if (!r || !r.has || !r.rig) return;
+  const d = m.data,
+    t = performance.now() / 1000;
+  r.pb.push(d.ts / 1000, { p: d.p, v: d.v, y: d.y, pt: d.pt, st: d.st }, t);
+  /* only the newest packet changes discrete state (packets can arrive out of order) */
+  if (r.pb.buf[r.pb.buf.length - 1].ts === d.ts / 1000) {
+    r.fastAt = t;
+    remoteState(r, d.st, d.sh, d.dead);
+    r.k = d.k;
+    r.d = d.d;
+  }
 }
 function applyPeer(pe) {
   const pr = pe.presence || {};
@@ -148,25 +222,19 @@ function applyPeer(pe) {
     r.rig.setLabel(name);
   }
   r.has = true;
-  vec(pr.p, r.tgt);
-  if (!vec(pr.v, r.vel)) r.vel.set(0, 0, 0);
-  r.vel.clampLength ? r.vel.clampLength(0, 60) : 0;
-  r.rx = performance.now() / 1000;
-  r.yaw = num(pr.y, -1e4, 1e4);
-  r.pitch = num(pr.pt, -1.6, 1.6);
-  const st = pr.st | 0;
-  if (st & 64 && !(r.st & 64)) r.rlStart = now;
-  if (st & 128 && !(r.st & 128)) r.mlStart = now;
-  r.st = st;
-  r.crouch = !!(st & 1);
-  r.sh = num(pr.sh, 0, 70);
-  r.k = num(pr.k, 0, 9999) | 0;
-  r.d = num(pr.d, 0, 9999) | 0;
+  /* while fast-channel movement is arriving, presence movement is older news: skip it */
+  if (performance.now() / 1000 - r.fastAt > 0.6) {
+    vec(pr.p, r.tgt);
+    if (!vec(pr.v, r.vel)) r.vel.set(0, 0, 0);
+    r.vel.clampLength ? r.vel.clampLength(0, 60) : 0;
+    r.rx = performance.now() / 1000;
+    r.yaw = num(pr.y, -1e4, 1e4);
+    r.pitch = num(pr.pt, -1.6, 1.6);
+    remoteState(r, pr.st | 0, num(pr.sh, 0, 70), !!pr.dead);
+    r.k = num(pr.k, 0, 9999) | 0;
+    r.d = num(pr.d, 0, 9999) | 0;
+  }
   if (Array.isArray(pr.br)) applyBreaks(pr.br, true, "a:" + pe.peer);
-  const dead = !!pr.dead;
-  if (dead && !r.dead) r.rig.die();
-  else if (!dead && r.dead) r.rig.revive();
-  r.dead = dead;
   const hits = Array.isArray(pr.hits) ? pr.hits.slice(-16) : [],
     fx = Array.isArray(pr.fx) ? pr.fx.slice(-8) : [];
   const dt_ = pr.dth && typeof pr.dth === "object" ? pr.dth : null;
@@ -251,6 +319,7 @@ function updateLive() {
     return;
   }
   room = r;
+  if (typeof room.onFast === "function") room.onFast(onFastPacket);
   room.onPeers(
     ch => {
       for (const p of ch.peers) if (p.sameTab) myPeer = p.peer;

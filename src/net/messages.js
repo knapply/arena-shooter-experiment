@@ -15,7 +15,7 @@
    Bump PROTOCOL whenever an existing message changes shape; players on different versions are
    told so when they join instead of receiving garbage. */
 const MSG = (() => {
-  const PROTOCOL = 2;
+  const PROTOCOL = 3;
   const TWO_PI = Math.PI * 2;
   const BAD = /[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g;
   const enc = new TextEncoder(),
@@ -219,6 +219,7 @@ const MSG = (() => {
   /* free-for-all arena: each player's own state, ~22 Hz */
   def(10, "arenaState", "fast", [
     ["seq", "u16"],
+    ["ts", "u32"],
     ["p", "v3:100"],
     ["v", "v3:100"],
     ["y", "ang"],

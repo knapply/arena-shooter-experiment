@@ -30,6 +30,7 @@
     "core/gamepad.js",
     "game/deploy.js",
     "net/messages.js",
+    "net/playback.js",
     "net/arena-net.js",
     "ui/hud.js",
     "ui/net-panel.js",

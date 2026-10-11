@@ -33,13 +33,14 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/input.js` | 238 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `A` `P` `pressCode` `mouseL` `mouseR` `aiming` … (+7) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 54 | `savePrefs` `leaveGame` |
-| `src/net/messages.js` | 360 | `MSG` |
-| `src/net/arena-net.js` | 279 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `room` `lastSend` `sendPresence` `remoteFor` `applyPeer` `updateLive` |
+| `src/net/messages.js` | 361 | `MSG` |
+| `src/net/playback.js` | 91 | `Playback` |
+| `src/net/arena-net.js` | 348 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `room` `lastSend` `lastFast` `fastSeq` `sentEv` `FAST_HZ` `myBits` `sendPresence` `remoteFor` `remoteState` `onFastPacket` … (+2) |
 | `src/ui/hud.js` | 76 | `renderScores` `xhEls` `hud` |
 | `src/ui/net-panel.js` | 90 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/weapons/viewmodel-anim.js` | 137 | `updVM` |
 | `src/ui/console.js` | 304 | `DEV` `timeScale` `godMode` `CON` |
-| `src/game/loop.js` | 487 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+13) |
+| `src/game/loop.js` | 499 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+14) |
 | `src/modes/tech-demo.js` | 475 | `demo` `seg` `segT` `snapCam` `demoRig` `segOnce` `camLook` `dummies` `makeDummies` `placeDummy` `placeMe` `once` `PI` `SEGS` `nextSeg` `startDemo` `exitDemo` `demoFrame` |
 | `src/ui/settings-ui.js` | 432 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `closeSettings` `onSetChange` `renderSettings` `renderKeys` `renderPadBinds` `padCapture` `renderKeyHelp` `hudHook` `hideBots` `showWorld` `extPlay` `extFull` … (+1) |
 | `src/weapons/pickups.js` | 179 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |

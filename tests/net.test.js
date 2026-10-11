@@ -7,12 +7,13 @@ const fs = require("fs");
 const { check, finish } = require("./lib/check.js");
 const { launch, open, text } = require("./lib/browser.js");
 const CONDITIONS = [
-  { name: "ideal", sim: { latency: 0, jitter: 0, loss: 0 }, maxDelay: 260, maxP95: 0.9 },
+  { name: "ideal", sim: { latency: 0, jitter: 0, loss: 0 }, maxDelay: 160, maxP95: 0.4, maxJumps: 6 },
   {
     name: "bad (75 ms each way, ±25 jitter, 3% loss)",
     sim: { latency: 75, jitter: 25, loss: 0.03 },
-    maxDelay: 650,
-    maxP95: 3.5,
+    maxDelay: 320,
+    maxP95: 0.6,
+    maxJumps: 10,
   },
 ];
 const pct = (a, p) => a.slice().sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * p))];
@@ -134,6 +135,7 @@ function analyze(truth, seen) {
           m.delayMs + " ms"
         );
         check(m.p95ErrM <= C.maxP95, `${C.name}: 95% of frames within ${C.maxP95} m`, m.p95ErrM + " m");
+        check(m.jumpsPerMin <= C.maxJumps, `${C.name}: no visible pops (≤ ${C.maxJumps}/min)`, m.jumpsPerMin);
       }
       const expect = 2 * C.sim.latency + C.sim.jitter;
       check(

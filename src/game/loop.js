@@ -424,19 +424,31 @@ function frameBody(t) {
   hud();
   renderFrame();
 }
-const _est = new V3();
+const _est = new V3(),
+  _pbs = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, s: null };
 function updRigs(dt) {
   const tnow = performance.now() / 1000;
   for (const r of remotes.values()) {
     if (!r.rig || !r.has) continue;
-    const age = Math.min(0.15, tnow - r.rx);
-    const est = _est.copy(r.tgt).addScaledVector(r.vel, age);
     const root = r.rig.root;
-    if (root.position.distanceTo(est) > 6) root.position.copy(est);
-    else root.position.lerp(est, 1 - Math.exp(-18 * dt));
-    let dy = r.yaw - root.rotation.y;
-    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-    root.rotation.y += dy * Math.min(1, dt * 15);
+    if (tnow - r.fastAt < 1 && r.pb.sample(tnow, _pbs)) {
+      /* fast channel: timestamped playback, already smooth; only a tiny blend hides corrections */
+      _est.set(_pbs.x, _pbs.y, _pbs.z);
+      if (root.position.distanceTo(_est) > 4) root.position.copy(_est);
+      else root.position.lerp(_est, 1 - Math.exp(-45 * dt));
+      r.vel.set(_pbs.vx, _pbs.vy, _pbs.vz);
+      r.tgt.copy(_est);
+      r.pitch = _pbs.pitch;
+      root.rotation.y = _pbs.yaw;
+    } else {
+      const age = Math.min(0.15, tnow - r.rx);
+      const est = _est.copy(r.tgt).addScaledVector(r.vel, age);
+      if (root.position.distanceTo(est) > 6) root.position.copy(est);
+      else root.position.lerp(est, 1 - Math.exp(-18 * dt));
+      let dy = r.yaw - root.rotation.y;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      root.rotation.y += dy * Math.min(1, dt * 15);
+    }
     const s = r.st;
     const st = {
       vx: r.vel.x,

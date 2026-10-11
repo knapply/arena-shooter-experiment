@@ -26,6 +26,9 @@ interface PresenceRoom {
   leave(): Promise<void>;
   emit?(...a: any[]): Promise<void>;
   on?(...a: any[]): () => void;
+  /** optional fast channel (the peer-to-peer transport has one): unordered, may drop, binary */
+  fast?(buf: ArrayBuffer, to?: string): void;
+  onFast?(cb: (from: string, buf: ArrayBuffer) => void): () => void;
 }
 interface NetLinkStats { peer: string; name: string; fast?: boolean; rtt: number; jitter: number; loss: number; inBps: number; outBps: number; inMsgs: number; outMsgs: number; age: number }
 interface NetStats {
