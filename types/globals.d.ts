@@ -83,6 +83,8 @@ interface NetApi {
   connecting?: boolean;
   base: { m: string; n: string; tm: number; ph: string; [k: string]: any };
   onPeers: (() => void) | null;
+  /** fast-channel handler of whichever side (host or client) is running */
+  onFast?: ((from: string, buf: ArrayBuffer) => void) | null;
   connect(): Promise<PresenceRoom | null>;
   send(extra: Record<string, any>): void;
   myPeer(): string | null;
@@ -92,7 +94,7 @@ interface NetApi {
   bitsOf(body: any, o: { reload?: boolean; fire?: boolean; wpn?: number; carry?: boolean }): number;
   applyBits(body: any, bits: number): void;
   readBody(body: any, presence: Record<string, any>): void;
-  plausible(shooterPos: any, target: any, weapon: string): boolean;
+  plausible(shooterPos: any, target: any, weapon: string, at?: any): boolean;
 }
 interface CTFUI {
   [key: string]: any;

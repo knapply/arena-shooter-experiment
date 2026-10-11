@@ -67,8 +67,12 @@ const SAMPLES = {
   arenaHit: { s: 9, t: "peer-abc", d: 16, w: "rifle", hd: true },
   arenaDeath: { s: 2, by: "peer-xyz", bn: "", w: "sniper", hd: false },
   arenaFx: { s: 4, k: "slam", a: [1, 2, 3], b: [0, 0, 0], g: 0 },
-  ctfSnap: snap,
-  ctfClient: { tm: 1, p: [1, 2, 3], v: [0, 0, 0], y: 1, pt: 0, st: 0, sh: 70, dead: false },
+  ctfMove: {
+    ts: 99999,
+    rv: 3,
+    ag: snap.ag.map(a => ({ p: a.p, v: a.v, y: a.y, pt: a.pt, st: a.st, sh: a.sh, dead: a.dead })),
+  },
+  ctfClient: { ts: 5, p: [1, 2, 3], v: [0, 0, 0], y: 1, pt: 0, st: 0, sh: 70, dead: false },
 };
 for (const m of MSG.list()) {
   const s = SAMPLES[m.name];
@@ -94,33 +98,16 @@ check(binArena * 2.5 < jsonArena, "arena state is much smaller than JSON", {
   binary: binArena,
   json: jsonArena,
 });
-const binSnap = MSG.encode("ctfSnap", snap).byteLength;
-const jsonSnap = JSON.stringify({
-  t: snap.t,
-  tl: snap.tl,
-  sc: snap.sc,
-  ov: null,
-  fl: snap.fl.map(f => [f.st, ...f.p, f.by, f.dt]),
-  ag: snap.ag.map(a => [
-    a.id,
-    a.team,
-    a.slot,
-    ...a.p,
-    ...a.v,
-    a.y,
-    a.pt,
-    a.st,
-    a.sh,
-    0,
-    a.spot,
-    a.name,
-    a.k,
-    a.d,
-  ]),
-  pu: [["ctf-sniper", 12.5]],
-  br: snap.br,
-}).length;
-check(binSnap * 2 < jsonSnap, "CTF snapshot is much smaller than JSON", { binary: binSnap, json: jsonSnap });
+const move = SAMPLES.ctfMove;
+const binSnap = MSG.encode("ctfMove", move).byteLength;
+/* what the same movement cost as JSON rows in the presence snapshot */
+const jsonSnap = JSON.stringify(
+  snap.ag.map(a => [a.id, a.team, a.slot, ...a.p, ...a.v, a.y, a.pt, a.st, a.sh, 0, a.spot, a.name, a.k, a.d])
+).length;
+check(binSnap * 2 < jsonSnap, "CTF movement is much smaller than the JSON it replaces", {
+  binary: binSnap,
+  json: jsonSnap,
+});
 
 /* angles wrap, junk numbers become zero, strings are capped and cleaned */
 {
@@ -138,7 +125,7 @@ check(binSnap * 2 < jsonSnap, "CTF snapshot is much smaller than JSON", { binary
 
 /* hostile input: truncated, padded, unknown and random packets decode to null and never throw */
 {
-  const full = new Uint8Array(MSG.encode("ctfSnap", snap));
+  const full = new Uint8Array(MSG.encode("ctfMove", move));
   let bad = 0;
   for (let n = 0; n < full.length; n++) if (MSG.decode(full.slice(0, n).buffer) !== null) bad++;
   check(bad === 0, "every truncated packet is rejected", bad);

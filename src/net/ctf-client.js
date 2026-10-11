@@ -31,6 +31,8 @@
       this.k = 0;
       this.d = 0;
       this.rig = null;
+      this.pb = new K.Playback();
+      this.fastAt = -9;
     }
     get alive() {
       return !this.dead;
@@ -128,6 +130,28 @@
       sendT: 0,
       fireT: new Map(),
       agg: new Map(),
+      rv: -1,
+      roster: [],
+      fastT: 0,
+    };
+    /* the host's movement for everyone arrives on the fast channel, in roster order */
+    NET.onFast = function (from, buf) {
+      if (from !== hostPeer) return;
+      const m = K.MSG.decode(buf);
+      if (!m || m.name !== "ctfMove" || m.data.rv !== M.rv) return;
+      const d = m.data,
+        t = performance.now() / 1000,
+        ts = d.ts / 1000;
+      d.ag.forEach((s, i) => {
+        const a = M.map.get(M.roster[i]);
+        if (!a) return;
+        a.pb.push(ts, { p: s.p, v: s.v, y: s.y, pt: s.pt, st: s.st }, t);
+        if (a.pb.buf[a.pb.buf.length - 1].ts !== ts) return;
+        a.fastAt = t;
+        a.body.shield = s.sh;
+        mirrorBits(a, s.st);
+        mirrorDead(a, s.dead, s.p);
+      });
     };
     M.pickups = CTF.PICKUP_DEFS.map(d => {
       const p = {
@@ -148,18 +172,27 @@
           p.availAt = M.t + p.respawn;
           p.optT = performance.now();
           M.pk = [++M.pkS, p.id];
+          M.newsy = true;
           return true;
         },
       };
       return p;
     });
     M.byId = id => (id === myId ? me : M.map.get(id) || null);
+    /* hits carry the host-clock time we were seeing the target at, so the host can check the shot
+       against where they were on our screen (lag compensation) */
     M.queueHit = function (id, n, w, hd) {
+      const tgt = M.map.get(id);
+      const pb = tgt && tgt.pb;
+      const vt =
+        pb && pb.ready
+          ? Math.max(0, Math.round((performance.now() / 1000 - pb.offset - pb.delay) * 1000))
+          : 0;
       const a = M.agg.get(id);
       if (a) {
         a.d += n;
         a.hd = a.hd || !!hd;
-      } else M.agg.set(id, { t: id, d: n, w: w || "rifle", hd: !!hd });
+      } else M.agg.set(id, { t: id, d: n, w: w || "rifle", hd: !!hd, vt });
     };
     M.onFx = function (k, a, b, g) {
       if (k !== "nade") return;
@@ -167,6 +200,7 @@
       if (M.fx.length > 4) M.fx.shift();
     };
     M.died = function (src) {
+      M.newsy = true;
       M.dth = [
         ++M.dthS,
         src && src.by ? src.by : src && src.agent ? src.agent.id : "",
@@ -189,6 +223,23 @@
       }
       return best;
     };
+    function mirrorBits(a, st) {
+      NET.applyBits(a.body, st);
+      a.firing = !!(st & 4096);
+      a.wpn = st & 32768 ? 2 : st & 8192 ? 1 : 0;
+      if (st & 64) {
+        if (a.reloadT <= 0) a.reloadT = K.RELOAD_TIME;
+      } else a.reloadT = 0;
+    }
+    function mirrorDead(a, dead, p) {
+      if (dead && !a.dead) a.dead = true;
+      else if (!dead && a.dead) {
+        a.dead = false;
+        if (a.rig) a.rig.revive();
+        a.body.pos.set(p[0], p[1], p[2]);
+        a.tgt.copy(a.body.pos);
+      }
+    }
     const evObj = id => M.byId(id) || { name: "?", local: false, human: false, team: -1, pos: new V3() };
     /* ---- read the host's snapshot ---- */
     /** @param {HostSnapshot} Hs untrusted: every field is validated below */
@@ -201,6 +252,8 @@
       M.timeLimit = num(Hs.tl, 60, 3600, 480);
       if (Array.isArray(Hs.sc)) for (const t of [0, 1]) M.teams[t].score = num(Hs.sc[t], 0, 99) | 0;
       const ag = Array.isArray(Hs.ag) ? Hs.ag.slice(0, 16) : [];
+      M.rv = Hs.rv | 0;
+      M.roster = ag.map(e => (Array.isArray(e) ? String(e[0]) : ""));
       const live = new Set();
       let roster = false;
       for (const e of ag) {
@@ -227,31 +280,20 @@
         a.idx = num(e[2], 0, 15) | 0;
         a.name = K.cleanName(e[15]);
         a.human = id.startsWith("h:");
+        a.k = num(e[16], 0, 9999) | 0;
+        a.d = num(e[17], 0, 9999) | 0;
+        const sp = e[14] | 0;
+        if (sp & (1 << me.team)) M.teams[me.team].brain.enemyMem.set(id, { t: M.t, pos: a.body.pos.clone() });
+        /* movement from presence only while the fast channel is quiet */
+        if (performance.now() / 1000 - a.fastAt < 0.6) continue;
         a.tgt.set(num(e[3], -200, 200), num(e[4], -50, 100), num(e[5], -200, 200));
         a.body.vel.set(num(e[6], -60, 60), num(e[7], -60, 60), num(e[8], -60, 60));
         a.rx = performance.now();
         a.yawT = num(e[9], -1e4, 1e4);
         a.body.pitch = num(e[10], -1.6, 1.6);
-        const st = e[11] | 0;
-        NET.applyBits(a.body, st);
-        a.firing = !!(st & 4096);
-        a.wpn = st & 32768 ? 2 : st & 8192 ? 1 : 0;
-        if (st & 64) {
-          if (a.reloadT <= 0) a.reloadT = K.RELOAD_TIME;
-        } else a.reloadT = 0;
+        mirrorBits(a, e[11] | 0);
         a.body.shield = num(e[12], 0, 70);
-        const dead = !!e[13];
-        if (dead && !a.dead) {
-          a.dead = true;
-        } else if (!dead && a.dead) {
-          a.dead = false;
-          if (a.rig) a.rig.revive();
-          a.body.pos.copy(a.tgt);
-        }
-        const sp = e[14] | 0;
-        if (sp & (1 << me.team)) M.teams[me.team].brain.enemyMem.set(id, { t: M.t, pos: a.tgt.clone() });
-        a.k = num(e[16], 0, 9999) | 0;
-        a.d = num(e[17], 0, 9999) | 0;
+        mirrorDead(a, !!e[13], [a.tgt.x, a.tgt.y, a.tgt.z]);
       }
       for (const [id, a] of M.map)
         if (!live.has(id)) {
@@ -414,15 +456,26 @@
           M.seenFx.set(p.peer, sf);
         }
       }
+      const tnow = now / 1000;
       for (const a of M.map.values()) {
         const b = a.body;
-        const age = Math.min(0.15, (now - a.rx) / 1000);
-        _p.copy(a.tgt).addScaledVector(b.vel, age);
-        if (b.pos.distanceTo(_p) > 6) b.pos.copy(_p);
-        else b.pos.lerp(_p, 1 - Math.exp(-16 * dt));
-        if (a.yawT != null) {
-          const d = Math.atan2(Math.sin(a.yawT - b.yaw), Math.cos(a.yawT - b.yaw));
-          b.yaw += d * Math.min(1, dt * 15);
+        if (tnow - a.fastAt < 1 && a.pb.sample(tnow, _pbs)) {
+          /* fast channel: timestamped playback */
+          _p.set(_pbs.x, _pbs.y, _pbs.z);
+          if (b.pos.distanceTo(_p) > 4) b.pos.copy(_p);
+          else b.pos.lerp(_p, 1 - Math.exp(-45 * dt));
+          b.vel.set(_pbs.vx, _pbs.vy, _pbs.vz);
+          b.yaw = _pbs.yaw;
+          b.pitch = _pbs.pitch;
+        } else {
+          const age = Math.min(0.15, (now - a.rx) / 1000);
+          _p.copy(a.tgt).addScaledVector(b.vel, age);
+          if (b.pos.distanceTo(_p) > 6) b.pos.copy(_p);
+          else b.pos.lerp(_p, 1 - Math.exp(-16 * dt));
+          if (a.yawT != null) {
+            const d = Math.atan2(Math.sin(a.yawT - b.yaw), Math.cos(a.yawT - b.yaw));
+            b.yaw += d * Math.min(1, dt * 15);
+          }
         }
         if (a.reloadT > 0) a.reloadT = Math.max(0.01, a.reloadT - dt);
         if (a.firing && a.alive) {
@@ -437,13 +490,38 @@
         M.winner = -1;
         if (M.onEvent) M.onEvent("hostLeft", {});
       }
+      const m = K.me;
+      const fast = NET.room && typeof NET.room.fast === "function";
+      M.fastT -= dt;
+      if (fast && M.fastT <= 0) {
+        M.fastT = 1 / 30;
+        NET.room.fast(
+          K.MSG.encode("ctfClient", {
+            ts: Math.round(performance.now()) >>> 0,
+            p: m.pos,
+            v: m.vel,
+            y: m.yaw,
+            pt: m.pitch,
+            st: NET.bitsOf(m, {
+              reload: K.reloadT > 0,
+              fire: K.now - K.lastFireT < 0.12,
+              wpn: K.wi,
+              carry: !!me.carrying,
+            }),
+            sh: Math.ceil(m.shield),
+            dead: m.dead,
+          }),
+          hostPeer
+        );
+      }
       M.sendT -= dt;
-      if (M.sendT > 0) return;
+      /* hits, grenades, deaths and pickups go out at once; otherwise presence ~15 times a second */
+      if (M.sendT > 0 && !M.agg.size && !M.newsy) return;
+      M.newsy = false;
       M.sendT = 1 / 15;
-      for (const v of M.agg.values()) M.hs.push([++M.hsS, v.t, Math.round(v.d), v.w, v.hd ? 1 : 0]);
+      for (const v of M.agg.values()) M.hs.push([++M.hsS, v.t, Math.round(v.d), v.w, v.hd ? 1 : 0, v.vt]);
       M.agg.clear();
       while (M.hs.length > 10) M.hs.shift();
-      const m = K.me;
       NET.send({
         ph: "client",
         mid,
@@ -467,7 +545,8 @@
         br: K.DESTR.recent.slice(),
       });
     };
-    const _p = new V3();
+    const _p = new V3(),
+      _pbs = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, s: null };
     return M;
   };
 })();

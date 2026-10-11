@@ -15,7 +15,7 @@
    Bump PROTOCOL whenever an existing message changes shape; players on different versions are
    told so when they join instead of receiving garbage. */
 const MSG = (() => {
-  const PROTOCOL = 3;
+  const PROTOCOL = 4;
   const TWO_PI = Math.PI * 2;
   const BAD = /[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g;
   const enc = new TextEncoder(),
@@ -252,31 +252,15 @@ const MSG = (() => {
     ["b", "v3:100"],
     ["g", "u8"],
   ]);
-  /* capture the flag: host snapshot, ~15 Hz */
-  def(20, "ctfSnap", "fast", [
-    ["t", "f32"],
-    ["tl", "u16"],
-    ["sc", ["u8", 2]],
-    ["ov", "i8"],
-    [
-      "fl",
-      [
-        [
-          ["st", "u8"],
-          ["p", "v3:100"],
-          ["by", "str:64"],
-          ["dt", "q16:10"],
-        ],
-        2,
-      ],
-    ],
+  /* capture the flag: everyone's movement from the host, ~30 Hz. Agents are listed in the order of
+     the roster the host last sent over presence (rv says which roster version that is) */
+  def(20, "ctfMove", "fast", [
+    ["ts", "u32"],
+    ["rv", "u8"],
     [
       "ag",
       [
         [
-          ["id", "str:64"],
-          ["team", "u8"],
-          ["slot", "u8"],
           ["p", "v3:100"],
           ["v", "v3:100"],
           ["y", "ang"],
@@ -284,29 +268,14 @@ const MSG = (() => {
           ["st", "u16"],
           ["sh", "u8"],
           ["dead", "bool"],
-          ["spot", "u8"],
-          ["name", "str:14"],
-          ["k", "u16"],
-          ["d", "u16"],
         ],
         16,
       ],
     ],
-    [
-      "pu",
-      [
-        [
-          ["id", "str:24"],
-          ["in", "q16:10"],
-        ],
-        8,
-      ],
-    ],
-    ["br", ["u16", 64]],
   ]);
-  /* capture the flag: a joined player's own state to the host */
+  /* capture the flag: a joined player's own movement to the host, ~30 Hz */
   def(21, "ctfClient", "fast", [
-    ["tm", "u8"],
+    ["ts", "u32"],
     ["p", "v3:100"],
     ["v", "v3:100"],
     ["y", "ang"],

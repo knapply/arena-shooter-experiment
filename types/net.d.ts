@@ -8,6 +8,8 @@ type AgentRow = [string, number, number, number, number, number, number, number,
 /** host to everyone, about 15 times a second */
 interface HostSnapshot {
   id: string;
+  /** roster version: fast ctfMove packets list agents in this snapshot's ag order */
+  rv: number;
   t: number;
   tl: number;
   sc: [number, number];

@@ -150,6 +150,74 @@ function analyze(truth, seen) {
       );
       await ctx.close();
     }
+    /* capture the flag over a bad network: how smoothly does a client see the host's AI? */
+    {
+      const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });
+      const A = await open(ctx, { tag: "A", init: ["fake-peer.js"] }),
+        B = await open(ctx, { tag: "B", init: ["fake-peer.js"] });
+      await A.waitForTimeout(600);
+      for (const p of [A, B])
+        await p.evaluate(() => {
+          window.KAHOST.net.setSim({ latency: 75, jitter: 25, loss: 0.03 });
+          Object.assign(KA.SET, {
+            shadows: "off",
+            bloom: 0,
+            renderScale: 0.5,
+            dynRes: false,
+            reflections: "off",
+          });
+          KA.applySettings();
+        });
+      await A.click("#p2pHost");
+      await A.waitForTimeout(800);
+      await B.fill("#p2pCode", await text(A, "#p2pCodeShow"));
+      await B.click("#p2pJoin");
+      await B.waitForTimeout(2500);
+      await A.click("#ctfPlay");
+      await A.waitForTimeout(2500);
+      await B.click("#ctfBlue");
+      await B.click("#ctfPlay");
+      await B.waitForTimeout(4000);
+      const id = await A.evaluate(() => {
+        const a = CTF.UI.game().agents.find(x => !x.human && x.team === 0);
+        const t0 = Date.now();
+        window.__truth = [];
+        (function f() {
+          a.body.shield = 70;
+          a.body.health = 45;
+          window.__truth.push([Date.now(), a.body.pos.x, a.body.pos.z]);
+          if (Date.now() - t0 < 11000) requestAnimationFrame(f);
+        })();
+        return a.id;
+      });
+      await B.evaluate(id => {
+        const t0 = Date.now();
+        window.__seen = [];
+        (function f() {
+          const a = CTF.UI.game().map.get(id);
+          if (a) window.__seen.push([Date.now(), a.body.pos.x, a.body.pos.z]);
+          if (Date.now() - t0 < 10000) requestAnimationFrame(f);
+        })();
+      }, id);
+      await B.waitForTimeout(10500);
+      const truth = await A.evaluate(() => window.__truth),
+        seen = (await B.evaluate(() => window.__seen)).filter(s => s[0] > truth[0][0] + 1500);
+      const m = seen.length > 30 ? analyze(truth, seen) : null;
+      results.ctf = m;
+      console.log(`  ctf bad network: ${JSON.stringify(m)}`);
+      check(
+        !!m && m.p95ErrM <= 0.8,
+        "CTF: a client sees the host's AI within 0.8 m 95% of the time (bad network)",
+        m
+      );
+      check(!!m && m.jumpsPerMin <= 12, "CTF: no visible pops on the client", m && m.jumpsPerMin);
+      check(
+        A.errors.length + B.errors.length === 0,
+        "CTF: no page errors",
+        [...A.errors, ...B.errors].slice(0, 3)
+      );
+      await ctx.close();
+    }
     /* mesh, fast channel and host migration with three players */
     {
       const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });

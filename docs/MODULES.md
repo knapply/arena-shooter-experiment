@@ -33,7 +33,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/input.js` | 238 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `A` `P` `pressCode` `mouseL` `mouseR` `aiming` … (+7) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 54 | `savePrefs` `leaveGame` |
-| `src/net/messages.js` | 361 | `MSG` |
+| `src/net/messages.js` | 330 | `MSG` |
 | `src/net/playback.js` | 91 | `Playback` |
 | `src/net/arena-net.js` | 348 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `room` `lastSend` `lastFast` `fastSeq` `sentEv` `FAST_HZ` `myBits` `sendPresence` `remoteFor` `remoteState` `onFastPacket` … (+2) |
 | `src/ui/hud.js` | 76 | `renderScores` `xhEls` `hud` |
@@ -46,15 +46,15 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/pickups.js` | 179 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
-| `src/game/exports.js` | 180 | `KA_API` |
+| `src/game/exports.js` | 181 | `KA_API` |
 | `src/modes/ctf/map.js` | 267 |  |
 | `src/modes/ctf/nav.js` | 304 |  |
 | `src/modes/ctf/brain.js` | 558 |  |
 | `src/modes/ctf/agent.js` | 894 |  |
 | `src/modes/ctf/rules.js` | 444 |  |
 | `src/modes/ctf/ui.js` | 405 |  |
-| `src/net/ctf-host.js` | 461 |  |
-| `src/net/ctf-client.js` | 474 |  |
+| `src/net/ctf-host.js` | 559 |  |
+| `src/net/ctf-client.js` | 553 |  |
 | `src/modes/ctf/modes.js` | 590 |  |
 | `src/modes/trailer-score.js` | 700 |  |
 | `src/modes/trailer.js` | 1017 |  |
