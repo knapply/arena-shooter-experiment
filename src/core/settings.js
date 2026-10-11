@@ -19,6 +19,7 @@ const ACTIONS = [
   ["swapWeapon", "Switch weapon"],
   ["roster", "Roster (hold)"],
   ["switchTeam", "Switch team (CTF)"],
+  ["perfHud", "Performance overlay"],
   ["interact", "Pick up weapon (hold)"],
 ];
 const DEF_BIND = {
@@ -41,6 +42,7 @@ const DEF_BIND = {
   swapWeapon: ["WheelUp", "WheelDown"],
   roster: ["Tab"],
   switchTeam: ["KeyJ"],
+  perfHud: ["F3"],
   interact: ["KeyE"],
 };
 const PAD_NAMES = [
@@ -313,6 +315,14 @@ const SCHEMA = [
     fmt: v => v + "°",
   },
   { k: "fpsCounter", tab: T_GFX, label: "FPS counter", type: "toggle", def: true },
+  {
+    k: "perfOverlay",
+    tab: T_GFX,
+    label: "Performance overlay",
+    type: "toggle",
+    def: false,
+    desc: "Frame time split into game logic, rendering and post-processing, plus draw calls, memory and network. Also toggled with F3.",
+  },
   {
     k: "sens",
     tab: T_CTL,

@@ -125,9 +125,13 @@ function fsPass(mat, target) {
 /* if the post shaders fail to compile on this GPU, fall back to plain rendering instead of a black screen */
 let gfxChecked = false;
 function renderFrame() {
+  const tr = performance.now();
   if (!GFX.on || !GFX.rt) {
     renderer.setRenderTarget(null);
+    if (GPUQ) GPUQ.begin("scene");
     renderer.render(scene, camera);
+    if (GPUQ) GPUQ.end();
+    PERF.renderCpu += performance.now() - tr;
     return;
   }
   let errs = 0;
@@ -139,7 +143,12 @@ function renderFrame() {
     };
   try {
     renderer.setRenderTarget(GFX.rt);
+    if (GPUQ) GPUQ.begin("scene");
     renderer.render(scene, camera);
+    if (GPUQ) GPUQ.end();
+    const tp = performance.now();
+    PERF.renderCpu += tp - tr;
+    if (GPUQ) GPUQ.begin("post");
     const U = compMat.uniforms;
     if (SET.bloom > 0) {
       brightMat.uniforms.t.value = GFX.rt.texture;
@@ -165,6 +174,8 @@ function renderFrame() {
     U.sharp.value = SET.sharpen * (up ? 1.3 : 1);
     U.time.value = (U.time.value + 0.0173) % 1;
     fsPass(compMat, null);
+    if (GPUQ) GPUQ.end();
+    PERF.postCpu += performance.now() - tp;
     exposureCheck();
   } catch (e) {
     errs++;

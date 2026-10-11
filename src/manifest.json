@@ -12,6 +12,7 @@
     "render/renderer.js",
     "render/pipeline.js",
     "render/environment.js",
+    "render/perf.js",
     "world/destruction.js",
     "world/maps/arena.js",
     "world/physics.js",

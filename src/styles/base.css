@@ -864,3 +864,24 @@ input[type="text"]:focus-visible {
   white-space: pre;
   margin-top: 2px;
 }
+
+/* performance overlay (F3) */
+#perfHud {
+  position: fixed;
+  top: calc(28px + env(safe-area-inset-top, 0px));
+  left: 8px;
+  z-index: 40;
+  pointer-events: none;
+  font: 11px/1.45 var(--f-mono);
+  color: #cfe3ea;
+  background: #0b1216d9;
+  border: 1px solid #ffffff1a;
+  padding: 6px 9px;
+  max-width: min(460px, calc(100vw - 16px));
+}
+#perfHud b {
+  display: inline-block;
+  width: 52px;
+  color: #ffb347;
+  font-weight: 600;
+}

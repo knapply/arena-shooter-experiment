@@ -140,8 +140,14 @@ function perf(raw) {
     }
   } else prGood = 0;
 }
+/* each animation frame: measured for the performance overlay */
 function frame(t) {
   requestAnimationFrame(frame);
+  perfBegin();
+  frameBody(t);
+  perfEnd();
+}
+function frameBody(t) {
   const raw = Math.max(1e-4, (t - last) / 1000);
   let dt = Math.min(0.05, raw);
   last = t;
@@ -155,6 +161,10 @@ function frame(t) {
   if (pad.on && $("settings").hidden) padActions();
   padCommon();
   if (playing && !paused && P("switchTeam") && EXT && EXT.switchTeam) EXT.switchTeam();
+  if (P("perfHud")) {
+    SET.perfOverlay = !SET.perfOverlay;
+    saveSettings();
+  }
   if (playing || EXT) {
     const sr = A("roster");
     if (sr !== rosterShown) {

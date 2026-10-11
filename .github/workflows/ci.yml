@@ -23,11 +23,13 @@ jobs:
         run: node build.mjs --check
       - name: Headless AI matches
         run: node tests/sim.test.js
+      - name: Performance budgets (size, simulation)
+        run: node tests/perf.test.js
       - name: Install browser
         run: npx playwright install --with-deps chromium
       - name: Browser tests
         run: node tests/browser.test.js
-      - name: Render tests (software WebGL)
+      - name: Render tests and draw budgets (software WebGL)
         run: |
           curl -sSL -o /tmp/three.min.js https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
           THREE_PATH=/tmp/three.min.js node tests/render.test.js

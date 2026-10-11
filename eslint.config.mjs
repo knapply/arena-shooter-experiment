@@ -8,7 +8,7 @@ const BROWSER = Object.fromEntries(
    devicePixelRatio innerWidth innerHeight getComputedStyle alert prompt confirm fetch crypto URL Blob File FileReader
    AudioContext OfflineAudioContext webkitAudioContext speechSynthesis SpeechSynthesisUtterance Event CustomEvent KeyboardEvent
    createImageBitmap ImageData BroadcastChannel structuredClone atob btoa TextEncoder TextDecoder DOMParser HTMLElement
-   Worker MessageChannel self globalThis`
+   Worker MessageChannel self globalThis WebGL2RenderingContext WebGLRenderingContext RTCPeerConnection`
     .split(/\s+/)
     .filter(Boolean)
     .map(n => [n, "readonly"])

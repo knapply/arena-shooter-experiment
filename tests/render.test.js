@@ -58,6 +58,26 @@ const stats = async p => {
     check(p.errors.length === 0, `${preset} preset has no errors`, p.errors.slice(0, 3));
     await p.close();
   }
+  /* draw-call and triangle budgets (tests/budgets.json) */
+  {
+    const B = require("./budgets.json");
+    const p = await open(ctx, { tag: "budget", realThree: true });
+    await p.waitForTimeout(1500);
+    const info = () =>
+      p.evaluate(() => ({ calls: KA.renderer.info.render.calls, tris: KA.renderer.info.render.triangles }));
+    await p.click("#deploy");
+    await p.waitForTimeout(2500);
+    const a = await info();
+    check(a.calls <= B.arena.drawCalls && a.tris <= B.arena.triangles, "arena view within draw budget", a);
+    await p.evaluate(() => KA.extStop());
+    await p.waitForTimeout(400);
+    await p.click("#ctfSim");
+    await p.waitForTimeout(4000);
+    const c = await info();
+    check(c.calls <= B.ctf.drawCalls && c.tris <= B.ctf.triangles, "CTF view within draw budget", c);
+    check(p.errors.length === 0, "budget scenes have no errors", p.errors.slice(0, 3));
+    await p.close();
+  }
   await b.close();
   finish("render");
 })();
