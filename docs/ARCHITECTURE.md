@@ -48,6 +48,10 @@ docs/MODULES.md        generated index of what each module declares
 | WebGPU renderer, newer three.js | `render/*` only; gameplay code does not touch the pipeline |
 | Desktop packaging | wraps the built `index.html` unchanged |
 
+## Scenario tests
+
+`tests/lib/scenario.js` runs scripted situations against the real movement, collision, hit and rules code in Node, in milliseconds: place pilots, give them inputs per tick, then assert on positions, events and hits. `tests/scenarios.test.js` holds the current movement "feel contract" (walk, sprint, strafe, thrust, jump, slide, pound), hit registration (head and body boxes, crouching, walls) and CTF rules (pickup, capture, drop, reset). Sandbox tuning should change those numbers deliberately, in the same commit.
+
 ## Code quality
 
 - **Formatting:** Prettier (`npm run format`), checked in CI.

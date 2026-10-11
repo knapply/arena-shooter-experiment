@@ -25,6 +25,8 @@ jobs:
         run: node tests/sim.test.js
       - name: Network message registry and save data
         run: node tests/messages.test.js && node tests/store.test.js
+      - name: Scenarios (movement, hit registration, mode rules)
+        run: node tests/scenarios.test.js
       - name: Performance budgets (size, simulation)
         run: node tests/perf.test.js
       - name: Install browser
