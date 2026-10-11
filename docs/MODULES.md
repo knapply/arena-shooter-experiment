@@ -16,8 +16,8 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/render/environment.js` | 122 | `buildEnv` `lastRefl` `lastShadow` `applyGfx` `pc` `scaleBoxUV` |
 | `src/render/perf.js` | 111 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
 | `src/world/destruction.js` | 241 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` `destrTick` `resetDestruction` `boxById` `applyBreaks` `syncBroken` |
-| `src/world/maps/arena.js` | 143 | `gridTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `strip` `stairs` `SPAWNS` |
-| `src/world/physics.js` | 461 | `R` `GRAV` `H_STAND` `H_CROUCH` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
+| `src/world/maps/arena.js` | 149 | `gridTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `strip` `stairs` `SPAWNS` |
+| `src/world/physics.js` | 465 | `R` `GRAV` `H_STAND` `H_CROUCH` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
 | `src/characters/rig.js` | 946 | `DOWN` `_a` `_b` `_c` `_q1` `_q2` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `solve2` `capsule` `GEO` `geo` … (+14) |
 | `src/game/recorder.js` | 85 | `REC` |
 | `src/game/pilot.js` | 75 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |

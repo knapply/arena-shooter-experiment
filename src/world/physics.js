@@ -149,6 +149,7 @@ class Body {
     this.jumpBuf = 0;
     this.crouchBuf = 0;
     this.thrustBuf = 0;
+    this.tuck = false;
     this.coyote = 0;
   }
   fwd() {
@@ -216,7 +217,8 @@ class Body {
     const hs0 = Math.hypot(v.x, v.z);
     if (this.crouchBuf > 0 && this.ground && (this.sprint || hs0 > 7.5) && this.slideCD <= 0) {
       this.crouchBuf = 0;
-      const sp = Math.max(hs0, 9) + 3.2,
+      /* thrust into slide is the fastest way to cover ground, capped so it stays a technique, not a teleport */
+      const sp = Math.min(Math.max(hs0, 9) + 3.2, 15),
         il = 1 / Math.max(hs0, 1e-4);
       v.x *= il * sp;
       v.z *= il * sp;
@@ -334,6 +336,8 @@ class Body {
         }
       }
     }
+    /* crouch-jump: tucking your legs in the air lets you clamber ledges ~0.45 m higher */
+    this.tuck = !this.ground && !!inp.crouch && this.pound === 0;
     if (!(this.thrustT > 0 && !this.ground) && !this.stabbing && this.pound !== 1) v.y -= GRAV * dt;
     if (this.pound === 2) v.y = Math.min(v.y, -30);
     if (
@@ -357,7 +361,7 @@ class Body {
         for (const b of SOLID) {
           if (!(ax + R > b.x0 && ax - R < b.x1 && az + R > b.z0 && az - R < b.z1)) continue;
           const dy = b.y1 - p.y;
-          if (dy > 0.3 && dy < 2.5) {
+          if (dy > 0.3 && dy < (this.tuck ? 2.95 : 2.5)) {
             const to = new V3(p.x + dx * 0.95, b.y1 + 0.01, p.z + dz * 0.95);
             if (freeAt(to.x, to.y, to.z, H_STAND) && freeAt(p.x, b.y1 + 0.01, p.z, 0.4)) {
               this.clamber = { from: p.clone(), to, t: 0, dur: 0.2 + dy * 0.03 };

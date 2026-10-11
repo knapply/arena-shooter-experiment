@@ -123,6 +123,12 @@ box(29, 0, 0, 3, 6, 3, "wall");
 box(-29, 0, 0, 3, 6, 3, "wall");
 box(0, 0, 29, 3, 6, 3, "wall");
 box(0, 0, -29, 3, 6, 3, "wall");
+/* skill route: a 2.2 m ledge on the inner face of each tall pillar. Clamber onto it, then a
+   crouch-jump (hold crouch in the air) reaches the 6 m perch; a plain jump falls just short. */
+box(26.9, 0, 0, 1.2, 2.2, 3, "step");
+box(-26.9, 0, 0, 1.2, 2.2, 3, "step");
+box(0, 0, 26.9, 3, 2.2, 1.2, "step");
+box(0, 0, -26.9, 3, 2.2, 1.2, "step");
 box(10, 0, -34.5, 10, 2.4, 3, "base");
 box(-10, 0, 34.5, 10, 2.4, 3, "base");
 box(34.5, 0, 10, 3, 2.4, 10, "base");

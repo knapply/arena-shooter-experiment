@@ -124,6 +124,92 @@ const fix = v => +v.toFixed(2);
   check(!tap.events.some(e => e.type === "slam"), "releasing early cancels the pound");
 }
 
+/* ---------- movement tech ---------- */
+{
+  /* thrust into slide: a slide straight out of a thrust, faster than a sprint but capped */
+  let peak = 0;
+  const ts = scenario({
+    pilots: { a: { pos: RUN, yaw: EAST } },
+    seconds: 1,
+    input: t => ({ a: { f: 1, thrust: t < 0.01, crouchP: Math.abs(t - 0.12) < 0.005, crouch: t > 0.12 } }),
+    every: (t, P) => (peak = Math.max(peak, Math.hypot(P.a.vel.x, P.a.vel.z))),
+  });
+  const slid = ts.events.find(e => e.type === "slide");
+  check(!!slid && peak <= 17.01, "thrust into slide works and stays capped", {
+    slide: !!slid,
+    peak: fix(peak),
+  });
+  /* slide-jump keeps the slide's speed in the air */
+  let airSpeed = 0;
+  scenario({
+    pilots: { a: { pos: RUN, yaw: EAST } },
+    seconds: 1.8,
+    input: t => ({
+      a: {
+        f: 1,
+        sprint: true,
+        crouchP: Math.abs(t - 1.1) < 0.005,
+        crouch: t > 1.1 && t < 1.25,
+        jumpP: Math.abs(t - 1.25) < 0.005,
+      },
+    }),
+    every: (t, P) => {
+      if (t > 1.3 && t < 1.4 && !P.a.ground) airSpeed = Math.max(airSpeed, Math.hypot(P.a.vel.x, P.a.vel.z));
+    },
+  });
+  check(airSpeed > 9.5, "slide-jump carries more than sprint speed into the air", fix(airSpeed));
+  /* crouch-jump: from the 2.2 m pillar ledge only a crouch-jump reaches the 6 m perch */
+  const perch = tuck =>
+    scenario({
+      pilots: { a: { pos: [26.6, 2.2, 0], yaw: EAST } },
+      seconds: 1,
+      input: t => ({ a: { f: 1, jumpP: t < 0.01, crouch: tuck && t > 0.05 } }),
+    }).events.some(e => e.type === "clamber");
+  check(!perch(false) && perch(true), "crouch-jump clambers a ledge a plain jump can't", {
+    plain: perch(false),
+    crouch: perch(true),
+  });
+  const ledge = scenario({
+    pilots: { a: { pos: [24, 0, 0], yaw: EAST } },
+    seconds: 1.2,
+    input: t => ({ a: { f: 1, jumpP: Math.abs(t - 0.2) < 0.005 } }),
+  });
+  check(
+    Math.abs(ledge.P.a.pos.y - 2.2) < 0.05,
+    "the skill-route ledge is reachable from the floor",
+    fix(ledge.P.a.pos.y)
+  );
+  /* stabilize: aiming in the air holds your height */
+  let y0 = null,
+    drift = 0;
+  scenario({
+    pilots: { a: { pos: RUN, yaw: 0 } },
+    seconds: 1.5,
+    input: t => ({ a: { jumpP: t < 0.01, aim: t > 0.35 } }),
+    every: (t, P) => {
+      if (t > 0.4 && y0 == null) y0 = P.a.pos.y;
+      if (t > 0.4 && t < 1.4) drift = Math.max(drift, Math.abs(P.a.pos.y - y0));
+    },
+  });
+  check(drift < 0.2, "stabilize holds your height for a second", fix(drift));
+  /* aimed ground pound: aiming forward lands further away than straight down */
+  const poundAt = pitch => {
+    const r = scenario({
+      pilots: { a: { pos: [-30, 9, -6], air: true, yaw: EAST, pitch } },
+      seconds: 2,
+      input: t => ({ a: { crouchP: t < 0.01, crouch: t < 0.65 } }),
+    });
+    const e = r.events.find(x => x.type === "slam");
+    return e ? Math.hypot(e.d.pos.x + 30, e.d.pos.z + 6) : -1;
+  };
+  const down = poundAt(-1.5),
+    fwd = poundAt(-0.5);
+  check(down >= 0 && fwd > down + 4, "aimed ground pound lands where you aim", {
+    down: fix(down),
+    forward: fix(fwd),
+  });
+}
+
 /* ---------- kill times (data/weapons.js) ---------- */
 {
   const [carbine, magnum, sniper] = K.WEAPON_DATA;
