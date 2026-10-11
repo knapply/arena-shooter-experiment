@@ -10,6 +10,8 @@
     H = 100,
     N = W * H;
   NAV.W = W;
+  NAV.X0 = X0;
+  NAV.Z0 = Z0;
   NAV.H = H;
   let top = null,
     ok = null;

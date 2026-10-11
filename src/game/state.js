@@ -194,7 +194,7 @@ function botStep(b, dt) {
 
 /* local damage */
 function hurtMe(n, src) {
-  if (me.dead || !playing) return;
+  if (me.dead || !playing || godMode) return;
   if (now < me.spawnT + 1.2) return;
   rumble(Math.min(1, n / 40), Math.min(1, n / 25), 120);
   if (aiming && W().zoom[0] >= 1.5) {

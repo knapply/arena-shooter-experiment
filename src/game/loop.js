@@ -159,12 +159,13 @@ function frame(t) {
   perfBegin();
   frameBody(t);
   recLocal();
+  CON.frame();
   updNetHud();
   perfEnd();
 }
 function frameBody(t) {
   const raw = Math.max(1e-4, (t - last) / 1000);
-  let dt = Math.min(0.05, raw);
+  let dt = Math.min(0.05, raw) * timeScale;
   last = t;
   now += dt;
   REC.tick(now);

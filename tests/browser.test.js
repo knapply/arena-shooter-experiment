@@ -298,13 +298,32 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       });
     await B.keyboard.down("KeyE");
     /* hold until it lands (up to 4 s) so a slow frame rate on CI does not cut the hold short */
-    for (let i = 0; i < 40 && (await B.evaluate(() => KA.wi)) !== 2; i++) {
+    const trail = [];
+    for (let i = 0; i < 60 && (await B.evaluate(() => KA.wi)) !== 2; i++) {
+      /* if the friend died in the meantime, wait for the respawn and walk back up */
+      if (await B.evaluate(() => KA.me.dead)) {
+        trail.push("dead");
+        await alive(B);
+      }
       await go();
       await B.waitForTimeout(100);
     }
     await B.keyboard.up("KeyE");
     await B.waitForTimeout(1000);
-    check((await B.evaluate(() => KA.wi)) === 2, "friend picks up the CTF sniper");
+    check((await B.evaluate(() => KA.wi)) === 2, "friend picks up the CTF sniper", [
+      await B.evaluate(() => ({
+        wi: KA.wi,
+        dead: KA.me.dead,
+        pos: KA.me.pos.toArray().map(v => +v.toFixed(2)),
+        prompt: document.getElementById("prompt").textContent,
+        pk:
+          KA.EXT &&
+          KA.EXT.pickups &&
+          KA.EXT.pickups().map(p => [p.id, p.avail, +(p.availIn || 0).toFixed(1)]),
+      })),
+      await A.evaluate(() => KA.EXT.pickups().map(p => [p.id, p.avail, p.availAt, KA.now])),
+      trail,
+    ]);
     check(await A.evaluate(() => !KA.EXT.pickups()[0].avail), "host marks the sniper taken");
     await A.evaluate(() => {
       for (const a of CTF.UI.game().agents) if (!a.human) a.respawnAt = 0;
@@ -390,6 +409,49 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
           !CTF.UI.game()
       ),
       "trailer exits to the menu and cleans up"
+    );
+    /* ---------- developer console (?dev) ---------- */
+    const D = await open(ctx, { tag: "dev", hash: "#dev" });
+    pages.push(D);
+    await D.waitForTimeout(600);
+    await D.click("#deploy");
+    await D.waitForTimeout(600);
+    await D.keyboard.press("Backquote");
+    await D.waitForTimeout(100);
+    const cmd = async c => {
+      await D.keyboard.type(c);
+      await D.keyboard.press("Enter");
+      await D.waitForTimeout(80);
+    };
+    check(await D.evaluate(() => KA.CON.open), "backquote opens the console in dev mode");
+    await cmd("tp 0 0 22");
+    await cmd("give sniper");
+    await cmd("god on");
+    await cmd("hitboxes on");
+    await cmd("timescale 0.5");
+    await cmd("nope");
+    const con = await D.evaluate(() => ({
+      z: KA.me.pos.z,
+      wi: KA.wi,
+      text: document.querySelector("#devcon .dc-out").textContent,
+    }));
+    check(
+      Math.abs(con.z - 22) < 2 &&
+        con.wi === 2 &&
+        /hitboxes on/.test(con.text) &&
+        /time scale 0.5/.test(con.text) &&
+        /unknown command/.test(con.text),
+      "console commands teleport, give weapons, draw hitboxes and set time scale",
+      con
+    );
+    await D.evaluate(() => KA.hurtMe(500, { name: "test" }));
+    check(await D.evaluate(() => !KA.me.dead), "god mode blocks damage");
+    await cmd("timescale 1");
+    await D.keyboard.press("Backquote");
+    check(await D.evaluate(() => !KA.CON.open), "backquote closes the console");
+    check(
+      await p.evaluate(() => !KA.CON.open && !document.getElementById("devcon")),
+      "the console stays off without ?dev"
     );
   } catch (e) {
     check(false, "test script error", e.message.split("\n")[0]);

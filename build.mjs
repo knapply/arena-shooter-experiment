@@ -18,7 +18,8 @@ export function build({ dev = false } = {}) {
   const css = code => (dev ? code : transformSync(code, { loader: "css", minify: true }).code);
   const engine = man.engine.map(mod).join(""),
     modes = man.modes.map(mod).join("");
-  const game = js(`(() => {\n"use strict";\n${engine}})();\n${modes}`);
+  /* dev builds switch on the developer console (press backquote) */
+  const game = js(`${dev ? "window.KA_DEV = true;\n" : ""}(() => {\n"use strict";\n${engine}})();\n${modes}`);
   const html = read("html/index.html")
     .replace("<!--@styles-->", () => css(man.styles.map(read).join("\n")))
     .replace(/<!--@partial ([\w./-]+)-->/g, (_, p) => read(p).replace(/\s+$/, ""))

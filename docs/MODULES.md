@@ -37,15 +37,16 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/ui/hud.js` | 76 | `renderScores` `xhEls` `hud` |
 | `src/ui/net-panel.js` | 90 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/weapons/viewmodel-anim.js` | 137 | `updVM` |
-| `src/game/loop.js` | 484 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+12) |
+| `src/ui/console.js` | 304 | `DEV` `timeScale` `godMode` `CON` |
+| `src/game/loop.js` | 485 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+12) |
 | `src/modes/tech-demo.js` | 475 | `demo` `seg` `segT` `snapCam` `demoRig` `segOnce` `camLook` `dummies` `makeDummies` `placeDummy` `placeMe` `once` `PI` `SEGS` `nextSeg` `startDemo` `exitDemo` `demoFrame` |
 | `src/ui/settings-ui.js` | 432 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `closeSettings` `onSetChange` `renderSettings` `renderKeys` `renderPadBinds` `padCapture` `renderKeyHelp` `hudHook` `hideBots` `showWorld` `extPlay` `extFull` … (+1) |
 | `src/weapons/pickups.js` | 179 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
-| `src/game/exports.js` | 174 | `KA_API` |
+| `src/game/exports.js` | 175 | `KA_API` |
 | `src/modes/ctf/map.js` | 266 |  |
-| `src/modes/ctf/nav.js` | 302 |  |
+| `src/modes/ctf/nav.js` | 304 |  |
 | `src/modes/ctf/brain.js` | 558 |  |
 | `src/modes/ctf/agent.js` | 891 |  |
 | `src/modes/ctf/rules.js` | 444 |  |

@@ -48,6 +48,10 @@ docs/MODULES.md        generated index of what each module declares
 | WebGPU renderer, newer three.js | `render/*` only; gameplay code does not touch the pipeline |
 | Desktop packaging | wraps the built `index.html` unchanged |
 
+## Developer console
+
+In a dev build (`npm run dev`) or with `#dev` in the page address, backquote opens a console: `tp`, `give`, `god`, `timescale`, `bots`, `hitboxes` (the exact boxes shots are tested against), `nav` (the CTF AI's walkable grid), `net` (simulated latency, jitter and loss), `seed`, `events`, `pilots`, `perf`, `netpanel`, `kill`. Commands live in one table in `src/ui/console.js`; add new ones there.
+
 ## Scenario tests
 
 `tests/lib/scenario.js` runs scripted situations against the real movement, collision, hit and rules code in Node, in milliseconds: place pilots, give them inputs per tick, then assert on positions, events and hits. `tests/scenarios.test.js` holds the current movement "feel contract" (walk, sprint, strafe, thrust, jump, slide, pound), hit registration (head and body boxes, crouching, walls) and CTF rules (pickup, capture, drop, reset). Sandbox tuning should change those numbers deliberately, in the same commit.

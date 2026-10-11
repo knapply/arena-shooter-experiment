@@ -33,6 +33,7 @@
     "ui/hud.js",
     "ui/net-panel.js",
     "weapons/viewmodel-anim.js",
+    "ui/console.js",
     "game/loop.js",
     "modes/tech-demo.js",
     "ui/settings-ui.js",
