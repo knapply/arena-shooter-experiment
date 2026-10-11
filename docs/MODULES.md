@@ -29,7 +29,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/audio.js` | 198 | `AC` `master` `audio` `NOISE` `noise` `env` `nz` `tone` `SFX_LAST` `sfxVoices` `sfxVoiceT` `sfx` `distVol` |
 | `src/core/announcer.js` | 156 | `VO` `hasTTS` `pickVoice` `lastSay` `say` `MEDAL` `medal` `streak` `multi` `lastKillT` `firstBlood` `lastKiller` `onKill` |
 | `src/game/state.js` | 306 | `EXT` `me` `myName` `playing` `paused` `now` `kills` `deaths` `mag` `reloadT` `fireCD` `myPeer` `killedBy` `respawnAt` `lastFireT` `RELOAD_TIME` `mePilot` `hitsOut` … (+29) |
-| `src/weapons/firing.js` | 184 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `engage` `targetId` `engageShot` `perfectKill` `fire` `startReload` `meleeHit` `slamDamage` |
+| `src/weapons/firing.js` | 190 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `engage` `SHOT` `targetId` `engageShot` `perfectKill` `fire` `startReload` `meleeHit` `slamDamage` |
 | `src/core/input.js` | 238 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `A` `P` `pressCode` `mouseL` `mouseR` `aiming` … (+7) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 54 | `savePrefs` `leaveGame` |
@@ -46,15 +46,15 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/pickups.js` | 179 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
-| `src/game/exports.js` | 181 | `KA_API` |
+| `src/game/exports.js` | 182 | `KA_API` |
 | `src/modes/ctf/map.js` | 267 |  |
 | `src/modes/ctf/nav.js` | 304 |  |
 | `src/modes/ctf/brain.js` | 558 |  |
 | `src/modes/ctf/agent.js` | 894 |  |
 | `src/modes/ctf/rules.js` | 444 |  |
 | `src/modes/ctf/ui.js` | 405 |  |
-| `src/net/ctf-host.js` | 559 |  |
-| `src/net/ctf-client.js` | 582 |  |
+| `src/net/ctf-host.js` | 595 |  |
+| `src/net/ctf-client.js` | 591 |  |
 | `src/modes/ctf/modes.js` | 692 |  |
 | `src/modes/trailer-score.js` | 700 |  |
 | `src/modes/trailer.js` | 1017 |  |

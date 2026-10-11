@@ -221,7 +221,15 @@
       if (a) {
         a.d += n;
         a.hd = a.hd || !!hd;
-      } else M.agg.set(id, { t: id, d: n, w: w || "rifle", hd: !!hd, vt });
+      } else {
+        /* hitscan claims carry the shot's ray so the host can re-check it */
+        const S = K.SHOT,
+          ray =
+            K.now - S.t < 0.05
+              ? [S.o.x, S.o.y, S.o.z, S.d.x, S.d.y, S.d.z].map(v => Math.round(v * 1000) / 1000)
+              : null;
+        M.agg.set(id, { t: id, d: n, w: w || "rifle", hd: !!hd, vt, ray });
+      }
     };
     M.onFx = function (k, a, b, g) {
       if (k !== "nade") return;
@@ -492,7 +500,7 @@
           /* fast channel: timestamped playback */
           _p.set(_pbs.x, _pbs.y, _pbs.z);
           if (b.pos.distanceTo(_p) > 4) b.pos.copy(_p);
-          else b.pos.lerp(_p, 1 - Math.exp(-45 * dt));
+          else b.pos.lerp(_p, 1 - Math.exp(-60 * dt));
           b.vel.set(_pbs.vx, _pbs.vy, _pbs.vz);
           b.yaw = _pbs.yaw;
           b.pitch = _pbs.pitch;
@@ -548,7 +556,8 @@
       if (M.sendT > 0 && !M.agg.size && !M.newsy) return;
       M.newsy = false;
       M.sendT = 1 / 15;
-      for (const v of M.agg.values()) M.hs.push([++M.hsS, v.t, Math.round(v.d), v.w, v.hd ? 1 : 0, v.vt]);
+      for (const v of M.agg.values())
+        M.hs.push([++M.hsS, v.t, Math.round(v.d), v.w, v.hd ? 1 : 0, v.vt, ...(v.ray || [])]);
       M.agg.clear();
       while (M.hs.length > 10) M.hs.shift();
       NET.send({

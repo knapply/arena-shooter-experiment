@@ -174,12 +174,15 @@
       sendT: 0,
       fireT: new Map(),
       agg: new Map(),
+      /** hit claims from players: accepted, and rejected by the checks below */
+      hitStats: { ok: 0, bad: 0 },
       rv: 0,
       rosterKey: "",
       fastT: 0,
     };
     const myId = G.human.id;
     const FAST = 1 / 30;
+    NET.hitStats = H.hitStats;
     /* a joined player's movement arrives on the fast channel into their playback buffer */
     NET.onFast = function (from, buf) {
       const m = K.MSG.decode(buf);
@@ -490,7 +493,17 @@
           const s = K.REC.sample(K.pidOf(tgt), vt);
           if (s) at = _rw.set(s.x, s.y, s.z);
         }
-        if (!tgt || tgt.team === a.team || !NET.plausible(a.body.pos, tgt, w, at)) continue;
+        if (!tgt || tgt.team === a.team || !NET.plausible(a.body.pos, tgt, w, at)) {
+          H.hitStats.bad++;
+          continue;
+        }
+        /* hitscan claims: the shot's ray must start near where we have the shooter and pass
+           within reach of the target's body where the shooter saw it */
+        if (h.length >= 12 && !NET.rayOk(h.slice(6, 12), a.body.pos, at || tgt.pos, tgt.body.h)) {
+          H.hitStats.bad++;
+          continue;
+        }
+        H.hitStats.ok++;
         const n = K.allowDamage(peer, num(h[2], 0, 999), w);
         if (n <= 0) continue;
         if (tgt.local) K.hurtMe(n, { name: a.name, agent: a, w, hd });
@@ -525,7 +538,30 @@
     };
     return H;
   };
-  const _rw = new V3();
+  const _rw = new V3(),
+    _ro = new V3(),
+    _rd = new V3(),
+    _rc = new V3();
+  /** hit-registration rule for a claimed shot: origin within 3.5 m of the shooter as we know them
+      (they are drawn up to a few hundred ms behind), and the ray passes within 0.7 m of the target's
+      body axis (feet to head) at the time the shooter was seeing it */
+  NET.rayOk = function (r, shooterPos, targetPos, h) {
+    if (!r.every(v => Number.isFinite(+v))) return false;
+    _ro.set(+r[0], +r[1], +r[2]);
+    _rd.set(+r[3], +r[4], +r[5]);
+    if (_rd.lengthSq() < 0.5) return false;
+    _rd.normalize();
+    if (_ro.distanceTo(shooterPos) > 3.5 + (K.H_STAND || 1.8)) return false;
+    /* closest approach between the ray and the vertical segment of the target's body */
+    let best = 1e9;
+    for (let k = 0; k <= 8; k++) {
+      _rc.copy(targetPos);
+      _rc.y += (h * k) / 8;
+      const t = Math.max(0, _rc.clone().sub(_ro).dot(_rd));
+      best = Math.min(best, _rc.distanceTo(_ro.clone().addScaledVector(_rd, t)));
+    }
+    return best <= 0.7;
+  };
   /* tracers for a player whose shots we only know as "firing" */
   const _o = new V3(),
     _d = new V3();

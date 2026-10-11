@@ -435,7 +435,7 @@ function updRigs(dt) {
       /* fast channel: timestamped playback, already smooth; only a tiny blend hides corrections */
       _est.set(_pbs.x, _pbs.y, _pbs.z);
       if (root.position.distanceTo(_est) > 4) root.position.copy(_est);
-      else root.position.lerp(_est, 1 - Math.exp(-45 * dt));
+      else root.position.lerp(_est, 1 - Math.exp(-60 * dt));
       r.vel.set(_pbs.vx, _pbs.vy, _pbs.vz);
       r.tgt.copy(_est);
       r.pitch = _pbs.pitch;

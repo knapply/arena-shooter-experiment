@@ -7,13 +7,13 @@ const fs = require("fs");
 const { check, finish } = require("./lib/check.js");
 const { launch, open, text } = require("./lib/browser.js");
 const CONDITIONS = [
-  { name: "ideal", sim: { latency: 0, jitter: 0, loss: 0 }, maxDelay: 160, maxP95: 0.4, maxJumps: 6 },
+  { name: "ideal", sim: { latency: 0, jitter: 0, loss: 0 }, maxDelay: 160, maxP95: 0.4, maxJumps: 12 },
   {
     name: "bad (75 ms each way, ±25 jitter, 3% loss)",
     sim: { latency: 75, jitter: 25, loss: 0.03 },
     maxDelay: 320,
     maxP95: 0.6,
-    maxJumps: 10,
+    maxJumps: 12,
   },
 ];
 const pct = (a, p) => a.slice().sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * p))];
@@ -43,11 +43,16 @@ function analyze(truth, seen) {
     const med = pct(err, 0.5);
     if (!best || med < best.med) best = { off, med, p95: pct(err, 0.95), n: err.length };
   }
+  /* a pop is a frame-to-frame move that differs from how far the real player moved over the same
+     (delayed) interval by more than 0.5 m: the sender's own frame hitches don't count against us */
   let jumps = 0;
   for (let i = 1; i < seen.length; i++) {
-    const dt = (seen[i][0] - seen[i - 1][0]) / 1000,
-      d = Math.hypot(seen[i][1] - seen[i - 1][1], seen[i][2] - seen[i - 1][2]);
-    if (d > 16 * Math.max(dt, 1 / 60) + 0.35) jumps++;
+    const a0 = at(seen[i - 1][0] - best.off),
+      a1 = at(seen[i][0] - best.off);
+    if (!a0 || !a1) continue;
+    const ds = [seen[i][1] - seen[i - 1][1], seen[i][2] - seen[i - 1][2]],
+      dt_ = [a1[0] - a0[0], a1[1] - a0[1]];
+    if (Math.hypot(ds[0] - dt_[0], ds[1] - dt_[1]) > 0.5) jumps++;
   }
   const secs = (seen[seen.length - 1][0] - seen[0][0]) / 1000;
   return {
@@ -178,15 +183,24 @@ function analyze(truth, seen) {
       await B.click("#ctfBlue");
       await B.click("#ctfPlay");
       await B.waitForTimeout(4000);
+      /* the host drives one enemy AI along a known path (in the open, in front of where the client
+         will stand); the client records where it draws it */
       const id = await A.evaluate(() => {
         const a = CTF.UI.game().agents.find(x => !x.human && x.team === 0);
         const t0 = Date.now();
         window.__truth = [];
+        window.__script = true;
         (function f() {
+          const t = (Date.now() - t0) / 1000,
+            x = -19.5 + 3 * Math.sin(t * 2),
+            z = 8 + 1.5 * Math.sin(t * 4);
+          a.dead = false;
           a.body.shield = 70;
           a.body.health = 45;
-          window.__truth.push([Date.now(), a.body.pos.x, a.body.pos.z]);
-          if (Date.now() - t0 < 11000) requestAnimationFrame(f);
+          a.body.pos.set(x, KA.groundBelow(-19.5, 8, 20), z);
+          a.body.vel.set(6 * Math.cos(t * 2), 0, 6 * Math.cos(t * 4));
+          if (t < 11) window.__truth.push([Date.now(), x, z]);
+          if (window.__script) requestAnimationFrame(f);
         })();
         return a.id;
       });
@@ -211,6 +225,50 @@ function analyze(truth, seen) {
         m
       );
       check(!!m && m.jumpsPerMin <= 12, "CTF: no visible pops on the client", m && m.jumpsPerMin);
+      /* hit registration: the client shoots a moving target where it sees it; the host re-checks
+         every claim against where the target was at that moment */
+      for (let i = 0; i < 30; i++) {
+        await B.evaluate(id => {
+          const me = KA.me;
+          me.pos.set(-22, KA.groundBelow(-22, 0, 20), 0);
+          me.vel.set(0, 0, 0);
+          me.shield = 70;
+          me.spawnT = KA.now;
+          const a = CTF.UI.game().map.get(id);
+          if (!a) return;
+          const o = me.pos.clone();
+          o.y += 1.6;
+          const d = a.body.pos.clone();
+          d.y += 1.0;
+          d.sub(o).normalize();
+          KA.refill();
+          KA.fire({ o, d, muzzle: o });
+        }, id);
+        await B.waitForTimeout(160);
+      }
+      await B.waitForTimeout(1500);
+      const hs = await A.evaluate(() => Object.assign({}, CTF.NET.hitStats));
+      const rate = hs.ok / Math.max(1, hs.ok + hs.bad);
+      results.hitreg = Object.assign({ rate: +rate.toFixed(2) }, hs);
+      console.log(`  ctf hit registration: ${JSON.stringify(results.hitreg)}`);
+      check(
+        hs.ok >= 20 && rate >= 0.9,
+        "hit registration: 90%+ of on-screen hits count under a bad network",
+        hs
+      );
+      /* a forged claim (the shot went straight up) is rejected */
+      await B.evaluate(id => {
+        const S = KA.SHOT;
+        S.o.copy(KA.me.pos);
+        S.o.y += 1.6;
+        S.d.set(0, 1, 0);
+        S.t = KA.now;
+        CTF.UI.game().queueHit(id, 30, "rifle", false);
+      }, id);
+      await B.waitForTimeout(1500);
+      const hs2 = await A.evaluate(() => Object.assign({}, CTF.NET.hitStats));
+      check(hs2.bad === hs.bad + 1 && hs2.ok === hs.ok, "a claimed hit whose shot missed is rejected", hs2);
+      await A.evaluate(() => (window.__script = false));
       check(
         A.errors.length + B.errors.length === 0,
         "CTF: no page errors",

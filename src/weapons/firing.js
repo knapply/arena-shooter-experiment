@@ -70,6 +70,8 @@ function v3a(v) {
 
 /* ---- Perfect kills: the weapon's minimum shots, every shot on target, with a precision weapon ---- */
 const engage = new Map();
+/** the last hitscan shot fired by you */
+const SHOT = { o: new V3(), d: new V3(), t: -9 };
 function targetId(t) {
   return t.kind === "bot" ? t.ref.id : t.kind === "peer" ? "peer:" + t.peer : pidOf(t.ref);
 }
@@ -118,6 +120,10 @@ function fire(src) {
     d.z += rnd(-spread, spread);
   }
   d.normalize();
+  /* the exact ray of this shot, for online hit claims (the host re-checks it: lag compensation) */
+  SHOT.o.copy(o);
+  SHOT.d.copy(d);
+  SHOT.t = now;
   const wh = rayWorldHit(o, d, 120),
     wt = wh.t;
   let best = null;

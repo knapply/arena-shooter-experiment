@@ -32,7 +32,7 @@ class Playback {
     if (b.length) this.gap += (Math.min(0.25, ts - b[b.length - 1].ts) - this.gap) * 0.1;
     b.push(Object.assign({ ts }, s));
     if (b.length > 40) b.shift();
-    const want = Math.min(0.3, Math.max(0.035, this.gap * 1.2 + this.jit * 2));
+    const want = Math.min(0.3, Math.max(0.04, this.gap * 1.5 + this.jit * 2.5));
     this.delay += (want - this.delay) * 0.05;
     this.lastArrive = now;
   }
@@ -50,7 +50,7 @@ class Playback {
     if (t >= b[b.length - 1].ts) {
       /* ran out of data: extrapolate briefly, then hold */
       a = c = b[b.length - 1];
-      const e = Math.min(t - a.ts, 0.15);
+      const e = Math.min(t - a.ts, 0.08);
       out.x = a.p[0] + a.v[0] * e;
       out.y = a.p[1] + Math.max(-2, a.v[1] * e);
       out.z = a.p[2] + a.v[2] * e;
