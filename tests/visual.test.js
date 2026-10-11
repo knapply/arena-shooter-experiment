@@ -75,8 +75,13 @@ async function compare(p, a, b) {
       KA.applySettings();
     });
     await p.waitForTimeout(1500);
-    await p.evaluate(() => KA.CON.run("timescale 0"));
+    /* the 3D scene behind the menu (menu text itself depends on the machine's fonts) */
+    await p.evaluate(() => {
+      KA.CON.run("timescale 0");
+      document.getElementById("menu").style.visibility = "hidden";
+    });
     await shoot("menu");
+    await p.evaluate(() => (document.getElementById("menu").style.visibility = ""));
     await p.evaluate(() => {
       KA.CON.run("timescale 1");
       document.getElementById("bots").checked = false;
