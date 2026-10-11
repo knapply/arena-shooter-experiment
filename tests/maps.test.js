@@ -90,4 +90,39 @@ check(
   built.solids.filter(b => b.pid).every(b => /^[A-Za-z0-9_~-]+$/.test(b.pid)),
   "built boxes keep their piece ids (for the editor and the network)"
 );
+/* layout sanity: no two pieces occupy the same space (walls meeting at corners excepted) and no
+   spawn point is inside geometry */
+function overlaps(solids) {
+  const out = [];
+  for (let i = 0; i < solids.length; i++)
+    for (let j = i + 1; j < solids.length; j++) {
+      const a = solids[i],
+        b = solids[j];
+      if (a.mat === "wall" && b.mat === "wall") continue;
+      const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0),
+        oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0),
+        oz = Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0);
+      if (ox > 0.15 && oy > 0.15 && oz > 0.15) out.push([a.pid, b.pid]);
+    }
+  return out;
+}
+check(overlaps(K.SOLID.slice()).length === 0, "arena pieces don't overlap", overlaps(K.SOLID.slice()));
+check(overlaps(built.solids).length === 0, "CTF pieces don't overlap", overlaps(built.solids));
+CTF.enterMap();
+const blocked = [...K.MAPS.ctf.spawns.teams[0], ...K.MAPS.ctf.spawns.teams[1]].filter(
+  s => !K.freeAt(s[0], s[1] + 0.05, s[2], K.H_STAND)
+);
+check(blocked.length === 0, "no CTF spawn is inside geometry", blocked);
+CTF.exitMap();
+const blockedA = K.MAPS.arena.spawns.ffa.filter(s => !K.freeAt(s[0], s[1] + 0.05, s[2], K.H_STAND));
+check(blockedA.length === 0, "no arena spawn is inside geometry", blockedA);
+const coverCount = m => K.mapPieces(m).filter(p => p.mat === "cover").length;
+check(
+  coverCount(K.MAPS.arena) >= 30 && coverCount(K.MAPS.ctf) >= 40,
+  "both maps have plenty of destructible cover",
+  {
+    arena: coverCount(K.MAPS.arena),
+    ctf: coverCount(K.MAPS.ctf),
+  }
+);
 finish("maps");

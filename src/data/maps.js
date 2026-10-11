@@ -71,6 +71,31 @@ MAPS.arena = {
     { id: "b53", type: "box", mat: "base", p: [-10, 0, 34.5], s: [10, 2.4, 3] },
     { id: "b54", type: "box", mat: "base", p: [34.5, 0, 10], s: [3, 2.4, 10] },
     { id: "b55", type: "box", mat: "base", p: [-34.5, 0, -10], s: [3, 2.4, 10] },
+    /* more structure: matching balconies on the other side walls, and slabs that break the long
+       east-west sightlines past the core */
+    { id: "balcony1", type: "box", mat: "base", p: [-10, 0, -34.5], s: [10, 2.4, 3] },
+    { id: "balcony2", type: "box", mat: "base", p: [10, 0, 34.5], s: [10, 2.4, 3] },
+    { id: "balcony3", type: "box", mat: "base", p: [34.5, 0, -10], s: [3, 2.4, 10] },
+    { id: "balcony4", type: "box", mat: "base", p: [-34.5, 0, 10], s: [3, 2.4, 10] },
+    { id: "slab1", type: "box", mat: "wall", p: [13, 0, 0], s: [0.8, 3.5, 4] },
+    { id: "slab2", type: "box", mat: "wall", p: [-13, 0, 0], s: [0.8, 3.5, 4] },
+    /* destructible crate clusters on the outer lanes, and barricades across the mid lanes */
+    { id: "crate1", type: "box", mat: "cover", p: [26, 0, -12], s: [1.6, 1.6, 1.6] },
+    { id: "crate2", type: "box", mat: "cover", p: [27.7, 0, -11.5], s: [1.2, 1.2, 1.2] },
+    { id: "crate3", type: "box", mat: "cover", p: [25.6, 0, -10.1], s: [2.2, 0.9, 1.0] },
+    { id: "crate4", type: "box", mat: "cover", p: [12, 0, 26], s: [1.6, 1.6, 1.6] },
+    { id: "crate5", type: "box", mat: "cover", p: [11.5, 0, 27.7], s: [1.2, 1.2, 1.2] },
+    { id: "crate6", type: "box", mat: "cover", p: [10.1, 0, 25.6], s: [1.0, 0.9, 2.2] },
+    { id: "crate7", type: "box", mat: "cover", p: [-26, 0, 12], s: [1.6, 1.6, 1.6] },
+    { id: "crate8", type: "box", mat: "cover", p: [-27.7, 0, 11.5], s: [1.2, 1.2, 1.2] },
+    { id: "crate9", type: "box", mat: "cover", p: [-25.6, 0, 10.1], s: [2.2, 0.9, 1.0] },
+    { id: "crate10", type: "box", mat: "cover", p: [-12, 0, -26], s: [1.6, 1.6, 1.6] },
+    { id: "crate11", type: "box", mat: "cover", p: [-11.5, 0, -27.7], s: [1.2, 1.2, 1.2] },
+    { id: "crate12", type: "box", mat: "cover", p: [-10.1, 0, -25.6], s: [1.0, 0.9, 2.2] },
+    { id: "barricade1", type: "box", mat: "cover", p: [18, 0, 9], s: [3.6, 1.1, 0.6] },
+    { id: "barricade2", type: "box", mat: "cover", p: [18, 0, -9], s: [3.6, 1.1, 0.6] },
+    { id: "barricade3", type: "box", mat: "cover", p: [-18, 0, 9], s: [3.6, 1.1, 0.6] },
+    { id: "barricade4", type: "box", mat: "cover", p: [-18, 0, -9], s: [3.6, 1.1, 0.6] },
   ],
   spawns: {
     ffa: [
@@ -149,7 +174,6 @@ MAPS.ctf = {
     { id: "cover27", type: "box", mat: "cover", p: [0, 3, 0], s: [1.4, 1.2, 1.4] },
     { id: "stairs28", type: "stairs", p: [0, 4.5], dir: [0, 1], steps: 7, top: 3, width: 3, twin: true },
     { id: "cover29", type: "box", mat: "cover", p: [-6.5, 0, 0], s: [2, 1.4, 5], twin: true },
-    { id: "cover30", type: "box", mat: "cover", p: [6.5, 0, 0], s: [2, 1.4, 5], twin: true },
     { id: "trim31", type: "strip", mat: "redStrip", p: [0, 3, -4.45], s: [9, 0.1] },
     { id: "trim32", type: "strip", mat: "blueStrip", p: [0, 3, 4.45], s: [9, 0.1] },
     { id: "b33", type: "box", mat: "base", p: [-24.5, 0, 0], s: [3, 2.6, 22] },
@@ -187,6 +211,17 @@ MAPS.ctf = {
     { id: "b47", type: "box", mat: "step", p: [-17, 0, -21.1], s: [2.4, 2, 2.4], twin: true },
     { id: "wall48", type: "box", mat: "wall", p: [17, 0, -14], s: [2.4, 4.2, 2.4], twin: true },
     { id: "b49", type: "box", mat: "step", p: [17, 0, -16.4], s: [2.4, 2, 2.4], twin: true },
+    /* sightline breakers in the mid lanes */
+    { id: "midSlab1", type: "box", mat: "wall", p: [-6, 0, -14], s: [0.8, 3, 3], twin: true },
+    /* more destructible cover: crates around mid and in the lanes, barricades in front of the bases */
+    { id: "midCrate1", type: "box", mat: "cover", p: [3.5, 0, -7], s: [1.4, 1.4, 1.4], twin: true },
+    { id: "midCrate2", type: "box", mat: "cover", p: [-3.2, 0, -8.5], s: [1.2, 1.2, 1.2], twin: true },
+    { id: "laneCrate1", type: "box", mat: "cover", p: [-20, 0, -5], s: [1.6, 1.6, 1.6], twin: true },
+    { id: "laneCrate2", type: "box", mat: "cover", p: [-21.6, 0, -6.2], s: [1.2, 1.1, 1.2], twin: true },
+    { id: "laneCrate3", type: "box", mat: "cover", p: [20, 0, -26], s: [1.4, 1.4, 1.4], twin: true },
+    { id: "baseBarricade1", type: "box", mat: "cover", p: [-5, 0, -32], s: [3, 1.1, 0.6], twin: true },
+    { id: "baseBarricade2", type: "box", mat: "cover", p: [5, 0, -32], s: [3, 1.1, 0.6], twin: true },
+    { id: "midBarricade1", type: "box", mat: "cover", p: [-13.5, 0, -2], s: [0.6, 1.2, 3], twin: true },
   ],
   spawns: {
     teams: [
