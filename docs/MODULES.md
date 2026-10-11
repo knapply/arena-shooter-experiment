@@ -7,11 +7,11 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | Module | Lines | Top-level declarations |
 |---|---|---|
 | `src/core/prelude.js` | 36 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` |
-| `src/core/settings.js` | 855 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `SCHEMA` `PRESETS` `PRESET_KEYS` `SKEY` `SET` `BIND` `PADB` `CODE_RE` … (+12) |
+| `src/core/settings.js` | 865 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `SCHEMA` `PRESETS` `PRESET_KEYS` `SKEY` `SET` `BIND` `PADB` `CODE_RE` … (+12) |
 | `src/render/renderer.js` | 76 | `canvas` `renderer` `scene` `camera` `resize` `sun` `_skyP` |
 | `src/render/pipeline.js` | 379 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `compMat` `fsQuad` `fsScene` `UPS` `gfxScale` `gfxResize` `fsPass` `gfxChecked` `renderFrame` `gfxFrames` `pxBuf` `exposureCheck` `recompileAll` … (+9) |
 | `src/render/environment.js` | 122 | `buildEnv` `lastRefl` `lastShadow` `applyGfx` `pc` `scaleBoxUV` |
-| `src/render/perf.js` | 112 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
+| `src/render/perf.js` | 111 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
 | `src/world/destruction.js` | 241 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` `destrTick` `resetDestruction` `boxById` `applyBreaks` `syncBroken` |
 | `src/world/maps/arena.js` | 143 | `gridTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `strip` `stairs` `SPAWNS` |
 | `src/world/physics.js` | 456 | `R` `GRAV` `H_STAND` `H_CROUCH` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
@@ -28,15 +28,16 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 53 | `savePrefs` `leaveGame` |
 | `src/net/arena-net.js` | 271 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `room` `lastSend` `sendPresence` `remoteFor` `applyPeer` `updateLive` |
-| `src/ui/hud.js` | 75 | `renderScores` `xhEls` `hud` |
+| `src/ui/hud.js` | 76 | `renderScores` `xhEls` `hud` |
+| `src/ui/net-panel.js` | 90 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/weapons/viewmodel-anim.js` | 137 | `updVM` |
-| `src/game/loop.js` | 469 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+11) |
+| `src/game/loop.js` | 474 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+11) |
 | `src/modes/tech-demo.js` | 478 | `demo` `seg` `segT` `snapCam` `demoRig` `segOnce` `camLook` `dummies` `makeDummies` `placeDummy` `placeMe` `once` `PI` `SEGS` `nextSeg` `startDemo` `exitDemo` `demoFrame` |
 | `src/ui/settings-ui.js` | 432 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `closeSettings` `onSetChange` `renderSettings` `renderKeys` `renderPadBinds` `padCapture` `renderKeyHelp` `hudHook` `hideBots` `showWorld` `extPlay` `extFull` … (+1) |
 | `src/weapons/pickups.js` | 178 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
-| `src/game/exports.js` | 149 | `KA_API` |
+| `src/game/exports.js` | 156 | `KA_API` |
 | `src/modes/ctf/map.js` | 266 |  |
 | `src/modes/ctf/nav.js` | 302 |  |
 | `src/modes/ctf/brain.js` | 568 |  |
@@ -45,6 +46,6 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/modes/ctf/ui.js` | 387 |  |
 | `src/net/ctf-host.js` | 461 |  |
 | `src/net/ctf-client.js` | 474 |  |
-| `src/modes/ctf/modes.js` | 595 |  |
+| `src/modes/ctf/modes.js` | 596 |  |
 | `src/modes/trailer-score.js` | 700 |  |
 | `src/modes/trailer.js` | 1023 |  |

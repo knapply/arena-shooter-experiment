@@ -8,6 +8,9 @@
       get(t, k) {
         if (k in store) return store[k];
         if (k === Symbol.toPrimitive) return () => 0;
+        /* scene objects carry real transforms so gameplay code that reads positions works */
+        if (k === "position" || k === "rotation") return (store[k] = new V());
+        if (k === "scale") return (store[k] = new V(1, 1, 1));
         if (k === "then" || k === "toJSON") return undefined;
         const v = U();
         store[k] = v;
@@ -37,6 +40,13 @@
       this.y = y;
       this.z = z;
       return this;
+    }
+    /* geometry.attributes.position also lands here; give it an empty buffer */
+    get array() {
+      return new Float32Array(0);
+    }
+    get count() {
+      return 0;
     }
     setY(y) {
       this.y = y;
@@ -100,6 +110,10 @@
     lerpVectors(a, b, t) {
       return this.set(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t);
     }
+    distanceToSquared(v) {
+      const d = this.distanceTo(v);
+      return d * d;
+    }
     distanceTo(v) {
       return Math.hypot(this.x - (+v.x || 0), this.y - (+v.y || 0), this.z - (+v.z || 0));
     }
@@ -124,6 +138,8 @@
       {
         get(t, k) {
           if (typeof k === "symbol") return undefined;
+          if (k === "valueOf") return () => 0;
+          if (k === "toString") return () => "[V]";
           return function () {
             return this;
           };

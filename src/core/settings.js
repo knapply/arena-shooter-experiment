@@ -20,6 +20,7 @@ const ACTIONS = [
   ["roster", "Roster (hold)"],
   ["switchTeam", "Switch team (CTF)"],
   ["perfHud", "Performance overlay"],
+  ["netHud", "Network panel"],
   ["interact", "Pick up weapon (hold)"],
 ];
 const DEF_BIND = {
@@ -43,6 +44,7 @@ const DEF_BIND = {
   roster: ["Tab"],
   switchTeam: ["KeyJ"],
   perfHud: ["F3"],
+  netHud: ["F4"],
   interact: ["KeyE"],
 };
 const PAD_NAMES = [
@@ -322,6 +324,14 @@ const SCHEMA = [
     type: "toggle",
     def: false,
     desc: "Frame time split into game logic, rendering and post-processing, plus draw calls, memory and network. Also toggled with F3.",
+  },
+  {
+    k: "netOverlay",
+    tab: T_GFX,
+    label: "Network panel",
+    type: "toggle",
+    def: false,
+    desc: "Ping, jitter, packet loss, update age and bandwidth for each connection. Also toggled with F4.",
   },
   {
     k: "sens",

@@ -4,9 +4,9 @@ function renderScores() {
     EXT.scores($("sbody"));
     return;
   }
-  /** @type {{ n: string, c: string, k: number, d: number, me?: boolean }[]} */
+  /** @type {{ n: string, c: string, k: number, d: number, me?: boolean, peer?: string }[]} */
   const rows = [{ n: myName + " (you)", c: myColor, k: kills, d: deaths, me: true }];
-  for (const r of remotes.values()) if (r.has) rows.push({ n: r.name, c: r.color, k: r.k, d: r.d });
+  for (const [peer, r] of remotes) if (r.has) rows.push({ n: r.name, c: r.color, k: r.k, d: r.d, peer });
   for (const b of bots) rows.push({ n: b.name + " · drone", c: "#8b9aa3", k: b.k, d: b.d });
   rows.sort((a, b) => b.k - a.k || a.d - b.d);
   const tb = $("sbody");
@@ -19,6 +19,7 @@ function renderScores() {
     sw.className = "sw2";
     sw.style.background = r.c;
     a.append(sw, document.createTextNode(r.n));
+    if (r.peer) a.appendChild(pingBars(pingOf(r.peer)));
     const k = document.createElement("td");
     k.textContent = String(r.k);
     const d = document.createElement("td");

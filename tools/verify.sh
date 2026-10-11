@@ -12,6 +12,7 @@ node build.mjs --check
 node tests/sim.test.js > /tmp/ka-sim.log || { cat /tmp/ka-sim.log; exit 1; }
 node tests/perf.test.js
 node tests/browser.test.js > /tmp/ka-browser.log || { grep -E "FAIL|passed" /tmp/ka-browser.log; exit 1; }
+node tests/net.test.js > /tmp/ka-net.log || { cat /tmp/ka-net.log; exit 1; }
 tail -1 /tmp/ka-browser.log
 if [ "$1" = "render" ]; then node tests/render.test.js | grep -E "FAIL|passed"; fi
 echo "verify: all checks passed"

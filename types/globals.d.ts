@@ -27,7 +27,18 @@ interface PresenceRoom {
   emit?(...a: any[]): Promise<void>;
   on?(...a: any[]): () => void;
 }
+interface NetLinkStats { peer: string; name: string; rtt: number; jitter: number; loss: number; inBps: number; outBps: number; inMsgs: number; outMsgs: number; age: number }
+interface NetStats {
+  role: "offline" | "host" | "client";
+  code: string | null;
+  me: string;
+  sim: { latency: number; jitter: number; loss: number } | null;
+  links: NetLinkStats[];
+  /** round trip to every known peer: direct links, or through the room host */
+  peers: Record<string, { rtt: number; direct: boolean }>;
+}
 interface HostServices {
+  net?: { stats(): NetStats; sim: { latency: number; jitter: number; loss: number }; setSim(o: Partial<{ latency: number; jitter: number; loss: number }>): void };
   use(name: "room"): Promise<PresenceRoom | null>;
   use(name: "downloads"): Promise<{ save(o: { filename: string; data: string }): Promise<void> } | null>;
   use(name: string): Promise<any>;

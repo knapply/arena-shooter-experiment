@@ -136,6 +136,10 @@ const KA_API = {
   get EXT() {
     return EXT;
   },
+  /** arena players seen over the network, keyed by peer id (read-only use) */
+  get remotes() {
+    return remotes;
+  },
   get AC() {
     return AC;
   },
@@ -143,6 +147,9 @@ const KA_API = {
   showWorld,
   hideBots,
   bindLabel,
+  netStats,
+  pingOf,
+  pingBars,
 };
 window.KA = /** @type {KAApi} */ (KA_API);
 requestAnimationFrame(frame);

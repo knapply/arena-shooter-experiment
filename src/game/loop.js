@@ -145,6 +145,7 @@ function frame(t) {
   requestAnimationFrame(frame);
   perfBegin();
   frameBody(t);
+  updNetHud();
   perfEnd();
 }
 function frameBody(t) {
@@ -163,6 +164,10 @@ function frameBody(t) {
   if (playing && !paused && P("switchTeam") && EXT && EXT.switchTeam) EXT.switchTeam();
   if (P("perfHud")) {
     SET.perfOverlay = !SET.perfOverlay;
+    saveSettings();
+  }
+  if (P("netHud")) {
+    SET.netOverlay = !SET.netOverlay;
     saveSettings();
   }
   if (playing || EXT) {

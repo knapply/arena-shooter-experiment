@@ -109,10 +109,11 @@
             a.name + (a.local ? " (you)" : a.human ? " · player" : "") + (a.caps ? ` · ${a.caps} cap` : "")
           )
         );
+        if (a.human && !a.local) n.appendChild(K.pingBars(K.pingOf(String(a.id).slice(2))));
         const k = document.createElement("td");
-        k.textContent = a.local ? K.kills : a.k;
+        k.textContent = String(a.local ? K.kills : a.k);
         const d = document.createElement("td");
-        d.textContent = a.local ? K.deaths : a.d;
+        d.textContent = String(a.local ? K.deaths : a.d);
         tr.append(n, k, d);
         tb.appendChild(tr);
       }

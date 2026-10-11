@@ -9,8 +9,6 @@ const PERF = {
   hist: new Float32Array(120),
   hi: 0,
   gpu: { scene: 0, post: 0, ok: false },
-  /** network figures filled in by the netcode (ping, jitter, loss, rates) */
-  net: null,
   nextDraw: 0,
 };
 /* GPU timer queries (WebGL2 EXT_disjoint_timer_query_webgl2): results arrive a few frames later */
@@ -98,7 +96,8 @@ function perfEnd() {
     ["res", `${Math.round(gfxScale() * 100)}% · ${GFX.w || 0}×${GFX.h || 0}`],
   ];
   if (mem) rows.push(["heap", `${(mem.usedJSHeapSize / 1048576).toFixed(1)} MB`]);
-  if (PERF.net) rows.push(["net", PERF.net]);
+  const nl = netLine();
+  if (nl) rows.push(["net", nl]);
   if (!GPUQ) rows.push(["gpu", "timer queries unavailable: render/post show CPU submit time"]);
   el.textContent = "";
   for (const [k, v] of rows) {

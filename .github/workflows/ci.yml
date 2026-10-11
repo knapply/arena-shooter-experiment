@@ -29,6 +29,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Browser tests
         run: node tests/browser.test.js
+      - name: Network smoothness under simulated lag and loss
+        run: node tests/net.test.js
       - name: Render tests and draw budgets (software WebGL)
         run: |
           curl -sSL -o /tmp/three.min.js https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js

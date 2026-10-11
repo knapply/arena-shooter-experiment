@@ -30,6 +30,7 @@
     "game/deploy.js",
     "net/arena-net.js",
     "ui/hud.js",
+    "ui/net-panel.js",
     "weapons/viewmodel-anim.js",
     "game/loop.js",
     "modes/tech-demo.js",

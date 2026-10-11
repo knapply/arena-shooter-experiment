@@ -885,3 +885,75 @@ input[type="text"]:focus-visible {
   color: #ffb347;
   font-weight: 600;
 }
+
+/* network panel (F4) and roster connection bars */
+#netHud {
+  position: fixed;
+  top: calc(28px + env(safe-area-inset-top, 0px));
+  right: 8px;
+  z-index: 40;
+  pointer-events: none;
+  font: 11px/1.45 var(--f-mono);
+  color: #cfe3ea;
+  background: #0b1216d9;
+  border: 1px solid #ffffff1a;
+  padding: 6px 9px;
+  max-width: calc(100vw - 16px);
+}
+#netHud .nh {
+  color: #ffb347;
+  font-weight: 600;
+}
+#netHud .nsim {
+  color: #ff8a7a;
+}
+#netHud table {
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+#netHud th,
+#netHud td {
+  padding: 1px 8px 1px 0;
+  text-align: left;
+  white-space: nowrap;
+}
+#netHud th {
+  color: #8fa6ae;
+  font-weight: 500;
+}
+.pbars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 10px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.pbars i {
+  width: 3px;
+  background: #ffffff2e;
+}
+.pbars i:nth-child(1) {
+  height: 3px;
+}
+.pbars i:nth-child(2) {
+  height: 5px;
+}
+.pbars i:nth-child(3) {
+  height: 7px;
+}
+.pbars i:nth-child(4) {
+  height: 10px;
+}
+.pbars[data-q="4"] i {
+  background: #8be38b;
+}
+.pbars[data-q="3"] i:nth-child(-n + 3) {
+  background: #c9e36a;
+}
+.pbars[data-q="2"] i:nth-child(-n + 2) {
+  background: #ffb347;
+}
+.pbars[data-q="1"] i:nth-child(1) {
+  background: #ff6f6f;
+}

@@ -18,6 +18,7 @@
     myId: "local",
     hub: false,
     hubConn: null,
+    hubRtt: null,
     conns: new Map(),
     store: new Map(),
     mine: new Map(),
@@ -28,6 +29,126 @@
   };
   /** @type {(id: string) => El} */
   const $ = id => /** @type {El} */ (document.getElementById(id));
+
+  /* ---- network simulation: added latency, jitter and loss on everything this tab sends.
+     Reliable traffic models retransmission (a lost packet arrives a round trip late and holds up
+     everything behind it); unreliable traffic is simply dropped. Set from tests, the dev console,
+     or ?netsim=latencyMs,jitterMs,lossPercent in the page URL. */
+  const NETSIM = { latency: 0, jitter: 0, loss: 0 };
+  {
+    const m = /[?&#]netsim=(\d+),(\d+),(\d+(?:\.\d+)?)/.exec(location.search + location.hash);
+    if (m) Object.assign(NETSIM, { latency: +m[1], jitter: +m[2], loss: Math.min(0.5, +m[3] / 100) });
+  }
+  const simActive = () => NETSIM.latency > 0 || NETSIM.jitter > 0 || NETSIM.loss > 0;
+
+  /* ---- link: one data connection plus its measurements (round trip, jitter, loss, bandwidth) ---- */
+  const PING_MS = 1000;
+  class Link {
+    constructor(conn, onData) {
+      this.conn = conn;
+      this.peer = conn.peer;
+      this.onData = onData;
+      this.rtt = 0;
+      this.jitter = 0;
+      this.lastRtt = 0;
+      this.pings = [];
+      this.pingN = 0;
+      this.rx = { b: 0, n: 0, rate: 0, msgs: 0, last: performance.now() };
+      this.tx = { b: 0, n: 0, rate: 0, msgs: 0 };
+      this.win = performance.now();
+      this.nextSend = 0;
+      this.timer = setInterval(() => this.ping(), PING_MS);
+      conn.on("data", m => this.recv(m));
+    }
+    get open() {
+      return this.conn.open;
+    }
+    close() {
+      clearInterval(this.timer);
+      try {
+        this.conn.close();
+      } catch (e) {}
+    }
+    raw(m) {
+      if (!this.conn.open) return;
+      const n = JSON.stringify(m).length;
+      this.tx.b += n;
+      this.tx.n++;
+      try {
+        this.conn.send(m);
+      } catch (e) {}
+    }
+    /** send through the network simulator when it is active (reliable unless opts.unreliable) */
+    send(m, opts) {
+      if (!simActive()) return this.raw(m);
+      const now = performance.now();
+      let d = NETSIM.latency + Math.random() * NETSIM.jitter;
+      if (Math.random() < NETSIM.loss) {
+        if (opts && opts.unreliable) return;
+        d += Math.max(200, NETSIM.latency * 3);
+      }
+      const at = opts && opts.unreliable ? now + d : Math.max(this.nextSend, now + d);
+      if (!(opts && opts.unreliable)) this.nextSend = at;
+      setTimeout(() => this.raw(m), at - now);
+    }
+    ping() {
+      this.roll();
+      const p = { n: ++this.pingN, ts: performance.now(), got: false };
+      this.pings.push(p);
+      if (this.pings.length > 20) this.pings.shift();
+      /* pings ride unreliably so they measure the wire, not queueing behind retransmits */
+      this.send({ t: "_pi", n: p.n, ts: p.ts }, { unreliable: true });
+    }
+    recv(m) {
+      const now = performance.now();
+      this.rx.b += JSON.stringify(m || null).length;
+      this.rx.n++;
+      this.rx.last = now;
+      if (m && m.t === "_pi") return this.send({ t: "_po", n: m.n, ts: m.ts }, { unreliable: true });
+      if (m && m.t === "_po") {
+        const p = this.pings.find(x => x.n === m.n);
+        if (p && !p.got) {
+          p.got = true;
+          const r = now - p.ts;
+          this.rtt = this.rtt ? this.rtt + (r - this.rtt) * 0.25 : r;
+          if (this.lastRtt) this.jitter += (Math.abs(r - this.lastRtt) - this.jitter) * 0.25;
+          this.lastRtt = r;
+        }
+        return;
+      }
+      this.onData(m, this);
+    }
+    /** once a second: turn byte counters into rates */
+    roll() {
+      const now = performance.now(),
+        dt = Math.max(0.25, (now - this.win) / 1000);
+      for (const x of [this.rx, this.tx]) {
+        x.rate = x.b / dt;
+        x.msgs = x.n / dt;
+        x.b = x.n = 0;
+      }
+      this.win = now;
+    }
+    /** pings older than 2.5 s without a reply count as lost */
+    get loss() {
+      const now = performance.now(),
+        done = this.pings.filter(p => p.got || now - p.ts > 2500);
+      return done.length ? done.filter(p => !p.got).length / done.length : 0;
+    }
+    stats() {
+      return {
+        peer: this.peer,
+        rtt: Math.round(this.rtt),
+        jitter: Math.round(this.jitter),
+        loss: this.loss,
+        inBps: Math.round(this.rx.rate),
+        outBps: Math.round(this.tx.rate),
+        inMsgs: Math.round(this.rx.msgs),
+        outMsgs: Math.round(this.tx.msgs),
+        age: Math.round(performance.now() - this.rx.last),
+      };
+    }
+  }
   const st = r => {
     let m = T.store.get(r);
     if (!m) {
@@ -164,15 +285,8 @@
   function send(m) {
     if (!T.connected) return;
     if (T.hub) {
-      for (const c of T.conns.values())
-        if (c.open)
-          try {
-            c.send(m);
-          } catch (e) {}
-    } else if (T.hubConn && T.hubConn.open)
-      try {
-        T.hubConn.send(m);
-      } catch (e) {}
+      for (const c of T.conns.values()) if (c.open) c.send(m);
+    } else if (T.hubConn && T.hubConn.open) T.hubConn.send(m);
   }
   function allPresence() {
     const list = [];
@@ -192,14 +306,7 @@
       return;
     }
     const bucket = { tok: 120, t: performance.now() };
-    c.on("open", () => {
-      T.conns.set(c.peer, c);
-      try {
-        c.send({ t: "all", list: allPresence() });
-      } catch (e) {}
-      status();
-    });
-    c.on("data", m => {
+    const link = new Link(c, m => {
       const now = performance.now();
       bucket.tok = Math.min(120, bucket.tok + (now - bucket.t) * 0.06);
       bucket.t = now;
@@ -207,15 +314,17 @@
       if (!okMsg(m) || m.t !== "p") return;
       const out = { t: "p", r: m.r, id: c.peer, p: m.p };
       apply(out);
-      for (const [id, o] of T.conns)
-        if (id !== c.peer && o.open)
-          try {
-            o.send(out);
-          } catch (e) {}
+      for (const [id, o] of T.conns) if (id !== c.peer && o.open) o.send(out);
+    });
+    c.on("open", () => {
+      T.conns.set(c.peer, link);
+      link.send({ t: "all", list: allPresence() });
+      status();
     });
     const gone = () => {
       if (!T.conns.has(c.peer)) return;
       T.conns.delete(c.peer);
+      link.close();
       const m = { t: "x", id: c.peer };
       apply(m);
       send(m);
@@ -227,6 +336,12 @@
   /* client: everything arrives via the host */
   function clientData(m) {
     if (!m || typeof m !== "object") return;
+    if (m.t === "_rt" && m.tab && typeof m.tab === "object") {
+      T.hubRtt = {};
+      for (const [k, v] of Object.entries(m.tab).slice(0, 16))
+        if (ID_RE.test(k) && Number.isFinite(+v)) T.hubRtt[k] = +v;
+      return;
+    }
     if (m.t === "full") {
       msg("That room is full (8 players).", true);
       return;
@@ -377,11 +492,12 @@
     peer.on("open", id => {
       T.myId = id;
       const c = peer.connect(PREFIX + code, { reliable: true, serialization: "json" });
+      const link = new Link(c, clientData);
       c.on("open", () => {
         if (done) return;
         done = true;
         clearTimeout(to);
-        T.hubConn = c;
+        T.hubConn = link;
         T.connected = true;
         T.code = code;
         T.busy = false;
@@ -390,8 +506,10 @@
         setUI("joined");
         status();
       });
-      c.on("data", clientData);
-      c.on("close", lostHost);
+      c.on("close", () => {
+        link.close();
+        lostHost();
+      });
       c.on("error", () => {
         if (T.connected) lostHost();
       });
@@ -468,6 +586,44 @@
       if (T.peer) T.peer.destroy();
     } catch (e) {}
   });
+  setInterval(() => {
+    if (!T.hub || !T.connected) return;
+    const tab = {};
+    for (const [id, l] of T.conns) tab[id] = Math.round(l.rtt);
+    send({ t: "_rt", tab });
+  }, 2000);
+  /* names come from presence (lobby or a sub-room) */
+  function nameOf(peer) {
+    for (const s of T.store.values()) {
+      const p = s.get(peer);
+      if (p && typeof p.n === "string") return p.n.slice(0, 14);
+    }
+    return "?";
+  }
+  /**
+   * network statistics for the overlay, the network panel and roster indicators
+   * @returns {NetStats}
+   */
+  function netStats() {
+    const links = T.hub ? [...T.conns.values()] : T.hubConn ? [T.hubConn] : [];
+    /** @type {NetStats["peers"]} */
+    const peers = {};
+    if (T.hub) for (const l of links) peers[l.peer] = { rtt: Math.round(l.rtt), direct: true };
+    else if (T.hubConn) {
+      const hubRtt = Math.round(T.hubConn.rtt);
+      peers[T.hubConn.peer] = { rtt: hubRtt, direct: true };
+      for (const [id, r] of Object.entries(T.hubRtt || {}))
+        if (id !== T.myId) peers[id] = { rtt: hubRtt + r, direct: false };
+    }
+    return {
+      role: /** @type {NetStats["role"]} */ (!T.connected ? "offline" : T.hub ? "host" : "client"),
+      code: T.code,
+      me: T.myId,
+      sim: simActive() ? Object.assign({}, NETSIM) : null,
+      links: links.map(l => Object.assign(l.stats(), { name: nameOf(l.peer) })),
+      peers,
+    };
+  }
   const lobby = mkRoom("lobby");
   /* host services the game asks for: rooms and file downloads */
   const downloads = {
@@ -485,6 +641,16 @@
   window.KAHOST = {
     use(n) {
       return n === "room" ? roomP : n === "downloads" ? Promise.resolve(downloads) : Promise.resolve(null);
+    },
+    net: {
+      stats: netStats,
+      sim: NETSIM,
+      /** set simulated conditions: { latency (one-way ms), jitter (ms), loss (0..0.5) } */
+      setSim(o) {
+        for (const k of ["latency", "jitter", "loss"])
+          if (Number.isFinite(+o[k])) NETSIM[k] = Math.max(0, +o[k]);
+        NETSIM.loss = Math.min(0.5, NETSIM.loss);
+      },
     },
   };
   window.__p2p = {
