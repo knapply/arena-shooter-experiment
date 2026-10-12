@@ -609,6 +609,8 @@
     [-35.4, -6],
     [-10, -6],
   ];
+  /* the trailer's pods take a little less than the game's fall, to keep the cut on the music */
+  const DROP_FALL = 2.3;
   const SHOTS = [
     /* ===== ACT I: cold open ===== */
     {
@@ -653,7 +655,7 @@
         };
       },
     },
-    /* ===== the squad drops in: three pods out of the sky, doors off, pilots out ===== */
+    /* ===== the squad drops in from orbit: three pods burn in from 200 m, then doors off, pilots out ===== */
     {
       t: 5,
       name: "drop",
@@ -662,20 +664,22 @@
         clearStage();
         K.resetDestruction();
         this.pods = [
-          { a: hero, at: 0.05, p: [-22, 0, -6], yaw: -PI / 2 + 0.35, out: [-19.6, -6.4] },
-          { a: ally, at: 0.5, p: [-25.6, 0, -3.6], yaw: -PI / 2 - 0.2, out: [-23.4, -2.9] },
-          { a: ally2, at: 0.85, p: [-26.4, 0, -8.6], yaw: -PI / 2 + 0.3, out: [-24.2, -9.2] },
+          { a: hero, at: 0, p: [-22, 0, -6], yaw: -PI / 2 + 0.35, out: [-19.6, -6.4] },
+          { a: ally, at: 0.22, p: [-25.6, 0, -3.6], yaw: -PI / 2 - 0.2, out: [-23.4, -2.9] },
+          { a: ally2, at: 0.4, p: [-26.4, 0, -8.6], yaw: -PI / 2 + 0.3, out: [-24.2, -9.2] },
         ];
         for (const q of this.pods) q.sent = false;
+        this.heroPod = null;
       },
+      /* slow motion as the hero's pod hits */
       ts: lt =>
         curve(
           [
             [0, 1],
-            [1.3, 1],
-            [1.42, 0.3],
-            [1.85, 0.3],
-            [2.1, 1],
+            [2.25, 1],
+            [2.38, 0.3],
+            [2.8, 0.3],
+            [3.05, 1],
           ],
           lt
         ),
@@ -684,31 +688,41 @@
           if (!q.sent && st >= q.at) {
             q.sent = true;
             const c = new V3(q.p[0], q.p[1], q.p[2]);
-            K.dropPod(c, q.a.color, {
-              dur: 1.3,
-              h: 70,
+            const pod = K.dropPod(c, q.a.color, {
+              dur: DROP_FALL,
+              h: 200,
               onLand: () => {
                 put(q.a, q.p, q.yaw);
                 q.a.ctl = (a, s2) =>
-                  s2 < 0.35 ? { ...NO } : steer(a, [[q.p[0], q.p[2]], q.out], { ...NO }, { sprint: false });
+                  s2 < 0.3 ? { ...NO } : steer(a, [[q.p[0], q.p[2]], q.out], { ...NO }, { sprint: false });
                 CINE.shake(q.a === hero ? 0.7 : 0.35);
               },
             });
+            if (q.a === hero) this.heroPod = pod;
           }
         for (const a of [hero, ally, ally2]) drive(a, dt);
-        /* low on the deck, looking up into the sky as they come down, then settling on the squad */
-        const k = ease((lt - 0.9) / 1.4);
+        /* low and wide, looking up into the sky at the burning pods, then riding the hero's pod down to
+           the deck and settling on the squad */
+        const pod = this.heroPod,
+          py = pod && !pod.landed ? pod.g.position.y : 1.3;
+        const k = ease((lt - 1.7) / 0.8),
+          s2 = ease((lt - 2.5) / 1.2);
         const h = hand(lt, 0.012);
         cam(
-          V(-15.6 + h.x, 0.32 + h.y, -4.4),
-          V(lerp(-21.5, -22.6, k), lerp(16, 1.3, k), lerp(-5.4, -5.6, k)),
-          lerp(46, 34, ease((lt - 2) / 2)),
+          /* a fast dolly in, arcing up over the low cover on the way */
+          V(
+            lerp(12, -15.6, k) + h.x,
+            lerp(0.6, 0.32, k) + Math.sin(Math.PI * k) * 1.6 + h.y,
+            lerp(-12, -4.4, k)
+          ),
+          V(lerp(-21.6, -22.6, s2), clamp(lerp(Math.min(py, 46), 1.3, s2), 1.3, 46), lerp(-5.6, -5.6, s2)),
+          lerp(lerp(58, 46, k), 34, s2),
           0,
           dt
         );
       },
       look(lt) {
-        return lt < 1.4 ? { dof: 0.4, focus: 30, range: 30 } : af(chest(hero), 2.2);
+        return lt < 2.2 ? { dof: 0.3, focus: 60, range: 60 } : af(chest(hero), 2.2);
       },
     },
     {
