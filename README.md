@@ -37,17 +37,18 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - **Shields and health:** recharging shields that flash on impact, with headshot rules that reward finishing cracked opponents
 - **Four weapons with fixed kill times:** a precision magnum (5-shot perfect kill in about a second), an automatic pulse carbine, and two power weapons, a sniper rifle and a rocket launcher, that take turns at the map's central power spawn. Precision weapons have no random spread
 - **Grenades:** bouncing frags and sticky plasmas
-- **Drop pods:** you respawn by falling 200 m out of the sky in a pod: its nose glows white-hot and it trails a re-entry burn of flame, embers and smoke that the whole map can see, then it slams into the ground, blows its doors off and lets you out (land on someone and they're done). The longer fall costs no extra time: the pod launches earlier, so you're back exactly as soon as before. Press Jump to skip the pod camera. Classic in-place spawns are one setting away
+- **Drop pods:** you respawn by falling 200 m out of the sky in a pod: its nose glows white-hot and it trails a re-entry burn of flame, embers and smoke that the whole map can see, then it slams into the ground, blows its doors off and lets you out (land on someone and they're done). The longer fall costs no extra time: the pod launches earlier, so you're back exactly as soon as before. Steer it a little on the way down to pick your landing spot (in CTF, only around your own base), or press Jump to skip the pod camera. Classic in-place spawns are one setting away
 - **Safe spawns:** every spawn point is scored against enemy sight lines, nearby enemies and fights in the last few seconds, so you don't appear in someone's crosshair. Spawn protection ends as soon as you fire
 - **Loot what falls:** the dead drop their weapon and grenades. Grenades and ammo for guns you already carry are picked up by walking over them; anything else is a manual pickup, so you choose what to carry
 - **Friendly fire, on by default:** teammates' rounds, rockets and grenades hurt you too, and a teamkill costs a point. Switch it off in the settings
 - **Bodies are solid:** pilots collide with each other, so you can body-block a doorway or a flag carrier
 - **The flag is a two-handed carry:** pick it up like a weapon, carry it in both hands, and you can't shoot while you hold it (swap to a weapon to drop it)
 - **Sandbox settings:** every movement, weapon and grenade number that matters (run and sprint speed, acceleration, air control, jump, gravity, thrust, damage, fire rates, spread, bloom, rocket speed and blast, grenade throw, bounce, fuse and radius) is a slider, with defaults chosen by simulated matches ([docs/TUNING.md](docs/TUNING.md)). Online, everyone plays by the host's sandbox
-- **Destructible cover:** dozens of breakable crates, barricades and walls on both maps, tunable or fully disabled, rebuilding over time
+- **Destructible cover:** dozens of breakable crates, barricades and walls on both maps. They chip as they take damage (chunks come off where they're hit) before they collapse. Tunable or fully disabled, and they rebuild over time
 - **Free-for-all matches:** first to 15 kills, with practice drones when it's quiet
 - **Capture the Flag:** 4v4 on a mirrored map, with AI filling every empty slot
 - **Kill cam:** after you die, see the last few seconds through your killer's eyes
+- **Melee that reads:** a blow from behind kills outright; otherwise the first blow always takes the shield down and a second kills. You see a swing arc when anyone strikes, and your own blow punches the camera
 - **Readable fights:** arcs around the crosshair point at whoever is hitting you; positional footsteps, thrusts and landings are loud up close; shield hits, shield breaks, headshots and kills each have their own hit marker and sound, and the target flashes
 - **Power weapon loop:** the HUD counts down to the power spawn's next weapon, an enemy grabbing the sniper or rockets is called out, and anyone holding one is marked through walls
 - **Flag clarity:** a named waypoint on every flag carrier, a score bar that says who has each flag, and distinct sounds and announcer lines for taken, dropped and returned
@@ -67,8 +68,8 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - **Controller support:** Xbox-style controllers with remapping, aim assist, response curves and vibration
 - **Deep settings:** graphics presets plus 50+ individual options, full keyboard and controller rebinding, and export/import of settings as a file
 - **Cinematic trailer:** a 72-second in-engine trailer, built shot by shot: anamorphic letterbox, depth of field with rack focus, a split-tone grade, dusk and daylight lighting moods, speed ramps into slow motion and a frozen-time finale, all scored to an original synthesized soundtrack. Playable live from the menu
-- **Animation:** articulated 32-bone pilots (two-segment spine, clavicles, two-joint fingers and thumbs, toes, hip armor and a sprung antenna) with distance-synced strides, heel strike and toe-off, hip-led strafing and backpedaling, hands that close around whatever they hold, breathing and weight shifts at rest, feet that plant on stairs and ledges, spring-driven lean, landing compression, hit flinches, recoil and momentum-based death falls
-- **Sci-fi maps with color-coded zones:** structural ribs, metal trims, vents, light bands and floor guide lights on every wall, contact shadows where walls meet the floor, composite crates and plated floors, under a ringed planet, a nebula and a lit megacity skyline. Each arena quadrant glows its own color, and team maps wear their team's color on each half, so you always know where you are
+- **Animation:** articulated 32-bone pilots (two-segment spine, clavicles, two-joint fingers and thumbs, toes, hip armor and a sprung antenna) with distance-synced strides, heel strike and toe-off, hip-led strafing and backpedaling, hands that close around whatever they hold, breathing and weight shifts at rest, feet that plant on stairs and ledges, spring-driven lean, landing compression, hit flinches, recoil and momentum-based death falls. Runs and sprints have a real flight phase (both feet off the ground), knee drive, heel kick and shoulders that counter-rotate against the hips. Jumps push off, tuck and reach for the ground. Other players visibly raise their guns to aim down sights, and reloads show the magazine out and in, a palm slap and the charging handle or slide racked
+- **Sci-fi maps with color-coded zones:** structural ribs, metal trims, vents, light bands and floor guide lights on every wall, contact shadows where walls meet the floor, composite crates and plated floors, under a ringed planet, a nebula and a lit megacity skyline. Each arena quadrant glows its own color, and team maps wear their team's color on each half, so you always know where you are. Dust drifts in the light, searchlights sweep the sky over the city, and the light strips breathe
 - **Movement tutorial:** a narrated, self-playing walkthrough of every movement and combat mechanic
 - **Procedural audio and announcer:** synthesized weapon and movement sounds, with spoken callouts using your browser's speech engine
 
@@ -79,7 +80,7 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 | **Arena** | 1–8 | Free-for-all on Proving Grounds. First to 15 kills (or the most kills after 10 minutes) wins, then Play of the Game and the results screen. Practice drones fill in when it's quiet. |
 | **Capture the Flag** | 1–8 humans, 8 total | 4v4 on Twin Foundry. Bring the enemy flag to your stand while yours is home. First to 3 captures wins, with an 8-minute time limit. Humans take a bot's slot on their team. |
 | **AI vs AI** | Spectator | Two learning AI teams play CTF. Speed controls (1×/2×/4×), a director camera that varies its shots and slows down for captures and multikills, follow cameras, and a tactical camera you can turn and zoom (drag, wheel, pinch or controller). The intel panel shows each team's strategy odds and evolved play style. "Train 10 matches" runs headless matches in the background. |
-| **Trailer** | Spectator | A 72-second cinematic cut of the game: the squad drops in by pod, three rules of the arena, an action montage with the rocket launcher, a live AI capture-the-flag match and a frozen-time finale, synced to an original score. |
+| **Trailer** | Spectator | A 72-second cinematic cut of the game: the squad burns in from orbit in drop pods, three rules of the arena, an action montage with the rocket launcher, a live AI capture-the-flag match and a frozen-time finale, synced to an original score. |
 | **Movement tutorial** | Spectator | A scripted walkthrough of every movement and combat mechanic, with the keys for each. |
 
 ## Playing with friends
@@ -181,7 +182,7 @@ CTF bots are built to be competitive, not scripted:
 - **Navigation:** grid A* pathfinding, built from the map and updated when cover is destroyed.
 
 ## Settings
-Settings are saved in your browser automatically and can be exported to or imported from a JSON file.
+Settings are saved in your browser automatically and can be exported to or imported from a JSON file. The search box at the top finds any setting (or key binding) across every tab.
 
 - **Graphics:** quality presets (Low → Ultra), render scale, upscaling, dynamic resolution, frame rate target, anti-aliasing (FXAA / MSAA), sharpening, reflections, shadows, bloom, surface detail, texture filtering, particles, draw distance, brightness, saturation, vignette, film grain, field of view, FPS counter, performance overlay, network panel
 - **Mouse:** sensitivity, aiming sensitivity, invert Y, smoothing, raw input, hold/toggle for sprint, crouch and aim
@@ -219,7 +220,7 @@ External resources loaded at runtime:
 - Best on current desktop **Chrome, Edge or Firefox**. Safari works, but its pointer lock and gamepad support are less consistent.
 - Any GPU from the last several years handles the High preset. Use **Low** or lower the render scale on integrated graphics.
 - Game logic costs well under 1 ms per frame on a typical laptop. If you see stutter, the GPU settings are the place to look.
-- The whole game is about 460 KB (about 170 KB compressed). Draw calls and triangle counts are held to fixed budgets that CI checks on every push.
+- The whole game is about 475 KB (about 175 KB compressed). Draw calls and triangle counts are held to fixed budgets that CI checks on every push.
 - Enable the FPS counter in **Settings → Graphics** to see frame rate and current render resolution, or the network panel to see ping, loss and playback delay.
 
 ## Privacy and security
@@ -245,8 +246,9 @@ The game is developed as modules and built into the single `index.html` that Git
 ```
 src/        engine, rendering, world, characters, weapons, UI, networking, maps and game modes
 tests/      headless AI matches, scenarios, browser and network tests, render and visual checks
-tools/      dev server, verify script, trailer recorder and previewer, sandbox tuning simulations, unused-code check
-docs/       ARCHITECTURE.md, a generated module index, the sandbox kill-time table and TUNING.md
+tools/      dev server, verify script, trailer recorder and previewer, rig animation previews, sandbox tuning simulations, unused-code check
+docs/       ARCHITECTURE.md, EXECUTION.md (what runs when), EXTENDING.md (adding maps, modes, weapons, HUD), TUNING.md,
+            NEXT_STEPS.md (ideas), a generated module index and the sandbox kill-time table
 build.mjs   bundles src/ into index.html and sim-worker.js
 ```
 
@@ -272,6 +274,13 @@ THREE_PATH=three.min.js node tests/visual.test.js   # compare scenes against tes
 VISUAL_UPDATE=1 THREE_PATH=three.min.js node tests/visual.test.js   # accept new baselines
 ```
 
+Working on character animation:
+
+```bash
+THREE_PATH=three.min.js node tools/rig-preview.js gait    # contact sheet: a run, a sprint and a jump
+THREE_PATH=three.min.js node tools/rig-preview.js poses   # idle, aiming down sights, melee, reload
+```
+
 Working on the trailer:
 
 ```bash
@@ -290,7 +299,8 @@ Every push runs the full suite in GitHub Actions. See [docs/ARCHITECTURE.md](doc
 - Career stats across matches
 - Syncing maps and replays with a folder on your computer
 - More modes (Slayer teams, King of the Hill, Oddball) on the mode framework
-- Motion-captured animation layered under the procedural rig
+- A playable team deathmatch (Slayer) on the arena: the AI already plays it for the balance simulations
+- See [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) for a longer list of ideas across gameplay, graphics, sound and engineering
 - A WebGPU renderer
 - Desktop packaging
 

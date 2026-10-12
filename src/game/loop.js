@@ -1,4 +1,10 @@
-/* ============ main loop ============ */
+/* ============ main loop ============
+   frame() runs once per display refresh (requestAnimationFrame) and calls frameBody(), which in order:
+   advances time; handles menus and the gamepad; hands the frame to a full-screen mode or the menu camera
+   if one owns it; respawns you (pods: respawnStart / steerPod) or steps your Body at a fixed 120 Hz from
+   input; fires, reloads, throws; runs the drones and the mode (EXT.tick); places the camera; animates the
+   viewmodel, effects and rigs; runs the per-frame hooks (onFrame); updates the HUD and network presence;
+   then renders. See docs/EXECUTION.md for the whole picture. */
 const pend = { j: false, c: false, t: false, m: false },
   prevPos = new V3(),
   rpos = new V3();

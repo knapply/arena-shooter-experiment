@@ -1,4 +1,11 @@
-/* ===== CTF team brain: opponent modeling, strategy learning, roles, team comms ===== */
+/* ===== Team brain (CTF.TeamBrain): one per team, shared by its bots =====
+   - Strategy: picks a plan by Thompson sampling on how each plan did against what the other team is
+     doing (classifyEnemy), and re-plans when it stalls.
+   - Roles: assign() hands each bot a role from the flag situation and the plan (hunt in team deathmatch).
+   - Memory: where enemies were seen (enemyMem, shared by every bot), danger cells for pathing (costFn),
+     how often enemies reverse their strafe (for aim prediction), their attack lanes.
+   - Comms: say() posts team chat lines (spotted enemies, focus targets, pushes, flag calls).
+   - Learning: play-style genes and strategy odds evolve across matches (saved per browser). */
 (function () {
   const K = window.KA,
     T = K.THREE,

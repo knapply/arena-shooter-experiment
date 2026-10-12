@@ -1,4 +1,12 @@
-/* ===== CTF rules: flags, scoring, respawns, segment rewards. Runs rendered or headless ===== */
+/* ===== Match rules (CTF.Game): flags, scoring, respawns and AI learning. Runs rendered or headless =====
+   CTF.Game(opts) builds a match on a map (opts.map, default Twin Foundry; a map without flags plays team
+   deathmatch) and returns G:
+     G.agents / G.teams     every pilot (AI, you, online players) and each team's TeamBrain
+     G.start(), G.step(dt)  begin, then advance the whole match: brains, bots (think + Body.step),
+                            respawns and drop pods, grenades, rockets, items on the floor, flags, the clock
+     G.kill(...)            the one place a pilot dies: score, drops, flag drop, events
+     G.emit(type, d)        rule events for the UI, the engine's event stream and the netcode
+   What each team learned about its opponent is saved at the end of a match (CTF.saveModels). */
 (function () {
   const K = window.KA,
     CTF = window.CTF;

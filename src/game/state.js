@@ -1,4 +1,7 @@
-/* ============ game state ============ */
+/* ============ game state ============
+   Your state (the Body "me", name, score, weapon timers), the arena's spawn picking, the practice drones
+   (makeBots / botStep: their own simple AI with carbine and magnum), damage to you (hurtMe: shields, the
+   melee rule, damage arcs, death), the kill feed and hit markers (hitMarker / hitKind). */
 let EXT = null;
 const me = new Body();
 let myName = "Pilot",

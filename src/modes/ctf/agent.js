@@ -1,4 +1,15 @@
-/* ===== CTF agent: perception, objective pathing, combat with learned prediction, full movement kit ===== */
+/* ===== AI pilot (CTF.Agent): one bot on a team, in capture the flag or team deathmatch =====
+   How a bot thinks, every simulation tick (Agent.think):
+     perceive()     who it can see or hear (field of view, gunfire, footsteps, teammates' callouts,
+                    being shot); picks a target, with reaction time by skill (AI_SKILL, data/modes.js)
+     objective()    turns its role (from TeamBrain.assign in brain.js) into a goal point: carry, escort,
+                    chase, return, grab, attack, defend, mid, or hunt (no flags); detours for power weapons
+     navTo()        follows an A* path over the nav grid (nav.js) toward the goal, jumping ledges
+     combat         strafing, jinks, thrust dodges, ground pounds, melee and charges; carbine or magnum
+                    (pickGun / switchTo), aim with learned strafe prediction (aimPoint), then shoot /
+                    shootSniper / shootRocket; grenades (nadePlan / throwNade)
+   It returns an input record that the same physics Body as players steps, so bots move like players.
+   Everything random uses K.rand (seeded), so a match replays exactly. */
 (function () {
   const K = window.KA,
     T = K.THREE,
