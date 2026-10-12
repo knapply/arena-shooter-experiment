@@ -196,15 +196,17 @@ function padCommon() {
 function padMenu(dt) {
   const ov = !$("settings").hidden
     ? $("settings")
-    : !$("pause").hidden
-      ? $("pause")
-      : !$("menu").hidden
-        ? $("menu")
-        : demo
-          ? $("demoUI")
-          : EXT && EXT.full
-            ? $("ctfHud")
-            : null;
+    : POST.open
+      ? $("post")
+      : !$("pause").hidden
+        ? $("pause")
+        : !$("menu").hidden
+          ? $("menu")
+          : demo
+            ? $("demoUI")
+            : EXT && EXT.full
+              ? $("ctfHud")
+              : null;
   if (!ov) return;
   const items = /** @type {El[]} */ ([...ov.querySelectorAll("button,select,input")]).filter(
     el => el.offsetParent !== null && !el.disabled

@@ -283,7 +283,7 @@ function applyPeer(pe) {
       sfx("slam", distVol(a, 50));
     } else if (f.k === "thrust" && a && b) {
       thrustPuff(a, b);
-      sfx("thrust", distVol(a) * 0.5);
+      sfxAt("thrust", a, 45, 0.8);
     } else if (f.k === "pk" && ARENA_PICKS[f.g | 0]) ARENA_PICKS[f.g | 0].consume();
     else if (f.k === "pod" && a && a.distanceTo(me.pos) < 300) dropPod(a, color);
     else if ((f.k === "drop" || f.k === "take") && Array.isArray(f.b)) remoteItem(f.k, a, f.b, f.g | 0);

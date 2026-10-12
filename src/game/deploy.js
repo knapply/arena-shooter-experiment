@@ -42,6 +42,7 @@ $("deploy").onclick = () => {
   sendPresence(true);
 };
 function leaveGame() {
+  closePost();
   MAIN_NADES.clear();
   MAIN_ROCKETS.clear();
   clearPods();

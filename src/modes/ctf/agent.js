@@ -215,7 +215,11 @@
       if (attacker && attacker.pos) K.noteFight(this.G.fights, attacker.pos, this.G.t);
       this.lastAttacker = attacker;
       this.lastHitT = this.G.t;
-      if (this.rig && this.G.render) this.rig.flashHit(attacker && attacker.pos);
+      const brk = had && b.shield <= 0;
+      /* for stats and hit feedback: who hurt whom, how much, and whether a shield broke */
+      this.G.emit("damage", { by: attacker, victim: this, amount: n, weapon: type, head: !!head, brk });
+      if (this.rig && this.G.render)
+        this.rig.flashHit(attacker && attacker.pos, brk ? "brk" : head && !had ? "head" : had ? "sh" : "");
       const foe = attacker && attacker.team !== this.team;
       if (foe && !attacker.human && b.shield <= 0 && had)
         this.G.teams[attacker.team].brain.callFocus(this.G, attacker, this);
@@ -225,7 +229,7 @@
         this.acqT = this.G.t + this.skill().react * 0.7;
       }
       if (died) this.G.kill(this, attacker, type, head);
-      return { died, sh: had, name: this.name };
+      return { died, sh: had, brk, name: this.name };
     }
     skill() {
       return DIFF[this.G.diff[this.team]] || DIFF.legendary;
@@ -900,6 +904,7 @@
       this.fireCD = this.rocket % 2 === 0 ? R.reload : R.rate + 0.3;
       this.firedT = G.t;
       this.shots++;
+      G.emit("shot", { by: this, weapon: "rocket" });
       const o = eye.clone().addScaledVector(dir, 0.7);
       G.rockets.fire(o, dir, this.blastOwner());
       G.emit("nade", { type: "rocket", pos: o, vel: dir.clone().multiplyScalar(R.speed), by: this });
@@ -940,6 +945,7 @@
       } else this.fireCD = SNIPER.rate + 0.13; /* the bolt, plus a beat to re-aim */
       this.firedT = G.t;
       this.shots++;
+      G.emit("shot", { by: this, weapon: "sniper" });
       const eye = this.eye(new V3());
       const d = b.aimDir();
       const sp = b.ground ? 0.0015 : 0.03;
@@ -1019,6 +1025,7 @@
       this.fireCD = W.rate + (this.magnum ? this.skill().magPace : 0);
       this.firedT = G.t;
       this.shots++;
+      G.emit("shot", { by: this, weapon: W.dmg });
       const eye = this.eye(new V3());
       const d = b.aimDir();
       /* the carbine's own spread and bloom: aimed on the ground, hip-fire in the air; precision weapons
@@ -1106,8 +1113,11 @@
       } else if (G.render) {
         if (type === "thrust") {
           K.thrustPuff(this.pos, d.dir);
-          K.sfx("thrust", K.distVol(this.pos) * 0.5);
-        } else if (type === "land" && d.vy > 10) K.dust(this.pos, 6, 2, 0.4);
+          K.sfxAt("thrust", this.pos, 45, 0.8);
+        } else if (type === "land" && d.vy > 10) {
+          K.dust(this.pos, 6, 2, 0.4);
+          K.sfxAt("land", this.pos, 32, Math.min(1, d.vy / 14));
+        }
       }
     }
   }

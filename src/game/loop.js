@@ -244,7 +244,10 @@ function frameBody(t) {
     }
     if (sr) renderScores();
   }
-  if (pad.on && (!$("menu").hidden || !$("settings").hidden || paused || demo || (EXT && EXT.full)))
+  if (
+    pad.on &&
+    (!$("menu").hidden || !$("settings").hidden || paused || demo || POST.open || (EXT && EXT.full))
+  )
     padMenu(dt);
   if (demo) {
     demoFrame(dt);
@@ -267,6 +270,7 @@ function frameBody(t) {
     updFX(dt);
     updRigs(dt);
     updPickups(dt);
+    updPower(dt);
     renderFrame();
     return;
   }
@@ -336,7 +340,7 @@ function frameBody(t) {
         respawnMe(null);
       }
     } else $("deadT").textContent = `Respawning in ${Math.ceil(respawnStart() - now)}`;
-  } else if (!paused && !INTRO.active) {
+  } else if (!paused && !INTRO.active && !POST.open) {
     if (pad.on) padGame(dt);
     const fw = clamp((A("forward") ? 1 : 0) - (A("back") ? 1 : 0) + touch.f - (pad.on ? GP.ax[1] : 0), -1, 1),
       sw = clamp((A("right") ? 1 : 0) - (A("left") ? 1 : 0) + touch.s + (pad.on ? GP.ax[0] : 0), -1, 1);
@@ -491,6 +495,9 @@ function frameBody(t) {
   if (!EXT) updRigs(dt);
   ffaTick(dt);
   updPickups(dt);
+  updPower(dt);
+  updDamageArcs(dt);
+  updPost(dt);
   updPoundRing();
   hitmT -= dt;
   $("hitm").style.opacity = String(hitmT > 0 ? 1 : 0);
@@ -588,9 +595,10 @@ function rigEvents(rig, ev) {
   }
   if (ev.drop) dropMag(ev.drop, ev.dropQ);
   if (ev.magIn) sfx("magin", distVol(p, 18) * 0.6);
+  if (ev.land) sfxAt("land", p, 32, Math.min(1, ev.land / 14));
+  /* footsteps: positional and loud up close (sprinting louder still) */
   if (ev.step) {
-    const v = distVol(p, 22);
-    if (v > 0) sfx("step", v * (ev.sprint ? 0.6 : 0.35));
+    sfxAt("step", p, 30, ev.sprint ? 1 : 0.6);
     if (ev.sprint) dust(p, 1, 0.5, 0.2, 0.22);
   }
 }

@@ -96,6 +96,9 @@ const geo = (k, f) => {
   }
   return GEO[k];
 };
+const SHIELD_GOLD = new THREE.Color("#ffd36b"),
+  HIT_RED = new THREE.Color("#ff3a2a"),
+  HIT_WHITE = new THREE.Color("#ffffff");
 function shieldMaterial() {
   /* the shield shimmer, skinned like the body it wraps */
   return new THREE.ShaderMaterial({
@@ -674,8 +677,14 @@ function makePilot(color, label) {
       tag.visible = v;
     },
     /* from: attacker world position (optional). Shields flash; the body flinches away from the hit. */
-    flashHit(from) {
-      if (S.sh > 0) S.uI = Math.max(S.uI, 1.05);
+    /** a hit lands: the shield shimmers, or with shields down the body flashes (red, white on a headshot) */
+    flashHit(from, kind) {
+      if (S.sh > 0 && kind !== "head") S.uI = Math.max(S.uI, kind === "brk" ? 1.6 : 1.05);
+      else {
+        S.uI = Math.max(S.uI, kind === "head" ? 1.3 : 0.85);
+        S.hurt = 1;
+        S.hurtC = kind === "head" ? HIT_WHITE : HIT_RED;
+      }
       if (from) {
         localDir(root.position.x - from.x, root.position.z - from.z, _dl);
         const L = Math.hypot(_dl.x, _dl.z) || 1;
@@ -752,6 +761,10 @@ function makePilot(color, label) {
       S.uI *= Math.exp(-5 * dt);
       if (rig.dead) S.uI = 0;
       shieldM.uniforms.uI.value = S.uI;
+      /* the shell's color: shield gold, washed to the hit color for a moment after a hull hit */
+      S.hurt = (S.hurt || 0) * Math.exp(-7 * dt);
+      shieldM.uniforms.uC.value.copy(SHIELD_GOLD);
+      if (S.hurt > 0.01) shieldM.uniforms.uC.value.lerp(S.hurtC, Math.min(1, S.hurt * 1.4));
       shieldM.uniforms.uT.value = S.t;
       const vis = S.uI > 0.02;
       if (vis !== S.shellVis) {
@@ -773,7 +786,11 @@ function makePilot(color, label) {
       S.vx = st.vx;
       S.vz = st.vz;
       /* landing: the knees take the impact (feet stay planted, pelvis springs down then recovers) */
-      if (S.air && !air) S.spP.v -= clamp(-S.vy * 0.11, 0, 2.4);
+      if (S.air && !air) {
+        S.spP.v -= clamp(-S.vy * 0.11, 0, 2.4);
+        /* a heavy landing is heard (rigEvents plays it, positional) */
+        if (S.vy < -6) ev = Object.assign(ev || {}, { land: -S.vy });
+      }
       S.air = air;
       S.vy = st.vy;
       /* acceleration and turn rate feed lean and bank */

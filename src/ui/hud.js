@@ -1,32 +1,10 @@
 /* ============ HUD ============ */
+/* the roster (hold Tab): the in-match stats table (ui/stats-ui.js), refreshed a few times a second */
+let scoresT = 0;
 function renderScores() {
-  if (EXT && EXT.scores) {
-    EXT.scores($("sbody"));
-    return;
-  }
-  /** @type {{ n: string, c: string, k: number, d: number, me?: boolean, peer?: string }[]} */
-  const rows = [{ n: myName + " (you)", c: myColor, k: kills, d: deaths, me: true }];
-  for (const [peer, r] of remotes) if (r.has) rows.push({ n: r.name, c: r.color, k: r.k, d: r.d, peer });
-  for (const b of bots) rows.push({ n: b.name + " · drone", c: "#8b9aa3", k: b.k, d: b.d });
-  rows.sort((a, b) => b.k - a.k || a.d - b.d);
-  const tb = $("sbody");
-  tb.textContent = "";
-  for (const r of rows) {
-    const tr = document.createElement("tr");
-    if (r.me) tr.className = "me";
-    const a = document.createElement("td");
-    const sw = document.createElement("span");
-    sw.className = "sw2";
-    sw.style.background = r.c;
-    a.append(sw, document.createTextNode(r.n));
-    if (r.peer) a.appendChild(pingBars(pingOf(r.peer)));
-    const k = document.createElement("td");
-    k.textContent = String(r.k);
-    const d = document.createElement("td");
-    d.textContent = String(r.d);
-    tr.append(a, k, d);
-    tb.appendChild(tr);
-  }
+  if (now - scoresT < 0.25) return;
+  scoresT = now;
+  renderStatsRoster();
 }
 const xhEls = ["t", "b", "l", "r"].map(c => /** @type {HTMLElement} */ (document.querySelector("#xh ." + c)));
 function hud() {

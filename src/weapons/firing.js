@@ -18,7 +18,7 @@ const hitPower = w => (HEAVY.has(w) ? 2 : 1);
 function dealDamage(t, n, type, head) {
   if (t.kind === "ext") {
     const r = t.ref.onHit(n, type, head);
-    hitMarker(r.died ? "kill" : r.sh ? "sh" : "");
+    hitMarker(r.died ? "kill" : r.brk ? "brk" : head && !r.sh ? "head" : r.sh ? "sh" : "");
     if (r.died) kills++; /* the mode emits the kill event (and with it the medals) */
     return;
   }
@@ -34,9 +34,10 @@ function dealDamage(t, n, type, head) {
       head: !!head,
       shieldBroken: had && b.body.shield <= 0,
     });
-    hitMarker(died ? "kill" : had ? "sh" : "");
+    const kind = hitKind(died, had, b.body.shield, head);
+    hitMarker(kind);
     b.hurtT = now;
-    if (!died) b.rig.flashHit(camera.position);
+    if (!died) b.rig.flashHit(camera.position, kind);
     if (died) {
       kills++;
       b.d++;
@@ -63,8 +64,9 @@ function dealDamage(t, n, type, head) {
     const r = t.ref;
     hitsOut.push({ s: ++hitSeq, t: t.peer, d: n, w: type, hd: head ? 1 : 0, at: Date.now() });
     while (hitsOut.length > 12) hitsOut.shift();
-    hitMarker(r.sh > 0 ? "sh" : "");
-    r.rig.flashHit(camera.position);
+    const kind = hitKind(false, r.sh > 0, r.sh - n, head);
+    hitMarker(kind);
+    r.rig.flashHit(camera.position, kind);
   }
 }
 function emitFx(k, a, b, g) {
@@ -113,7 +115,10 @@ function fire(src) {
   fireCD = W().rate;
   lastFireT = now;
   /* firing ends spawn protection */
-  if (!src) me.spawnT = -1e9;
+  if (!src) {
+    me.spawnT = -1e9;
+    EVENTS.emit("shot", { pilot: "local", weapon: W().dmg });
+  }
   semiLatch = true;
   const o = src ? src.o : camera.getWorldPosition(new V3());
   const d = new V3();

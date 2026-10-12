@@ -14,6 +14,8 @@
      flagTaken / flagDrop / flagReturn / flagReset / capture   pilot, team
      matchStart  —
      matchEnd    winner
+     shot        pilot, weapon        (high volume: delivered to subscribers but not kept in the log)
+     powerTaken  name, weapon, enemy
    Ids: "local" is you; "world" is a fall or anything without a pilot. */
 const EVENTS = (() => {
   /** @type {Map<string, Set<(e: any) => void>>} */
@@ -23,6 +25,7 @@ const EVENTS = (() => {
   const ctx = { map: "arena", mode: "ffa" };
   const log = [];
   const LOG_MAX = 400;
+  const UNLOGGED = new Set(["shot"]);
   let seq = 0;
   /** subscribe to one type, or "*" for everything; returns an unsubscribe function */
   function on(type, fn) {
@@ -32,8 +35,10 @@ const EVENTS = (() => {
   }
   function emit(type, data) {
     const e = Object.assign({ type, seq: ++seq, t: now }, ctx, data);
-    log.push(e);
-    if (log.length > LOG_MAX) log.shift();
+    if (!UNLOGGED.has(type)) {
+      log.push(e);
+      if (log.length > LOG_MAX) log.shift();
+    }
     const set = subs.get(type);
     /* one broken subscriber must not take the others (or the game loop) down with it */
     if (set)

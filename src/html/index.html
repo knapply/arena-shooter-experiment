@@ -16,6 +16,7 @@
   <div id="vig"></div>
   <div id="xh"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="dot"></i></div>
   <div id="hitm"></div>
+  <div id="dmgDir" aria-hidden="true"></div>
   <div id="scope" hidden><div class="lens"></div><div class="ret"><i class="a"></i><i class="b"></i><i class="c"></i><i class="d"></i><i class="o"></i></div><div class="sinfo"><b id="sZoom">2×</b><span id="sRange">– m</span></div></div>
   <svg id="thrustArc" viewBox="0 0 60 60" aria-hidden="true"><path d="M8 44 A26 26 0 0 1 8 16" fill="none" stroke="#dbe6ea33" stroke-width="3"/><path id="thrustFill" d="M8 44 A26 26 0 0 1 8 16" fill="none" stroke="#ffb347" stroke-width="3" stroke-dasharray="44" stroke-dashoffset="0"/></svg>
   <div id="prompt" hidden></div>
@@ -24,6 +25,8 @@
   <div id="feed"></div>
   <div id="medals"></div>
   <div id="toast"></div>
+  <div id="powerT" hidden></div>
+  <div id="callout" aria-live="assertive"></div>
   <div class="vitals" id="vitals">
     <div class="lbl"><span>Shield</span><span id="shN">70</span></div>
     <div class="bar"><b id="shb"></b></div>
@@ -62,7 +65,20 @@
 
 <div id="dead" hidden><div><b>Down</b><span id="deadBy"></span><span id="deadT"></span></div></div>
 
-<div id="scores" hidden><h2>Arena roster</h2><table><thead><tr><th>Pilot</th><th>K</th><th>D</th></tr></thead><tbody id="sbody"></tbody></table></div>
+<div id="scores" hidden><h2>Match stats</h2><div class="stwrap" id="statsTab"></div></div>
+
+<div id="post" hidden role="dialog" aria-label="Match results">
+  <div class="ppanel">
+    <div class="phead"><div class="eyebrow" id="postMode"></div><h1 id="postWin"></h1><div id="postScore"></div></div>
+    <div class="pgrid">
+      <section><h3>Your match</h3><div id="postMe"></div></section>
+      <section><h3>Awards</h3><div id="postAwards"></div></section>
+      <section><h3>Timeline</h3><ol id="postTl"></ol></section>
+    </div>
+    <div class="stwrap" id="postTab"></div>
+    <div class="pbtns"><button class="go" id="postAgain">Play again</button><button class="ghost" id="postChange">Change mode</button><button class="ghost" id="postLeave">Leave</button></div>
+  </div>
+</div>
 
 <div id="touch" hidden>
   <div id="stick"><div id="knob"></div></div>

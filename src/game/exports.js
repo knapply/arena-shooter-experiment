@@ -53,6 +53,21 @@ const KA_API = {
   ARENA_PICKS,
   dropItems,
   nadeInv,
+  /* match stats and the post-match screen (game/stats.js, ui/stats-ui.js) */
+  STATS,
+  showPost,
+  closePost,
+  get POST() {
+    return POST;
+  },
+  /** in an online room right now */
+  get inRoom() {
+    return !!room;
+  },
+  /** power weapon marks on screen right now (ui/power.js) */
+  get powerMarks() {
+    return PW_MARKS.filter(m => m.visible).length;
+  },
   get myPod() {
     return myPod;
   },
@@ -181,6 +196,7 @@ const KA_API = {
   renderSfx,
   audio,
   distVol,
+  sfxAt,
   say,
   VO,
   medal,

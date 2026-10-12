@@ -27,6 +27,7 @@
     snap = true,
     training = null,
     potgDone = false,
+    postShown = false,
     intelT = 0,
     orbit = 0;
   const cpos = new V3(),
@@ -140,6 +141,7 @@
     mode = "play";
     overT = 0;
     potgDone = false;
+    postShown = false;
     const myId = "h:" + (CTF.NET.myPeer() || "local");
     G = CTF.Game({ mode: "play", render: true, diff: [diff, diff], humanTeam: myTeam, humanId: myId });
     UI.attach(G, "play");
@@ -189,6 +191,38 @@
       teamColors: CTF.TEAM_HEX,
     });
   }
+  /** everyone in the match for the stats screens (game/stats.js): stable ids, teams, score of record */
+  function rosterOf(list) {
+    return list.map(a => {
+      const me = a === G.human;
+      return {
+        id: K.pidOf(a),
+        name: a.name,
+        team: a.team,
+        k: me ? K.kills : a.k,
+        d: me ? K.deaths : a.d,
+        me,
+      };
+    });
+  }
+  /** who holds a power weapon, for the marks and callouts (ui/power.js) */
+  function holdersOf(list) {
+    const me = G && G.human;
+    if (!me) return [];
+    const out = [];
+    for (const a of list)
+      if (a.alive && a !== me && (a.sniper > 0 || a.rocket > 0 || a.wpn >= 2))
+        out.push({
+          id: a.id,
+          pid: K.pidOf(a),
+          name: a.name,
+          pos: a.body.pos,
+          h: a.body.h,
+          key: a.rocket > 0 || a.wpn === 3 ? "rocket" : "sniper",
+          enemy: a.team !== me.team,
+        });
+    return out;
+  }
   /** the engine hooks for hosting a match (fresh, or taken over from a host who left) */
   function hostExt(host) {
     return {
@@ -210,6 +244,8 @@
       dropFlag: () => G && G.dropFlagBy(G.human),
       interactables: () => flagPrompt(G.human, () => G.humanTakeFlag(G.human)),
       radar: () => radarOf(G.agents),
+      roster: () => rosterOf(G.agents),
+      powerHolders: () => holdersOf(G.agents),
       onPing: p =>
         host.ping(G.human, {
           kind: p.kind,
@@ -230,7 +266,8 @@
             potgDone = true;
             K.playOfTheGame(() => ($("cBanner").hidden = false));
           }
-          if (overT > 8 && !K.HL.playing) K.extStop();
+          /* then the results screen (ui/stats-ui.js) */
+          if (overT > 2.5 && potgDone && !K.HL.playing && !postShown) showResults();
         }
       },
       onPlayerDeath(src) {
@@ -354,6 +391,7 @@
     mode = "play";
     overT = 0;
     potgDone = false;
+    postShown = false;
     const myId = "h:" + CTF.NET.myPeer();
     G = CTF.Mirror(h.peer, h.mid, myId, myTeam);
     const M = G;
@@ -409,6 +447,8 @@
           G.newsy = true;
         }),
       radar: () => radarOf([...G.map.values()]),
+      roster: () => rosterOf([...G.map.values()]),
+      powerHolders: () => holdersOf([...G.map.values()]),
       onPing: p => {
         G.pg = [
           ++G.pgS,
@@ -432,7 +472,9 @@
             potgDone = true;
             K.playOfTheGame(() => ($("cBanner").hidden = false));
           }
-          if (overT > (G.hostGone ? 3 : 8) && !K.HL.playing) K.extStop();
+          if (G.hostGone) {
+            if (overT > 3) K.extStop();
+          } else if (overT > 2.5 && potgDone && !K.HL.playing && !postShown) showResults();
         }
       },
       onPlayerDeath(src) {
@@ -485,6 +527,7 @@
     UI.extraHud = null;
     overT = 0;
     potgDone = false;
+    postShown = false;
     focus = null;
     focusT = 0;
     snap = true;
@@ -837,6 +880,32 @@
       `${TN[0]} ${s0} – ${s1} ${TN[1]} · MVP ${mvp.name} ${mvp.local ? K.kills : mvp.k}/${mvp.local ? K.deaths : mvp.d}${mvp.caps ? `, ${mvp.caps} cap` : ""}\n${mode === "sim" ? notes.join(" · ") + " · next match in a few seconds" : "Returning to menu"}`;
     $("cBanS").style.whiteSpace = "pre-line";
     $("cBanner").hidden = false;
+  }
+  /** the post-match screen: results, then play again (online, the room stays), change mode or leave */
+  function showResults() {
+    postShown = true;
+    const w = G.winner,
+      ht = G.human ? G.human.team : -1;
+    const toMenu = id => {
+      K.extStop();
+      setTimeout(() => {
+        const el = $(id);
+        if (el) el.focus();
+      }, 30);
+    };
+    K.showPost({
+      mode: `${K.MODE_DATA.ctf.name} · Twin Foundry`,
+      title: w < 0 ? "Draw" : w === ht ? "Victory" : "Defeat",
+      color: w < 0 ? "" : CTF.TEAM_HEX[w],
+      sub: `${TN[0]} ${G.teams[0].score} – ${G.teams[1].score} ${TN[1]}`,
+      again: () => {
+        K.extStop();
+        setTimeout(() => $("ctfPlay").click(), 60);
+      },
+      change: () => toMenu("ctfPlay"),
+      leave: () => toMenu("deploy"),
+      auto: K.inRoom ? 20 : 0,
+    });
   }
   /* ---------------- controls ---------------- */
   function setSpeed(s) {

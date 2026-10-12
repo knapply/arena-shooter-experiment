@@ -331,13 +331,29 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
         card: document.querySelector("#cine .card").textContent,
       };
       KA.REPLAY.skip();
-      await new Promise(r => setTimeout(r, 800));
+      /* then the results screen; Play again starts a new match */
+      const el = id => document.getElementById(id);
+      for (let i = 0; i < 50 && el("post").hidden; i++) await new Promise(r => setTimeout(r, 100));
+      const post = {
+        shown: !el("post").hidden,
+        win: el("postWin").textContent,
+        awards: el("postAwards").textContent,
+        tl: el("postTl").textContent,
+        me: el("postMe").textContent,
+        rows: document.querySelectorAll("#postTab tbody tr").length,
+        mine: (document.querySelector("#postTab tr.me") || { textContent: "" }).textContent,
+        focus: document.activeElement && document.activeElement.id,
+      };
+      el("postAgain").click();
+      await new Promise(r => setTimeout(r, 400));
+      post.closed = el("post").hidden;
       off();
       return {
         seen,
         banner,
         mid,
         potg,
+        post,
         after: KA.kills,
         modes: KA.modeList()
           .map(m => m.id)
@@ -356,6 +372,23 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       ffa.potg.playing && /Play of the game/i.test(ffa.potg.card) && /kills in/.test(ffa.potg.card),
       "the match ends with a Play of the Game replay of the best moment",
       ffa.potg
+    );
+    check(
+      ffa.post.shown &&
+        /Victory/.test(ffa.post.win) &&
+        /MVP/.test(ffa.post.awards) &&
+        /First blood/.test(ffa.post.tl) &&
+        /Kills by weapon/.test(ffa.post.me) &&
+        ffa.post.rows >= 4 &&
+        /you/.test(ffa.post.mine) &&
+        ffa.post.focus === "postAgain",
+      "after Play of the Game: winner, awards, timeline, your summary and the full table",
+      ffa.post
+    );
+    check(
+      ffa.post.closed && ffa.after === 0,
+      "Play again closes the results and starts a fresh match",
+      ffa.post
     );
     check(
       /ffa/.test(ffa.modes) && /ctf/.test(ffa.modes) && /tutorial/.test(ffa.modes),
@@ -398,6 +431,81 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     check(pf.dead && pf.medals.includes("perfect"), "a 5-shot magnum kill earns Perfect", pf);
     const npf = await perfectRun(true);
     check(npf.dead && !npf.medals.includes("perfect"), "a missed shot in between does not", npf);
+    /* hit feedback: shield hit, shield break, headshot and kill each have their own marker */
+    const marks = await p.evaluate(() => {
+      const b = KA.bots[1];
+      if (b.pod) b.pod.onLand = null;
+      b.pod = null;
+      for (const o of KA.bots) if (o !== b) o.body.pos.set(22, 0, 0);
+      b.dead = false;
+      b.body.dead = false;
+      b.body.reset();
+      b.body.pos.set(-22, 0, 10);
+      b.body.spawnT = -99;
+      b.respawn = 1e9;
+      KA.refill();
+      const o = new KA.THREE.Vector3(-22, 1.6, -10);
+      const at = y => new KA.THREE.Vector3(-22, y, 10).sub(o).normalize();
+      const cls = () => document.getElementById("hitm").className;
+      const out = [];
+      KA.fire({ o, d: at(1.0), muzzle: o });
+      out.push(cls());
+      for (let i = 0; i < 3; i++) KA.fire({ o, d: at(1.0), muzzle: o });
+      out.push(cls());
+      b.body.health = 45;
+      b.body.shield = 0;
+      KA.dealDamage({ kind: "bot", ref: b }, 5, "pistol", true);
+      out.push(cls());
+      KA.dealDamage({ kind: "bot", ref: b }, 999, "pistol", true);
+      out.push(cls());
+      return out;
+    });
+    check(
+      marks[0] === "sh" && marks[1] === "brk" && marks[2] === "head" && marks[3] === "kill",
+      "shield hit, shield break, headshot and kill each get their own hit marker",
+      marks
+    );
+    /* directional damage: an arc points where the hit came from (a drone to your right: +90°) */
+    const arc = await p.evaluate(async () => {
+      const b = KA.bots[0];
+      KA.me.pos.set(-30, 0, 30);
+      KA.me.yaw = 0;
+      KA.me.spawnT = -99;
+      KA.me.shield = 70;
+      KA.me.health = 45;
+      b.body.pos.set(-22, 0, 30);
+      KA.hurtMe(5, { bot: b, w: "rifle" });
+      await new Promise(r => setTimeout(r, 120));
+      const el = document.querySelector("#dmgDir .darc");
+      return { n: document.querySelectorAll("#dmgDir .darc").length, tf: el ? el.style.transform : "" };
+    });
+    const deg = parseFloat((arc.tf.match(/rotate\(([-\d.e]+)deg\)/) || [])[1]);
+    check(arc.n >= 1 && Math.abs(deg - 90) < 8, "a hit shows an arc toward the shooter", arc);
+    /* the roster (hold Tab): every pilot with full stats, your row highlighted, sortable */
+    await p.keyboard.down("Tab");
+    await p.waitForTimeout(400);
+    const ros = await p.evaluate(() => ({
+      shown: !document.getElementById("scores").hidden,
+      head: [...document.querySelectorAll("#statsTab th")].map(t => t.textContent).join(" "),
+      rows: document.querySelectorAll("#statsTab tbody tr").length,
+      me: !!document.querySelector("#statsTab tr.me"),
+    }));
+    await p.evaluate(() => document.querySelector('#statsTab th button[data-k="dmg"]').click());
+    const sorted = await p.evaluate(
+      () => document.querySelector('#statsTab th button[data-k="dmg"]').className
+    );
+    await p.keyboard.up("Tab");
+    check(
+      ros.shown &&
+        /Acc/.test(ros.head) &&
+        /Dmg/.test(ros.head) &&
+        /Power/.test(ros.head) &&
+        ros.rows >= 4 &&
+        ros.me,
+      "the roster is a stats table for every pilot with your row highlighted",
+      ros
+    );
+    check(sorted === "desc", "roster columns sort", sorted);
     /* recorder: a rolling record of every pilot that kill cams and highlights replay from */
     const rec = await p.evaluate(() => {
       const f = KA.REC.frames();
@@ -544,6 +652,81 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       rb = await roster(B);
     check(ra.length === 8 && ra.some(x => /Friend/.test(x)), "host roster includes friend", ra.join(", "));
     check(rb.length === 8 && rb.some(x => /Host/.test(x)), "friend roster includes host", rb.join(", "));
+    /* power weapons: the HUD shows the spawn's next weapon; a bot taking the sniper is called out (an
+       enemy for the host, an ally for the friend) and marked over their head on both screens */
+    check(
+      /Sniper|Rocket/.test((await text(A, "#powerT")) || ""),
+      "the HUD shows the power spawn's weapon and timer",
+      await text(A, "#powerT")
+    );
+    const holder = await A.evaluate(() => {
+      const g = CTF.UI.game();
+      const e = g.teams[1 - g.human.team].agents.find(a => !a.human && !a.remote && a.alive);
+      g.arm(
+        e,
+        KA.WEAPON_DATA.findIndex(w => w.key === "sniper")
+      );
+      return e.name;
+    });
+    await A.waitForTimeout(800);
+    const callA = await A.evaluate(() => ({
+        t: document.getElementById("callout").textContent,
+        marks: KA.powerMarks,
+      })),
+      callB = await B.evaluate(() => ({
+        t: document.getElementById("callout").textContent,
+        marks: KA.powerMarks,
+      }));
+    check(
+      /Enemy has the sniper/i.test(callA.t) && callA.marks >= 1,
+      "an enemy taking the sniper is called out and marked",
+      callA
+    );
+    check(
+      new RegExp(holder + " has the sniper", "i").test(callB.t) && callB.marks >= 1,
+      "an ally with the sniper is named and marked for teammates online",
+      { holder, ...callB }
+    );
+    /* flags: a carrier gets a named waypoint, the HUD says who has each flag, and taking your flag
+       sounds the alarm (each flag event has its own sound) */
+    const fl = await A.evaluate(async () => {
+      const g = CTF.UI.game();
+      const ht = g.human.team;
+      const e = g.teams[1 - ht].agents.find(a => !a.human && !a.remote && a.alive);
+      const heard = [];
+      const sfx0 = KA.sfx;
+      KA.sfx = (k, v) => {
+        heard.push(k);
+        return sfx0(k, v);
+      };
+      const f = g.flags[ht];
+      f.state = "carried";
+      f.carrier = e;
+      e.carrying = f;
+      g.emit("flagTaken", { flag: f, by: e });
+      await new Promise(r => setTimeout(r, 400));
+      const out = {
+        name: e.name,
+        hud: document.getElementById("cF" + ht).textContent,
+        marks: document.getElementById("cMarks").textContent,
+        heard: heard.slice(),
+      };
+      g.dropFlagBy(e);
+      g.emit("flagReturn", { flag: f, by: g.human });
+      out.heard2 = heard.slice();
+      KA.sfx = sfx0;
+      return out;
+    });
+    check(
+      fl.hud.includes(fl.name) && fl.marks.includes("Kill ⚑ " + fl.name) && fl.heard.includes("flagLost"),
+      "an enemy carrier is named on the HUD and waypointed, and losing your flag sounds the alarm",
+      fl
+    );
+    check(
+      fl.heard2.includes("flagDrop") && fl.heard2.includes("flagReturn"),
+      "dropped and returned flags have their own sounds",
+      fl.heard2
+    );
     /* a friend's ping reaches the host, and the friend's AI teammates respond to it */
     await B.evaluate(() => {
       KA.me.pitch = -0.35;

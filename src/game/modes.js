@@ -27,7 +27,7 @@ function startMode(id, opts) {
 const modeList = () => [...MODE_DEFS.values()].map(d => ({ id: d.id, name: d.name }));
 
 /* ---- free-for-all: first to the score limit, or the most kills when time runs out ---- */
-const FFA = { t0: 0, over: false, overT: 0, potg: false };
+const FFA = { t0: 0, over: false, overT: 0, potg: false, post: false, top: null };
 defineMode({
   id: "ffa",
   name: MODE_DATA.ffa.name,
@@ -57,7 +57,21 @@ function ffaTick(dt) {
       FFA.potg = true;
       if (playOfTheGame()) $("cBanner").hidden = true;
     }
-    if (FFA.overT > S.restartDelay && FFA.potg && !HL.playing) ffaRestart();
+    /* then the results: play again, change mode or leave (online, the next match starts by itself) */
+    if (FFA.overT > 2.5 && FFA.potg && !HL.playing && !FFA.post) {
+      FFA.post = true;
+      const top = FFA.top;
+      showPost({
+        mode: `${MODE_DATA.ffa.name} · ${MAPS.arena.name || "Arena"}`,
+        title: top.me ? "Victory" : `${top.name} wins`,
+        color: top.me ? "#ffb347" : "",
+        sub: `${top.k} kills · ${top.d} deaths`,
+        again: ffaRestart,
+        change: () => postToMenu("ctfPlay"),
+        leave: () => postToMenu("deploy"),
+        auto: room ? 20 : 0,
+      });
+    }
     return;
   }
   const top = ffaStandings()[0];
@@ -67,14 +81,17 @@ function ffaEnd(top) {
   FFA.over = true;
   FFA.overT = 0;
   FFA.potg = false;
+  FFA.post = false;
+  FFA.top = top;
   EVENTS.emit("matchEnd", { winner: top.id, winnerName: top.name });
   $("cBanT").textContent = top.me ? "Victory" : `${top.name} wins`;
   $("cBanT").style.color = top.me ? "#ffb347" : "";
-  $("cBanS").textContent = `${top.k} kills · ${top.d} deaths · next match in ${MODE_DATA.ffa.restartDelay} s`;
+  $("cBanS").textContent = `${top.k} kills · ${top.d} deaths`;
   $("cBanner").hidden = false;
   say(top.me ? "Victory" : "Game over", true);
 }
 function ffaRestart() {
+  closePost();
   kills = deaths = 0;
   streak = multi = 0;
   for (const b of bots) {
@@ -86,4 +103,13 @@ function ffaRestart() {
   ffaStart();
   EVENTS.emit("matchStart", {});
   say("Arena online", true);
+}
+/** leave the match for the menu, with a button there focused (the room, if any, stays open) */
+function postToMenu(focusId) {
+  closePost();
+  leaveGame();
+  setTimeout(() => {
+    const el = $(focusId);
+    if (el) el.focus();
+  }, 30);
 }

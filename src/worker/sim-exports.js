@@ -71,6 +71,7 @@ window.KA = {
   tracer() {},
   spark() {},
   sfx() {},
+  sfxAt() {},
   distVol() {
     return 0;
   },

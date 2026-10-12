@@ -262,6 +262,7 @@ function botStep(b, dt) {
       b.ammo[b.wpn]--;
       b.firedT = now;
       B.spawnT = -1e9; /* firing ends spawn protection */
+      EVENTS.emit("shot", { pilot: b.id, weapon: Wd.dmg });
       if (b.ammo[b.wpn] <= 0) {
         b.reloadT = Wd.reload;
         b.reloading = true;
@@ -310,7 +311,7 @@ function botStep(b, dt) {
   B.step(dt, inp, (t, d) => {
     if (t === "thrust") {
       thrustPuff(B.pos, d.dir);
-      sfx("thrust", distVol(B.pos) * 0.5);
+      sfxAt("thrust", B.pos, 45, 0.8);
     } else if (t === "land" && d.vy > 9) dust(B.pos, 6, 2, 0.4);
   });
   B.regen(dt, now);
@@ -329,13 +330,14 @@ function hurtMe(n, src) {
   const hadShield = me.shield > 0;
   const died = me.damage(n, now);
   EVENTS.emit("damage", {
-    by: src.bot ? src.bot.id : src.peer ? "peer:" + src.peer : src.agent ? src.agent.id : "world",
+    by: src.bot ? src.bot.id : src.peer ? "peer:" + src.peer : src.agent ? pidOf(src.agent) : "world",
     victim: "local",
     amount: n,
     weapon: src.w || "rifle",
     head: !!src.hd,
     shieldBroken: hadShield && me.shield <= 0,
   });
+  damageArc(src, hadShield);
   if (hadShield) {
     sflashT = Math.max(sflashT, me.shield <= 0 ? 1 : 0.55);
     sfx(me.shield <= 0 ? "pop" : "shieldhit");
@@ -417,12 +419,26 @@ function toast(t) {
   toastT = 1.2;
 }
 let hitmT = 0;
+/** your hit landed: kind is "kill", "brk" (broke their shield), "head" (a headshot that counts),
+    "sh" (shield) or "" (hull); each has its own marker and sound */
+const HITM = {
+  kill: { cls: "kill", t: 0.4, snd: "hitkill" },
+  brk: { cls: "brk", t: 0.3, snd: "hitbrk" },
+  head: { cls: "head", t: 0.25, snd: "hithead" },
+  sh: { cls: "sh", t: 0.15, snd: "hitsh" },
+  "": { cls: "", t: 0.15, snd: "hit" },
+};
 function hitMarker(kind) {
+  const m = HITM[kind] || HITM[""];
   const h = $("hitm");
-  h.className = kind === "kill" ? "kill" : kind === "sh" ? "sh" : "";
+  h.className = m.cls;
   h.style.opacity = "1";
-  hitmT = kind === "kill" ? 0.4 : 0.15;
-  if (SET.hitSounds) sfx(kind === "sh" ? "hitsh" : "hit");
+  hitmT = m.t;
+  if (SET.hitSounds) sfx(m.snd);
+}
+/** which marker a hit earns, from the target's shield before and after */
+function hitKind(died, had, after, head) {
+  return died ? "kill" : had && after <= 0 ? "brk" : head && !had ? "head" : had ? "sh" : "";
 }
 let vigT = 0,
   sflashT = 0,

@@ -142,6 +142,7 @@
       o.animate(G.t, f.state === "carried");
     }
     if (mode === "play") updMarks();
+    else if (mode === "sim") updCarrierMarks();
     hudT -= dt;
     if (hudT <= 0) {
       hudT = 0.1;
@@ -174,6 +175,16 @@
       });
     else if (type === "flagReset") E.emit(type, { team: d.flag.team });
     else if (type === "pickup") E.emit("pickup", { pilot: pid(d.by), item: d.id });
+    else if (type === "damage")
+      E.emit("damage", {
+        by: pid(d.by),
+        victim: pid(d.victim),
+        amount: d.amount,
+        weapon: d.weapon,
+        head: d.head,
+        shieldBroken: !!d.brk,
+      });
+    else if (type === "shot") E.emit("shot", { pilot: pid(d.by), weapon: d.weapon });
     else if (type === "start") E.emit("matchStart", {});
     else if (type === "end") E.emit("matchEnd", { winner: d.winner });
   }
@@ -206,22 +217,35 @@
                 ? "You have the flag"
                 : "We have the flag"
         );
-        K.sfx("stinger", 0.45);
+        /* your flag going is an alarm; taking theirs is a rising call */
+        K.sfx(ht >= 0 && ft === ht ? "flagLost" : "flagTaken", 0.8);
         break;
       }
-      case "flagDrop":
-        line("sys", `${TN[d.flag.team]} flag dropped`);
-        say("Flag dropped");
+      case "flagDrop": {
+        const ft = d.flag.team;
+        line("sys", `${TN[ft]} flag dropped`);
+        say(
+          ht < 0
+            ? `${TN[ft]} flag dropped`
+            : ft === ht
+              ? "Their carrier is down, return our flag"
+              : d.by && d.by.local
+                ? "You dropped the flag"
+                : "Our carrier is down, pick up the flag"
+        );
+        K.sfx("flagDrop", 0.8);
         break;
+      }
       case "flagReturn":
         line("sys", `${d.by.name} returned ${TN[d.flag.team]} flag`);
         say(
           ht >= 0 && d.flag.team === ht
-            ? "Flag recovered"
+            ? "Flag returned"
             : ht < 0
-              ? `${TN[d.flag.team]} flag recovered`
-              : "Their flag was recovered"
+              ? `${TN[d.flag.team]} flag returned`
+              : "Their flag was returned"
         );
+        K.sfx("flagReturn", 0.8);
         break;
       case "flagReset":
         line("sys", `${TN[d.flag.team]} flag reset`);
@@ -264,17 +288,20 @@
   }
   UI.line = line;
   /* ---------- HUD bar ---------- */
+  /* who has each flag: home, dropped (with its reset timer) or the carrier's name */
   function flagText(f) {
     if (f.state === "home") return "Flag home";
     if (f.state === "dropped") return `Dropped · ${Math.max(0, Math.ceil(15 - (G.t - f.dropT)))}s`;
-    return `Taken · ${f.carrier ? f.carrier.name : ""}`;
+    if (f.carrier && f.carrier.local) return "⚑ You have it";
+    return `⚑ ${f.carrier ? f.carrier.name : "Taken"}`;
   }
   function updHud() {
     for (let t = 0; t < 2; t++) {
       $("cS" + t).textContent = G.teams[t].score;
       const el = $("cF" + t);
       el.textContent = flagText(G.flags[t]);
-      el.className = G.flags[t].state === "home" ? "" : "alert";
+      const s = G.flags[t].state;
+      el.className = s === "home" ? "" : s === "dropped" ? "alert dropped" : "alert taken";
     }
     const left = Math.max(0, G.timeLimit - G.t);
     $("cClock").textContent = `${(left / 60) | 0}:${String((left % 60) | 0).padStart(2, "0")}`;
@@ -375,7 +402,7 @@
     el.hidden = false;
     el.className = "cmark t" + team;
     el.children[0].textContent = label;
-    const d = K.me.pos.distanceTo(pos);
+    const d = (mode === "play" ? K.me.pos : K.camera.position).distanceTo(pos);
     el.children[2].textContent = Math.round(d) + "m";
     _p.copy(pos);
     _p.y += 2.7;
@@ -401,13 +428,28 @@
       et = 1 - ht;
     const of = G.flags[ht],
       ef = G.flags[et];
+    /* a waypoint on every carrier: theirs to kill (with their name), ours to escort */
     if (of.state === "home") mark(0, ht, of.pos, "Defend");
     else if (of.state === "dropped") mark(0, ht, of.pos, "Return");
-    else mark(0, ht, of.carrier ? of.carrier.pos : of.pos, "Kill carrier");
+    else
+      mark(
+        0,
+        ht,
+        of.carrier ? of.carrier.pos : of.pos,
+        of.carrier ? `Kill ⚑ ${of.carrier.name}` : "Kill carrier"
+      );
     if (ef.state === "carried" && ef.carrier) {
       if (ef.carrier.local) {
         mark(1, ht, CTF.FLAG_HOME[ht], of.state === "home" ? "Score" : "Hold");
-      } else mark(1, ht, ef.carrier.pos, "Escort");
+      } else mark(1, ht, ef.carrier.pos, `Escort ⚑ ${ef.carrier.name}`);
     } else mark(1, et, ef.pos, ef.state === "dropped" ? "Grab" : "Capture");
+  }
+  /* spectating: every carrier gets a waypoint in the color of the flag they carry */
+  function updCarrierMarks() {
+    for (let t = 0; t < 2; t++) {
+      const f = G.flags[t];
+      if (f.state === "carried" && f.carrier) mark(t, t, f.carrier.pos, `⚑ ${f.carrier.name}`);
+      else mark(t, t, null, "");
+    }
   }
 })();

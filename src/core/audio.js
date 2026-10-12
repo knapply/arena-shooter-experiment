@@ -42,7 +42,7 @@ function nz(t, dur, type, freq, peak, q = 1, attack) {
   const g = AC.createGain();
   n.connect(f);
   f.connect(g);
-  g.connect(master);
+  g.connect(sfxOut || master);
   env(g, t, peak, dur, attack);
   /* the noise buffers are a second long: longer bursts loop one */
   if (dur > 0.97) {
@@ -59,7 +59,7 @@ function tone(t, type, f0, f1, dur, peak, attack) {
   if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
   const g = AC.createGain();
   o.connect(g);
-  g.connect(master);
+  g.connect(sfxOut || master);
   env(g, t, peak, dur, attack);
   o.start(t);
   o.stop(t + dur + 0.05);
@@ -174,6 +174,22 @@ function sfx(kind, vol = 1) {
       case "hit":
         tone(t, "triangle", 1400, 1400, 0.05, 0.08 * vol);
         break;
+      case "hithead":
+        /* a crisp ping that cuts through */
+        tone(t, "sine", 2600, 2600, 0.09, 0.12 * vol, 0.002);
+        tone(t, "triangle", 1300, 1300, 0.07, 0.06 * vol, 0.002);
+        break;
+      case "hitbrk":
+        /* glassy shatter */
+        nz(t, 0.22, "highpass", 4200, 0.16 * vol);
+        tone(t, "sawtooth", 1900, 700, 0.18, 0.05 * vol);
+        tone(t + 0.03, "triangle", 2400, 2400, 0.08, 0.05 * vol);
+        break;
+      case "hitkill":
+        /* a deep thunk and a bright confirm */
+        tone(t, "sine", 160, 60, 0.18, 0.22 * vol, 0.002);
+        tone(t + 0.05, "triangle", 1760, 1760, 0.16, 0.08 * vol, 0.003);
+        break;
       case "hitsh":
         tone(t, "triangle", 2100, 1700, 0.06, 0.06 * vol);
         nz(t, 0.06, "highpass", 5000, 0.05 * vol);
@@ -230,6 +246,29 @@ function sfx(kind, vol = 1) {
         nz(t, 0.12, "lowpass", 500, 0.25 * vol);
         tone(t, "square", 300, 280, 0.03, 0.03 * vol);
         break;
+      /* flag calls: each event has its own sound, readable without looking */
+      case "flagTaken":
+        tone(t, "triangle", 520, 520, 0.12, 0.16 * vol, 0.005);
+        tone(t + 0.1, "triangle", 780, 780, 0.12, 0.16 * vol, 0.005);
+        tone(t + 0.2, "triangle", 1040, 1040, 0.28, 0.18 * vol, 0.005);
+        tone(t, "sine", 70, 55, 0.4, 0.2 * vol, 0.01);
+        break;
+      case "flagLost":
+        for (let i = 0; i < 3; i++) {
+          tone(t + i * 0.16, "sawtooth", 740, 520, 0.14, 0.06 * vol, 0.005);
+        }
+        tone(t, "sine", 90, 45, 0.6, 0.22 * vol, 0.01);
+        break;
+      case "flagDrop":
+        tone(t, "triangle", 660, 640, 0.14, 0.15 * vol, 0.005);
+        tone(t + 0.14, "triangle", 440, 420, 0.3, 0.15 * vol, 0.005);
+        nz(t + 0.14, 0.25, "lowpass", 400, 0.18 * vol);
+        break;
+      case "flagReturn":
+        tone(t, "sine", 880, 880, 0.18, 0.13 * vol, 0.004);
+        tone(t + 0.09, "sine", 1320, 1320, 0.35, 0.12 * vol, 0.004);
+        tone(t + 0.09, "sine", 1760, 1760, 0.3, 0.05 * vol, 0.004);
+        break;
       case "stinger":
         tone(t, "sine", 65, 58, 0.7, 0.18 * vol, 0.08);
         nz(t, 0.5, "lowpass", 300, 0.08 * vol, 1, 0.1);
@@ -244,6 +283,31 @@ function sfx(kind, vol = 1) {
 }
 function distVol(p, max = 40) {
   return clamp(1 - camera.position.distanceTo(p) / max, 0, 1);
+}
+/* positional sound: sfx() routed through a stereo panner set from where the sound is relative to
+   where you look, and a curve that is loud up close and falls away fast (you hear someone right
+   next to you before you see them) */
+let sfxOut = null;
+const _sfxV = new THREE.Vector3(),
+  _sfxR = new THREE.Vector3();
+function sfxAt(kind, p, max = 40, vol = 1) {
+  const d = camera.position.distanceTo(p);
+  if (d >= max) return;
+  const near = 1 - d / max;
+  const v = vol * near * near * (1 + Math.max(0, 1 - d / 6) * 0.6);
+  if (SFX_TAP || !AC || !AC.createStereoPanner) return sfx(kind, v);
+  const pan = AC.createStereoPanner();
+  _sfxR.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  _sfxV.copy(p).sub(camera.position);
+  const L = _sfxV.length();
+  pan.pan.value = L > 0.5 ? clamp(_sfxV.dot(_sfxR) / L, -1, 1) * 0.85 : 0;
+  pan.connect(master);
+  sfxOut = pan;
+  try {
+    sfx(kind, v);
+  } finally {
+    sfxOut = null;
+  }
 }
 
 /**

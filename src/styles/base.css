@@ -1054,3 +1054,289 @@ input[type="text"]:focus-visible {
   color: #dbe6ea;
   font-weight: 500;
 }
+
+/* power weapons: the spawn's next weapon and its timer, and the pickup callout */
+#powerT {
+  position: absolute;
+  left: 20px;
+  top: calc(38px + env(safe-area-inset-top, 0px));
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #9fe1ff;
+  text-transform: uppercase;
+}
+#callout {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  padding: 6px 18px;
+  background: var(--slab);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#callout.enemy {
+  color: #ff6a5a;
+  box-shadow: inset 0 0 0 1px #ff5a4a66;
+}
+
+/* damage direction: an arc around the crosshair toward whoever hit you */
+#dmgDir {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.darc {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 230px;
+  height: 230px;
+  margin: -115px 0 0 -115px;
+  border-radius: 50%;
+  border: 6px solid transparent;
+  border-top-color: rgba(150, 215, 255, 0.85);
+  filter: drop-shadow(0 0 6px rgba(150, 215, 255, 0.6));
+}
+.darc.hull {
+  border-top-color: rgba(255, 70, 50, 0.9);
+  filter: drop-shadow(0 0 8px rgba(255, 60, 40, 0.7));
+}
+
+/* hit markers: shield (blue), shield break (bigger, blue-white), headshot (gold), kill (red, biggest) */
+#hitm.brk {
+  width: 34px;
+  height: 34px;
+}
+#hitm.brk::before,
+#hitm.brk::after {
+  background: #dff4ff;
+  box-shadow: 0 0 8px var(--energy);
+}
+#hitm.brk::before {
+  left: 16px;
+  height: 34px;
+}
+#hitm.brk::after {
+  top: 16px;
+  width: 34px;
+}
+#hitm.head::before,
+#hitm.head::after {
+  background: #ffd36b;
+  box-shadow: 0 0 6px #ffb347;
+}
+#hitm.kill {
+  width: 38px;
+  height: 38px;
+}
+#hitm.kill::before {
+  left: 17px;
+  width: 3px;
+  height: 38px;
+}
+#hitm.kill::after {
+  top: 17px;
+  height: 3px;
+  width: 38px;
+}
+
+/* ---- stats table (roster and post-match) ---- */
+#scores {
+  max-width: 96vw;
+}
+.stwrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+table.stats {
+  border-collapse: collapse;
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  width: 100%;
+  white-space: nowrap;
+}
+table.stats td,
+table.stats th {
+  padding: 4px 7px;
+  text-align: right;
+}
+table.stats td:first-child,
+table.stats th:first-child {
+  text-align: left;
+}
+table.stats th {
+  border-bottom: 1px solid var(--line);
+}
+table.stats th button {
+  pointer-events: auto;
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  min-height: 28px;
+  color: var(--dim);
+  font: 400 10px var(--f-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+table.stats th button:focus-visible,
+table.stats th button:hover {
+  color: var(--ink);
+  outline: 1px solid var(--line);
+}
+table.stats th button.desc::after {
+  content: " ▾";
+  color: var(--thrust);
+}
+table.stats th button.asc::after {
+  content: " ▴";
+  color: var(--thrust);
+}
+table.stats tr.me td {
+  color: var(--thrust);
+  background: rgba(255, 179, 71, 0.08);
+}
+table.stats tr.team td {
+  padding-top: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+table.stats tr.team.t0 td {
+  color: var(--red, #ff5f57);
+}
+table.stats tr.team.t1 td {
+  color: var(--blue, #62cdff);
+}
+table.stats tr.total td {
+  color: var(--dim);
+  border-top: 1px solid var(--line);
+}
+
+/* ---- post-match screen ---- */
+#post {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 10, 14, 0.72);
+  backdrop-filter: blur(4px);
+  overflow-y: auto;
+  padding: 16px;
+}
+.ppanel {
+  background: var(--slab);
+  padding: 22px 26px;
+  width: min(1100px, 100%);
+  display: grid;
+  gap: 16px;
+}
+.phead h1 {
+  margin: 4px 0;
+  font-size: 40px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+#postScore {
+  font-family: var(--f-mono);
+  color: var(--dim);
+}
+.pgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+.pgrid h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--thrust);
+}
+#postMe div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--dim);
+  padding: 2px 0;
+}
+#postMe b {
+  color: var(--ink);
+  text-align: right;
+  font-weight: 600;
+}
+.award {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.award small {
+  grid-column: 1 / -1;
+  color: var(--dim);
+  font: 10px var(--f-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.award.me b {
+  color: var(--thrust);
+}
+.award span {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--dim);
+}
+#postTl {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  display: grid;
+  gap: 3px;
+}
+#postTl time {
+  font-family: var(--f-mono);
+  color: var(--dim);
+  margin-right: 8px;
+}
+#postTl li.t0 {
+  border-left: 2px solid var(--red, #ff5f57);
+  padding-left: 6px;
+}
+#postTl li.t1 {
+  border-left: 2px solid var(--blue, #62cdff);
+  padding-left: 6px;
+}
+.pbtns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.pbtns button {
+  min-height: 48px;
+  min-width: 150px;
+  font-size: 15px;
+}
+.pbtns button:focus-visible {
+  outline: 2px solid var(--thrust);
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .phead h1 {
+    font-size: 28px;
+  }
+  .pbtns button {
+    flex: 1 1 100%;
+  }
+}

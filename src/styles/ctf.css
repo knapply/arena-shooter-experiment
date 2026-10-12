@@ -788,3 +788,22 @@
     animation: none;
   }
 }
+/* who has each flag: a carried flag pulses, a dropped one is amber */
+.cteam span.taken {
+  color: var(--ink);
+  font-weight: 600;
+  animation: flagPulse 1s ease-in-out infinite;
+}
+.cteam span.dropped {
+  color: #ffc46b;
+}
+@keyframes flagPulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cteam span.taken {
+    animation: none;
+  }
+}
