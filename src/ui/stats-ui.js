@@ -207,3 +207,4 @@ function updPost(dt) {
 $("postAgain").onclick = () => postAct(POST.onAgain);
 $("postChange").onclick = () => postAct(POST.onChange);
 $("postLeave").onclick = () => postAct(POST.onLeave);
+onFrame(updPost);

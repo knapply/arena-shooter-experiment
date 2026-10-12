@@ -45,3 +45,4 @@ function updDamageArcs(dt) {
     a.el.style.opacity = String(Math.min(1, a.t / 0.5));
   }
 }
+onFrame(updDamageArcs);

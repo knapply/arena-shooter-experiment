@@ -139,3 +139,4 @@ function updPower(dt) {
   for (let i = n; i < PW_MARKS.length; i++) PW_MARKS[i].visible = false;
   pwPrev = cur;
 }
+onFrame(updPower, { menu: true });

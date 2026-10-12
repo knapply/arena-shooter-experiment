@@ -1,3 +1,7 @@
+/* ============ environment: reflections and graphics settings ============
+   buildEnv captures a small sky into a PMREM environment map once (metal reflections); applyGfx turns the
+   graphics settings (shadows, reflections, draw distance, fog, texture filtering, pixel ratio) into
+   renderer and material state; pc() scales particle counts by the Particles setting. */
 function buildEnv() {
   if (GFX.env) return GFX.env;
   try {

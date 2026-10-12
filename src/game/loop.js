@@ -263,7 +263,7 @@ function frameBody(t) {
     return;
   }
   if (EXT && EXT.full) {
-    updAtmosphere(dt);
+    runFrameHooks(FRAME_HOOKS.full, dt);
     EXT.full(dt);
     return;
   }
@@ -278,10 +278,9 @@ function frameBody(t) {
     vmRoot.visible = false;
     for (const b of bots) botStep(b, dt);
     updFX(dt);
-    updAtmosphere(dt);
     updRigs(dt);
     updPickups(dt);
-    updPower(dt);
+    runFrameHooks(FRAME_HOOKS.menu, dt);
     renderFrame();
     return;
   }
@@ -529,10 +528,7 @@ function frameBody(t) {
   if (!EXT) updRigs(dt);
   ffaTick(dt);
   updPickups(dt);
-  updPower(dt);
-  updDamageArcs(dt);
-  updAtmosphere(dt);
-  updPost(dt);
+  runFrameHooks(FRAME_HOOKS.play, dt);
   updPoundRing();
   hitmT -= dt;
   $("hitm").style.opacity = String(hitmT > 0 ? 1 : 0);

@@ -12,6 +12,7 @@
     "core/rng.js",
     "core/prelude.js",
     "game/events.js",
+    "game/frame-hooks.js",
     "core/settings.js",
     "render/renderer.js",
     "render/pipeline.js",

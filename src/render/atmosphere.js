@@ -83,3 +83,4 @@ function updAtmosphere(dt) {
   for (const s of ATMO.strips)
     s.m.color.copy(s.base).multiplyScalar(1 + 0.09 * Math.sin(ATMO.t * (0.9 + s.ph * 0.13) + s.ph));
 }
+onFrame(updAtmosphere, { menu: true, full: true });

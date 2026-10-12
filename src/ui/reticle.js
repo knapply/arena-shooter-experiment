@@ -1,3 +1,7 @@
+/* ============ reticle and scope ============
+   Every frame: whether the crosshair is on an enemy in range (it turns red), the scope overlay for the
+   weapon in hand (holo, smart-link, sniper) and its zoom and range readout. RANGE is each weapon class's
+   effective range in metres. */
 const _sd = new V3();
 const RANGE = [42, 60, 220];
 /* Arena-style reticle: turns red when a target is under it and within the weapon's effective range */
