@@ -90,10 +90,11 @@ async function compare(p, a, b) {
     await p.waitForTimeout(800);
     /* the HUD is text in the machine's fonts (and a fading toast): compare the 3D scene only */
     await p.addStyleTag({ content: "#hud, #toast, .status, #fps { visibility: hidden !important; }" });
-    /* hold the camera still every frame (a page without pointer lock turns with the cursor) */
+    /* hold the camera still every frame (a page without pointer lock turns with the cursor), on
+       open floor (a spot inside a block gets pushed out differently from run to run) */
     await p.evaluate(() => {
       (function hold() {
-        KA.me.pos.set(-22, 0, 22);
+        KA.me.pos.set(-22, 0, 15);
         KA.me.vel.set(0, 0, 0);
         KA.me.yaw = 0.3;
         KA.me.pitch = -0.06;
