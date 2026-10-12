@@ -94,6 +94,7 @@
     </div>
     <div class="row">
       <label class="tog" for="bots"><input type="checkbox" id="bots" checked> Practice drones</label>
+      <label class="tog" for="botSkill">Bot skill <select id="botSkill"><option value="recruit" selected>Recruit</option><option value="normal">Normal</option><option value="heroic">Heroic</option><option value="legendary">Legendary</option></select></label>
       <label class="tog" for="vo"><input type="checkbox" id="vo" checked> Announcer</label>
     </div>
     <div class="modes" id="p2p">
@@ -107,7 +108,6 @@
       <div class="row teampick" role="group" aria-label="Team"><span class="tlab">Team</span><button class="tbtn r" id="ctfRed" aria-pressed="true">Red</button><button class="tbtn b" id="ctfBlue" aria-pressed="false">Blue</button></div>
       <div class="row"><button class="go" id="ctfPlay">Play CTF</button><button class="ghost" id="ctfSim">Watch AI vs AI</button></div>
       <div class="net" id="ctfNet" aria-live="polite">Checking for other pilots…</div>
-      <div class="row"><label class="tog" for="ctfDiff">Bot skill <select id="ctfDiff"><option value="normal">Normal</option><option value="heroic" selected>Heroic</option><option value="legendary">Legendary</option></select></label></div>
       <p class="lede">4 on 4, first to 3 captures on a mirrored map. Friends in your room join the same match and take a bot's slot. Switch sides any time with J, D-pad up, or the pause menu.</p>
     </div>
     <div class="net" id="netState">Solo for now · host or join a room to play with friends</div>

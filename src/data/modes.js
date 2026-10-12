@@ -11,11 +11,57 @@ const MODE_DATA = {
    turn     how fast they turn (radians per second)
    magErr   extra aim error with the magnum (a precision weapon needs a steadier hand)
    magPace  extra pause between magnum shots on top of its fire rate (trigger discipline)
-   magFrom  range in metres from which they prefer the magnum over the carbine */
+   magFrom  range in metres from which they prefer the magnum over the carbine
+   sight    how far they spot enemies (metres; drones see 60% of it)
+   dodge    how often they jink and thrust out of fire (1 = the full repertoire)
+   nades    how many grenades they carry and how keen they are to throw (1 = 2 frags + 1 plasma)
+   Recruit is the gentle start (the default for your first bot match): slow to react, loose aim,
+   short sight, few dodges and grenades. */
 const AI_SKILL = {
-  normal: { react: 0.32, err: 0.035, turn: 7, magErr: 1.15, magPace: 0.16, magFrom: 20 },
-  heroic: { react: 0.24, err: 0.022, turn: 10, magErr: 1.05, magPace: 0.08, magFrom: 18 },
-  legendary: { react: 0.17, err: 0.013, turn: 14, magErr: 0.95, magPace: 0.03, magFrom: 16 },
+  recruit: {
+    react: 0.5,
+    err: 0.055,
+    turn: 5,
+    magErr: 1.3,
+    magPace: 0.32,
+    magFrom: 22,
+    sight: 42,
+    dodge: 0.3,
+    nades: 0.4,
+  },
+  normal: {
+    react: 0.32,
+    err: 0.035,
+    turn: 7,
+    magErr: 1.15,
+    magPace: 0.16,
+    magFrom: 20,
+    sight: 75,
+    dodge: 1,
+    nades: 1,
+  },
+  heroic: {
+    react: 0.24,
+    err: 0.022,
+    turn: 10,
+    magErr: 1.05,
+    magPace: 0.08,
+    magFrom: 18,
+    sight: 75,
+    dodge: 1,
+    nades: 1,
+  },
+  legendary: {
+    react: 0.17,
+    err: 0.013,
+    turn: 14,
+    magErr: 0.95,
+    magPace: 0.03,
+    magFrom: 16,
+    sight: 75,
+    dodge: 1,
+    nades: 1,
+  },
 };
 /* drop pods fall from POD_HEIGHT metres in POD_TIME seconds (a re-entry burn visible across the map) */
 const POD_TIME = 2.6,

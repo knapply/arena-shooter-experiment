@@ -167,6 +167,7 @@ function botStep(b, dt) {
     }
     return;
   }
+  const S = AI_SKILL[botSkill] || AI_SKILL.normal;
   const eye = B.pos.clone().add(new V3(0, 1.55, 0));
   const myEye = me.pos.clone().add(new V3(0, me.h - 0.2, 0));
   const dist = eye.distanceTo(myEye);
@@ -184,7 +185,9 @@ function botStep(b, dt) {
     (dist < 7 && (me.sprint || me.thrustT > 0)) ||
     now - (b.hurtT || -9) < 2 ||
     now - (b.seenT || -9) < 1.5;
-  const sees = playing && !me.dead && !paused && dist < 45 && aware && losTo(eye, myEye);
+  const sees = playing && !me.dead && !paused && dist < S.sight * 0.6 && aware && losTo(eye, myEye);
+  /* a fresh sighting takes their reaction time before they open fire */
+  if (sees && now - (b.seenT || -9) > 1.5) b.acqT = now + S.react;
   if (sees) b.seenT = now;
   const inp = {
     f: 0,
@@ -204,7 +207,6 @@ function botStep(b, dt) {
     b.ammo[b.wpn] = droneCap(b.wpn);
   }
   b.switchT = Math.max(0, b.switchT - dt);
-  const S = AI_SKILL[botSkill] || AI_SKILL.normal;
   if (sees && b.switchT <= 0) {
     /* carbine up close and to break shields; magnum at range and to finish you once your shields
        are down; switching beats reloading when a magazine runs dry */
@@ -227,20 +229,27 @@ function botStep(b, dt) {
     const want = Math.atan2(-(myEye.x - eye.x), -(myEye.z - eye.z));
     let dy = want - B.yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-    B.yaw += clamp(dy, -4 * dt, 4 * dt);
+    const tr = (4 * S.turn) / 7;
+    B.yaw += clamp(dy, -tr * dt, tr * dt);
     B.pitch = Math.atan2(myEye.y - eye.y, Math.hypot(myEye.x - eye.x, myEye.z - eye.z));
     if (b.think < 0) {
       b.think = rnd(0.5, 1.4);
       b.strafe = Math.random() < 0.5 ? -1 : 1;
-      if (Math.random() < 0.18) inp.thrust = true;
-      if (Math.random() < 0.15) inp.jumpP = true;
+      if (Math.random() < 0.18 * S.dodge) inp.thrust = true;
+      if (Math.random() < 0.15 * S.dodge) inp.jumpP = true;
     }
     inp.s = b.strafe;
     inp.f = dist > 16 ? 0.8 : dist < 7 ? -0.6 : 0;
     b.fireCD -= dt;
     const M = b.wpn === 1,
       Wd = droneGun(b);
-    if (Math.abs(dy) < (M ? 0.12 : 0.25) && b.fireCD <= 0 && b.reloadT <= 0 && b.switchT <= 0) {
+    if (
+      Math.abs(dy) < (M ? 0.12 : 0.25) &&
+      b.fireCD <= 0 &&
+      b.reloadT <= 0 &&
+      b.switchT <= 0 &&
+      now >= (b.acqT || 0)
+    ) {
       if (M) b.fireCD = Wd.rate + S.magPace + 0.12;
       else {
         b.fireCD = 0.16;

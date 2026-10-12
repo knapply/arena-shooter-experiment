@@ -1,12 +1,17 @@
 /* ============ deploy ============ */
 function savePrefs() {
-  STORE.save("pilot", { n: myName, c: myColor, vo: VO.on });
+  STORE.save("pilot", { n: myName, c: myColor, vo: VO.on, sk: $("botSkill").value });
 }
+/* one bot skill for the drones and CTF bots; the choice is remembered */
+$("botSkill").addEventListener("change", () =>
+  STORE.save("pilot", Object.assign({}, STORE.load("pilot"), { sk: $("botSkill").value }))
+);
 $("deploy").onclick = () => {
   myName = ($("callsign").value || "Pilot").trim().slice(0, 14) || "Pilot";
   VO.on = $("vo").checked;
   savePrefs();
   botsOn = $("bots").checked;
+  botSkill = $("botSkill").value;
   makeBots();
   EVENTS.setContext({ map: "arena", mode: "ffa" });
   ffaStart();

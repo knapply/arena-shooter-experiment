@@ -589,6 +589,31 @@ const fix = v => +v.toFixed(2);
     after: a.body.shield,
   });
 }
+/* ---------- Recruit: below Normal on every axis ---------- */
+{
+  const R = K.AI_SKILL.recruit,
+    N = K.AI_SKILL.normal;
+  check(
+    R.react > N.react &&
+      R.err > N.err &&
+      R.sight < N.sight &&
+      R.dodge < N.dodge &&
+      R.nades < N.nades &&
+      R.turn < N.turn,
+    "Recruit reacts slower, aims looser, sees less far, dodges and throws less than Normal",
+    R
+  );
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 2, diff: ["recruit", "normal"] });
+  G.start();
+  const r = G.teams[0].agents[0],
+    n = G.teams[1].agents[0];
+  check(
+    r.nadeInv.frag + r.nadeInv.plasma < n.nadeInv.frag + n.nadeInv.plasma,
+    "Recruit bots carry fewer grenades",
+    { recruit: r.nadeInv, normal: n.nadeInv }
+  );
+}
 /* ---------- pings: AI teammates go where a teammate pings ---------- */
 {
   K.STORE.setBackend(K.STORE.memoryBackend());

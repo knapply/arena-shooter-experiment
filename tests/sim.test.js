@@ -71,4 +71,35 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
   check(a === b, "same seed replays the same match", a.length);
   check(a !== c, "a different seed plays differently");
 }
+/* Recruit is the gentle start: a Recruit team loses most fights to Normal */
+{
+  let kR = 0,
+    kN = 0;
+  for (let m = 0; m < 2; m++) {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const R = m % 2;
+    const G = CTF.Game({
+      mode: "sim",
+      render: false,
+      seed: 300 + m,
+      diff: R ? ["normal", "recruit"] : ["recruit", "normal"],
+    });
+    G.onEvent = (t, d) => {
+      if (t === "kill" && d.killer && d.killer.team !== d.victim.team) {
+        if (d.killer.team === R) kR++;
+        else kN++;
+      }
+    };
+    G.start();
+    for (let i = 0; i < 3 * 60 * 30 && !G.over; i++) G.step(1 / 30);
+  }
+  check(
+    kR + kN > 40 && kR / (kR + kN) < 0.4,
+    "Recruit bots win well under half their fights against Normal",
+    {
+      recruit: kR,
+      normal: kN,
+    }
+  );
+}
 finish("sim");

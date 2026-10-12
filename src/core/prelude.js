@@ -16,6 +16,7 @@ let myArmor = myColor;
     if (s.n) $("callsign").value = s.n;
     if (COLORS.includes(s.c)) myColor = s.c;
     if (s.vo === false) $("vo").checked = false;
+    if (s.sk) $("botSkill").value = s.sk;
   }
 }
 

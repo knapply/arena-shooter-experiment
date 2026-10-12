@@ -6,16 +6,16 @@ Engine modules share one scope and load in this order; mode modules are self-con
 
 | Module | Lines | Top-level declarations |
 |---|---|---|
-| `src/core/store.js` | 166 | `STORE` |
+| `src/core/store.js` | 168 | `STORE` |
 | `src/core/rng.js` | 29 | `RNG` `rand` |
-| `src/core/prelude.js` | 38 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
+| `src/core/prelude.js` | 39 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
 | `src/game/events.js` | 66 | `EVENTS` |
 | `src/core/settings.js` | 969 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `SANDBOX_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` `SET` `BIND` `PADB` … (+13) |
 | `src/render/renderer.js` | 115 | `canvas` `renderer` `scene` `camera` `resize` `hemi` `sun` `_skyP` `skyTint` |
 | `src/render/pipeline.js` | 474 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `DOF_COC` `cocMat` `blur4Mat` `compMat` `fsQuad` `fsScene` `UPS` `gfxScale` `gfxResize` `fsPass` `gfxChecked` `renderFrame` `gfxFrames` … (+12) |
 | `src/render/environment.js` | 122 | `buildEnv` `lastRefl` `lastShadow` `applyGfx` `pc` `scaleBoxUV` |
 | `src/render/perf.js` | 111 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
-| `src/data/modes.js` | 26 | `MODE_DATA` `AI_SKILL` `POD_TIME` `POD_HEIGHT` `POD_EARLY` |
+| `src/data/modes.js` | 72 | `MODE_DATA` `AI_SKILL` `POD_TIME` `POD_HEIGHT` `POD_EARLY` |
 | `src/data/maps.js` | 377 | `MAP_SCHEMA` `MAPS` `MAP_MATS` `MAP_LIMIT` `validateMap` `mapPieces` |
 | `src/world/destruction.js` | 241 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` `destrTick` `resetDestruction` `boxById` `applyBreaks` `syncBroken` |
 | `src/world/dress.js` | 179 | `DRESS_MATS` `zoneMat` `dressMap` |
@@ -35,11 +35,11 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/sandbox.js` | 71 | `SB_OVERRIDE` `sandboxValues` `sandboxRules` `setSandboxOverride` `applySandbox` |
 | `src/core/audio.js` | 287 | `AC` `master` `audio` `NOISE` `noise` `env` `nz` `tone` `SFX_LAST` `sfxVoices` `sfxVoiceT` `SFX_TAP` `sfxTap` `sfx` `distVol` `renderSfx` |
 | `src/core/announcer.js` | 156 | `VO` `hasTTS` `pickVoice` `lastSay` `say` `MEDAL` `medal` `streak` `multi` `lastKillT` `firstBlood` `lastKiller` `onKill` |
-| `src/game/state.js` | 424 | `EXT` `me` `myName` `playing` `paused` `now` `kills` `deaths` `mag` `reloadT` `fireCD` `myPeer` `killedBy` `respawnAt` `lastFireT` `RELOAD_TIME` `mePilot` `hitsOut` … (+37) |
+| `src/game/state.js` | 433 | `EXT` `me` `myName` `playing` `paused` `now` `kills` `deaths` `mag` `reloadT` `fireCD` `myPeer` `killedBy` `respawnAt` `lastFireT` `RELOAD_TIME` `mePilot` `hitsOut` … (+37) |
 | `src/weapons/firing.js` | 213 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `engage` `SHOT` `targetId` `engageShot` `perfectKill` `fire` `startReload` `meleeHit` `slamDamage` |
 | `src/core/input.js` | 238 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `A` `P` `pressCode` `mouseL` `mouseR` `aiming` … (+7) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
-| `src/game/deploy.js` | 64 | `savePrefs` `leaveGame` |
+| `src/game/deploy.js` | 69 | `savePrefs` `leaveGame` |
 | `src/game/modes.js` | 90 | `MODE_DEFS` `defineMode` `startMode` `modeList` `FFA` `ffaStandings` `ffaStart` `ffaTick` `ffaEnd` `ffaRestart` |
 | `src/net/messages.js` | 330 | `MSG` |
 | `src/net/playback.js` | 91 | `Playback` |
@@ -64,7 +64,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/modes/ctf/map.js` | 180 |  |
 | `src/modes/ctf/nav.js` | 304 |  |
 | `src/modes/ctf/brain.js` | 558 |  |
-| `src/modes/ctf/agent.js` | 1109 |  |
+| `src/modes/ctf/agent.js` | 1115 |  |
 | `src/modes/ctf/rules.js` | 680 |  |
 | `src/modes/ctf/ui.js` | 414 |  |
 | `src/net/ctf-host.js` | 669 |  |

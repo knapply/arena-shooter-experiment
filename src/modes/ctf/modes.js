@@ -135,7 +135,7 @@
     $("swTeam").hidden = false;
   }
   function startHost() {
-    const diff = $("ctfDiff").value;
+    const diff = $("botSkill").value;
     CTF.enterMap();
     mode = "play";
     overT = 0;
@@ -288,7 +288,7 @@
     };
     UI.detach();
     K.DESTR.locked = false;
-    const diff = $("ctfDiff").value;
+    const diff = $("botSkill").value;
     G = CTF.Game({
       mode: "play",
       render: true,

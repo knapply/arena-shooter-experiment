@@ -20,6 +20,18 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       ((await text(p, "#callsign")) !== null && (await p.inputValue("#callsign")) === "Pilot") || true,
       "menu loads"
     );
+    check((await p.inputValue("#botSkill")) === "recruit", "a first bot match starts on Recruit skill");
+    {
+      /* a picked skill is remembered (its own browser profile, so the rest of the run stays on Recruit) */
+      const c2 = await b.newContext();
+      const q = await open(c2, { tag: "skill" });
+      await q.waitForTimeout(500);
+      await q.selectOption("#botSkill", "heroic");
+      await q.reload();
+      await q.waitForTimeout(500);
+      check((await q.inputValue("#botSkill")) === "heroic", "the bot skill you pick is remembered");
+      await c2.close();
+    }
     await p.click("#deploy");
     await p.waitForTimeout(900);
     check((await p.evaluate(() => KA.wi)) === 1, "pistol is the default weapon", await text(p, "#wname"));
@@ -355,6 +367,11 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     const perfectRun = miss =>
       p.evaluate(miss => {
         const b = KA.bots[1];
+        /* a respawn pod from the last kill may already be falling (a drone in a pod can't be hit) */
+        if (b.pod) b.pod.onLand = null;
+        b.pod = null;
+        /* nobody else wanders into the line of fire */
+        for (const o of KA.bots) if (o !== b) o.body.pos.set(22, 0, 0);
         b.dead = false;
         b.body.dead = false;
         b.body.reset();

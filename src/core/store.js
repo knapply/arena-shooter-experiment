@@ -132,6 +132,8 @@ const STORE = (() => {
       n: typeof d?.n === "string" ? d.n.slice(0, 14) : "",
       c: typeof d?.c === "string" ? d.c : "",
       vo: d?.vo !== false,
+      /* bot skill for drones and CTF bots ("" until you pick one: the menu starts on Recruit) */
+      sk: ["recruit", "normal", "heroic", "legendary"].includes(d?.sk) ? d.sk : "",
     }),
   });
   define("settings", {

@@ -177,8 +177,10 @@
       this.switchT = 0;
       this.reloadT = 0;
       this.target = null;
-      this.nadeInv.frag = 2;
-      this.nadeInv.plasma = 1;
+      /* fewer grenades at low skill (Recruit carries one frag) */
+      const nk = this.skill().nades;
+      this.nadeInv.frag = Math.round(2 * nk);
+      this.nadeInv.plasma = Math.round(nk);
       this.nadeCD = 2 + K.rand() * 2;
       this.path = null;
       this.carrying = null;
@@ -243,7 +245,7 @@
         if (!e.alive) continue;
         const c = e.chest(_v);
         const d = eye.distanceTo(c);
-        if (d > 75) continue;
+        if (d > this.skill().sight) continue;
         const ang = Math.abs(angDiff(Math.atan2(-(c.x - eye.x), -(c.z - eye.z)), fwdYaw));
         /* awareness is earned: in view (field of view), heard (gunfire close by, or someone sprinting
            or thrusting right next to you), shooting at you, seen a moment ago, or called out by a
@@ -593,9 +595,13 @@
           this.jinkT -= dt;
           if (this.jinkT <= 0 && b.ground) {
             this.jinkT = 1.2 + K.rand() * 2;
-            if (K.rand() < 0.35) inp.jumpP = true;
+            if (K.rand() < 0.35 * S.dodge) inp.jumpP = true;
           }
-          if (b.thrustCD <= 0 && G.t - this.lastHitT < 0.4 && K.rand() < dt * 8 * genes.thrustDodge) {
+          if (
+            b.thrustCD <= 0 &&
+            G.t - this.lastHitT < 0.4 &&
+            K.rand() < dt * 8 * genes.thrustDodge * S.dodge
+          ) {
             inp.thrust = true;
             wish.copy(side).multiplyScalar(K.rand() < 0.5 ? 1 : -1);
           }
@@ -741,7 +747,7 @@
       const t = this.target;
       if (t && G.t >= this.acqT && this.nadeInv.plasma > 0) {
         const d = eye.distanceTo(t.pos);
-        if (d > 5 && d < 13 && K.rand() < 0.35 + 0.4 * br.genes.aggr)
+        if (d > 5 && d < 13 && K.rand() < (0.35 + 0.4 * br.genes.aggr) * this.skill().nades)
           return { type: "plasma", at: t.chest(new V3()).addScaledVector(t.body.vel, d / 17) };
       }
       if (this.nadeInv.frag > 0) {
@@ -762,7 +768,7 @@
             best = m;
           }
         }
-        if (best && bs >= 2 && K.rand() < 0.65) {
+        if (best && bs >= 2 && K.rand() < 0.65 * this.skill().nades) {
           const fl = Math.min(1.1, eye.distanceTo(best.pos) / 17);
           return {
             type: "frag",
@@ -797,7 +803,7 @@
       }
       if (G.lock !== "nades") this.nadeInv[type]--;
       b.spawnT = -1e9; /* attacking ends spawn protection */
-      this.nadeCD = 5 + K.rand() * 3;
+      this.nadeCD = (5 + K.rand() * 3) / this.skill().nades;
       o.addScaledVector(v.clone().normalize(), 0.45);
       b.yaw = Math.atan2(-v.x, -v.z);
       G.nades.throw(type, o, v, this.nadeOwner());
