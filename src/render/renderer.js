@@ -54,10 +54,12 @@ scene.add(sun);
 const _skyP = new THREE.Vector3();
 /* sky tint: cutscenes grade the sky with the scene (1,1,1 is the normal sky) */
 const skyTint = new THREE.Vector3(1, 1, 1);
+/* the sky's clock (render/atmosphere.js advances it): the city's searchlights sweep with it */
+const SKY_TIME = { value: 0 };
 {
   const g = new THREE.SphereGeometry(40, 32, 16);
   const m = new THREE.ShaderMaterial({
-    uniforms: { tint: { value: skyTint } },
+    uniforms: { tint: { value: skyTint }, tm: SKY_TIME },
     side: THREE.BackSide,
     depthWrite: false,
     depthTest: false,
@@ -66,7 +68,7 @@ const skyTint = new THREE.Vector3(1, 1, 1);
       "varying vec3 v;void main(){v=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
     /* dusk gradient, a ringed planet, stars and a faint nebula overhead, and a distant megacity
        skyline with lit windows along the horizon (all procedural, one draw call) */
-    fragmentShader: `uniform vec3 tint;varying vec3 v;
+    fragmentShader: `uniform vec3 tint;uniform float tm;varying vec3 v;
 float h1(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h1(i),h1(i+vec2(1,0)),f.x),mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x),f.y);}
 void main(){vec3 d=normalize(v);float h=d.y;
@@ -75,7 +77,8 @@ vec3 c=h<.08?mix(lo,mid,smoothstep(-.2,.08,h)):mix(mid,hi,smoothstep(.08,.6,h));
 float az=atan(d.z,d.x);
 /* nebula band and stars, fading in with height */
 float up=smoothstep(.12,.55,h);
-float neb=n2(vec2(az*3.,h*6.))*n2(vec2(az*7.+3.,h*11.));
+/* sampled on a plane overhead, not by azimuth (which would leave a seam where it wraps) */
+vec2 nb=d.xz/(1.25-h);float neb=n2(nb*3.)*n2(nb*7.+3.);
 c+=up*neb*vec3(.10,.05,.16)*1.6;
 vec2 sg=vec2(az*160.,h*160.);float st=h1(floor(sg));
 c+=up*step(.9965,st)*vec3(.9,.95,1.)*(.4+.6*h1(floor(sg)+7.));
@@ -92,6 +95,12 @@ else if(pa>0.){c+=vec3(.25,.18,.14)*exp(-(pr-r)*60.)*.5;}
 vec3 ax=normalize(cross(pd,vec3(.25,1,0)));vec3 ay=normalize(cross(ax,pd));
 vec2 q=vec2(dot(d,ax),dot(d,ay)*3.4);float rr=length(q);
 if(pa>0.&&rr>.15&&rr<.25&&!(pr<r&&dot(d,ay)>0.)){c=mix(c,vec3(.62,.54,.48),.55*(.6+.4*sin(rr*260.))*smoothstep(.15,.16,rr)*smoothstep(.25,.24,rr));}
+/* searchlights from the city: pale beams rising from behind the towers, sweeping slowly */
+for(int i=0;i<3;i++){float fi=float(i);float baz=1.1+fi*2.1;vec3 base=vec3(cos(baz),0.,sin(baz));
+vec3 side=normalize(cross(vec3(0.,1.,0.),base));float sw=sin(tm*(.09+.035*fi)+fi*2.3)*.6;
+vec3 dir=normalize(vec3(0.,1.,0.)+base*.25+side*sw);vec3 nrm=normalize(cross(base,dir));
+float wd=.004+.035*max(h,0.);float beam=smoothstep(wd,0.,abs(dot(d,nrm)))*step(0.,dot(d,base)+.35)*smoothstep(-.01,.08,h)*(1.-smoothstep(.2,.85,h));
+c+=beam*vec3(.42,.52,.68)*.16;}
 /* the skyline: towers and spires against the horizon glow, with windows */
 float col=floor(az*38.);float th=.03+.045*pow(h1(vec2(col,1.)),2.)+.025*n2(vec2(az*6.,0.));
 if(h1(vec2(col,5.))>.93)th+=.05;

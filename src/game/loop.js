@@ -263,6 +263,7 @@ function frameBody(t) {
     return;
   }
   if (EXT && EXT.full) {
+    updAtmosphere(dt);
     EXT.full(dt);
     return;
   }
@@ -277,6 +278,7 @@ function frameBody(t) {
     vmRoot.visible = false;
     for (const b of bots) botStep(b, dt);
     updFX(dt);
+    updAtmosphere(dt);
     updRigs(dt);
     updPickups(dt);
     updPower(dt);
@@ -529,6 +531,7 @@ function frameBody(t) {
   updPickups(dt);
   updPower(dt);
   updDamageArcs(dt);
+  updAtmosphere(dt);
   updPost(dt);
   updPoundRing();
   hitmT -= dt;

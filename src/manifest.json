@@ -32,6 +32,7 @@
     "weapons/arsenal.js",
     "render/fx.js",
     "render/cinema.js",
+    "render/atmosphere.js",
     "weapons/grenades.js",
     "weapons/rockets.js",
     "game/sandbox.js",
