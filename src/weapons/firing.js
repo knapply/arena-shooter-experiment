@@ -112,6 +112,8 @@ function fire(src) {
   ammo[wi] = mag;
   fireCD = W().rate;
   lastFireT = now;
+  /* firing ends spawn protection */
+  if (!src) me.spawnT = -1e9;
   semiLatch = true;
   const o = src ? src.o : camera.getWorldPosition(new V3());
   const d = new V3();
@@ -178,6 +180,7 @@ function startReload() {
   zoomLvl = 0;
 }
 function meleeHit(range, dmg, type) {
+  me.spawnT = -1e9; /* attacking ends spawn protection */
   const f = me.fwd();
   let best = null,
     bd = range;

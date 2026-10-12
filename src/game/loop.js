@@ -312,7 +312,7 @@ function frameBody(t) {
       if (!myPod.skip && (P("jump") || P("fire") || P("melee"))) skipPodCam(myPod);
     } else if (now > respawnStart()) {
       if (!spawnPick || spawnPick.for !== respawnAt) {
-        const sp = EXT && EXT.spawnPoint ? EXT.spawnPoint() : spawnPoint();
+        const sp = EXT && EXT.spawnPoint ? EXT.spawnPoint() : spawnPoint(me);
         spawnPick = { for: respawnAt, at: sp ? new V3(sp[0], sp[1] + 0.02, sp[2]) : null };
       }
       const at = spawnPick.at;

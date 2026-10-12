@@ -23,6 +23,7 @@
     "world/dress.js",
     "world/maps/arena.js",
     "world/physics.js",
+    "world/spawns.js",
     "characters/rig.js",
     "game/recorder.js",
     "game/pilot.js",
@@ -89,6 +90,7 @@
       "world/destruction.js",
       "world/maps/arena.js",
       "world/physics.js",
+      "world/spawns.js",
       "weapons/grenades.js",
       "weapons/rockets.js"
     ],

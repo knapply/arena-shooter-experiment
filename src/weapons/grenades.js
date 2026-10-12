@@ -242,6 +242,7 @@ function throwNade() {
   if (nadeCD > 0 || me.dead || nadeInv[nadeSel] <= 0 || me.clamber || paused) return;
   nadeInv[nadeSel]--;
   nadeCD = 0.9;
+  me.spawnT = -1e9; /* attacking ends spawn protection */
   vmS.throwT = 0.42;
   updNadeHud();
   const d = new V3();

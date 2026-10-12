@@ -471,8 +471,14 @@ const fix = v => +v.toFixed(2);
     const G = CTF.Game({ mode: "sim", render: false, seed: 4, pods });
     G.start();
     for (let i = 0; i < 10; i++) G.step(1 / 30);
+    /* bench the other team so nobody else is fighting */
+    for (const x of G.teams[1].agents) {
+      x.dead = true;
+      x.body.dead = true;
+      x.respawnAt = 1e9;
+    }
     const times = [];
-    for (const a of G.agents.slice(0, 4)) {
+    for (const a of G.teams[0].agents) {
       const t0 = G.t;
       G.kill(a, null, "rifle", false);
       let n = 0;
@@ -494,6 +500,94 @@ const fix = v => +v.toFixed(2);
     "AI: classic spawns keep the plain respawn delay",
     classic.map(fix)
   );
+}
+/* ---------- spawn safety: out of enemy sight, away from enemies and recent fights ---------- */
+{
+  scenario({ map: "arena", seconds: 0.01 });
+  const V = K.THREE.Vector3;
+  const SP = K.MAPS.arena.spawns.ffa;
+  /* can an enemy standing at `e` (eyes up) see someone appearing at spawn `s`? */
+  const sees = (e, s) => {
+    const o = new V(e.pos.x, e.pos.y + K.H_STAND - 0.2, e.pos.z),
+      d = new V(s[0], s[1] + 1.2, s[2]).sub(o);
+    const L = d.length();
+    return K.rayWorld(o, d.normalize(), L) >= L - 0.3;
+  };
+  /* an enemy at each arena spawn in turn, looking at the centre: does the pick stay out of their view? */
+  let cases = 0,
+    safe = 0;
+  const bad = [];
+  for (const at of SP) {
+    const e = { pos: new V(at[0], at[1], at[2]), h: K.H_STAND, yaw: Math.atan2(at[0], at[2]) };
+    const hidden = SP.filter(s => !sees(e, s));
+    if (!hidden.length) continue;
+    for (let i = 0; i < 10; i++) {
+      cases++;
+      const s = K.pickSpawn(SP, [e], [], 0, Math.random);
+      if (!sees(e, s)) safe++;
+      else bad.push(at);
+    }
+  }
+  check(cases > 50 && safe === cases, "spawns avoid an enemy's view when a hidden spot exists", {
+    cases,
+    safe,
+    bad: bad.slice(0, 3),
+  });
+  /* a fresh fight next to an otherwise safe spot pushes the pick elsewhere */
+  const fightAt = SP[4];
+  let near = 0;
+  for (let i = 0; i < 40; i++) {
+    const s = K.pickSpawn(SP, [], [{ pos: new V(fightAt[0], 0, fightAt[2]), t: 9 }], 10, Math.random);
+    if (Math.hypot(s[0] - fightAt[0], s[2] - fightAt[2]) < 8) near++;
+  }
+  check(near === 0, "spawns stay away from a fight that just happened", near);
+}
+/* CTF: the team's spawn pick stays out of an enemy's sight in their base */
+{
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 6, pods: false });
+  G.start();
+  for (let i = 0; i < 5; i++) G.step(1 / 30);
+  const V = K.THREE.Vector3;
+  const sees = (b, s) => {
+    const o = new V(b.pos.x, b.pos.y + b.h - 0.2, b.pos.z),
+      d = new V(s[0], s[1] + 1.2, s[2]).sub(o);
+    const L = d.length();
+    return K.rayWorld(o, d.normalize(), L) >= L - 0.3;
+  };
+  const e = G.teams[1].agents[0];
+  for (const x of G.teams[1].agents.slice(1)) {
+    x.dead = true;
+    x.body.dead = true;
+  }
+  let cases = 0,
+    safe = 0;
+  for (const s0 of CTF.SPAWNS[0]) {
+    e.body.pos.set(s0[0], s0[1] + 0.02, s0[2]);
+    e.body.yaw = Math.atan2(s0[0], s0[2]);
+    if (!CTF.SPAWNS[0].some(s => !sees(e.body, s))) continue;
+    for (let i = 0; i < 5; i++) {
+      cases++;
+      if (!sees(e.body, G.spawnPoint(0))) safe++;
+    }
+  }
+  check(cases >= 10 && safe === cases, "CTF: spawns avoid an enemy in your base when a hidden spot exists", {
+    cases,
+    safe,
+  });
+  /* spawn protection lasts until you attack */
+  const a = G.teams[0].agents[0];
+  a.spawn(CTF.SPAWNS[0][0]);
+  const before = a.body.damage(10, G.t);
+  const sh0 = a.body.shield;
+  e.body.pos.copy(a.body.pos).add(new V(0, 0, -10));
+  a.shoot(e);
+  a.body.damage(10, G.t);
+  check(sh0 === 70 && a.body.shield === 60, "spawn protection holds until you fire, then ends", {
+    protectedHit: before,
+    shieldBefore: sh0,
+    after: a.body.shield,
+  });
 }
 /* ---------- pings: AI teammates go where a teammate pings ---------- */
 {

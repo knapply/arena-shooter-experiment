@@ -38,6 +38,8 @@
       /** weapons and grenades on the floor (death drops) */
       items: [],
       itemSeq: 0,
+      /** where fighting happened lately (hits and kills), for spawn safety */
+      fights: [],
       /** simulations only (tools/tune.js): every AI pilot uses one weapon, "carbine", "magnum", "sniper",
           "rocket" or "nades" (grenades only); power spawns, death drops and other grenades are off */
       lock: opts.lock || null,
@@ -61,6 +63,7 @@
       if (G.onEvent) G.onEvent(type, d || {});
     };
     G.hurtHuman = (e, n, src) => {
+      K.noteFight(G.fights, e.pos, G.t);
       if (e.remote) {
         if (G.netHit) G.netHit(e, n, { w: src.w, hd: src.hd, by: src.agent });
       } else K.hurtMe(n, src);
@@ -287,22 +290,11 @@
         if (a.alive && (a.sniper > 0 || a.wpn === 2 || (a.local && K.wi === 2))) return a;
       return null;
     };
+    /** the safest of the team's spawns: out of enemy sight lines, away from enemies and recent fights
+        (world/spawns.js) */
     G.spawnPoint = function (team) {
-      let best = null,
-        bv = -1;
-      for (const s of CTF.SPAWNS[team]) {
-        let md = 99;
-        for (const e of G.teams[1 - team].agents) {
-          if (!e.alive) continue;
-          md = Math.min(md, Math.hypot(e.pos.x - s[0], e.pos.z - s[2]));
-        }
-        const v = md + K.rand() * 3;
-        if (v > bv) {
-          bv = v;
-          best = s;
-        }
-      }
-      return best;
+      const foes = G.teams[1 - team].agents.filter(e => e.alive).map(e => e.body);
+      return K.pickSpawn(CTF.SPAWNS[team], foes, G.fights, G.t, K.rand);
     };
     G.start = function () {
       for (const p of G.pickups) p.availAt = 0;

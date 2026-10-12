@@ -209,6 +209,8 @@
       const died = b.damage(n, this.G.t);
       if (!died && this.G.t < b.spawnT + 1.2) return { died: false, sh: had, name: this.name };
       attacker = attacker || this.G.human;
+      K.noteFight(this.G.fights, b.pos, this.G.t);
+      if (attacker && attacker.pos) K.noteFight(this.G.fights, attacker.pos, this.G.t);
       this.lastAttacker = attacker;
       this.lastHitT = this.G.t;
       if (this.rig && this.G.render) this.rig.flashHit(attacker && attacker.pos);
@@ -794,6 +796,7 @@
         return;
       }
       if (G.lock !== "nades") this.nadeInv[type]--;
+      b.spawnT = -1e9; /* attacking ends spawn protection */
       this.nadeCD = 5 + K.rand() * 3;
       o.addScaledVector(v.clone().normalize(), 0.45);
       b.yaw = Math.atan2(-v.x, -v.z);
@@ -989,6 +992,7 @@
       /* carrying the flag takes both hands */
       if (this.carrying) return;
       this.heardT = this.G.t;
+      this.body.spawnT = -1e9; /* firing ends spawn protection */
       if (this.blocked(this.body.aimDir(), this.pos.distanceTo(tgt.pos))) {
         this.fireCD = 0.25;
         return;
@@ -1071,6 +1075,7 @@
         }
         K.damageRadius(d.pos, 5, 260, G.render);
       } else if (type === "melee" || type === "charge") {
+        this.body.spawnT = -1e9; /* attacking ends spawn protection */
         const r = type === "charge" ? 1.8 : 2.3;
         const f = this.body.fwd();
         for (const e of G.teams[1 - this.team].agents) {

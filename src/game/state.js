@@ -35,26 +35,29 @@ let bots = [];
 let botsOn = true;
 const feed = [];
 
-function spawnPoint() {
-  const occupied = [
-    ...bots.filter(b => !b.body.dead).map(b => b.body.pos),
-    ...[...remotes.values()].filter(r => r.has && r.rig).map(r => r.rig.root.position),
-  ];
-  let best = null,
-    bd = -1;
-  for (let i = 0; i < 6; i++) {
-    const s = SPAWNS[(Math.random() * SPAWNS.length) | 0];
-    let md = 999;
-    for (const o of occupied) md = Math.min(md, Math.hypot(o.x - s[0], o.z - s[2]));
-    if (md > bd) {
-      bd = md;
-      best = s;
-    }
+/* where fighting happened lately (hits and kills), for spawn safety */
+const ARENA_FIGHTS = [];
+EVENTS.on("damage", e => {
+  for (const id of [e.victim, e.by]) {
+    const p = pilotById(id);
+    if (p && p.body) noteFight(ARENA_FIGHTS, p.body.pos, now);
   }
-  return best;
+});
+/**
+ * the safest arena spawn for `self` (a body, or nothing for you): everyone else alive is an enemy
+ * (free for all), scored by world/spawns.js
+ */
+function spawnPoint(self) {
+  const foes = [];
+  if (self !== me && playing && !me.dead) foes.push(me);
+  for (const b of bots) if (b.body !== self && !b.body.dead) foes.push(b.body);
+  for (const r of remotes.values())
+    if (r.has && !r.dead && r.rig)
+      foes.push({ pos: r.rig.root.position, h: r.crouch ? H_CROUCH : H_STAND, yaw: r.rig.root.rotation.y });
+  return pickSpawn(SPAWNS, foes, ARENA_FIGHTS, now, Math.random);
 }
 function spawn(b) {
-  const s = spawnPoint();
+  const s = spawnPoint(b);
   b.reset();
   b.pos.set(s[0] + rnd(-1, 1), s[1] + 0.01, s[2] + rnd(-1, 1));
   b.yaw = Math.atan2(b.pos.x, b.pos.z);
@@ -125,7 +128,7 @@ function botStep(b, dt) {
     /* a pod launches POD_EARLY before the respawn time (see data/modes.js); the spot is picked once */
     if (!b.pod && now > b.respawn - (podsOn() ? POD_EARLY : 0)) {
       if (!b.pick || b.pick.for !== b.respawn) {
-        const s = spawnPoint(),
+        const s = spawnPoint(B),
           p = new V3(s[0], s[1] + 0.01, s[2]);
         b.pick = { for: b.respawn, at: p, sky: podsOn() && skyClear(p) };
       }
@@ -249,6 +252,7 @@ function botStep(b, dt) {
       }
       b.ammo[b.wpn]--;
       b.firedT = now;
+      B.spawnT = -1e9; /* firing ends spawn protection */
       if (b.ammo[b.wpn] <= 0) {
         b.reloadT = Wd.reload;
         b.reloading = true;
