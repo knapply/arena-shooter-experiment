@@ -156,6 +156,19 @@
     if (CTF.NET.room) UI.line("sys", "Friends in your room can join from the menu.");
     K.say("Capture the flag", true);
   }
+  /** motion tracker contacts: everyone but you; teammates always, enemies only when loud */
+  function radarOf(list) {
+    const out = [];
+    for (const a of list)
+      if (!a.local && a.alive)
+        out.push({
+          pos: a.body.pos,
+          vel: a.body.vel,
+          firing: a.firing || G.t - (a.firedT || -9) < 0.5,
+          ally: a.team === G.human.team,
+        });
+    return out;
+  }
   function ctfIntro() {
     if (!K.SET.intros) return;
     const names = [0, 1].map(t => G.teams[t].agents.map(a => (a.local ? K.myName : a.name)).slice(0, 4));
@@ -181,6 +194,7 @@
           if (a.alive) out.push({ kind: "ext", ref: a, pos: a.body.pos, h: a.body.h });
         return out;
       },
+      radar: () => radarOf(G.agents),
       tick(dt) {
         if (!G) return;
         /* the match clock holds while the intro plays */
@@ -347,6 +361,7 @@
             out.push({ kind: "ext", ref: a, pos: a.body.pos, h: a.body.h });
         return out;
       },
+      radar: () => radarOf([...G.map.values()]),
       tick(dt) {
         if (!G) return;
         G.step(dt);

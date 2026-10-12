@@ -424,6 +424,7 @@ function frameBody(t) {
   if (toastT <= 0) $("toast").style.opacity = "0";
   sendPresence(false);
   hud();
+  updTracker(dt);
   killCamTick();
   hlTick();
   introFrame(Math.min(0.05, raw));

@@ -1002,3 +1002,16 @@ input[type="text"]:focus-visible {
   padding: 8px 12px;
   outline: none;
 }
+
+/* motion tracker (ui/tracker.js) */
+#tracker {
+  position: absolute;
+  left: 24px;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  width: 110px;
+  height: 110px;
+  pointer-events: none;
+}
+#hud.demo #tracker {
+  display: none;
+}

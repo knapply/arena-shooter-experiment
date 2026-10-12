@@ -100,6 +100,26 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       ev
     );
     check(medals > 0, "medals follow kill events", medals);
+    /* motion tracker: a running enemy shows, a crouch-walking one doesn't */
+    const trk = await p.evaluate(() => {
+      const b = KA.bots[1];
+      b.body.dead = false;
+      const place = v => {
+        b.body.pos.set(KA.me.pos.x + 6, KA.me.pos.y, KA.me.pos.z - 6);
+        b.body.vel.set(v, 0, 0);
+        b.firedT = -99;
+      };
+      place(7);
+      const running = KA.trackerShown().length;
+      place(2);
+      const sneaking = KA.trackerShown().length;
+      return { running, sneaking };
+    });
+    check(
+      trk.running >= 1 && trk.sneaking === trk.running - 1,
+      "the motion tracker shows runners but not crouch-walkers",
+      trk
+    );
     /* kill cam: dying replays the last seconds from the killer's eyes, then shows the recap */
     const kc = await p.evaluate(async () => {
       const b = KA.bots[0];

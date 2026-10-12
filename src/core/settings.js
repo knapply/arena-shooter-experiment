@@ -570,6 +570,14 @@ const SCHEMA = [
   },
   { k: "speedLines", tab: T_GAME, label: "Speed lines", type: "toggle", def: true },
   {
+    k: "tracker",
+    tab: T_GAME,
+    label: "Motion tracker",
+    type: "toggle",
+    def: true,
+    desc: "Radar showing enemies within 25 m who run, jump or shoot (not crouch-walkers). Off for a no-radar competitive game.",
+  },
+  {
     k: "intros",
     tab: T_GAME,
     label: "Match intros",
