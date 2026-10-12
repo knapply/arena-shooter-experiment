@@ -4,3 +4,4 @@ node_modules/
 /out/
 tests/visual/*.actual.png
 tools/out/
+package-lock.json

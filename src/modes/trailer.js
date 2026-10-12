@@ -96,6 +96,8 @@
 
   /* ---------------- actors: real bodies and rigs driven by scripted input ---------------- */
   const actors = [];
+  /* actors never collide with pilots left over from a mode (a frozen practice drone can block a route) */
+  const NO_PILOTS = () => [];
   const COL = {
     hero: "#ffb347",
     ally: "#ff6f91",
@@ -1548,7 +1550,7 @@
     G = null;
     focus = null;
     CTF.exitMap();
-    K.setPilotCollider(null);
+    K.setPilotCollider(TR.active ? NO_PILOTS : null);
   }
   function action() {
     if (!G) return V(0, 0, 0);
@@ -1686,6 +1688,7 @@
 
   /* ---------------- start / stop ---------------- */
   function begin(record) {
+    K.setPilotCollider(NO_PILOTS);
     cast();
     K.EVENTS.setContext({ map: "arena", mode: "trailer" });
     K.audio();
@@ -1771,6 +1774,7 @@
     K.camera.fov = 78;
     K.camera.updateProjectionMatrix();
     K.camera.rotation.z = 0;
+    K.setPilotCollider(null);
   }
   function stop() {
     if (TR.active) K.extStop();

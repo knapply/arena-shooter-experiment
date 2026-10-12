@@ -10,6 +10,7 @@ async function launch(opts = {}) {
   const args = opts.gpu
     ? ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
     : [];
+  args.push("--mute-audio");
   return chromium.launch({ executablePath: process.env.CHROME_PATH || undefined, args });
 }
 /* http: true serves the repo from a fake origin (http://ka.test/), as GitHub Pages would: needed for
