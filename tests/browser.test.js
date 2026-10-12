@@ -575,6 +575,37 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     await p.waitForTimeout(150);
     await p.selectOption("#set_preset", "low");
     check((await p.evaluate(() => KA.SET.shadows)) === "off", "low preset turns shadows off");
+    /* search: settings from any tab (tagged with it), key bindings, Escape clears the search first */
+    await p.fill("#setSearch", "screen shake");
+    await p.waitForTimeout(100);
+    const found = await p.evaluate(() => ({
+      rows: [...document.querySelectorAll("#setBody .srow")].map(r => r.textContent),
+      ctl: !!document.getElementById("set_shake"),
+    }));
+    await p.fill("#setSearch", "throw grenade");
+    await p.waitForTimeout(100);
+    const keysHit = await p.evaluate(() => document.getElementById("setBody").textContent);
+    await p.focus("#setSearch");
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(100);
+    const cleared = await p.evaluate(() => ({
+      q: document.getElementById("setSearch").value,
+      open: !document.getElementById("settings").hidden,
+    }));
+    check(
+      found.ctl &&
+        found.rows.length === 1 &&
+        /Gameplay/i.test(found.rows[0]) &&
+        /Screen shake/.test(found.rows[0]),
+      "settings search finds a setting from another tab, tagged with its tab",
+      found
+    );
+    check(
+      /Throw grenade/.test(keysHit) && /Change in Keys/.test(keysHit),
+      "settings search finds key bindings",
+      keysHit.slice(0, 120)
+    );
+    check(cleared.q === "" && cleared.open, "Escape clears the search before closing settings", cleared);
     await p.click('.stab:has-text("Keys")');
     await p.locator('.kbtn[data-a="jump"]').first().click();
     await p.waitForTimeout(80);

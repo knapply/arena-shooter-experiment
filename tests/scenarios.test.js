@@ -614,6 +614,48 @@ const fix = v => +v.toFixed(2);
     { recruit: r.nadeInv, normal: n.nadeInv }
   );
 }
+/* ---------- melee: from behind kills; otherwise shield first, then the kill ---------- */
+{
+  check(
+    K.meleeBehind(0, 5, 0, 0, 0) && !K.meleeBehind(0, -5, 0, 0, 0) && !K.meleeBehind(5, 0, 0, 0, 0),
+    "melee: only a blow from behind counts as behind (facing -z, attacker at +z)"
+  );
+  check(
+    K.meleeDamage(70, true) >= 999 && K.meleeDamage(70, false) === 70 && K.meleeDamage(12, false) === 12,
+    "melee: from behind kills; from the front it takes exactly the shield that's left"
+  );
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 8 });
+  G.start();
+  for (let i = 0; i < 5; i++) G.step(1 / 30);
+  const a = G.teams[0].agents[0],
+    v = G.teams[1].agents[0];
+  const blow = fromBehind => {
+    v.dead = false;
+    v.body.dead = false;
+    v.body.spawnT = -99;
+    v.body.yaw = 0; /* facing -z */
+    v.body.pos.set(0, 0.02, 0);
+    a.body.pos.set(0, 0.02, fromBehind ? 1.4 : -1.4);
+    a.body.yaw = fromBehind ? 0 : Math.PI; /* facing the victim */
+    a.onEvent("melee", {});
+  };
+  v.body.shield = 70;
+  v.body.health = 45;
+  blow(false);
+  const afterFirst = { sh: v.body.shield, hp: v.body.health, dead: v.dead };
+  blow(false);
+  const afterSecond = v.dead;
+  v.body.reset();
+  v.body.shield = 70;
+  blow(true);
+  check(
+    afterFirst.sh === 0 && afterFirst.hp === 45 && !afterFirst.dead && afterSecond,
+    "melee: the first blow takes the shield down, the second kills",
+    afterFirst
+  );
+  check(v.dead, "melee: one blow from behind kills a full-shield pilot");
+}
 /* ---------- pings: AI teammates go where a teammate pings ---------- */
 {
   K.STORE.setBackend(K.STORE.memoryBackend());

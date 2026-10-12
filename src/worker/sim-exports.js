@@ -5,6 +5,8 @@ window.KA = {
   SWITCH_TIME,
   POD_TIME,
   POD_EARLY,
+  meleeDamage,
+  meleeBehind,
   SPAWN_W,
   spawnScore,
   pickSpawn,

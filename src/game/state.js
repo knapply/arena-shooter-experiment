@@ -321,6 +321,12 @@ function botStep(b, dt) {
 function hurtMe(n, src) {
   if (me.dead || !playing || godMode) return;
   if (now < me.spawnT + 1.2) return;
+  /* the melee rule, decided here too so hits from other players and the AI follow it */
+  if (src.w === "melee") {
+    const a = hitSource(src);
+    const behind = n >= MELEE_KILL || (!!a && meleeBehind(a.x, a.z, me.pos.x, me.pos.z, me.yaw));
+    n = meleeDamage(me.shield, behind);
+  }
   rumble(Math.min(1, n / 40), Math.min(1, n / 25), 120);
   if (aiming && W().zoom[0] >= 1.5) {
     zoomLvl = 0;

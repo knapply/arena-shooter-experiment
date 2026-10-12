@@ -807,3 +807,43 @@
     animation: none;
   }
 }
+/* the smart-link reticle keeps a dark edge so it reads over the gun, bright skies and dark walls */
+.sc-smart .ret i {
+  filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+}
+.sc-smart .ret .o::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 50%;
+  background: #dff4ff;
+}
+/* settings search */
+.ssearch {
+  margin: 8px 0 4px;
+  width: min(420px, 100%);
+  padding: 8px 12px;
+  min-height: 36px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font: 500 13px var(--f-mono);
+}
+.ssearch:focus-visible {
+  outline: 2px solid var(--thrust);
+  outline-offset: 1px;
+}
+.stag {
+  font: 500 9.5px var(--f-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--thrust);
+  border: 1px solid var(--line);
+  padding: 1px 6px;
+  margin-right: 8px;
+  white-space: nowrap;
+}

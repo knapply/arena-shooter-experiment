@@ -201,8 +201,15 @@ function meleeHit(range, dmg, type) {
     }
   }
   if (best) {
-    const tsh = best.ref.body ? best.ref.body.shield : best.ref.sh || 0;
-    dealDamage(best, type === "charge" && tsh <= 0 ? 999 : dmg, type, false);
+    const r = best.ref,
+      tsh = r.body ? r.body.shield : r.sh || 0;
+    let n = type === "charge" && tsh <= 0 ? 999 : dmg;
+    if (type === "melee") {
+      /* the melee rule (data/weapons.js): from behind kills, otherwise shield first, then the kill */
+      const yaw = r.body ? r.body.yaw : r.rig ? r.rig.root.rotation.y : 0;
+      n = meleeDamage(tsh, meleeBehind(me.pos.x, me.pos.z, best.pos.x, best.pos.z, yaw));
+    }
+    dealDamage(best, n, type, false);
     shakeT = Math.max(shakeT, 0.15);
     sfx("land", 0.8);
     return true;

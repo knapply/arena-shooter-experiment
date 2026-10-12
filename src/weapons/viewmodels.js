@@ -146,7 +146,8 @@ const VMW = [
     keys: PIS_RELOAD,
     P: {
       hip: { p: new V3(0.18, -0.19, -0.37), r: [0, 0, 0] },
-      aim: { p: new V3(-PIS.x, -PIS.y, -0.27), r: [0, 0, 0] },
+      /* the slide sits just under the reticle, so the smart-link reticle (the aim point) stays clear */
+      aim: { p: new V3(-PIS.x, -PIS.y - 0.024, -0.27), r: [0, 0, 0] },
       sprint: { p: new V3(0.13, -0.28, -0.3), r: [-0.7, 0.2, 0.15] },
       reload: { p: new V3(0.1, -0.18, -0.32), r: [0.35, 0.15, 0.5] },
       low: { p: new V3(0.15, -0.36, -0.28), r: [-0.8, 0.2, 0.2] },

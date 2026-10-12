@@ -139,3 +139,19 @@ function killStats(w) {
   };
   return { best: run(true), body: run(false) };
 }
+/* melee: a blow from behind kills outright; otherwise the first blow always takes the shield down
+   (exactly what was left of it, nothing carries into health) and a blow on an unshielded pilot
+   kills. The shoulder charge keeps its own numbers. */
+const MELEE_KILL = 999;
+/** damage for a melee blow on a pilot with `shield` left; `behind` from meleeBehind */
+function meleeDamage(shield, behind) {
+  return behind || shield <= 0 ? MELEE_KILL : shield;
+}
+/** is the attacker (at ax, az) behind a victim at (vx, vz) facing `yaw`? (more than ~110° off their facing) */
+function meleeBehind(ax, az, vx, vz, yaw) {
+  const dx = ax - vx,
+    dz = az - vz,
+    L = Math.hypot(dx, dz) || 1;
+  /* facing is (-sin yaw, -cos yaw) */
+  return (dx * -Math.sin(yaw) + dz * -Math.cos(yaw)) / L < -0.35;
+}

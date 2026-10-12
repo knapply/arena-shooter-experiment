@@ -1,7 +1,8 @@
 /* ============ settings screen ============ */
 const T_KEYS = "Keys";
 const STABS = [T_GFX, T_CTL, T_KEYS, T_PAD, T_GAME, T_SBX, T_AUD, T_DES];
-const SUI = { tab: T_GFX, from: "menu", padCap: null };
+/** q: the search box (empty shows the current tab) */
+const SUI = { tab: T_GFX, from: "menu", padCap: null, q: "" };
 const el = (tag, cls, txt) => {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -48,6 +49,9 @@ function renderSettings() {
     b.setAttribute("role", "tab");
     b.setAttribute("aria-selected", String(t === SUI.tab));
     b.onclick = () => {
+      /* picking a tab leaves the search */
+      SUI.q = "";
+      $("setSearch").value = "";
       SUI.tab = t;
       rebindCapture = null;
       SUI.padCap = null;
@@ -57,13 +61,60 @@ function renderSettings() {
   }
   const body = $("setBody");
   body.textContent = "";
+  if (SUI.q.trim()) {
+    renderSearch(body);
+    return;
+  }
   if (SUI.tab === T_KEYS) {
     renderKeys(body);
     return;
   }
-  for (const s of SCHEMA) {
-    if (s.tab !== SUI.tab) continue;
+  for (const s of SCHEMA) if (s.tab === SUI.tab) settingRow(s, body, false);
+  if (SUI.tab === T_PAD) renderPadBinds(body);
+}
+/** does every word of the search appear in this text? */
+function searchHit(text) {
+  const t = text.toLowerCase();
+  return SUI.q
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every(w => t.includes(w));
+}
+/** search results: matching settings from every tab (each tagged with its tab), then matching key bindings */
+function renderSearch(body) {
+  const hits = SCHEMA.filter(s => searchHit([s.label, s.desc || "", s.tab, s.k].join(" ")));
+  const keys = ACTIONS.filter(([a, label]) => searchHit(label + " " + a + " keys bind"));
+  body.appendChild(
+    el(
+      "p",
+      "sdesc",
+      hits.length + keys.length
+        ? `${hits.length + keys.length} match${hits.length + keys.length === 1 ? "" : "es"} for “${SUI.q.trim()}”`
+        : `Nothing matches “${SUI.q.trim()}”.`
+    )
+  );
+  for (const s of hits) settingRow(s, body, true);
+  for (const [, label] of keys) {
     const row = el("div", "srow");
+    row.appendChild(el("span", "stag", T_KEYS));
+    row.appendChild(el("span", "slab", label));
+    const b = el("button", "dbtn", "Change in Keys");
+    b.onclick = () => {
+      SUI.q = "";
+      $("setSearch").value = "";
+      SUI.tab = T_KEYS;
+      renderSettings();
+    };
+    row.appendChild(b);
+    body.appendChild(row);
+  }
+}
+/** one setting's row (label, control, value, description); showTab tags it with its tab for search results */
+function settingRow(s, body, showTab) {
+  {
+    const row = el("div", "srow");
+    if (showTab) row.appendChild(el("span", "stag", s.tab));
     const lab = el("label", "slab", s.label);
     lab.htmlFor = "set_" + s.k;
     row.appendChild(lab);
@@ -116,7 +167,6 @@ function renderSettings() {
     if (s.desc) row.appendChild(el("p", "sdesc", s.desc));
     body.appendChild(row);
   }
-  if (SUI.tab === T_PAD) renderPadBinds(body);
 }
 function renderKeys(body) {
   body.appendChild(
@@ -304,12 +354,21 @@ addEventListener(
   },
   true
 );
+$("setSearch").addEventListener("input", () => {
+  SUI.q = $("setSearch").value;
+  renderSettings();
+});
 $("openSet").onclick = () => openSettings("menu");
 $("pauseSet").onclick = () => openSettings("pause");
 addEventListener("keydown", e => {
   if (e.code === "Escape" && !$("settings").hidden && !rebindCapture) {
     e.preventDefault();
-    closeSettings();
+    /* Escape clears a search first, then closes */
+    if (SUI.q) {
+      SUI.q = "";
+      $("setSearch").value = "";
+      renderSettings();
+    } else closeSettings();
   }
 });
 /* the help list on the menu always shows the player's current bindings */

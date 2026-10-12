@@ -1102,7 +1102,16 @@
             Math.abs(e.body.pos.y - this.pos.y) < 1.6 &&
             (dx * f.x + dz * f.z) / Math.max(dist, 0.01) > 0.4
           ) {
-            const dmg = type === "charge" ? (e.body.shield <= 0 ? 999 : 85) : 70;
+            /* the melee rule (data/weapons.js); the charge keeps its own numbers */
+            const dmg =
+              type === "charge"
+                ? e.body.shield <= 0
+                  ? 999
+                  : 85
+                : K.meleeDamage(
+                    e.body.shield,
+                    K.meleeBehind(this.pos.x, this.pos.z, e.body.pos.x, e.body.pos.z, e.body.yaw)
+                  );
             if (e.human) G.hurtHuman(e, dmg, { name: this.name, agent: this, w: type });
             else e.onHit(dmg, type, false, this);
             if (G.render) K.sfx("land", K.distVol(this.pos, 30));
