@@ -41,7 +41,24 @@ const KA_API = {
     vmArmor.color.set(c).multiplyScalar(0.55);
   },
   NadeWorld,
+  RocketWorld,
+  MAIN_ROCKETS,
+  rocketDmg,
+  remoteProjectile,
+  dropPod,
+  podsOn,
+  PODS,
+  clearPods,
+  ITEMS,
+  ARENA_PICKS,
+  dropItems,
+  nadeInv,
+  get myPod() {
+    return myPod;
+  },
+  POWER_ROTATION,
   NADES,
+  NADE_TUNE,
   MAIN_NADES,
   nadeDmg,
   losClear,
@@ -82,7 +99,12 @@ const KA_API = {
   R,
   H_STAND,
   H_CROUCH,
-  GRAV,
+  get GRAV() {
+    return TUNE.grav;
+  },
+  TUNE,
+  TUNE_DEF,
+  setPilotCollider,
   groundBelow,
   freeAt,
   rayWorld,

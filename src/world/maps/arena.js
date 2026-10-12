@@ -1,51 +1,117 @@
 /* ============ map ============ */
-function gridTex(base, line, n) {
+/* floor plates: big panels with seams, inset plates, bolts and a few tinted panels (one tile = 8 m) */
+function floorTex() {
+  const N = 512;
   const c = document.createElement("canvas");
-  c.width = c.height = 256;
+  c.width = c.height = N;
   const x = c.getContext("2d");
-  x.fillStyle = base;
-  x.fillRect(0, 0, 256, 256);
-  x.strokeStyle = line;
-  x.lineWidth = 2;
-  for (let i = 0; i <= n; i++) {
-    const p = (i * 256) / n;
-    x.beginPath();
-    x.moveTo(p, 0);
-    x.lineTo(p, 256);
-    x.stroke();
-    x.beginPath();
-    x.moveTo(0, p);
-    x.lineTo(256, p);
-    x.stroke();
+  x.fillStyle = "#222b31";
+  x.fillRect(0, 0, N, N);
+  const P = N / 4;
+  for (let i = 0; i < 4; i++)
+    for (let j = 0; j < 4; j++) {
+      const tint = (i * 7 + j * 3) % 5;
+      x.fillStyle = tint === 0 ? "#26343e" : tint === 3 ? "#2b3238" : "#283037";
+      x.fillRect(i * P + 3, j * P + 3, P - 6, P - 6);
+      /* inset plate or grille */
+      if ((i * 5 + j * 3) % 7 === 0) {
+        x.fillStyle = "#1f272c";
+        x.fillRect(i * P + 22, j * P + 22, P - 44, P - 44);
+        x.fillStyle = "#29333a";
+        for (let k = 0; k < 6; k++) x.fillRect(i * P + 28, j * P + 30 + k * 12, P - 56, 4);
+      } else {
+        x.strokeStyle = "rgba(0,0,0,0.35)";
+        x.lineWidth = 2;
+        x.strokeRect(i * P + 16, j * P + 16, P - 32, P - 32);
+      }
+      x.fillStyle = "#3a464e";
+      for (const [a, b] of [
+        [9, 9],
+        [P - 9, 9],
+        [9, P - 9],
+        [P - 9, P - 9],
+      ]) {
+        x.beginPath();
+        x.arc(i * P + a, j * P + b, 2.5, 0, 7);
+        x.fill();
+      }
+    }
+  /* seams between the big panels */
+  x.fillStyle = "#12171b";
+  for (let k = 0; k <= 4; k++) {
+    x.fillRect(k * P - 2, 0, 4, N);
+    x.fillRect(0, k * P - 2, N, 4);
   }
-  for (let i = 0; i < 500; i++) {
-    x.fillStyle = `rgba(255,255,255,${Math.random() * 0.03})`;
-    x.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+  /* wear */
+  for (let i = 0; i < 1400; i++) {
+    x.fillStyle = `rgba(${Math.random() < 0.5 ? "255,255,255" : "0,0,0"},${Math.random() * 0.05})`;
+    x.fillRect(Math.random() * N, Math.random() * N, 1 + Math.random() * 3, 1 + Math.random() * 3);
   }
   const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 4;
+  return t;
+}
+/* destructible cover: composite crates with a dark frame, ribs and a hazard band */
+function crateTex() {
+  const N = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = N;
+  const x = c.getContext("2d");
+  x.fillStyle = "#b9c0c4";
+  x.fillRect(0, 0, N, N);
+  x.fillStyle = "#a6aeb3";
+  for (let k = 0; k < 5; k++) x.fillRect(30 + k * 44, 24, 18, N - 48);
+  x.fillStyle = "#e0862c";
+  x.fillRect(0, 168, N, 22);
+  x.fillStyle = "#2a2f33";
+  for (let k = -2; k < 14; k++) {
+    x.beginPath();
+    x.moveTo(k * 22, 190);
+    x.lineTo(k * 22 + 11, 190);
+    x.lineTo(k * 22 + 22, 168);
+    x.lineTo(k * 22 + 11, 168);
+    x.fill();
+  }
+  x.strokeStyle = "#3b4246";
+  x.lineWidth = 12;
+  x.strokeRect(6, 6, N - 12, N - 12);
+  x.fillStyle = "#59636a";
+  x.fillRect(20, 40, 46, 8);
+  x.fillRect(20, 54, 30, 8);
+  for (let i = 0; i < 900; i++) {
+    x.fillStyle = `rgba(0,0,0,${Math.random() * 0.06})`;
+    x.fillRect(Math.random() * N, Math.random() * N, 2, 2);
+  }
+  const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.encoding = THREE.sRGBEncoding;
   t.anisotropy = 4;
   return t;
 }
 const MATS = {
-  floor: new THREE.MeshStandardMaterial({ map: gridTex("#2b353b", "#3c4950", 4), roughness: 0.92 }),
-  wall: new THREE.MeshStandardMaterial({ color: "#6b7880", roughness: 0.85 }),
-  core: new THREE.MeshStandardMaterial({ color: "#6e7980", roughness: 0.7, metalness: 0.15 }),
-  base: new THREE.MeshStandardMaterial({ color: "#646f78", roughness: 0.8, metalness: 0.1 }),
-  cover: new THREE.MeshStandardMaterial({ color: "#808b93", roughness: 0.75 }),
-  step: new THREE.MeshStandardMaterial({ color: "#69757d", roughness: 0.85 }),
+  floor: new THREE.MeshStandardMaterial({ map: floorTex(), roughness: 0.78, metalness: 0.25 }),
+  wall: new THREE.MeshStandardMaterial({ color: "#5d6a78", roughness: 0.72, metalness: 0.3 }),
+  core: new THREE.MeshStandardMaterial({ color: "#4f6b78", roughness: 0.55, metalness: 0.45 }),
+  base: new THREE.MeshStandardMaterial({ color: "#626780", roughness: 0.66, metalness: 0.3 }),
+  cover: new THREE.MeshStandardMaterial({
+    map: crateTex(),
+    color: "#9aa2a8",
+    roughness: 0.62,
+    metalness: 0.1,
+  }),
+  step: new THREE.MeshStandardMaterial({ color: "#5c6974", roughness: 0.75, metalness: 0.25 }),
   strip: new THREE.MeshBasicMaterial({ color: "#ffb347" }),
   stripB: new THREE.MeshBasicMaterial({ color: "#62cdff" }),
   /* team materials (capture the flag) */
   redStrip: new THREE.MeshBasicMaterial({ color: "#ff6a5c" }),
   blueStrip: new THREE.MeshBasicMaterial({ color: "#5aa9ff" }),
-  redBase: new THREE.MeshStandardMaterial({ color: "#4d3d3c", roughness: 0.8, metalness: 0.1 }),
-  blueBase: new THREE.MeshStandardMaterial({ color: "#3a4654", roughness: 0.8, metalness: 0.1 }),
+  redBase: new THREE.MeshStandardMaterial({ color: "#6e4645", roughness: 0.66, metalness: 0.3 }),
+  blueBase: new THREE.MeshStandardMaterial({ color: "#3f5876", roughness: 0.66, metalness: 0.3 }),
 };
-for (const k of ["wall", "core", "base", "cover", "step", "redBase", "blueBase"]) detailMat(MATS[k]);
-MATS.floor.userData.rough = 0.92;
+for (const k of ["wall", "core", "base", "step", "redBase", "blueBase"]) detailMat(MATS[k]);
+MATS.floor.userData.rough = 0.78;
 MATS.floor.userData.envK = 0.3;
 MATS.wall.userData.envK = 0.6;
 for (const k of ["strip", "stripB", "redStrip", "blueStrip"]) MATS[k].color.multiplyScalar(2.4);
@@ -183,6 +249,8 @@ function buildMap(doc, group) {
     else if (pc.type === "stairs")
       stairs(pc.p[0] + 0, pc.p[1] + 0, pc.dir[0], pc.dir[1], pc.steps, pc.top, pc.width);
   }
+  /* the sci-fi dressing (world/dress.js; the simulation worker builds bare maps) */
+  if (typeof dressMap === "function") dressMap(doc, SOLID);
   mergeMapGroup(group);
   const solids = SOLID.splice(0);
   SOLID.push(...saved);

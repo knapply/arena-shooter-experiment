@@ -47,6 +47,7 @@
   };
   UI.detach = function () {
     if (!G) return;
+    K.setPilotCollider(null);
     G.nades.clear();
     for (const a of G.agents)
       if (a.rig) {
@@ -107,10 +108,14 @@
       const r = a.rig;
       if (!r) continue;
       if (a.dead && !r.dead) r.die();
+      const fl = G.flags.find(f => f.state === "carried" && f.carrier === a);
       K.posePilot(a, dt, {
         reload: a.reloadT > 0 ? 1 - a.reloadT / K.RELOAD_TIME : -1,
         fire: G.t - a.firedT < 0.1,
-        wpn: a.sniper > 0 ? 2 : a.wpn,
+        wpn: a.rocket > 0 ? 3 : a.sniper > 0 ? 2 : a.wpn,
+        /* a carrier holds the flag in both hands */
+        flag: !!fl,
+        flagColor: fl ? CTF.TEAM_HEX[fl.team] : null,
       });
       if (mode === "sim" && a._lab !== a.role) {
         a._lab = a.role;
@@ -125,7 +130,8 @@
       const gp = o.group;
       if (f.state === "carried" && f.carrier) {
         const b = f.carrier.body;
-        gp.visible = !f.carrier.local;
+        /* the carrier's rig holds it (and you see your own in first person) */
+        gp.visible = false;
         gp.position.set(b.pos.x + Math.sin(b.yaw) * 0.32, b.pos.y + 0.15, b.pos.z + Math.cos(b.yaw) * 0.32);
         gp.rotation.y = b.yaw;
       } else {
@@ -176,6 +182,9 @@
     const hum = G.human,
       ht = hum ? hum.team : -1;
     switch (type) {
+      case "pod":
+        if (G.render !== false && d.pos) K.dropPod(d.pos, CTF.TEAM_HEX[d.a.team], { dur: 1.35 });
+        break;
       case "kill": {
         const k = d.killer,
           v = d.victim;

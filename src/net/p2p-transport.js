@@ -1113,6 +1113,8 @@
           if (Number.isFinite(+o[k])) NETSIM[k] = Math.max(0, +o[k]);
         NETSIM.loss = Math.min(0.5, NETSIM.loss);
       },
+      /** who hosts the room: { me: am I the host, id: the host's peer id } */
+      hub: () => ({ me: !!T.hub, id: T.hubId }),
       /** host only: hand the room to another player (defaults to the suggested best host) */
       handover: to => handover(to || (T.suggest && T.suggest.peer)),
     },

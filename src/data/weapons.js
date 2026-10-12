@@ -85,7 +85,39 @@ const WEAPON_DATA = [
     scope: "sniper",
     power: true,
   },
+  {
+    key: "rocket",
+    name: "HX-2 rocket launcher",
+    mag: 2,
+    reserve: 4,
+    rate: 0.9,
+    auto: false,
+    precision: true,
+    /* a direct hit kills; the blast (splash at the centre, radius in metres) falls off with distance */
+    body: 999,
+    head: 999,
+    splash: 150,
+    radius: 4.2,
+    speed: 32,
+    projectile: true,
+    reload: 3.2,
+    spread: 0,
+    adsSpread: 0,
+    bloom: 0,
+    recoil: 0.11,
+    recover: 6,
+    zoom: [1.8],
+    muzzle: [0, 0.0, -0.75],
+    dmg: "rocket",
+    snd: "rocket",
+    rum: [0.9, 0.7, 220],
+    kick: 0.16,
+    scope: "smart",
+    power: true,
+  },
 ];
+/* the power weapons the centre spawn rotates through */
+const POWER_ROTATION = ["sniper", "rocket"];
 /** shots and time to kill a full-shield pilot: best case (headshot once shields drop) and body shots only */
 function killStats(w) {
   const run = heads => {

@@ -182,6 +182,8 @@
     }
     for (const g of grenades) K.scene.remove(g.mesh);
     grenades.length = 0;
+    rockets.clear();
+    K.clearPods();
     $("trScope").hidden = true;
   }
   /** true the first time it is asked with this key (per placement) */
@@ -346,6 +348,8 @@
       if (dmg - s > 40) kill(tgt, m, power);
     }
   }
+  /* rockets fly for real (the game's rocket code), with a scripted owner that decides who dies */
+  const rockets = new K.RocketWorld(true);
   /* thrown grenades are scripted arcs that land where the shot needs them */
   const grenades = [];
   function throwNade(from, to, flight, color, onLand, stick) {
@@ -647,45 +651,62 @@
         };
       },
     },
+    /* ===== the squad drops in: three pods out of the sky, doors off, pilots out ===== */
     {
       t: 5,
-      name: "squad",
+      name: "drop",
       mood: "cool",
       setup() {
-        put(hero, [-22, 0, -6], -PI / 2 + 0.55, 0.1);
-        put(ally, [-25.4, 0, -4.1], -PI / 2 - 0.15);
-        put(ally2, [-26.6, 0, -8.1], -PI / 2 + 0.2);
+        clearStage();
+        K.resetDestruction();
+        this.pods = [
+          { a: hero, at: 0.05, p: [-22, 0, -6], yaw: -PI / 2 + 0.35, out: [-19.6, -6.4] },
+          { a: ally, at: 0.5, p: [-25.6, 0, -3.6], yaw: -PI / 2 - 0.2, out: [-23.4, -2.9] },
+          { a: ally2, at: 0.85, p: [-26.4, 0, -8.6], yaw: -PI / 2 + 0.3, out: [-24.2, -9.2] },
+        ];
+        for (const q of this.pods) q.sent = false;
       },
-      update(lt, dt) {
-        hero.body.yaw = curve(
+      ts: lt =>
+        curve(
           [
-            [0, -PI / 2 + 0.55],
-            [1.2, -PI / 2 + 0.55],
-            [2.0, -PI / 2],
+            [0, 1],
+            [1.3, 1],
+            [1.42, 0.3],
+            [1.85, 0.3],
+            [2.1, 1],
           ],
           lt
-        );
-        hero.body.pitch = curve(
-          [
-            [0, 0.1],
-            [2.8, 0.1],
-            [3.5, 0.02],
-          ],
-          lt
-        );
-        hero.reload = lt > 2.0 && lt < 3.3 ? (lt - 2.0) / 1.3 : -1;
-        if (lt > 2.05 && once(hero, "rl")) K.sfx("reload", 0.6);
+        ),
+      update(lt, dt, st) {
+        for (const q of this.pods)
+          if (!q.sent && st >= q.at) {
+            q.sent = true;
+            const c = new V3(q.p[0], q.p[1], q.p[2]);
+            K.dropPod(c, q.a.color, {
+              dur: 1.3,
+              onLand: () => {
+                put(q.a, q.p, q.yaw);
+                q.a.ctl = (a, s2) =>
+                  s2 < 0.35 ? { ...NO } : steer(a, [[q.p[0], q.p[2]], q.out], { ...NO }, { sprint: false });
+                CINE.shake(q.a === hero ? 0.7 : 0.35);
+              },
+            });
+          }
         for (const a of [hero, ally, ally2]) drive(a, dt);
-        const k = ease(lt / 4),
-          p = hero.body.pos;
+        /* low on the deck, looking up into the sky as they come down, then settling on the squad */
+        const k = ease((lt - 0.9) / 1.4);
         const h = hand(lt, 0.012);
         cam(
-          V(p.x + lerp(2.3, 1.45, k), 1.7 + h.y, p.z + lerp(0.55, 0.12, k) + h.z),
-          V(p.x, 1.6, p.z),
-          lerp(30, 24, k)
+          V(-15.6 + h.x, 0.32 + h.y, -4.4),
+          V(lerp(-21.5, -22.6, k), lerp(16, 1.3, k), lerp(-5.4, -5.6, k)),
+          lerp(46, 34, ease((lt - 2) / 2)),
+          0,
+          dt
         );
       },
-      look: () => af(head(hero), 0.9, { near: 1.5 }),
+      look(lt) {
+        return lt < 1.4 ? { dof: 0.4, focus: 30, range: 30 } : af(chest(hero), 2.2);
+      },
     },
     {
       t: 9,
@@ -1007,54 +1028,84 @@
       },
       look: () => af(chest(hero), 3),
     },
+    /* ===== the power weapon: a rocket into a pair holding the lane ===== */
     {
       t: 31,
-      name: "duel",
-      mood: "cool",
+      name: "rocket",
+      mood: "hot",
       setup() {
+        K.resetDestruction();
         seed = 30;
-        put(hero, [-8, 0, -13.6], -PI / 2);
-        put(foe1, [6.6, 0, -13.6], PI / 2);
-        hero.ctl = (a, st) => ({ ...NO, s: Math.cos(st * 2.8) * 0.8, aim: true });
-        foe1.ctl = (a, st) => ({ ...NO, s: Math.cos(st * 2.3) * 0.9 });
-        hero.lastSh = null;
+        put(hero, [-8.6, 0, -12.6], -PI / 2);
+        put(foe1, [2.6, 0, -16.2], PI / 2);
+        put(foe2, [4.4, 0, -15.1], PI / 2 + 0.2);
+        hero.wpn = 3;
         hero.hitT = null;
+        this.aim = null;
+        rockets.clear();
+        for (const f of [foe1, foe2]) f.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 3 + a.id.length) * 0.4 });
       },
       ts: lt =>
         hero.hitT != null
           ? curve(
               [
                 [0, 0.22],
-                [0.6, 0.22],
-                [0.85, 1],
+                [0.7, 0.22],
+                [1, 1],
               ],
               lt - hero.hitT
             )
           : 1,
       update(lt, dt, st) {
+        const tgt = V(3.5, 0.25, -15.6);
+        aimAt(hero, tgt, 0.6);
         drive(hero, dt);
-        drive(foe1, dt);
-        if (!foe1.dead) aimAt(hero, chest(foe1), 0.5);
-        aimAt(foe1, chest(hero), 0.5);
-        const sh = Math.floor(st / 0.27);
-        if (sh !== hero.lastSh && st > 0.2 && !foe1.dead) {
-          hero.lastSh = sh;
-          const hs = foe1.body.shield <= 0;
-          shoot(hero, foe1, { dmg: 18, headshot: hs, power: 1.9 });
-          if (foe1.dead) hero.hitT = lt;
+        for (const f of [foe1, foe2]) {
+          if (!f.dead) {
+            aimAt(f, head(hero), 0.3);
+            if (rnd() < dt * 5) shoot(f, null, { at: head(hero), miss: 1.5, color: 0x9fdcff });
+          }
+          drive(f, dt);
         }
-        if (!foe1.dead && rnd() < dt * 6) shoot(foe1, null, { at: chest(hero), miss: 1.4, color: 0x9fdcff });
-        const y = hero.body.yaw,
-          p = hero.body.pos;
-        cam(
-          V(p.x + Math.sin(y) * 2.3 + Math.cos(y) * 0.75, 1.72, p.z + Math.cos(y) * 2.3 - Math.sin(y) * 0.75),
-          chest(foe1),
-          30,
-          12,
-          dt
-        );
+        if (st > 0.45 && once(hero, "rk")) {
+          const y = hero.body.yaw;
+          const m = hero.body.pos
+            .clone()
+            .add(
+              _a.set(
+                -Math.sin(y) * 0.8 + Math.cos(y) * 0.22,
+                hero.body.h - 0.3,
+                -Math.cos(y) * 0.8 - Math.sin(y) * 0.22
+              )
+            );
+          hero.firedT = shotSim;
+          K.thrustPuff(m, _b.set(Math.sin(y), 0, Math.cos(y)));
+          rockets.fire(m, tgt.clone().sub(m).normalize(), {
+            targets: () => [],
+            onExplode(c) {
+              hero.hitT = lt;
+              CINE.shake(0.9);
+              for (const f of [foe1, foe2]) kill(f, c, 4.2);
+            },
+          });
+        }
+        rockets.step(dt);
+        /* the launcher comes up in a front three-quarter; on the shot, cut wide and pan with the
+           rocket all the way into the pair */
+        const p = hero.body.pos,
+          r = rockets.list[0];
+        if (!r && hero.hitT == null && !hero.once.has("rk")) {
+          const k = ease(lt / 0.45);
+          cam(V(p.x + 2.6, lerp(1.2, 1.45, k), p.z + 1.9), V(p.x, p.y + 1.45, p.z), 34, 4, dt);
+        } else {
+          if (once(hero, "cut")) CINE.cut();
+          const lookAt = r ? r.pos : tgt;
+          this.aim = this.aim || new V3();
+          this.aim.lerp(lookAt, r ? 1 : Math.min(1, dt * 6));
+          cam(V(-4.4, 1.05, -10.3), _c.copy(this.aim).setY(Math.max(0.6, this.aim.y)), 44, 3, dt);
+        }
       },
-      look: () => af(chest(foe1), 5, { near: 2 }),
+      look: lt => (hero.once.has("rk") ? af(V(1.5, 1, -14.6), 7, { near: 0 }) : af(chest(hero), 2.8)),
     },
     {
       t: 33,
@@ -1497,6 +1548,7 @@
     G = null;
     focus = null;
     CTF.exitMap();
+    K.setPilotCollider(null);
   }
   function action() {
     if (!G) return V(0, 0, 0);

@@ -97,6 +97,11 @@ function analyze(truth, seen) {
         await p.click("#deploy");
       }
       await A.waitForTimeout(1500);
+      /* the watcher stands well clear of the path (pilots collide, and a push would bend the path) */
+      await B.evaluate(() => {
+        KA.me.pos.set(26, 0, -26);
+        KA.me.vel.set(0, 0, 0);
+      });
       /* A follows a known path: a figure-eight at up to ~12 m/s */
       await A.evaluate(() => {
         const t0 = Date.now();
@@ -187,6 +192,12 @@ function analyze(truth, seen) {
          will stand); the client records where it draws it */
       const id = await A.evaluate(() => {
         const a = CTF.UI.game().agents.find(x => !x.human && x.team === 0);
+        /* bench the other AI: pilots collide, and one walking through the path would push it */
+        for (const o of CTF.UI.game().agents)
+          if (o !== a && !o.human) {
+            o.dead = true;
+            o.respawnAt = 1e9;
+          }
         const t0 = Date.now();
         window.__truth = [];
         window.__script = true;

@@ -90,7 +90,53 @@ const T_GFX = "Graphics",
   T_PAD = "Controller",
   T_GAME = "Gameplay",
   T_AUD = "Audio",
-  T_DES = "Destruction";
+  T_DES = "Destruction",
+  T_SBX = "Sandbox";
+/* [key, label, default, min, max, step, unit, description] */
+/** @type {[string, string, number, number, number, number, string, string?][]} */
+const SANDBOX_DEFS = [
+  ["sbRun", "Run speed", 6.4, 5, 8, 0.1, " m/s"],
+  ["sbSprint", "Sprint speed", 9, 7, 11, 0.1, " m/s"],
+  ["sbAccel", "Ground acceleration", 80, 30, 140, 5, " m/s²", "How fast you reach full speed."],
+  [
+    "sbReverse",
+    "Strafe reversal",
+    95,
+    30,
+    180,
+    5,
+    " m/s²",
+    "How hard a change of direction bites. Higher makes strafing a sharper skill.",
+  ],
+  ["sbAir", "Air control", 18, 4, 36, 1, " m/s²"],
+  ["sbJump", "Jump strength", 7.4, 6, 9, 0.1, " m/s"],
+  ["sbGrav", "Gravity", 24, 16, 32, 0.5, " m/s²"],
+  ["sbThrust", "Thrust speed", 17, 11, 23, 0.5, " m/s"],
+  ["sbThrustCD", "Thrust cooldown", 2.2, 0.8, 4, 0.1, " s"],
+  ["sbSlide", "Slide boost", 3.2, 0, 6, 0.1, " m/s"],
+  ["sbCarbDmg", "Carbine damage", 9, 6, 13, 0.5, ""],
+  ["sbCarbRate", "Carbine fire interval", 0.1, 0.06, 0.16, 0.005, " s"],
+  ["sbCarbSpread", "Carbine hip spread", 0.012, 0, 0.03, 0.001, ""],
+  ["sbCarbBloom", "Carbine bloom per shot", 0.004, 0, 0.012, 0.0005, ""],
+  ["sbMagDmg", "Magnum damage", 20, 14, 28, 1, ""],
+  ["sbMagRate", "Magnum fire interval", 0.26, 0.16, 0.45, 0.01, " s"],
+  ["sbSnipeRate", "Sniper fire interval", 0.62, 0.4, 1.2, 0.02, " s"],
+  ["sbRocketSpeed", "Rocket speed", 32, 18, 60, 1, " m/s"],
+  ["sbRocketRadius", "Rocket blast radius", 4.2, 2.5, 6.5, 0.1, " m"],
+  ["sbNadeThrow", "Grenade throw speed", 19, 12, 27, 0.5, " m/s", "How far grenades fly."],
+  [
+    "sbNadeBounce",
+    "Frag bounciness",
+    0.38,
+    0,
+    0.8,
+    0.02,
+    "",
+    "Share of speed kept when a frag hits the floor.",
+  ],
+  ["sbNadeFuse", "Frag fuse", 2.2, 1.2, 3.4, 0.1, " s"],
+  ["sbNadeRadius", "Frag blast radius", 5.2, 3, 7, 0.1, " m"],
+];
 /** @type {SettingDef[]} */
 const SCHEMA = [
   {
@@ -598,6 +644,26 @@ const SCHEMA = [
   },
   { k: "hitSounds", tab: T_GAME, label: "Hit marker sounds", type: "toggle", def: true },
   {
+    k: "friendlyFire",
+    tab: T_GAME,
+    label: "Friendly fire",
+    type: "toggle",
+    def: true,
+    desc: "Team modes: your shots, grenades and rockets hurt teammates too (and theirs hurt you). The host's setting applies online.",
+  },
+  {
+    k: "spawnStyle",
+    tab: T_GAME,
+    label: "Spawns",
+    type: "select",
+    def: "pods",
+    opts: [
+      ["pods", "Drop pods"],
+      ["classic", "Classic (appear in place)"],
+    ],
+    desc: "Drop pods: pilots fall from orbit in a pod that crashes in and blows its doors. A pod that lands on an enemy takes them out.",
+  },
+  {
     k: "master",
     tab: T_AUD,
     label: "Master volume",
@@ -690,6 +756,20 @@ const SCHEMA = [
       ["90", "90 s"],
     ],
   },
+  /* ----- Sandbox: movement, weapons and grenades. Defaults chosen by simulation (docs/TUNING.md).
+     Online, the host's sandbox applies to everyone in the match. ----- */
+  ...SANDBOX_DEFS.map(([k, label, def, min, max, step, unit, desc]) => ({
+    k,
+    tab: T_SBX,
+    label,
+    type: /** @type {"range"} */ ("range"),
+    def,
+    min,
+    max,
+    step,
+    fmt: v => +v.toFixed(3) + (unit || ""),
+    desc,
+  })),
 ];
 const PRESETS = {
   low: {

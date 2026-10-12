@@ -3,3 +3,4 @@ node_modules/
 .DS_Store
 /out/
 tests/visual/*.actual.png
+tools/out/

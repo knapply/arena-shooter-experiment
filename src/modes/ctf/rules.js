@@ -31,6 +31,13 @@
       onComms: null,
       segT: [0, 0],
       killLog: [],
+      /* friendly fire: bullets, grenades and rockets hurt teammates (the host's setting) */
+      ff: opts.ff != null ? !!opts.ff : !(K.SET && K.SET.friendlyFire === false),
+      /* drop pod respawns (the host's setting): the pilot is out until the pod lands */
+      pods: opts.pods != null ? !!opts.pods : !!(K.SET && K.SET.spawnStyle !== "classic"),
+      /** weapons and grenades on the floor (death drops) */
+      items: [],
+      itemSeq: 0,
     };
     const models = CTF.loadModels();
     G.teams = [0, 1].map(t => ({ team: t, score: 0, agents: [], brain: new CTF.TeamBrain(t, models[t]) }));
@@ -72,9 +79,13 @@
       return mates;
     };
     G.bench = [];
+    G.bodies = G.agents.map(a => a.body);
     const rebuild = () => {
       G.agents = [...G.teams[0].agents, ...G.teams[1].agents];
+      G.bodies = G.agents.map(a => a.body);
     };
+    /* pilots are solid to each other */
+    const colliders = () => G.bodies;
     function dropFlag(a) {
       if (!a.carrying) return;
       const f = a.carrying;
@@ -136,14 +147,27 @@
       G.addHuman(G.human, opts.humanTeam || 0);
     }
     G.nades = new K.NadeWorld(G.render);
+    G.rockets = new K.RocketWorld(G.render);
     G.claims = [null, null];
+    const ROT = K.POWER_ROTATION.map(k => K.WEAPON_DATA.findIndex(w => w.key === k));
     G.pickups = CTF.PICKUP_DEFS.map(d => {
       const p = {
         id: d.id,
         type: d.type,
+        power: true,
+        rot: d.rotate ? ROT : null,
+        ri: d.rotate ? Math.max(0, K.POWER_ROTATION.indexOf(d.weapon)) : 0,
         pos: d.pos.clone(),
         respawn: d.respawn,
         availAt: 0,
+        /** taken: the respawn timer starts and the rotation moves on to the next power weapon */
+        consume() {
+          p.availAt = G.t + p.respawn;
+          if (p.rot) {
+            p.ri = (p.ri + 1) % p.rot.length;
+            p.type = p.rot[p.ri];
+          }
+        },
         get avail() {
           return G.t >= p.availAt;
         },
@@ -156,28 +180,104 @@
       };
       return p;
     });
+    const keyOf = t => (K.WEAPON_DATA[t] ? K.WEAPON_DATA[t].key : "");
+    /** an AI pilot arms itself with a power weapon (ammo: [mag, reserve], or full) */
+    G.arm = function (a, type, ammo) {
+      const W = K.WEAPON_DATA[type],
+        n = ammo ? ammo[0] + ammo[1] : W.mag + W.reserve;
+      a.sniper = a.sniperMag = a.rocket = 0;
+      if (W.key === "sniper") {
+        a.sniper = n;
+        a.sniperMag = Math.min(W.mag, n);
+      } else if (W.key === "rocket") a.rocket = n;
+    };
     G.takePickup = function (p, a) {
       if (!p.avail || !a || !a.alive) return false;
-      p.availAt = G.t + p.respawn;
-      if (!a.human) {
-        a.sniper = 12;
-        a.sniperMag = 4;
-      }
+      const type = p.type,
+        key = keyOf(type);
+      p.consume();
+      if (!a.human) G.arm(a, type);
       G.claims[a.team] = null;
       G.emit("pickup", { by: a, id: p.id });
       const br = G.teams[a.team].brain;
-      br.say(
-        G,
-        a.human ? br.leader(G) : a,
-        "snp",
-        a.human ? `${a.name} has the sniper` : "I've got the sniper",
-        true
-      );
+      const nm = key === "rocket" ? "rockets" : "the sniper";
+      br.say(G, a.human ? br.leader(G) : a, "snp", a.human ? `${a.name} has ${nm}` : `I've got ${nm}`, true);
       const ob = G.teams[1 - a.team].brain,
         l = ob.leader(G);
-      if (l) ob.say(G, l, "snpL", "They took the sniper, watch the long lines", true);
+      if (l)
+        ob.say(
+          G,
+          l,
+          "snpL",
+          key === "rocket" ? "They have rockets, spread out" : "They took the sniper, watch the long lines",
+          true
+        );
       return true;
     };
+    /* ---- items on the floor ---- */
+    G.addItems = function (list, at) {
+      list.forEach((o, i) => {
+        const ang = (i / Math.max(1, list.length)) * Math.PI * 2 + K.rand();
+        const pos = at.clone();
+        pos.x += Math.cos(ang) * 0.5;
+        pos.z += Math.sin(ang) * 0.5;
+        pos.y = K.groundBelow(pos.x, pos.z, at.y + 1, 0.05) + 0.02;
+        const it = {
+          id: "i" + ++G.itemSeq,
+          type: o.type,
+          ammo: o.ammo || null,
+          nades: o.nades || null,
+          pos,
+          until: G.t + 30,
+          gone: false,
+          get avail() {
+            return !it.gone && G.t < it.until;
+          },
+          availIn: 0,
+          take() {
+            if (!it.avail) return false;
+            it.gone = true;
+            return true;
+          },
+        };
+        G.items.push(it);
+      });
+      while (G.items.length > 24) G.items.shift();
+    };
+    /** what an AI pilot (or a remote player, as far as the host knows) drops when they die */
+    G.loadoutOf = function (a) {
+      const out = [];
+      if (a.rocket > 0) {
+        const t = K.WEAPON_DATA.findIndex(w => w.key === "rocket");
+        out.push({ type: t, ammo: [Math.min(2, a.rocket), Math.max(0, a.rocket - 2)] });
+      } else if (a.sniper > 0) {
+        const t = K.WEAPON_DATA.findIndex(w => w.key === "sniper");
+        out.push({ type: t, ammo: [Math.min(4, a.sniper), Math.max(0, a.sniper - 4)] });
+      } else
+        out.push({
+          type: a.remote && a.wpn ? a.wpn : 0,
+          ammo: [K.WEAPON_DATA[a.remote && a.wpn ? a.wpn : 0].mag, Infinity],
+        });
+      const nf = a.nadeInv ? a.nadeInv.frag : 0,
+        np = a.nadeInv ? a.nadeInv.plasma : 0;
+      if (nf + np > 0) out.push({ type: -1, nades: { frag: nf, plasma: np } });
+      return out;
+    };
+    /** an AI pilot walking over an item: grenades top up, a power weapon replaces their sidearm */
+    function aiTakes(a, it) {
+      if (it.type < 0) {
+        const n = it.nades || { frag: 1, plasma: 0 };
+        const f = Math.min(n.frag, 2 - a.nadeInv.frag),
+          pl = Math.min(n.plasma, 2 - a.nadeInv.plasma);
+        if (f <= 0 && pl <= 0) return;
+        if (!it.take()) return;
+        a.nadeInv.frag += f;
+        a.nadeInv.plasma += pl;
+      } else if (K.WEAPON_DATA[it.type].power && !(a.sniper > 0) && !(a.rocket > 0) && !a.carrying) {
+        if (!it.take()) return;
+        G.arm(a, it.type, it.ammo && it.ammo[1] !== Infinity ? it.ammo : null);
+      }
+    }
     G.sniperFor = function (team) {
       for (const a of G.teams[team].agents)
         if (a.alive && (a.sniper > 0 || a.wpn === 2 || (a.local && K.wi === 2))) return a;
@@ -225,8 +325,12 @@
           );
       }
       victim.d++;
-      if (killer && killer !== victim) killer.k++;
+      /* a teamkill (friendly fire) costs a point instead of earning one */
+      if (killer && killer !== victim) killer.k += killer.team === victim.team ? -1 : 1;
       const p = victim.pos.clone();
+      /* weapons and grenades fall where they died (you report your own drop) */
+      if (!victim.local) G.addItems(G.loadoutOf(victim), p);
+      victim.sniper = victim.sniperMag = victim.rocket = 0;
       if (victim.carrying) {
         const f = victim.carrying;
         f.state = "dropped";
@@ -259,6 +363,19 @@
       }
       G.killLog.push({ t: G.t, k: killer ? killer.id : null, v: victim.id });
       G.emit("kill", { victim, killer, type, head });
+    };
+    /** a player holding Interact at the enemy flag */
+    G.humanTakeFlag = function (a) {
+      const f = G.flags[1 - a.team];
+      if (!a || !a.alive || a.carrying || f.state === "carried" || a.pos.distanceTo(f.pos) > 1.8)
+        return false;
+      pickup(f, a);
+      return true;
+    };
+    /** let go of the flag where you stand (switching weapons does this) */
+    G.dropFlagBy = function (a) {
+      if (!a || !a.carrying) return;
+      dropFlag(a);
     };
     function pickup(f, a) {
       f.state = "carried";
@@ -328,11 +445,42 @@
     G.step = function (dt) {
       if (G.over) return;
       G.t += dt;
+      K.setPilotCollider(colliders);
       for (const tm of G.teams) tm.brain.tick(G, dt);
       for (const a of G.agents) {
         if (a.human) continue;
         if (a.dead) {
-          if (G.t >= a.respawnAt) a.spawn(G.spawnPoint(a.team));
+          if (G.t >= a.respawnAt) {
+            if (!G.pods) a.spawn(G.spawnPoint(a.team));
+            else if (!a.podAt) {
+              const pt = G.spawnPoint(a.team);
+              a.podPt = pt;
+              const up = new K.THREE.Vector3(pt[0], pt[1] + 2.2, pt[2]);
+              const open = K.rayWorld(up, new K.THREE.Vector3(0, 1, 0), 60) >= 59;
+              if (open) {
+                a.podAt = G.t + 1.35;
+                G.emit("pod", { a, pos: new K.THREE.Vector3(pt[0], pt[1] + 0.02, pt[2]) });
+              } else {
+                a.spawn(pt);
+                a.podPt = null;
+              }
+            } else if (G.t >= a.podAt) {
+              a.spawn(a.podPt);
+              a.podAt = 0;
+              /* a pod landing on someone takes them out */
+              for (const e of G.agents)
+                if (
+                  e !== a &&
+                  e.alive &&
+                  (G.ff || e.team !== a.team) &&
+                  Math.hypot(e.pos.x - a.pos.x, e.pos.z - a.pos.z) < 1.5 &&
+                  Math.abs(e.pos.y - a.pos.y) < 2.2
+                ) {
+                  if (e.human) G.hurtHuman(e, 999, { name: a.name, agent: a, w: "pod" });
+                  else e.onHit(999, "pod", false, a);
+                }
+            }
+          }
           continue;
         }
         const inp = a.think(dt);
@@ -355,6 +503,24 @@
             G.takePickup(p, a);
       }
       G.nades.step(dt);
+      G.rockets.step(dt);
+      for (let i = G.items.length - 1; i >= 0; i--) {
+        const it = G.items[i];
+        if (!it.avail) {
+          G.items.splice(i, 1);
+          continue;
+        }
+        for (const a of G.agents)
+          if (
+            !a.human &&
+            a.alive &&
+            Math.hypot(a.pos.x - it.pos.x, a.pos.z - it.pos.z) < 1.3 &&
+            Math.abs(a.pos.y - it.pos.y) < 1.6
+          ) {
+            aiTakes(a, it);
+            if (!it.avail) break;
+          }
+      }
       // flags
       for (const f of G.flags) {
         const own = f.team,
@@ -381,10 +547,20 @@
         for (const a of G.agents) {
           if (!a.alive) continue;
           const d = a.pos.distanceTo(f.pos);
-          if (d > 1.5) continue;
-          if (a.team === enemy && !a.carrying) {
-            pickup(f, a);
-            break;
+          if (d > 1.5) {
+            if (a.team === enemy) a.flagHold = 0;
+            continue;
+          }
+          /* the flag is picked up by hand: AI pilots stop and take it (a short hold); players hold
+             Interact (G.humanTakeFlag) */
+          if (a.team === enemy && !a.carrying && !a.human) {
+            a.flagHold = (a.flagHold || 0) + dt;
+            if (a.flagHold >= 0.3) {
+              a.flagHold = 0;
+              pickup(f, a);
+              break;
+            }
+            continue;
           }
           if (a.team === own && f.state === "dropped") {
             f.state = "home";

@@ -38,6 +38,8 @@ $("deploy").onclick = () => {
 };
 function leaveGame() {
   MAIN_NADES.clear();
+  MAIN_ROCKETS.clear();
+  clearPods();
   if (EXT) {
     const e = EXT;
     EXT = null;

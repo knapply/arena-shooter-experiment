@@ -1,8 +1,31 @@
 /* ============ physics ============ */
 const R = 0.38,
-  GRAV = 24,
   H_STAND = 1.8,
   H_CROUCH = 1.2;
+/* movement tuning. The defaults were chosen by simulation (tools/tune.js, docs/TUNING.md); the
+   Sandbox settings tab can change every one of them. */
+const TUNE_DEF = {
+  run: 6.4,
+  sprint: 9,
+  crouchSpeed: 3.2,
+  jump: 7.4,
+  grav: 24,
+  accel: 80,
+  reverse: 95,
+  airAccel: 18,
+  thrust: 17,
+  thrustCD: 2.2,
+  slideBoost: 3.2,
+  slideCap: 15,
+};
+const TUNE = Object.assign({}, TUNE_DEF);
+/* pilots are solid to each other: modes say who else is in the world (anything with pos, h and dead) */
+const NO_PILOTS = [];
+let pilotsFn = null;
+/** @param {((self: any) => any[]) | null} fn */
+function setPilotCollider(fn) {
+  pilotsFn = fn;
+}
 function ov(px, py, pz, h, b) {
   return (
     px + R > b.x0 + 1e-4 &&
@@ -203,11 +226,11 @@ class Body {
     if (this.thrustBuf > 0 && this.thrustCD <= 0 && this.pound === 0 && this.landLock <= 0) {
       this.thrustBuf = 0;
       const dir = wish.lengthSq() > 0.01 ? wish.clone().normalize() : f.clone();
-      v.x = dir.x * 17;
-      v.z = dir.z * 17;
+      v.x = dir.x * TUNE.thrust;
+      v.z = dir.z * TUNE.thrust;
       if (!this.ground) v.y = Math.max(v.y, 0);
       this.thrustT = 0.24;
-      this.thrustCD = 2.2;
+      this.thrustCD = TUNE.thrustCD;
       this.sprint = false;
       this.sprintT = 0;
       this.slideT = 0;
@@ -218,7 +241,7 @@ class Body {
     if (this.crouchBuf > 0 && this.ground && (this.sprint || hs0 > 7.5) && this.slideCD <= 0) {
       this.crouchBuf = 0;
       /* thrust into slide is the fastest way to cover ground, capped so it stays a technique, not a teleport */
-      const sp = Math.min(Math.max(hs0, 9) + 3.2, 15),
+      const sp = Math.min(Math.max(hs0, TUNE.sprint) + TUNE.slideBoost, TUNE.slideCap),
         il = 1 / Math.max(hs0, 1e-4);
       v.x *= il * sp;
       v.z *= il * sp;
@@ -266,7 +289,7 @@ class Body {
     if (this.jumpBuf > 0 && (this.ground || this.coyote > 0) && v.y <= 0.5 && this.landLock <= 0) {
       this.jumpBuf = 0;
       this.coyote = 0;
-      v.y = 7.4;
+      v.y = TUNE.jump;
       this.ground = false;
       const slid = this.slideT > 0;
       this.slideT = 0;
@@ -309,8 +332,13 @@ class Body {
     } else if (this.pound === 0) {
       /* aiming slows you a little with low-zoom scopes and more with a sniper scope (inp.aimMul) */
       const speed =
-        (this.crouch ? 3.2 : this.sprint ? 9.0 : inp.aim ? 6.4 * (inp.aimMul || 0.72) : 6.4) *
-        (this.speedMul || 1);
+        (this.crouch
+          ? TUNE.crouchSpeed
+          : this.sprint
+            ? TUNE.sprint
+            : inp.aim
+              ? TUNE.run * (inp.aimMul || 0.72)
+              : TUNE.run) * (this.speedMul || 1);
       const tx = wish.x * speed,
         tz = wish.z * speed;
       if (this.ground) {
@@ -322,12 +350,12 @@ class Body {
         } else {
           /* strafing as a skill: reversing direction bites harder (95) than speeding up (70), so a
              well-timed change of direction is quick enough to make someone miss, but not instant */
-          const a = (tx * v.x + tz * v.z < 0 ? 95 : 70) * dt;
+          const a = (tx * v.x + tz * v.z < 0 ? TUNE.reverse : TUNE.accel) * dt;
           v.x += clamp(tx - v.x, -a, a);
           v.z += clamp(tz - v.z, -a, a);
         }
       } else {
-        const a = 18 * dt;
+        const a = TUNE.airAccel * dt;
         const nx = v.x + clamp(tx - v.x, -a, a),
           nz = v.z + clamp(tz - v.z, -a, a);
         if (Math.hypot(nx, nz) <= Math.max(Math.hypot(v.x, v.z), speed)) {
@@ -338,7 +366,7 @@ class Body {
     }
     /* crouch-jump: tucking your legs in the air lets you clamber ledges ~0.45 m higher */
     this.tuck = !this.ground && !!inp.crouch && this.pound === 0;
-    if (!(this.thrustT > 0 && !this.ground) && !this.stabbing && this.pound !== 1) v.y -= GRAV * dt;
+    if (!(this.thrustT > 0 && !this.ground) && !this.stabbing && this.pound !== 1) v.y -= TUNE.grav * dt;
     if (this.pound === 2) v.y = Math.min(v.y, -30);
     if (
       !this.ground &&
@@ -416,6 +444,7 @@ class Body {
         if (this.chargeT > 0) this.chargeT = 0;
       }
     }
+    if (pilotsFn) this.pushPilots(pilotsFn(this) || NO_PILOTS);
     if (this.ground) {
       this.stabT = 0;
       if (!wasGround) {
@@ -432,6 +461,43 @@ class Body {
     if (p.y < -20) {
       p.set(0, 8, 0);
       v.set(0, 0, 0);
+    }
+  }
+  /** step out of any other pilot we overlap (2R apart), and stop moving into them */
+  pushPilots(list) {
+    const p = this.pos,
+      v = this.vel,
+      min = 2 * R;
+    for (const o of list) {
+      if (!o || o === this || o.dead) continue;
+      const op = o.pos;
+      if (p.y + this.h <= op.y + 0.1 || op.y + (o.h || H_STAND) <= p.y + 0.1) continue;
+      const dx = p.x - op.x,
+        dz = p.z - op.z,
+        d2 = dx * dx + dz * dz;
+      if (d2 >= min * min) continue;
+      let d = Math.sqrt(d2),
+        nx = dx / d,
+        nz = dz / d;
+      if (d < 1e-4) {
+        nx = Math.sin(this.yaw);
+        nz = Math.cos(this.yaw);
+        d = 0;
+      }
+      const push = min - d,
+        x0 = p.x,
+        z0 = p.z;
+      p.x += nx * push;
+      p.z += nz * push;
+      if (!freeAt(p.x, p.y + 0.02, p.z, this.h - 0.04)) {
+        p.x = x0;
+        p.z = z0;
+      }
+      const vn = v.x * nx + v.z * nz;
+      if (vn < 0) {
+        v.x -= vn * nx;
+        v.z -= vn * nz;
+      }
     }
   }
   damage(n, now) {

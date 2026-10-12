@@ -42,13 +42,20 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     await p.waitForTimeout(250);
     check(await visible(p, "#prompt"), "pickup prompt near the sniper", await text(p, "#prompt"));
     await p.keyboard.down("KeyE");
-    await p.waitForTimeout(550);
+    /* hold until it's taken (up to 3 s): slow CI frames can stretch the hold */
+    for (let i = 0; i < 30 && (await p.evaluate(() => KA.wi)) !== 2; i++) await p.waitForTimeout(100);
     await p.keyboard.up("KeyE");
-    await p.waitForTimeout(500);
+    await p.waitForTimeout(300);
     check(
       (await p.evaluate(() => KA.wi)) === 2,
       "holding interact picks up the sniper",
-      await text(p, "#wname")
+      await p.evaluate(() => [
+        document.getElementById("wname").textContent,
+        KA.me.pos.toArray(),
+        KA.me.dead,
+        KA.INTRO.active,
+        KA.ARENA_PICKS.map(x => [x.type, x.availIn]),
+      ])
     );
     await p.evaluate(() => {
       KA.me.pos.set(-30, 0, 30);
@@ -151,8 +158,12 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       KA.me.spawnT = -99;
       KA.me.shield = 0;
       KA.hurtMe(999, { bot: b, w: "rifle", hd: true });
-      await new Promise(r => setTimeout(r, 1300));
-      const during = { active: KA.REPLAY.active, cap: document.querySelector("#cine .cap").textContent };
+      await new Promise(r => setTimeout(r, 900));
+      /* under load the replay can take a moment to start */
+      for (let i = 0; i < 20 && !KA.REPLAY.active; i++) await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 400));
+      const capEl = document.querySelector("#cine .cap");
+      const during = { active: KA.REPLAY.active, cap: capEl ? capEl.textContent : "(no caption)" };
       await new Promise(r => setTimeout(r, 4200));
       return { during, after: KA.REPLAY.active, recap: document.getElementById("deadBy").textContent };
     });
@@ -166,6 +177,80 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       kc
     );
     await p.waitForTimeout(1500);
+    /* drop pods, death drops, auto-pickup, rocket rotation, pilot collision */
+    const loot = await p.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      let pod = !!KA.myPod || KA.PODS.length > 0;
+      for (let i = 0; i < 60 && KA.me.dead; i++) {
+        await wait(100);
+        pod = pod || !!KA.myPod || KA.PODS.length > 0;
+      }
+      const dropped = KA.ITEMS.map(i => i.type);
+      return { pod, alive: !KA.me.dead, dropped };
+    });
+    check(loot.alive && loot.pod, "respawning drops you in from the sky in a pod", loot);
+    check(
+      loot.dropped.includes(-1) && loot.dropped.some(t => t >= 0),
+      "dying drops your weapon and grenades",
+      loot
+    );
+    const items = await p.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      KA.me.spawnT = KA.now + 5;
+      KA.me.pos.set(-30, 0, 30);
+      KA.me.vel.set(0, 0, 0);
+      KA.nadeInv.frag = 0;
+      KA.dropItems([{ type: -1, nades: { frag: 2, plasma: 0 } }], KA.me.pos.clone(), false);
+      await wait(300);
+      const nades = KA.nadeInv.frag;
+      /* a weapon you carry tops up ammo by walking over it; one you don't waits for interact */
+      KA.giveWeapon(2, [1, 0]);
+      KA.dropItems([{ id: "t-carb", type: 2, ammo: [4, 4] }], KA.me.pos.clone(), false);
+      await wait(300);
+      const carried = KA.ITEMS.filter(i => i.id === "t-carb" && i.avail).length;
+      const other = 3;
+      KA.dropItems([{ type: other, ammo: [1, 2] }], KA.me.pos.clone(), false);
+      await wait(300);
+      const waits = KA.ITEMS.filter(i => i.type === other && i.avail).length;
+      const prompt = document.getElementById("prompt").textContent;
+      return { nades, carried, waits, prompt };
+    });
+    check(items.nades >= 2, "grenades on the floor are picked up automatically", items);
+    check(items.carried === 0, "walking over a weapon you carry takes its ammo", items);
+    check(items.waits === 1 && /hold/i.test(items.prompt), "other weapons wait for a manual pickup", items);
+    const rk = await p.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      const pw = KA.ARENA_PICKS.find(x => x.rot);
+      const before = KA.WEAPON_DATA[pw.type].key;
+      pw.consume();
+      const next = KA.WEAPON_DATA[pw.type].key;
+      KA.giveWeapon(3);
+      await wait(600);
+      const held = KA.wi;
+      window.__rk = 0;
+      const f0 = KA.MAIN_ROCKETS.fire.bind(KA.MAIN_ROCKETS);
+      KA.MAIN_ROCKETS.fire = (...a) => (window.__rk++, f0(...a));
+      return { before, next, held };
+    });
+    check(rk.before !== rk.next, "the power spawn rotates to the next power weapon", rk);
+    check(rk.held === 3, "the rocket launcher can be carried", rk);
+    await p.mouse.down();
+    await p.waitForTimeout(150);
+    await p.mouse.up();
+    const fired = await p.evaluate(() => window.__rk);
+    check(fired >= 1, "the rocket launcher fires a rocket", fired);
+    const col = await p.evaluate(async () => {
+      const b = KA.bots[1];
+      b.body.reset();
+      b.body.dead = false;
+      b.body.spawnT = -99;
+      b.body.pos.copy(KA.me.pos).add(new KA.THREE.Vector3(0.2, 0, 0));
+      b.body.vel.set(0, 0, 0);
+      await new Promise(r => setTimeout(r, 250));
+      return Math.hypot(b.body.pos.x - KA.me.pos.x, b.body.pos.z - KA.me.pos.z);
+    });
+    check(col >= 0.7, "pilots can't walk through each other", col);
+    await p.waitForTimeout(800);
     /* free-for-all has a match: first to the score limit wins, then a fresh match starts */
     const ffa = await p.evaluate(async () => {
       const seen = [];
@@ -454,7 +539,11 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     await B.waitForTimeout(150);
     /* bots stay benched so none races the friend to the pedestal */
     await A.evaluate(() => {
-      KA.EXT.pickups()[0].availAt = 0;
+      const p = KA.EXT.pickups()[0];
+      p.availAt = 0;
+      /* the centre spawn rotates power weapons: make this one the sniper */
+      p.type = KA.WEAPON_DATA.findIndex(w => w.key === "sniper");
+      p.ri = 0;
     });
     await B.waitForTimeout(300);
     const go = () =>

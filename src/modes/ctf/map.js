@@ -20,6 +20,8 @@
     type: K.WEAPON_DATA.findIndex(w => w.key === p.weapon),
     pos: new T.Vector3(p.p[0], p.p[1], p.p[2]),
     respawn: p.respawn,
+    rotate: !!p.rotate,
+    weapon: p.weapon,
   }));
   CTF.BOUNDS = Object.assign({}, MAP.bounds);
 

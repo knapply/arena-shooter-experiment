@@ -109,8 +109,8 @@
       (b.chargeT > 0 ? 1024 : 0) |
       (b.pound === 2 ? 2048 : 0) |
       (o.fire ? 4096 : 0) |
-      (o.wpn === 1 ? 8192 : 0) |
-      (o.wpn === 2 ? 32768 : 0) |
+      (o.wpn === 1 || o.wpn === 3 ? 8192 : 0) |
+      (o.wpn >= 2 ? 32768 : 0) |
       (o.carry ? 16384 : 0)
     );
   };
@@ -202,7 +202,7 @@
         NET.applyBits(a.body, st);
         a.firing = !!(st & 4096);
         a.reloading = !!(st & 64);
-        a.wpn = st & 32768 ? 2 : st & 8192 ? 1 : 0;
+        a.wpn = (st & 40960) === 40960 ? 3 : st & 32768 ? 2 : st & 8192 ? 1 : 0;
       }
     };
     const _pbs = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, s: null };
@@ -238,10 +238,11 @@
       else if (t === "flagReset") e = ["x", d.flag.team];
       else if (t === "capture") e = ["c", d.team, id(d.by)];
       else if (t === "end") e = ["e", d.winner];
+      else if (t === "pod") e = ["p", d.a.team, r2(d.pos.x), r2(d.pos.y), r2(d.pos.z)];
       else if (t === "nade")
         e = [
           "n",
-          d.type === "plasma" ? 1 : 0,
+          d.type === "plasma" ? 1 : d.type === "rocket" ? 2 : 0,
           r2(d.pos.x),
           r2(d.pos.y),
           r2(d.pos.z),
@@ -308,7 +309,7 @@
             NET.bitsOf(b, {
               reload: rl,
               fire,
-              wpn: loc ? K.wi : a.remote ? a.wpn : a.sniper > 0 ? 2 : 0,
+              wpn: loc ? K.wi : a.remote ? a.wpn : a.rocket > 0 ? 3 : a.sniper > 0 ? 2 : 0,
               carry: !!a.carrying,
             }),
             Math.ceil(b.shield),
@@ -321,7 +322,13 @@
         }),
         ev: H.ev,
         cm: H.cm,
-        pu: G.pickups.map(p => [p.id, r1(p.availIn)]),
+        pu: G.pickups.map(p => [p.id, r1(p.availIn), p.type]),
+        /* weapons and grenades on the floor: [id, type, x, y, z] */
+        it: G.items
+          .filter(i => i.avail)
+          .slice(-16)
+          .map(i => [i.id, i.type, r2(i.pos.x), r2(i.pos.y), r2(i.pos.z)]),
+        ff: G.ff ? 1 : 0,
         br: [...K.DESTR.broken.keys()].slice(0, 40),
       };
     };
@@ -468,23 +475,48 @@
         const st = pr.st | 0;
         a.firing = !!(st & 4096);
         a.reloading = !!(st & 64);
-        a.wpn = st & 32768 ? 2 : st & 8192 ? 1 : 0;
+        a.wpn = (st & 40960) === 40960 ? 3 : st & 32768 ? 2 : st & 8192 ? 1 : 0;
       }
       if (Array.isArray(pr.br)) K.applyBreaks(pr.br, true, "c:" + peer);
       if (Array.isArray(pr.pk) && a.init) {
         const s = num(pr.pk[0], 0, 1e9);
         if (s > (a.seenPk | 0)) {
           a.seenPk = s;
-          const p = G.pickups.find(q => q.id === pr.pk[1]);
-          if (
-            p &&
+          const p = G.pickups.find(q => q.id === pr.pk[1]),
+            it = p ? null : G.items.find(q => q.id === pr.pk[1]);
+          const near = q =>
+            q &&
             a.alive &&
-            Math.hypot(a.pos.x - p.pos.x, a.pos.z - p.pos.z) < 2.4 &&
-            Math.abs(a.pos.y - p.pos.y) < 2.2
-          )
-            G.takePickup(p, a);
+            Math.hypot(a.pos.x - q.pos.x, a.pos.z - q.pos.z) < 2.4 &&
+            Math.abs(a.pos.y - q.pos.y) < 2.2;
+          if (near(p)) G.takePickup(p, a);
+          else if (near(it)) it.take();
         }
       } else if (Array.isArray(pr.pk) && !a.init) a.seenPk = num(pr.pk[0], 0, 1e9);
+      /* the player's drops (their death or a weapon swap), and the flag taken or let go by hand */
+      if (Array.isArray(pr.dr) && a.init && num(pr.dr[0], 0, 1e9) > (a.seenDr | 0)) {
+        a.seenDr = num(pr.dr[0], 0, 1e9);
+        const at = K.vec(pr.dr.slice(1, 4), new V3());
+        if (at && at.distanceTo(a.pos) < 6) {
+          const list = (Array.isArray(pr.dr[4]) ? pr.dr[4] : []).slice(0, 3).map(e =>
+            (e[0] | 0) < 0
+              ? { type: -1, nades: { frag: num(e[3], 0, 2) | 0, plasma: num(e[4], 0, 2) | 0 } }
+              : {
+                  type: Math.min(K.WEAPON_DATA.length - 1, Math.max(0, e[0] | 0)),
+                  ammo: [num(e[1], 0, 99) | 0, e[2] < 0 ? Infinity : num(e[2], 0, 99) | 0],
+                }
+          );
+          G.addItems(list, at);
+        }
+      } else if (Array.isArray(pr.dr) && !a.init) a.seenDr = num(pr.dr[0], 0, 1e9);
+      if (pr.fp != null && a.init && num(pr.fp, 0, 1e9) > (a.seenFp | 0)) {
+        a.seenFp = num(pr.fp, 0, 1e9);
+        G.humanTakeFlag(a);
+      } else if (pr.fp != null && !a.init) a.seenFp = num(pr.fp, 0, 1e9);
+      if (pr.fd != null && a.init && num(pr.fd, 0, 1e9) > (a.seenFd | 0)) {
+        a.seenFd = num(pr.fd, 0, 1e9);
+        G.dropFlagBy(a);
+      } else if (pr.fd != null && !a.init) a.seenFd = num(pr.fd, 0, 1e9);
       if (Array.isArray(pr.pg) && a.init) {
         const s = num(pr.pg[0], 0, 1e9);
         const kind = ["enemy", "weapon", "place"].includes(pr.pg[1]) ? pr.pg[1] : null;
@@ -535,7 +567,7 @@
           const s = K.REC.sample(K.pidOf(tgt), vt);
           if (s) at = _rw.set(s.x, s.y, s.z);
         }
-        if (!tgt || tgt.team === a.team || !NET.plausible(a.body.pos, tgt, w, at)) {
+        if (!tgt || tgt === a || (tgt.team === a.team && !G.ff) || !NET.plausible(a.body.pos, tgt, w, at)) {
           H.hitStats.bad++;
           continue;
         }
@@ -559,7 +591,7 @@
         if (f[1] === "n") {
           const p = K.vec(f.slice(2, 5), new V3()),
             v = K.vec(f.slice(5, 8), new V3());
-          if (p && v && v.length() < 45) K.MAIN_NADES.throw(f[8] === 1 ? "plasma" : "frag", p, v, null);
+          if (p && v) K.remoteProjectile(f[8] | 0, p, v);
         }
       }
       if (dth) {

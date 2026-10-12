@@ -98,6 +98,32 @@ function sfx(kind, vol = 1) {
         nz(t, 0.7, "lowpass", 650, 0.6 * vol);
         nz(t, 0.18, "highpass", 2400, 0.22 * vol);
         break;
+      case "rocket": {
+        tone(t, "sine", 110, 55, 0.25, 0.35 * vol, 0.004);
+        const f = nz(t, 0.7, "bandpass", 500, 0.35 * vol, 1.2, 0.01);
+        f.frequency.exponentialRampToValueAtTime(1600, t + 0.6);
+        nz(t, 0.12, "highpass", 3000, 0.12 * vol);
+        break;
+      }
+      case "pod": {
+        /* a drop pod's whistle as it falls */
+        const o = tone(t, "sawtooth", 1400, 260, 1.3, 0.05 * vol, 0.25);
+        o.detune.value = 8;
+        const f = nz(t, 1.3, "bandpass", 3000, 0.16 * vol, 1.5, 0.3);
+        f.frequency.exponentialRampToValueAtTime(400, t + 1.25);
+        break;
+      }
+      case "podland":
+        tone(t, "sine", 90, 28, 1.1, 0.8 * vol, 0.004);
+        nz(t, 0.9, "lowpass", 900, 0.7 * vol);
+        nz(t, 0.25, "highpass", 2500, 0.25 * vol);
+        tone(t + 0.35, "square", 600, 400, 0.05, 0.05 * vol);
+        nz(t + 0.36, 0.3, "bandpass", 1800, 0.15 * vol, 2);
+        break;
+      case "pickup":
+        tone(t, "triangle", 620, 930, 0.12, 0.08 * vol);
+        tone(t + 0.08, "triangle", 930, 1240, 0.14, 0.07 * vol);
+        break;
       case "stick":
         tone(t, "sine", 900, 1500, 0.14, 0.07 * vol);
         nz(t, 0.1, "bandpass", 4000, 0.05 * vol, 3);

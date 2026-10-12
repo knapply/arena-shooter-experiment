@@ -26,6 +26,7 @@ const DMG_CAP = {
   pound: 120,
   frag: 105,
   stick: 999,
+  rocket: 999,
 };
 const budgets = new Map();
 /* every remote shooter gets a refilling damage budget, so a modified client cannot delete you instantly */
@@ -40,7 +41,7 @@ function allowDamage(peer, n, w) {
   b.t = t;
   const cap = DMG_CAP[w] != null ? DMG_CAP[w] : 16;
   n = Math.min(n, cap);
-  if (w === "stick" || w === "sniper" || (w === "charge" && n > 85)) {
+  if (w === "stick" || w === "sniper" || w === "rocket" || (w === "charge" && n > 85)) {
     if (b.tok < 120) return 0;
     b.tok -= 120;
     return n;
@@ -48,6 +49,16 @@ function allowDamage(peer, n, w) {
   if (b.tok < n) return 0;
   b.tok -= n;
   return n;
+}
+/* online sandbox: the room host's tuning applies to the whole room while you're in it */
+const amHub = () => !!(window.KAHOST && window.KAHOST.net.hub && window.KAHOST.net.hub().me);
+const hubPeer = () => (window.KAHOST && window.KAHOST.net.hub ? window.KAHOST.net.hub().id : null);
+let sbSeen = "";
+function adoptSandbox(sb) {
+  const k = JSON.stringify(sb);
+  if (k === sbSeen) return;
+  sbSeen = k;
+  setSandboxOverride(sb);
 }
 let room = null,
   lastSend = 0,
@@ -73,8 +84,8 @@ function myBits() {
     (me.chargeT > 0 ? 1024 : 0) |
     (me.pound === 2 ? 2048 : 0) |
     (now - lastFireT < 0.12 ? 4096 : 0) |
-    (wi === 1 ? 8192 : 0) |
-    (wi === 2 ? 32768 : 0)
+    (wi === 1 || wi === 3 ? 8192 : 0) |
+    (wi >= 2 ? 32768 : 0)
   );
 }
 function sendPresence(force) {
@@ -131,6 +142,8 @@ function sendPresence(force) {
       fx: fxOut.slice(),
       dth,
       br: DESTR.recent.slice(),
+      /* the room host's sandbox is everyone's (movement, weapon and grenade tuning) */
+      sb: amHub() ? sandboxRules() : null,
     })
     .catch(() => {});
 }
@@ -235,6 +248,7 @@ function applyPeer(pe) {
     r.d = num(pr.d, 0, 9999) | 0;
   }
   if (Array.isArray(pr.br)) applyBreaks(pr.br, true, "a:" + pe.peer);
+  if (pr.sb && typeof pr.sb === "object" && !amHub() && hubPeer() === pe.peer) adoptSandbox(pr.sb);
   const hits = Array.isArray(pr.hits) ? pr.hits.slice(-16) : [],
     fx = Array.isArray(pr.fx) ? pr.fx.slice(-8) : [];
   const dt_ = pr.dth && typeof pr.dth === "object" ? pr.dth : null;
@@ -270,10 +284,10 @@ function applyPeer(pe) {
     } else if (f.k === "thrust" && a && b) {
       thrustPuff(a, b);
       sfx("thrust", distVol(a) * 0.5);
-    } else if (f.k === "pk" && ARENA_PICKS[f.g | 0])
-      ARENA_PICKS[f.g | 0].availAt = now + ARENA_PICKS[f.g | 0].respawn;
-    else if (f.k === "nade" && a && b && b.length() < 45)
-      MAIN_NADES.throw(f.g === 1 ? "plasma" : "frag", a, b, null);
+    } else if (f.k === "pk" && ARENA_PICKS[f.g | 0]) ARENA_PICKS[f.g | 0].consume();
+    else if (f.k === "pod" && a && a.distanceTo(me.pos) < 300) dropPod(a, color);
+    else if ((f.k === "drop" || f.k === "take") && Array.isArray(f.b)) remoteItem(f.k, a, f.b, f.g | 0);
+    else if (f.k === "nade" && a && b) remoteProjectile(f.g | 0, a, b);
   }
   if (dt_ && (dt_.s | 0) > r.seenDth) {
     r.seenDth = dt_.s | 0;
@@ -338,6 +352,8 @@ function updateLive() {
     },
     () => {
       room = null;
+      sbSeen = "";
+      setSandboxOverride(null);
       updateLive();
     }
   );

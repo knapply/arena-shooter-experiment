@@ -127,7 +127,7 @@ async function compare(p, a, b) {
     await p.evaluate(() => {
       KA.leaveGame && KA.leaveGame();
       KA.trailer.record();
-      KA.trailer.seek(6.5);
+      KA.trailer.seek(12.2);
       KA.trailer.step(1 / 30);
       /* the 3D picture only: title cards depend on the machine's fonts */
       document.getElementById("trCard").style.visibility = "hidden";

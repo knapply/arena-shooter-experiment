@@ -281,10 +281,12 @@ const fix = v => +v.toFixed(2);
       G.step(1 / 30);
     }
   };
-  hold(CTF.FLAG_HOME[1], 6);
+  hold(CTF.FLAG_HOME[1], 4);
+  check(G.flags[1].state === "home", "the flag isn't taken by just brushing past it", G.flags[1].state);
+  hold(CTF.FLAG_HOME[1], 14);
   check(
     G.flags[1].state === "carried" && G.flags[1].carrier === a,
-    "touching the enemy flag picks it up",
+    "standing at the enemy flag picks it up (a short hold, like Interact)",
     G.flags[1].state
   );
   const s0 = G.teams[0].score;
@@ -294,7 +296,7 @@ const fix = v => +v.toFixed(2);
     check(G.flags[1].state === "home", "the captured flag resets to its base", G.flags[1].state);
   } else check(false, "own flag stayed home for the capture test", G.flags[0].state);
   /* a carrier who dies drops the flag; it returns home after 15 s untouched */
-  hold(CTF.FLAG_HOME[1], 6);
+  hold(CTF.FLAG_HOME[1], 16);
   /* bench everyone else so no defender returns it by touch */
   for (const x of G.agents)
     if (x !== a) {
@@ -312,6 +314,72 @@ const fix = v => +v.toFixed(2);
     "a dropped flag resets after 15 s",
     ev.slice(-4)
   );
+}
+/* ---------- friendly fire, death drops, AI that only knows what it sees ---------- */
+{
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 5 });
+  G.start();
+  for (let i = 0; i < 30; i++) G.step(1 / 30);
+  check(G.ff === true, "friendly fire is on by default", G.ff);
+  const [a, mate] = G.teams[0].agents;
+  const k0 = a.k,
+    n0 = G.items.length;
+  G.kill(mate, a, "rifle", false);
+  check(a.k === k0 - 1, "a teamkill costs a point", { before: k0, after: a.k });
+  check(G.items.length > n0, "the dead drop their weapon and grenades", G.items.length - n0);
+  /* bench everyone but a watcher and one quiet enemy behind them */
+  const e = G.teams[1].agents[0];
+  for (const x of G.agents)
+    if (x !== a && x !== e) {
+      x.dead = true;
+      x.body.dead = true;
+      x.respawnAt = 1e9;
+    }
+  const find = () => {
+    for (let x = -30; x <= 30; x += 3)
+      for (let z = -30; z <= 30; z += 3) {
+        const p = new K.THREE.Vector3(x, 0, z);
+        p.y = K.groundBelow(x, z, 20, 0.05);
+        const q = p.clone().add(new K.THREE.Vector3(0, 0, 12));
+        q.y = K.groundBelow(q.x, q.z, 20, 0.05);
+        if (Math.abs(q.y - p.y) > 0.1 || !K.freeAt(p, 1.8) || !K.freeAt(q, 1.8)) continue;
+        const eye = p.clone().setY(p.y + 1.5),
+          d = q
+            .clone()
+            .setY(q.y + 1.2)
+            .sub(eye);
+        const L = d.length();
+        if (K.rayWorld(eye, d.normalize(), L) >= L - 0.1) return [p, q];
+      }
+    return null;
+  };
+  const spot = find();
+  if (!spot) check(false, "found an open spot for the perception test");
+  else {
+    const [pa, pe] = spot;
+    const pin = (yawA, n) => {
+      for (let i = 0; i < n; i++) {
+        a.body.pos.copy(pa);
+        a.body.vel.set(0, 0, 0);
+        a.body.yaw = yawA;
+        e.body.pos.copy(pe);
+        e.body.vel.set(0, 0, 0);
+        e.body.yaw = Math.PI; /* also looking away (+z) */
+        e.heardT = -9;
+        a.lastAttacker = null;
+        a.body.shield = e.body.shield = 70;
+        G.teams[0].brain.enemyMem.clear();
+        G.teams[1].brain.enemyMem.clear();
+        G.step(1 / 30);
+      }
+    };
+    /* yaw 0 looks toward -z: the enemy at +z is behind */
+    pin(0, 20);
+    check(a.target !== e, "an AI doesn't sense an enemy behind it", a.target && a.target.name);
+    pin(Math.PI, 20);
+    check(a.target === e, "the same AI spots them once they're in view", a.target && a.target.name);
+  }
 }
 /* ---------- pings: AI teammates go where a teammate pings ---------- */
 {

@@ -257,3 +257,71 @@ VMW.push({
     low: { p: new V3(0.18, -0.42, -0.3), r: [-0.6, 0.3, 0.3] },
   },
 });
+// rocket launcher viewmodel: a launch tube on the right shoulder with a side sight
+const vmRkt = new THREE.Group();
+vmRoot.add(vmRkt);
+vmRkt.visible = false;
+{
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.95, 16), vmPlate);
+  tube.rotation.x = Math.PI / 2;
+  tube.position.set(0, 0, -0.18);
+  vmRkt.add(tube);
+  for (const [z, r, m] of [
+    [-0.66, 0.088, vmDark],
+    [0.3, 0.095, vmDark],
+    [-0.5, 0.079, vmAcc],
+  ]) {
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.06, 16), m);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(0, 0, z);
+    vmRkt.add(ring);
+  }
+  vmBox(vmRkt, 0.05, 0.12, 0.06, vmDark, 0, -0.12, 0.05).rotation.x = 0.2;
+  vmBox(vmRkt, 0.045, 0.1, 0.05, vmDark, 0, -0.11, -0.3);
+  vmBox(vmRkt, 0.05, 0.07, 0.15, vmDark, -0.1, 0.05, -0.12);
+  const lens = new THREE.Mesh(
+    new THREE.CircleGeometry(0.022, 14),
+    new THREE.MeshBasicMaterial({ color: 0xff7a3a })
+  );
+  lens.position.set(-0.1, 0.055, -0.196);
+  lens.rotation.y = Math.PI;
+  vmRkt.add(lens);
+}
+const vmRktMag = vmBox(vmRkt, 0.06, 0.06, 0.12, vmAcc, 0, 0, 0.36);
+VMW.push({
+  g: vmRkt,
+  mag: vmRktMag,
+  grip: new V3(0, -0.12, 0.05),
+  fore: new V3(0, -0.11, -0.3),
+  slot: new V3(0, 0, 0.36),
+  keys: VM_RELOAD,
+  P: {
+    hip: { p: new V3(0.2, -0.13, -0.3), r: [0, 0, 0] },
+    aim: { p: new V3(0.1, -0.12, -0.26), r: [0, 0, 0] },
+    sprint: { p: new V3(0.16, -0.24, -0.3), r: [-0.3, 0.4, 0.25] },
+    reload: { p: new V3(0.16, -0.2, -0.32), r: [0.25, 0.1, 0.4] },
+    low: { p: new V3(0.18, -0.36, -0.3), r: [-0.5, 0.3, 0.3] },
+  },
+});
+/* carrying the flag in first person: the weapon goes away and the flag pole sits across your hands */
+const vmFlag = new THREE.Group();
+vmRoot.add(vmFlag);
+vmFlag.visible = false;
+{
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.6, 10), vmPlate);
+  pole.position.set(0, 0.45, 0);
+  vmFlag.add(pole);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), vmAcc);
+  tip.position.set(0, 1.25, 0);
+  vmFlag.add(tip);
+  vmFlag.position.set(0.16, -0.32, -0.42);
+  vmFlag.rotation.set(-0.35, 0, -0.55);
+}
+let vmFlagOn = false;
+function vmCarry(on) {
+  if (on === vmFlagOn) return;
+  vmFlagOn = on;
+  vmFlag.visible = on;
+  if (on) VMW.forEach(v => (v.g.visible = false));
+  else showVM();
+}

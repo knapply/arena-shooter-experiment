@@ -9,5 +9,6 @@ Every pilot has 70 shield and 45 health. Shields absorb everything and damage pa
 | VK-7 pulse carbine | 9 | 11 | 0.1 s | 12 / 1.1 s | 13 / 1.2 s | no (spread and bloom) |
 | M9 magnum | 20 | 50 | 0.26 s | 5 / 1.04 s | 6 / 1.3 s | yes |
 | SRS-9 sniper rifle | 60 | kill (head always) | 0.62 s | 1 / 0 s | 2 / 0.62 s | yes |
+| HX-2 rocket launcher | 999 | kill | 0.9 s | 1 / 0 s | 1 / 0 s | yes |
 
 **Perfect** medal: a kill with a precision weapon in its minimum shot count with no missed shots in between (the magnum's is 4 body or head shots to break shields, then a headshot: 5 shots, 1.04 s).

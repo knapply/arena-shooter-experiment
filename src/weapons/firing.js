@@ -35,11 +35,23 @@ function dealDamage(t, n, type, head) {
       shieldBroken: had && b.body.shield <= 0,
     });
     hitMarker(died ? "kill" : had ? "sh" : "");
+    b.hurtT = now;
     if (!died) b.rig.flashHit(camera.position);
     if (died) {
       kills++;
       b.d++;
       b.respawn = now + 3;
+      /* drones drop their carbine, and sometimes a grenade */
+      dropItems(
+        Math.random() < 0.5
+          ? [
+              { type: 0, ammo: [32, Infinity] },
+              { type: -1, nades: { frag: 1, plasma: 0 } },
+            ]
+          : [{ type: 0, ammo: [32, Infinity] }],
+        b.body.pos,
+        false
+      );
       b.rig.die(camera.position, hitPower(type));
       spark(b.body.pos.clone().add(new V3(0, 1.1, 0)), 14);
       EVENTS.emit("kill", {
@@ -120,6 +132,18 @@ function fire(src) {
     d.z += rnd(-spread, spread);
   }
   d.normalize();
+  /* projectile weapons (the rocket launcher) launch from the muzzle toward the reticle */
+  if (W().projectile) {
+    fireRocket(o, d, src ? src.muzzle : VMW[wi].g.localToWorld(W().muzzle.clone()));
+    sfx(W().snd);
+    rumble(W().rum[0], W().rum[1], W().rum[2]);
+    recoil += W().recoil;
+    flashT = 0.08;
+    vmS.kick = 1;
+    shakeT = Math.max(shakeT, 0.12);
+    if (mag === 0) startReload();
+    return;
+  }
   /* the exact ray of this shot, for online hit claims (the host re-checks it: lag compensation) */
   SHOT.o.copy(o);
   SHOT.d.copy(d);

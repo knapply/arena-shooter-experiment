@@ -1,6 +1,6 @@
 /* ============ settings screen ============ */
 const T_KEYS = "Keys";
-const STABS = [T_GFX, T_CTL, T_KEYS, T_PAD, T_GAME, T_AUD, T_DES];
+const STABS = [T_GFX, T_CTL, T_KEYS, T_PAD, T_GAME, T_SBX, T_AUD, T_DES];
 const SUI = { tab: T_GFX, from: "menu", padCap: null };
 const el = (tag, cls, txt) => {
   const e = document.createElement(tag);

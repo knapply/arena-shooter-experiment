@@ -164,6 +164,40 @@ function frame(t) {
   updNetHud();
   perfEnd();
 }
+/* ---- respawning (in place, or out of a drop pod) ---- */
+let myPod = null;
+function respawnMe(at) {
+  if (EXT && EXT.respawn) EXT.respawn();
+  else {
+    spawn(me);
+    EVENTS.emit("spawn", { pilot: "local" });
+  }
+  if (at) {
+    me.pos.copy(at);
+    me.vel.set(0, 0, 0);
+    prevPos.copy(me.pos);
+  }
+  $("dead").hidden = true;
+  reloadT = 0;
+  refill();
+}
+/** a pod landing on someone takes them out */
+function podCrush(at) {
+  for (const t of targets())
+    if (Math.hypot(t.pos.x - at.x, t.pos.z - at.z) < 1.5 && Math.abs(t.pos.y - at.y) < 2.2) {
+      dealDamage(t, 999, "pod", false);
+      toast("Pod kill!");
+    }
+}
+/** the camera rides behind and above your pod, looking down at where it will land */
+function podCamera(p, dt) {
+  const g = p.g.position;
+  camera.position.set(g.x + 5.5, g.y + 7, g.z + 6.5);
+  camera.lookAt(p.at.x, Math.min(g.y, p.at.y + 30) - 2, p.at.z);
+  camera.fov = 70;
+  camera.updateProjectionMatrix();
+  void dt;
+}
 function frameBody(t) {
   const raw = Math.max(1e-4, (t - last) / 1000);
   let dt = Math.min(0.05, raw) * timeScale * CINE.timeK(raw);
@@ -205,6 +239,10 @@ function frameBody(t) {
     EXT.full(dt);
     return;
   }
+  if (!EXT) {
+    updArenaColliders();
+    setPilotCollider(arenaColliders);
+  }
   if (!playing) {
     menuT += dt * 0.08;
     camera.position.set(Math.sin(menuT) * 30, 14, Math.cos(menuT) * 30);
@@ -218,6 +256,7 @@ function frameBody(t) {
     return;
   }
   vmRoot.visible = !me.dead && !(aiming && wi === 2);
+  vmCarry(!!(EXT && EXT.carrying && EXT.carrying()));
   if (SET.aimMode === "toggle") {
     if (P("aim")) aimLatch = !aimLatch;
   } else aimLatch = false;
@@ -253,15 +292,22 @@ function frameBody(t) {
     if (Math.abs(mdy) < 1e-5) mdy = 0;
   }
   if (me.dead) {
-    if (now > respawnAt) {
-      if (EXT && EXT.respawn) EXT.respawn();
-      else {
-        spawn(me);
-        EVENTS.emit("spawn", { pilot: "local" });
-      }
-      $("dead").hidden = true;
-      reloadT = 0;
-      refill();
+    if (myPod) {
+      /* riding the drop pod down */
+    } else if (now > respawnAt) {
+      const sp = EXT && EXT.spawnPoint ? EXT.spawnPoint() : spawnPoint();
+      const at = sp ? new V3(sp[0], sp[1] + 0.02, sp[2]) : null;
+      if (at && podsOn() && !INTRO.active && skyClear(at)) {
+        $("dead").hidden = true;
+        myPod = dropPod(at, myColor, {
+          onLand(p) {
+            myPod = null;
+            respawnMe(p);
+            podCrush(p);
+          },
+        });
+        emitFx("pod", v3a(at), [0, 0, 0], 0);
+      } else respawnMe(null);
     } else $("deadT").textContent = `Respawning in ${Math.ceil(respawnAt - now)}`;
   } else if (!paused && !INTRO.active) {
     if (pad.on) padGame(dt);
@@ -322,9 +368,15 @@ function frameBody(t) {
     if (P("grenade")) throwNade();
     if (P("swapNade")) swapNade();
     if (P("reload") && !pkNear) startReload();
-    if (P("weapon1")) setSlot(0);
-    if (P("weapon2")) setSlot(1);
-    if (P("swapWeapon")) setSlot(1 - cur);
+    /* carrying the flag: both hands are on it, so no shooting, and switching weapons lets it go */
+    const carrying = !!(EXT && EXT.carrying && EXT.carrying());
+    if (carrying && (P("weapon1") || P("weapon2") || P("swapWeapon"))) {
+      if (EXT.dropFlag) EXT.dropFlag();
+    } else {
+      if (P("weapon1")) setSlot(0);
+      if (P("weapon2")) setSlot(1);
+      if (P("swapWeapon")) setSlot(1 - cur);
+    }
     const trig = A("fire") || touch.fire;
     if (!trig) semiLatch = false;
     if (
@@ -335,7 +387,8 @@ function frameBody(t) {
       !me.sprint &&
       me.chargeT <= 0 &&
       me.pound === 0 &&
-      !me.clamber
+      !me.clamber &&
+      !carrying
     )
       fire();
   }
@@ -382,6 +435,7 @@ function frameBody(t) {
   camera.fov += (tf - camera.fov) * Math.min(1, dt * (zf > 3 ? 30 : 12));
   if (!(camera.fov > 1 && camera.fov < 170)) camera.fov = fb;
   camera.updateProjectionMatrix();
+  if (myPod) podCamera(myPod, dt);
   updVM(dt, {
     aim: aiming,
     sprint: me.sprint && me.ground,
@@ -406,6 +460,7 @@ function frameBody(t) {
   flashSprite.material.rotation = Math.random() * 6;
   updFX(dt);
   MAIN_NADES.step(dt);
+  MAIN_ROCKETS.step(dt);
   if (!EXT) updRigs(dt);
   ffaTick(dt);
   updPickups(dt);
@@ -478,7 +533,7 @@ function updRigs(dt) {
       pitch: r.pitch,
       shield: r.sh,
       fire: !!(s & 4096),
-      wpn: s & 32768 ? 2 : s & 8192 ? 1 : 0,
+      wpn: (s & 40960) === 40960 ? 3 : s & 32768 ? 2 : s & 8192 ? 1 : 0,
     };
     if (REC.sampling) {
       REC.put(r.id, root.position, st);

@@ -20,6 +20,7 @@
     "data/modes.js",
     "data/maps.js",
     "world/destruction.js",
+    "world/dress.js",
     "world/maps/arena.js",
     "world/physics.js",
     "characters/rig.js",
@@ -31,6 +32,8 @@
     "render/fx.js",
     "render/cinema.js",
     "weapons/grenades.js",
+    "weapons/rockets.js",
+    "game/sandbox.js",
     "core/audio.js",
     "core/announcer.js",
     "game/state.js",
@@ -50,6 +53,7 @@
     "game/replay.js",
     "game/highlights.js",
     "game/intro.js",
+    "game/pods.js",
     "ui/pings.js",
     "game/loop.js",
     "modes/tech-demo.js",
@@ -74,7 +78,10 @@
   ],
   "worker": {
     "_comment": "Background simulation worker (sim-worker.js): the simulation modules with rendering stubbed out. tests/lib/headless.js loads the same list.",
-    "env": ["worker/sim-env.js", "worker/three-lite.js"],
+    "env": [
+      "worker/sim-env.js",
+      "worker/three-lite.js"
+    ],
     "prelude": "worker/sim-prelude.js",
     "engine": [
       "core/store.js",
@@ -85,7 +92,8 @@
       "world/destruction.js",
       "world/maps/arena.js",
       "world/physics.js",
-      "weapons/grenades.js"
+      "weapons/grenades.js",
+      "weapons/rockets.js"
     ],
     "exports": "worker/sim-exports.js",
     "modes": [

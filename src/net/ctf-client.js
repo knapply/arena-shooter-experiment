@@ -117,6 +117,13 @@
       seenCm: -1,
       pk: null,
       pkS: 0,
+      /** weapons and grenades on the floor, from the host */
+      items: [],
+      ff: true,
+      dr: null,
+      drS: 0,
+      fp: 0,
+      fd: 0,
       seenHs: new Map(),
       seenFx: new Map(),
       init: false,
@@ -266,7 +273,7 @@
     function mirrorBits(a, st) {
       NET.applyBits(a.body, st);
       a.firing = !!(st & 4096);
-      a.wpn = st & 32768 ? 2 : st & 8192 ? 1 : 0;
+      a.wpn = (st & 40960) === 40960 ? 3 : st & 32768 ? 2 : st & 8192 ? 1 : 0;
       if (st & 64) {
         if (a.reloadT <= 0) a.reloadT = K.RELOAD_TIME;
       } else a.reloadT = 0;
@@ -404,8 +411,47 @@
           const p = M.pickups.find(q => q.id === u[0]);
           if (!p) continue;
           const ai = num(u[1], 0, 600);
-          if (performance.now() - p.optT > 1500) p.availAt = M.t + ai;
+          if (performance.now() - p.optT > 1500) {
+            p.availAt = M.t + ai;
+            if (u[2] != null && K.WEAPON_DATA[u[2] | 0]) p.type = u[2] | 0;
+          }
         }
+      M.ff = Hs.ff !== 0;
+      if (Array.isArray(Hs.it)) {
+        const seen = new Set();
+        for (const e of Hs.it.slice(0, 16)) {
+          if (!Array.isArray(e) || typeof e[0] !== "string" || e[0].length > 12) continue;
+          const t = e[1] | 0;
+          if (t < -1 || t >= K.WEAPON_DATA.length) continue;
+          seen.add(e[0]);
+          let it = M.items.find(i => i.id === e[0]);
+          if (!it) {
+            const pos = K.vec(e.slice(2, 5), new V3());
+            if (!pos) continue;
+            it = {
+              id: e[0],
+              type: t,
+              pos,
+              gone: false,
+              optT: 0,
+              get avail() {
+                return !it.gone;
+              },
+              availIn: 0,
+              take() {
+                if (it.gone) return false;
+                it.gone = true;
+                it.optT = performance.now();
+                M.pk = [++M.pkS, it.id];
+                M.newsy = true;
+                return true;
+              },
+            };
+            M.items.push(it);
+          }
+        }
+        M.items = M.items.filter(i => seen.has(i.id) && (!i.gone || performance.now() - i.optT < 1500));
+      }
       if (Hs.ov != null && !M.over) {
         M.over = true;
         M.winner = Hs.ov === 0 || Hs.ov === 1 ? Hs.ov : -1;
@@ -433,10 +479,16 @@
         M.over = true;
         M.winner = e[2] === 0 || e[2] === 1 ? e[2] : -1;
         emit("end", { winner: M.winner });
+      } else if (k === "p") {
+        const p = K.vec(e.slice(3, 6), new V3());
+        if (p) K.dropPod(p, CTF.TEAM_HEX[e[2] === 1 ? 1 : 0]);
       } else if (k === "n") {
         const p = K.vec(e.slice(3, 6), new V3()),
           v = K.vec(e.slice(6, 9), new V3());
-        if (p && v && v.length() < 45) M.nades.throw(e[2] === 1 ? "plasma" : "frag", p, v, null);
+        if (p && v) {
+          if (e[2] === 2) K.remoteProjectile(2, p, v);
+          else if (v.length() < 45) M.nades.throw(e[2] === 1 ? "plasma" : "frag", p, v, null);
+        }
       }
     };
     /* ---- per frame ---- */
@@ -511,7 +563,7 @@
               if (f[1] === "n") {
                 const q = K.vec(f.slice(2, 5), new V3()),
                   v = K.vec(f.slice(5, 8), new V3());
-                if (q && v && v.length() < 45) K.MAIN_NADES.throw(f[8] === 1 ? "plasma" : "frag", q, v, null);
+                if (q && v) K.remoteProjectile(f[8] | 0, q, v);
               }
             }
           M.seenFx.set(p.peer, sf);
@@ -605,6 +657,9 @@
         dth: M.dth,
         pk: M.pk,
         pg: M.pg,
+        dr: M.dr,
+        fp: M.fp,
+        fd: M.fd,
         br: K.DESTR.recent.slice(),
       });
     };

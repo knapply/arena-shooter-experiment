@@ -11,17 +11,17 @@ src/
   styles/              base, CTF and multiplayer-panel CSS
   core/                prelude helpers, settings, input, gamepad, audio, announcer
   render/              renderer, post-processing pipeline, environment and materials, pooled FX
-  world/               physics and collision, destruction, maps
+  world/               physics and collision, destruction, maps and their sci-fi dressing
   characters/          procedural pilot rig and animation
   player/              aim assist, ground-pound marker
-  weapons/             arsenal data, firing, viewmodels and their animation, grenades, pickups
+  weapons/             arsenal data, firing, viewmodels and their animation, grenades, rockets, pickups and floor items
   ui/                  HUD, reticle, settings screen
-  game/                game state, deploy, main loop, the window.KA API
+  game/                game state, deploy, main loop, drop pods, the sandbox (tuning settings), the window.KA API
   modes/               movement tutorial; trailer and its synthesized score; ctf/ (map, nav, AI brain and agents, rules, UI, play and simulation modes)
   net/                 arena presence sync, CTF host and client, peer-to-peer room transport
 tests/                 headless sim, browser and render tests
 types/                 TypeScript declarations: globals, the KA API type, wire formats, settings schema
-tools/                 build helpers (module scope analysis, unused-name check), trailer recorder
+tools/                 build helpers (module scope analysis, unused-name check), trailer recorder, sandbox tuning simulations (tune.js)
 docs/MODULES.md        generated index of what each module declares
 ```
 
@@ -37,6 +37,10 @@ docs/MODULES.md        generated index of what each module declares
 - **Replays** (`game/replay.js`, `game/highlights.js`): `REPLAY.play` shows a window of the recording (live, or a saved clip) through ghost rigs while the live pilots are hidden and the world keeps simulating. The kill cam replays your death through the killer's eyes. Highlights score kills (multikills, sprees, power moves), captures and returns from the event stream and save clips of the best three; at match end the best one plays as Play of the Game (title card, first person with slow motion on the kills, then an orbit). Each client picks from what it saw, so online players see the same moment in almost every match.
 - **Game modes** (`game/modes.js`, `data/modes.js`): a mode registers with `defineMode({ id, name, settings, start })` and, while running, hands the engine a hooks object via `extPlay` (`tick`, `targets`, `respawn`, `onPlayerDeath`, `onFx`, `pickups`, `scores`, `switchTeam`, `exit`; all optional). Free-for-all (first to 15, 10 minutes, new match after 8 s), capture the flag, AI-vs-AI spectating, the tutorial and the trailer are registered modes; `startMode(id)` starts one. Every mode number (score and time limits, respawn delay, team size) lives in `data/modes.js`.
 - **Maps as data** (`data/maps.js`): each map is a versioned document (schema 1) of pieces with stable ids (`box`, `stairs`, `strip`; `twin: true` adds a 180° rotated copy for symmetric team maps), spawns, pickups, flags and lane hints. `validateMap` checks a document strictly (safe for untrusted files: types, ranges, counts, materials, ids, weapons) and `buildMap` turns it into meshes and collision; built boxes keep their piece id (`b.pid`). Navigation is built from the resulting collision boxes. A new map is a new document; a map editor or import only has to produce one.
+- **Sandbox** (`game/sandbox.js`, `SANDBOX_DEFS` in `core/settings.js`): every tuning number in the Sandbox settings tab is applied to the live data (movement in `TUNE`, weapons in `WEAPON_DATA`, grenades in `NADES` / `NADE_TUNE`). The AI reads the same data, so `tools/tune.js` can measure a change by playing headless matches. Online, the room host shares its sandbox in presence and everyone else plays by it (`setSandboxOverride`) until they leave; saved settings are never touched.
+- **Items on the floor** (`weapons/pickups.js`): power spawns (with rotation through `POWER_ROTATION`) and dropped items share one shape (`type`, `pos`, `avail`, `take()`). Grenades and ammo for a carried weapon are taken by walking over them (`autoTake`); other weapons need a held interact (`swapFor`). In the arena, drops travel as `drop` / `take` fx; in CTF the host owns `G.items` and clients claim them.
+- **Drop pods** (`game/pods.js`): `dropPod(pos, color, { onLand })` is purely visual plus a callback; the caller places the pilot on landing and applies the crush (`podCrush` in the arena, the host in CTF). The `spawnStyle` setting switches back to in-place spawns.
+- **Map dressing** (`world/dress.js`): runs inside `buildMap` before merging and never adds collision. The worker build skips it (it has no `dressMap`).
 - **Draw-call budget:** static map pieces are merged into one mesh per material when a map is built (`mergeMapGroup`; destructible cover keeps its own meshes), and each pilot's parts are merged per bone and material with one shield shell per bone (`mergeParts`, geometry shared by all pilots). Bloom runs at quarter resolution and tone mapping happens once, in the composite pass. Worst-case views went from ~466 to ~305 draw calls in the arena and ~955 to ~545 in CTF; `tests/budgets.json` holds the limits.
 - **Multiplayer topology** (`net/p2p-transport.js`): the room host relays presence (reliable: names, scores, hits, events, flags); every pair of players also has a direct unordered, no-retransmit link for movement (full mesh, hub relay as fallback). Rooms expose `fast(buffer, to?)`/`onFast(fn)` on top of the presence API, so a transport without them (a relay server, a platform room service) still works on presence alone. The host names a backup; if the host leaves, everyone moves to the backup and the room carries on (`migrate`), and the backup claims the room code. The host can hand the room to a suggested better host. A CTF match survives its host leaving: the successor (room backup if in the match, else the lowest peer id) rebuilds a real match from its mirror (time, score, flags, agents) and hosts it under the same match id (`promote` in `modes/ctf/modes.js`).
 - **Remote playback** (`net/playback.js`): movement packets are timestamped with the sender's clock; each remote player has a buffer with an estimated clock offset and an adaptive delay (about one send interval plus jitter), sampled every frame with interpolation and brief extrapolation. Arena movement goes out at 40 Hz, CTF movement at 30 Hz.
@@ -53,7 +57,7 @@ docs/MODULES.md        generated index of what each module declares
 | Host migration, relay server | `net/p2p-transport.js` (transport), `net/ctf-host.js` and `net/ctf-client.js` (state handoff) |
 | More maps and modes | `world/maps/*`, `modes/*` using the `KA` API; CTF rules in `modes/ctf/rules.js` |
 | ES modules and a bundler | convert one engine module at a time to `import`/`export`, starting from the leaves (`core/prelude.js`, `world/physics.js`); `build.mjs` can switch to esbuild without changing the output contract |
-| Web Worker / WebAssembly | `world/physics.js` (`Body`, raycasts), `modes/ctf/nav.js`, and `modes/ctf/agent.js` are pure simulation with no DOM access and are already exercised headless by `tests/lib/headless.js` |
+| Web Worker / WebAssembly (not needed today: the simulation costs well under 1 ms per frame) | `world/physics.js` (`Body`, raycasts), `modes/ctf/nav.js`, and `modes/ctf/agent.js` are pure simulation with no DOM access and are already exercised headless by `tests/lib/headless.js` |
 | WebGPU renderer, newer three.js | `render/*` only; gameplay code does not touch the pipeline |
 | Desktop packaging | wraps the built `index.html` unchanged |
 

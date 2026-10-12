@@ -50,13 +50,13 @@ function setWeapon(type, instant) {
   const i = slots.indexOf(type);
   if (i >= 0) setSlot(i, instant);
 }
-/* picking up a weapon replaces the one in hand (arena rules) */
-function giveWeapon(type) {
+/* picking up a weapon replaces the one in hand (arena rules); a dropped weapon keeps the ammo it had */
+function giveWeapon(type, am) {
   ammo[wi] = mag;
   slots[cur] = type;
   wi = type;
-  ammo[type] = WEAPONS[type].mag;
-  reserve[type] = WEAPONS[type].reserve;
+  ammo[type] = am ? Math.min(WEAPONS[type].mag, am[0]) : WEAPONS[type].mag;
+  reserve[type] = am ? am[1] : WEAPONS[type].reserve;
   mag = ammo[type];
   reloadT = 0;
   switchT = 0.4;

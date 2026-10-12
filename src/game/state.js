@@ -87,6 +87,21 @@ function makeBots() {
     bots.push(b);
   }
 }
+/* arena pilots are solid to each other: you, the drones and online players */
+const ARENA_COL = [];
+const arenaColliders = () => ARENA_COL;
+function updArenaColliders() {
+  ARENA_COL.length = 0;
+  if (playing && !me.dead) ARENA_COL.push(me);
+  for (const b of bots) if (!b.body.dead) ARENA_COL.push(b.body);
+  for (const r of remotes.values())
+    if (r.has && !r.dead && r.rig) {
+      const c = r.col || (r.col = { pos: r.rig.root.position, h: H_STAND, dead: false });
+      c.pos = r.rig.root.position;
+      c.h = r.crouch ? H_CROUCH : H_STAND;
+      ARENA_COL.push(c);
+    }
+}
 function losTo(a, b) {
   const d = b.clone().sub(a);
   const L = d.length();
@@ -96,18 +111,54 @@ function losTo(a, b) {
 function botStep(b, dt) {
   const B = b.body;
   if (B.dead) {
-    if (now > b.respawn) {
-      spawn(B);
-      b.rig.revive();
-      b.mag = 24;
-      b.reloadT = 0;
+    if (now > b.respawn && !b.pod) {
+      const s = spawnPoint(),
+        at = new V3(s[0], s[1] + 0.01, s[2]);
+      const up = () => {
+        spawn(B);
+        B.pos.copy(at);
+        b.rig.revive();
+        b.mag = 24;
+        b.reloadT = 0;
+      };
+      /* drones drop in by pod too (and a pod landing on you takes you out) */
+      if (podsOn() && skyClear(at))
+        b.pod = dropPod(at, b.color, {
+          onLand() {
+            b.pod = null;
+            up();
+            if (
+              playing &&
+              !me.dead &&
+              Math.hypot(me.pos.x - at.x, me.pos.z - at.z) < 1.5 &&
+              Math.abs(me.pos.y - at.y) < 2.2
+            )
+              hurtMe(999, { bot: b, w: "pod" });
+          },
+        });
+      else up();
     }
     return;
   }
   const eye = B.pos.clone().add(new V3(0, 1.55, 0));
   const myEye = me.pos.clone().add(new V3(0, me.h - 0.2, 0));
   const dist = eye.distanceTo(myEye);
-  const sees = playing && !me.dead && !paused && dist < 45 && losTo(eye, myEye);
+  /* drones notice you the way a player would: in front of them, heard (your gunfire, or sprinting
+     and thrusting close by), shooting at them, or seen a moment ago. Then they need line of sight. */
+  const ang = Math.abs(
+    Math.atan2(
+      Math.sin(Math.atan2(-(myEye.x - eye.x), -(myEye.z - eye.z)) - B.yaw),
+      Math.cos(Math.atan2(-(myEye.x - eye.x), -(myEye.z - eye.z)) - B.yaw)
+    )
+  );
+  const aware =
+    ang < 1.1 ||
+    (now - lastFireT < 1 && dist < 30) ||
+    (dist < 7 && (me.sprint || me.thrustT > 0)) ||
+    now - (b.hurtT || -9) < 2 ||
+    now - (b.seenT || -9) < 1.5;
+  const sees = playing && !me.dead && !paused && dist < 45 && aware && losTo(eye, myEye);
+  if (sees) b.seenT = now;
   const inp = {
     f: 0,
     s: 0,
@@ -229,6 +280,9 @@ function hurtMe(n, src) {
     killedBy = name;
     lastKiller = name;
     if (src.bot) src.bot.k++;
+    /* your weapon and grenades fall where you died */
+    if (EXT && EXT.dropItems) EXT.dropItems(myLoadoutDrop(), me.pos);
+    else if (!EXT) dropItems(myLoadoutDrop(), me.pos);
     dth = {
       s: ++deathSeq,
       by: src.peer || null,

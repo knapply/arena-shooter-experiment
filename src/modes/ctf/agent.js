@@ -31,7 +31,7 @@
       den = 2 * c * c * (x * Math.tan(th) - dy);
     if (den <= 0 || x < 0.5) return null;
     const v = Math.sqrt((g * x * x) / den);
-    if (v > 21) return null;
+    if (v > Math.max(14, K.NADE_TUNE.throw * 1.1)) return null;
     return new V3((dx / x) * v * c, v * Math.sin(th), (dz / x) * v * c);
   }
   const DIFF = {
@@ -95,6 +95,10 @@
       this.aimPitch = 0;
       this.sniper = 0;
       this.sniperMag = 0;
+      this.rocket = 0;
+      this.flagHold = 0;
+      /** when this pilot last fired (anyone near can hear it) */
+      this.heardT = -9;
       this.nadeInv = { frag: 2, plasma: 1 };
       this.nadeCD = 2;
       this._own = null;
@@ -135,6 +139,8 @@
       this.fallback = false;
       this.sniper = 0;
       this.sniperMag = 0;
+      this.rocket = 0;
+      this.flagHold = 0;
       if (this.rig) {
         this.rig.revive();
         this.rig.root.visible = this.G.render;
@@ -154,9 +160,11 @@
       this.lastAttacker = attacker;
       this.lastHitT = this.G.t;
       if (this.rig && this.G.render) this.rig.flashHit(attacker && attacker.pos);
-      if (attacker && !attacker.human && b.shield <= 0 && had)
+      const foe = attacker && attacker.team !== this.team;
+      if (foe && !attacker.human && b.shield <= 0 && had)
         this.G.teams[attacker.team].brain.callFocus(this.G, attacker, this);
-      if (!this.target && attacker && attacker.alive) {
+      /* hit from an unseen enemy: turn toward where it came from (they still have to see them to fight) */
+      if (!this.target && foe && attacker.alive) {
         this.target = attacker;
         this.acqT = this.G.t + this.skill().react * 0.7;
       }
@@ -183,9 +191,18 @@
         const d = eye.distanceTo(c);
         if (d > 75) continue;
         const ang = Math.abs(angDiff(Math.atan2(-(c.x - eye.x), -(c.z - eye.z)), fwdYaw));
+        /* awareness is earned: in view (field of view), heard (gunfire close by, or someone sprinting
+           or thrusting right next to you), shooting at you, seen a moment ago, or called out by a
+           teammate. Line of sight is still needed to engage. */
+        const eb = e.body,
+          loud = G.t - (e.heardT || -9) < 0.8 && d < 28,
+          steps = d < 7 && (eb.sprint || eb.thrustT > 0 || !eb.ground),
+          called = br.enemyMem.has(e.id) && G.t - br.enemyMem.get(e.id).t < 1.5;
         const aware =
           ang < 1.15 ||
-          d < 9 ||
+          loud ||
+          steps ||
+          called ||
           (this.lastAttacker === e && G.t - this.lastHitT < 2.5) ||
           (this.lastSeen.get(e.id) || -9) > G.t - 1.2;
         if (!aware) continue;
@@ -356,6 +373,30 @@
           break;
         }
       }
+      /* a power weapon someone dropped nearby is worth a short detour */
+      if (
+        !this.mustMove &&
+        !this.carrying &&
+        !(this.sniper > 0) &&
+        !(this.rocket > 0) &&
+        !this.target &&
+        G.items
+      ) {
+        let near = null,
+          nd = 15;
+        for (const it of G.items) {
+          if (!it.avail || it.type < 0 || !K.WEAPON_DATA[it.type].power) continue;
+          const d = this.pos.distanceTo(it.pos);
+          if (d < nd) {
+            nd = d;
+            near = it;
+          }
+        }
+        if (near) {
+          g.copy(near.pos);
+          this.mustMove = true;
+        }
+      }
       if (this.fallback && this.role !== "carry") {
         g.copy(home).lerp(this.pos, 0.6);
       }
@@ -482,7 +523,8 @@
           }
           const side = _e.set(Math.cos(lookYaw), 0, -Math.sin(lookYaw)).multiplyScalar(this.strafeDir);
           const toT = _w.set(dx, 0, dz).normalize();
-          const pref = this.sniper > 0 ? 26 : br.prefRange() * (this.carrying ? 1.4 : 1);
+          const pref =
+            this.sniper > 0 ? 26 : this.rocket > 0 ? 15 : br.prefRange() * (this.carrying ? 1.4 : 1);
           const push = this.mustMove
             ? 0.75
             : clamp((range - pref) / 6, -0.8, 0.8) * (this.fallback ? -1 : 1) + (genes.aggr - 0.5) * 0.4;
@@ -566,6 +608,12 @@
             break;
           }
         }
+      }
+      /* at the enemy flag: stop and pick it up (it takes a moment, like a player holding Interact) */
+      const ef = G.flags[1 - this.team];
+      if (!this.carrying && ef.state !== "carried" && this.pos.distanceTo(ef.pos) < 1.3) {
+        wish.set(0, 0, 0);
+        inp.sprint = false;
       }
       // turn with finite speed (skill)
       const tr = S.turn * dt;
@@ -693,8 +741,7 @@
         team: me.team,
         stickables: () => {
           const out = [];
-          for (const e of G.teams[1 - me.team].agents)
-            if (e.alive) out.push({ ref: e, pos: e.body.pos, h: e.body.h });
+          for (const e of me.hitList()) out.push({ ref: e, pos: e.body.pos, h: e.body.h });
           return out;
         },
         onStick: ref => {
@@ -703,7 +750,7 @@
         },
         onExplode: (c, type, stuck) => {
           const w = type === "plasma" ? "stick" : "frag";
-          for (const e of G.teams[1 - me.team].agents) {
+          for (const e of G.ff ? G.agents : G.teams[1 - me.team].agents) {
             if (!e.alive) continue;
             const ch = e.body.pos.clone();
             ch.y += e.body.h * 0.6;
@@ -753,6 +800,53 @@
       out.z += gauss() * sig;
       return out;
     }
+    /** rockets: aimed at the feet, led by the target's movement; the blast does the rest */
+    shootRocket(tgt) {
+      const G = this.G;
+      const eye = this.eye(new V3());
+      const R = K.WEAPON_DATA.find(w => w.key === "rocket");
+      const d0 = eye.distanceTo(tgt.pos);
+      if (d0 < 5) return; /* too close: the blast would take them too */
+      const at = tgt.body.pos
+        .clone()
+        .addScaledVector(tgt.body.vel, (d0 / R.speed) * 0.8)
+        .add(_w.set(0, 0.2, 0));
+      at.x += gauss() * this.skill().err * d0;
+      at.z += gauss() * this.skill().err * d0;
+      const dir = at.sub(eye).normalize();
+      this.rocket--;
+      this.fireCD = this.rocket % 2 === 0 ? 3.2 : R.rate + 0.3;
+      this.firedT = G.t;
+      this.shots++;
+      const o = eye.clone().addScaledVector(dir, 0.7);
+      G.rockets.fire(o, dir, this.blastOwner());
+      G.emit("nade", { type: "rocket", pos: o, vel: dir.clone().multiplyScalar(R.speed), by: this });
+      this.brain().model.acc[1]++;
+    }
+    /** who a rocket or grenade from this pilot can hit, and how the blast lands */
+    blastOwner() {
+      if (this._blast) return this._blast;
+      const G = this.G,
+        me = this;
+      this._blast = {
+        team: me.team,
+        targets: () => me.hitList().map(e => ({ ref: e, pos: e.body.pos, h: e.body.h })),
+        onExplode: (c, direct) => {
+          const list = G.ff
+            ? G.agents.filter(a => a.alive)
+            : G.teams[1 - me.team].agents.filter(a => a.alive);
+          for (const e of list) {
+            const ch = e.body.pos.clone();
+            ch.y += e.body.h * 0.5;
+            const dmg = e === direct ? 999 : K.losClear(c, ch) ? K.rocketDmg(ch.distanceTo(c)) : 0;
+            if (dmg < 1) continue;
+            if (e.human) G.hurtHuman(e, Math.round(dmg), { name: me.name, agent: me, w: "rocket" });
+            else e.onHit(Math.round(dmg), "rocket", false, me);
+          }
+        },
+      };
+      return this._blast;
+    }
     shootSniper(tgt) {
       const G = this.G,
         b = this.body;
@@ -774,8 +868,7 @@
       const wh = K.rayWorldHit(eye, d, 220),
         wt = wh.t;
       let best = null;
-      for (const e of G.teams[1 - this.team].agents) {
-        if (!e.alive) continue;
+      for (const e of this.hitList()) {
         const h = K.rayTarget(eye, d, e.body.pos, e.body.h, wt);
         if (h && (!best || h.t < best.h.t)) best = { e, h };
       }
@@ -801,8 +894,35 @@
       }
       this.brain().model.acc[1]++;
     }
+    /** who a shot from this pilot can hit: enemies, plus teammates when friendly fire is on */
+    hitList() {
+      const G = this.G;
+      return G.ff
+        ? G.agents.filter(a => a !== this && a.alive)
+        : G.teams[1 - this.team].agents.filter(a => a.alive);
+    }
+    /** with friendly fire on, hold fire while a teammate is in the line of fire */
+    blocked(d, range) {
+      const G = this.G;
+      if (!G.ff) return false;
+      const eye = this.eye(_v);
+      for (const a of G.teams[this.team].agents) {
+        if (a === this || !a.alive) continue;
+        const h = K.rayTarget(eye, d, a.body.pos, a.body.h + 0.2, range);
+        if (h) return true;
+      }
+      return false;
+    }
     shoot(tgt) {
-      if (this.sniper > 0 && !this.carrying) return this.shootSniper(tgt);
+      /* carrying the flag takes both hands */
+      if (this.carrying) return;
+      this.heardT = this.G.t;
+      if (this.blocked(this.body.aimDir(), this.pos.distanceTo(tgt.pos))) {
+        this.fireCD = 0.25;
+        return;
+      }
+      if (this.rocket > 0) return this.shootRocket(tgt);
+      if (this.sniper > 0) return this.shootSniper(tgt);
       const G = this.G,
         b = this.body;
       this.mag--;
@@ -811,7 +931,10 @@
       this.shots++;
       const eye = this.eye(new V3());
       const d = b.aimDir();
-      const sp = b.ground ? 0.004 : 0.01;
+      /* the carbine's own spread and bloom (data/weapons.js): aimed on the ground, hip-fire in the air */
+      this.bloom = G.t - (this.lastShotT || -9) < RIFLE.rate * 2.5 ? Math.min(8, (this.bloom || 0) + 1) : 0;
+      this.lastShotT = G.t;
+      const sp = (b.ground ? RIFLE.adsSpread : RIFLE.spread * 0.85) + this.bloom * RIFLE.bloom * 0.25;
       d.x += rnd(-sp, sp);
       d.y += rnd(-sp, sp);
       d.z += rnd(-sp, sp);
@@ -819,8 +942,7 @@
       const wh = K.rayWorldHit(eye, d, 90),
         wt = wh.t;
       let best = null;
-      for (const e of G.teams[1 - this.team].agents) {
-        if (!e.alive) continue;
+      for (const e of this.hitList()) {
         const h = K.rayTarget(eye, d, e.body.pos, e.body.h, wt);
         if (h && (!best || h.t < best.h.t)) best = { e, h };
       }

@@ -3,6 +3,8 @@ const NADES = {
   frag: { fuse: 2.2, r: 5.2, dmg: 105, color: 0xffa040 },
   plasma: { fuse: 1.7, r: 4.2, dmg: 115, color: 0x5ad2ff },
 };
+/* throw speed and frag bounciness: the Sandbox settings change them */
+const NADE_TUNE = { throw: 19, bounce: 0.38 };
 const NG = 20,
   _n1 = new V3(),
   _n2 = new V3();
@@ -118,7 +120,7 @@ class NadeWorld {
               ox = prev.x <= b.x0 - 0.069 || prev.x >= b.x1 + 0.069;
             if (oy) {
               n.pos.y = prev.y;
-              n.vel.y *= -0.38;
+              n.vel.y *= -NADE_TUNE.bounce;
               n.vel.x *= 0.72;
               n.vel.z *= 0.72;
               if (Math.abs(n.vel.y) < 1.4) n.vel.y = 0;
@@ -247,7 +249,9 @@ function throwNade() {
   d.y += 0.12;
   d.normalize();
   const o = camera.getWorldPosition(new V3()).addScaledVector(d, 0.45);
-  const v = d.multiplyScalar(19).add(_n1.set(me.vel.x * 0.5, Math.max(0, me.vel.y * 0.3), me.vel.z * 0.5));
+  const v = d
+    .multiplyScalar(NADE_TUNE.throw)
+    .add(_n1.set(me.vel.x * 0.5, Math.max(0, me.vel.y * 0.3), me.vel.z * 0.5));
   MAIN_NADES.throw(nadeSel, o, v, playerNadeOwner);
   sfx("swing", 0.6);
   emitFx("nade", v3a(o), v3a(v), nadeSel === "plasma" ? 1 : 0);

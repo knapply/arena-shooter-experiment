@@ -18,8 +18,13 @@ interface HostSnapshot {
   ag: AgentRow[];
   ev: any[];
   cm: any[];
-  pu: [string, number][];
+  /** power spawns: [id, seconds until available, weapon type showing next] */
+  pu: [string, number, number?][];
   br: number[];
+  /** weapons and grenades on the floor: [id, type (-1 grenades), x, y, z] */
+  it?: [string, number, number, number, number][];
+  /** friendly fire on (1) or off (0) */
+  ff?: number;
 }
 /** client to host: the joining player's own state and their outgoing hits, grenades, death and pickups */
 interface ClientPresence {
@@ -38,6 +43,11 @@ interface ClientPresence {
   dth: [number, string, string, 0 | 1] | null;
   pk: [number, string] | null;
   br: number[];
+  /** this player's drops: [seq, x, y, z, [type, mag, reserve, frag, plasma][]] */
+  dr?: any[] | null;
+  /** take the flag / let it go (counters) */
+  fp?: number;
+  fd?: number;
 }
 
 /** one entry of the settings schema (src/core/settings.js) */

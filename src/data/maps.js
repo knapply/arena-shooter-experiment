@@ -112,7 +112,8 @@ MAPS.arena = {
       [-10, 0, 30],
     ],
   },
-  pickups: [{ id: "arena-sniper", weapon: "sniper", p: [0, 4.5, 0], respawn: 90 }],
+  /* rotate: the centre power weapon cycles through POWER_ROTATION, one each time it spawns */
+  pickups: [{ id: "arena-power", weapon: "sniper", rotate: true, p: [0, 4.5, 0], respawn: 90 }],
 };
 MAPS.ctf = {
   schema: 1,
@@ -252,7 +253,7 @@ MAPS.ctf = {
     [0, 2.4, 43],
   ],
   /* power weapon: sniper on the cover block atop the mid tower, grabbable from the tower roof */
-  pickups: [{ id: "ctf-sniper", weapon: "sniper", p: [0, 4.2, 0], respawn: 90 }],
+  pickups: [{ id: "ctf-power", weapon: "sniper", rotate: true, p: [0, 4.2, 0], respawn: 90 }],
   /* lanes for the AI and callouts: x < -split is the left wing, x > split the right, mid between */
   lanes: { split: 9.5, x: [-18, 0, 18] },
 };
@@ -343,6 +344,8 @@ function validateMap(doc) {
       doc.pickups.forEach((p, i) => {
         if (!p || typeof p.id !== "string" || !/^[a-z0-9-]{1,24}$/.test(p.id)) bad(`pickup ${i}: bad id`);
         else if (!WEAPON_DATA.some(w => w.key === p.weapon)) bad(`pickup ${p.id}: unknown weapon`);
+        else if (p.rotate !== undefined && typeof p.rotate !== "boolean")
+          bad(`pickup ${p.id}: rotate must be true or false`);
         else if (!vec(p.p, 3, -500, 500) || !num(p.respawn, 5, 600))
           bad(`pickup ${p.id}: bad position or respawn`);
       });

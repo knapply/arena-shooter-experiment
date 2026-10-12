@@ -210,6 +210,7 @@ function shieldPop(p) {
   }
 }
 function updFX(dt) {
+  updPods(dt);
   for (let i = FX.length - 1; i >= 0; i--) {
     const f = FX[i];
     f.life -= dt;

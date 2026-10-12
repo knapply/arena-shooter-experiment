@@ -158,6 +158,13 @@
     if (CTF.NET.room) UI.line("sys", "Friends in your room can join from the menu.");
     K.say("Capture the flag", true);
   }
+  /** the flag prompt: standing at the enemy flag, hold Interact to take it */
+  function flagPrompt(me, take) {
+    if (!G || !me || !me.alive || me.carrying) return null;
+    const f = G.flags[1 - me.team];
+    if (f.state === "carried" || me.pos.distanceTo(f.pos) > 1.8) return null;
+    return [{ label: "take the flag", hold: 0.3, go: take }];
+  }
   /** motion tracker contacts: everyone but you; teammates always, enemies only when loud */
   function radarOf(list) {
     const out = [];
@@ -192,10 +199,16 @@
       },
       targets() {
         const out = [];
-        for (const a of G.teams[1 - G.human.team].agents)
-          if (a.alive) out.push({ kind: "ext", ref: a, pos: a.body.pos, h: a.body.h });
+        for (const a of G.agents)
+          if (a.alive && a !== G.human && (G.ff || a.team !== G.human.team))
+            out.push({ kind: "ext", ref: a, pos: a.body.pos, h: a.body.h });
         return out;
       },
+      dropItems: (list, at) => G && G.addItems(list, at),
+      spawnPoint: () => G.spawnPoint(G.human.team),
+      carrying: () => !!(G && G.human.carrying),
+      dropFlag: () => G && G.dropFlagBy(G.human),
+      interactables: () => flagPrompt(G.human, () => G.humanTakeFlag(G.human)),
       radar: () => radarOf(G.agents),
       onPing: p =>
         host.ping(G.human, {
@@ -224,7 +237,7 @@
         G.kill(G.human, (src && src.agent) || null, src && src.w, src && src.hd);
       },
       onFx: (k, a, b, g) => host.onFx(k, a, b, g),
-      pickups: () => (G ? G.pickups : []),
+      pickups: () => (G ? G.pickups.concat(G.items) : []),
       switchTeam() {
         const t = 1 - G.human.team;
         G.moveHuman(G.human, t);
@@ -366,10 +379,35 @@
       targets() {
         const out = [];
         for (const a of G.map.values())
-          if (a.alive && a.team !== G.human.team)
+          if (a.alive && a !== G.human && (G.ff || a.team !== G.human.team))
             out.push({ kind: "ext", ref: a, pos: a.body.pos, h: a.body.h });
         return out;
       },
+      dropItems(list, at) {
+        G.dr = [
+          ++G.drS,
+          +at.x.toFixed(2),
+          +at.y.toFixed(2),
+          +at.z.toFixed(2),
+          list.map(o =>
+            o.type < 0
+              ? [-1, 0, 0, o.nades.frag, o.nades.plasma]
+              : [o.type, o.ammo[0], o.ammo[1] === Infinity ? -1 : o.ammo[1], 0, 0]
+          ),
+        ];
+        G.newsy = true;
+      },
+      carrying: () => !!(G && G.human.carrying),
+      spawnPoint: () => G.spawnPoint(G.human.team),
+      dropFlag() {
+        G.fd++;
+        G.newsy = true;
+      },
+      interactables: () =>
+        flagPrompt(G.human, () => {
+          G.fp++;
+          G.newsy = true;
+        }),
       radar: () => radarOf([...G.map.values()]),
       onPing: p => {
         G.pg = [
@@ -401,7 +439,7 @@
         G.died(src);
       },
       onFx: (k, a, b, g) => G.onFx(k, a, b, g),
-      pickups: () => (G ? G.pickups : []),
+      pickups: () => (G ? G.pickups.concat(G.items) : []),
       switchTeam() {
         const t = 1 - G.human.team;
         G.human.team = t;
