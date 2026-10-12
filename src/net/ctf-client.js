@@ -132,6 +132,9 @@
       agg: new Map(),
       rv: -1,
       roster: [],
+      pg: null,
+      pgS: 0,
+      seenPg: -1,
       fastT: 0,
     };
     /* the host's movement for everyone arrives on the fast channel, in roster order */
@@ -443,6 +446,27 @@
       const host = NET.ctfPeers().find(p => p.peer === M.hostPeer);
       if (host) {
         const hp = host.presence;
+        /* teammates' pings, relayed by the host */
+        if (Array.isArray(hp.pg)) {
+          const fresh = M.seenPg < 0;
+          for (const g of hp.pg.slice(-6)) {
+            if (!Array.isArray(g)) continue;
+            const s = num(g[0], 0, 1e9);
+            if (s <= M.seenPg) continue;
+            M.seenPg = s;
+            if (fresh || g[1] === myId) continue;
+            const from = M.byId(g[1]);
+            if (!from || from.team !== me.team || !["enemy", "weapon", "place"].includes(g[2])) continue;
+            K.addPing({
+              by: g[1],
+              byName: from.name,
+              kind: g[2],
+              label: K.cleanName(g[7]).slice(0, 16) || "Here",
+              pos: new V3(num(g[3], -500, 500), num(g[4], -50, 100), num(g[5], -500, 500)),
+              ref: NET.okId(g[6]) ? M.byId(g[6]) : null,
+            });
+          }
+        }
         if (hp.ph !== "host" || !hp.H || hp.H.id !== mid)
           M.lastHost = Math.min(M.lastHost, performance.now() - 7800);
         else M.apply(hp.H);
@@ -580,6 +604,7 @@
         fx: M.fx,
         dth: M.dth,
         pk: M.pk,
+        pg: M.pg,
         br: K.DESTR.recent.slice(),
       });
     };

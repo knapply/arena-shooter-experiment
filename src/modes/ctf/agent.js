@@ -63,6 +63,8 @@
       this.pathI = 0;
       this.repathT = 0;
       this.goal = new V3();
+      /** a teammate's ping to act on: { pos, until } */
+      this.ping = null;
       this.goalCell = -1;
       this.mag = 32;
       this.reloadT = 0;
@@ -356,6 +358,11 @@
       }
       if (this.fallback && this.role !== "carry") {
         g.copy(home).lerp(this.pos, 0.6);
+      }
+      /* a teammate's ping overrides the plan for a few seconds (never for the flag carrier) */
+      if (this.ping && G.t < this.ping.until && this.role !== "carry" && !this.carrying) {
+        g.copy(this.ping.pos);
+        this.mustMove = this.pos.distanceTo(g) > 3;
       }
     }
     nearestThreat(p, r) {

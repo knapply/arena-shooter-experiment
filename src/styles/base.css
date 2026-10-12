@@ -1015,3 +1015,42 @@ input[type="text"]:focus-visible {
 #hud.demo #tracker {
   display: none;
 }
+
+/* pings (ui/pings.js) */
+#pings {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ping {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: -22px 0 0 -60px;
+  width: 120px;
+  text-align: center;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffb347;
+  text-shadow: 0 1px 4px #000;
+}
+.ping i {
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 0 auto 3px;
+  border: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+.ping.enemy {
+  color: #ff5f57;
+}
+.ping.weapon {
+  color: #62cdff;
+}
+.ping span {
+  display: block;
+  color: #dbe6ea;
+  font-weight: 500;
+}

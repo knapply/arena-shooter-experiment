@@ -176,6 +176,9 @@
       agg: new Map(),
       /** hit claims from players: accepted, and rejected by the checks below */
       hitStats: { ok: 0, bad: 0 },
+      /** recent pings, relayed to everyone: [seq, fromId, kind, x, y, z, targetId, label] */
+      pg: [],
+      pgS: 0,
       rv: 0,
       rosterKey: "",
       fastT: 0,
@@ -399,6 +402,7 @@
         H: H.snapshot(),
         hs: H.hs,
         fx: H.fx,
+        pg: H.pg,
         p: [r2(me.pos.x), r2(me.pos.y), r2(me.pos.z)],
       });
     };
@@ -408,6 +412,30 @@
         H.rosterKey = key;
         H.rv = (H.rv + 1) & 255;
       }
+    };
+    /** a ping by someone in the match: AI teammates respond, everyone in the match hears about it */
+    H.ping = function (from, p) {
+      G.ping(from, p);
+      H.pg.push([
+        ++H.pgS,
+        from.id,
+        p.kind,
+        r2(p.pos[0]),
+        r2(p.pos[1]),
+        r2(p.pos[2]),
+        p.target || "",
+        p.label,
+      ]);
+      if (H.pg.length > 6) H.pg.shift();
+      if (!from.local && from.team === G.human.team)
+        K.addPing({
+          by: from.id,
+          byName: from.name,
+          kind: p.kind,
+          label: p.label,
+          pos: new V3(p.pos[0], p.pos[1], p.pos[2]),
+          ref: p.target ? G.byId(p.target) : null,
+        });
     };
     H.ingest = function (peer, pr) {
       let a = H.remote.get(peer);
@@ -457,6 +485,20 @@
             G.takePickup(p, a);
         }
       } else if (Array.isArray(pr.pk) && !a.init) a.seenPk = num(pr.pk[0], 0, 1e9);
+      if (Array.isArray(pr.pg) && a.init) {
+        const s = num(pr.pg[0], 0, 1e9);
+        const kind = ["enemy", "weapon", "place"].includes(pr.pg[1]) ? pr.pg[1] : null;
+        if (s > (a.seenPg | 0) && kind) {
+          a.seenPg = s;
+          const pos = [num(pr.pg[2], -500, 500), num(pr.pg[3], -50, 100), num(pr.pg[4], -500, 500)];
+          H.ping(a, {
+            kind,
+            pos,
+            target: NET.okId(pr.pg[5]) ? pr.pg[5] : null,
+            label: K.cleanName(pr.pg[6]).slice(0, 16) || "Here",
+          });
+        }
+      } else if (Array.isArray(pr.pg)) a.seenPg = num(pr.pg[0], 0, 1e9);
       const dead = !!pr.dd;
       if (!dead && a.dead) {
         a.dead = false;

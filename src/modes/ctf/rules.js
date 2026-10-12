@@ -56,6 +56,21 @@
       } else K.hurtMe(n, src);
     };
     G.byId = id => G.agents.find(a => a.id === id) || null;
+    /** a ping from a teammate: the two nearest AI teammates head there; an enemy ping is shared intel */
+    G.ping = function (from, p) {
+      const team = from.team,
+        pos = new K.THREE.Vector3(p.pos[0], p.pos[1], p.pos[2]);
+      const mates = G.teams[team].agents
+        .filter(a => !a.human && a.alive && !a.carrying)
+        .sort((a, b) => a.pos.distanceTo(pos) - b.pos.distanceTo(pos))
+        .slice(0, 2);
+      for (const a of mates) a.ping = { pos: pos.clone(), until: G.t + 8 };
+      const t = p.target ? G.byId(p.target) : null;
+      if (t && t.team !== team) G.teams[team].brain.enemyMem.set(t.id, { t: G.t, pos: t.pos.clone() });
+      if (mates[0])
+        G.teams[team].brain.say(G, mates[0], "ping", p.kind === "enemy" ? "On them" : "Moving up", true);
+      return mates;
+    };
     G.bench = [];
     const rebuild = () => {
       G.agents = [...G.teams[0].agents, ...G.teams[1].agents];

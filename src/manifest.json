@@ -50,6 +50,7 @@
     "game/replay.js",
     "game/highlights.js",
     "game/intro.js",
+    "ui/pings.js",
     "game/loop.js",
     "modes/tech-demo.js",
     "ui/settings-ui.js",

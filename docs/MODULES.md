@@ -10,7 +10,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/rng.js` | 29 | `RNG` `rand` |
 | `src/core/prelude.js` | 38 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
 | `src/game/events.js` | 66 | `EVENTS` |
-| `src/core/settings.js` | 886 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `SCHEMA` `PRESETS` `PRESET_KEYS` `SET` `BIND` `PADB` `CODE_RE` `cleanSettings` … (+11) |
+| `src/core/settings.js` | 889 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `SCHEMA` `PRESETS` `PRESET_KEYS` `SET` `BIND` `PADB` `CODE_RE` `cleanSettings` … (+11) |
 | `src/render/renderer.js` | 76 | `canvas` `renderer` `scene` `camera` `resize` `sun` `_skyP` |
 | `src/render/pipeline.js` | 379 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `compMat` `fsQuad` `fsScene` `UPS` `gfxScale` `gfxResize` `fsPass` `gfxChecked` `renderFrame` `gfxFrames` `pxBuf` `exposureCheck` `recompileAll` … (+9) |
 | `src/render/environment.js` | 122 | `buildEnv` `lastRefl` `lastShadow` `applyGfx` `pc` `scaleBoxUV` |
@@ -48,21 +48,22 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/replay.js` | 154 | `REPLAY` `KILLCAM` `killCamTick` |
 | `src/game/highlights.js` | 111 | `HL` `HL_KEEP` `HL_BEFORE` `HL_AFTER` `HL_POWER` `hlConsider` `hlTick` `playOfTheGame` |
 | `src/game/intro.js` | 119 | `INTRO` `_ic` `centroid` `playIntro` `endIntro` `introFrame` |
-| `src/game/loop.js` | 509 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+14) |
+| `src/ui/pings.js` | 103 | `PINGS` `PING_LIFE` `_pgD` `_pgO` `_pgV` `pingTarget` `addPing` `pingNow` `pingLayer` `updPings` |
+| `src/game/loop.js` | 511 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+14) |
 | `src/modes/tech-demo.js` | 476 | `demo` `seg` `segT` `snapCam` `demoRig` `segOnce` `camLook` `dummies` `makeDummies` `placeDummy` `placeMe` `once` `PI` `SEGS` `nextSeg` `startDemo` `exitDemo` `demoFrame` |
 | `src/ui/settings-ui.js` | 433 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `closeSettings` `onSetChange` `renderSettings` `renderKeys` `renderPadBinds` `padCapture` `renderKeyHelp` `hudHook` `hideBots` `showWorld` `extPlay` `extFull` … (+1) |
 | `src/weapons/pickups.js` | 177 | `PICKMAT` `PICKACC` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `ARENA_PICKS` `pkHold` `pkNear` `pkAnn` `pickupList` `updPickups` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
-| `src/game/exports.js` | 198 | `KA_API` |
+| `src/game/exports.js` | 202 | `KA_API` |
 | `src/modes/ctf/map.js` | 178 |  |
 | `src/modes/ctf/nav.js` | 304 |  |
 | `src/modes/ctf/brain.js` | 558 |  |
-| `src/modes/ctf/agent.js` | 894 |  |
-| `src/modes/ctf/rules.js` | 484 |  |
+| `src/modes/ctf/agent.js` | 901 |  |
+| `src/modes/ctf/rules.js` | 499 |  |
 | `src/modes/ctf/ui.js` | 405 |  |
-| `src/net/ctf-host.js` | 595 |  |
-| `src/net/ctf-client.js` | 591 |  |
-| `src/modes/ctf/modes.js` | 728 |  |
+| `src/net/ctf-host.js` | 637 |  |
+| `src/net/ctf-client.js` | 616 |  |
+| `src/modes/ctf/modes.js` | 747 |  |
 | `src/modes/trailer-score.js` | 700 |  |
 | `src/modes/trailer.js` | 1007 |  |

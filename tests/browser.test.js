@@ -100,6 +100,30 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       ev
     );
     check(medals > 0, "medals follow kill events", medals);
+    /* pings: marking an enemy under the reticle */
+    const pg = await p.evaluate(() => {
+      const b = KA.bots[1];
+      b.body.dead = false;
+      b.body.pos.set(-22, 0, 10);
+      const o = new KA.THREE.Vector3(-22, 1.6, -10),
+        aim = n => new KA.THREE.Vector3(n, 0.05, 20).normalize();
+      const hit = KA.pingTarget(o, aim(0)),
+        nearMiss = KA.pingTarget(o, aim(0.6)),
+        wide = KA.pingTarget(o, aim(4));
+      if (hit) KA.addPing(Object.assign({ by: "local", byName: "me" }, hit));
+      return {
+        kind: hit && hit.kind,
+        near: nearMiss && nearMiss.kind,
+        wide: wide && wide.kind,
+        n: KA.PINGS.list.length,
+        label: KA.PINGS.list.map(q => q.label).join(),
+      };
+    });
+    check(
+      pg.kind === "enemy" && pg.n >= 1 && /Enemy/.test(pg.label),
+      "pinging an enemy under the reticle marks them",
+      pg
+    );
     /* motion tracker: a running enemy shows, a crouch-walking one doesn't */
     const trk = await p.evaluate(() => {
       const b = KA.bots[1];
@@ -375,6 +399,19 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       rb = await roster(B);
     check(ra.length === 8 && ra.some(x => /Friend/.test(x)), "host roster includes friend", ra.join(", "));
     check(rb.length === 8 && rb.some(x => /Host/.test(x)), "friend roster includes host", rb.join(", "));
+    /* a friend's ping reaches the host, and the friend's AI teammates respond to it */
+    await B.evaluate(() => {
+      KA.me.pitch = -0.35;
+      KA.PINGS.lastT = -9;
+      KA.pingNow();
+    });
+    await A.waitForTimeout(1500);
+    const pinged = await A.evaluate(() => {
+      const g = CTF.UI.game();
+      const fr = g.agents.find(a => a.remote);
+      return g.teams[fr.team].agents.filter(a => !a.human && a.ping).length;
+    });
+    check(pinged >= 1, "a friend's ping sends their AI teammates", pinged);
     await A.evaluate(() => {
       KA.me.pos.set(6, 0, -16);
     });

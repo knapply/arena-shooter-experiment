@@ -195,6 +195,13 @@
         return out;
       },
       radar: () => radarOf(G.agents),
+      onPing: p =>
+        host.ping(G.human, {
+          kind: p.kind,
+          label: p.label,
+          pos: [p.pos.x, p.pos.y, p.pos.z],
+          target: p.ref && p.ref.id ? p.ref.id : null,
+        }),
       tick(dt) {
         if (!G) return;
         /* the match clock holds while the intro plays */
@@ -362,6 +369,18 @@
         return out;
       },
       radar: () => radarOf([...G.map.values()]),
+      onPing: p => {
+        G.pg = [
+          ++G.pgS,
+          p.kind,
+          +p.pos.x.toFixed(2),
+          +p.pos.y.toFixed(2),
+          +p.pos.z.toFixed(2),
+          p.ref && p.ref.id ? p.ref.id : "",
+          p.label,
+        ];
+        G.newsy = true;
+      },
       tick(dt) {
         if (!G) return;
         G.step(dt);

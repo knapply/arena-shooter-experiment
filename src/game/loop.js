@@ -425,6 +425,8 @@ function frameBody(t) {
   sendPresence(false);
   hud();
   updTracker(dt);
+  if (playing && !paused && P("ping")) pingNow();
+  updPings();
   killCamTick();
   hlTick();
   introFrame(Math.min(0.05, raw));

@@ -313,5 +313,23 @@ const fix = v => +v.toFixed(2);
     ev.slice(-4)
   );
 }
+/* ---------- pings: AI teammates go where a teammate pings ---------- */
+{
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 3 });
+  G.start();
+  for (let i = 0; i < 30; i++) G.step(1 / 30);
+  const from = G.teams[0].agents[0];
+  const spot = [12, 0, -8];
+  const mates = G.ping(from, { kind: "place", pos: spot, label: "Here" });
+  const d0 = mates.map(a => Math.hypot(a.pos.x - spot[0], a.pos.z - spot[2]));
+  for (let i = 0; i < 30 * 4; i++) G.step(1 / 30);
+  const d1 = mates.map(a => Math.hypot(a.pos.x - spot[0], a.pos.z - spot[2]));
+  check(
+    mates.length === 2 && d1.every((d, i) => d < d0[i] - 3 || d < 4),
+    "the two nearest AI teammates head for a ping",
+    { before: d0.map(fix), after: d1.map(fix) }
+  );
+}
 check(Date.now() - t0 < 15000, "scenarios run in seconds", Date.now() - t0 + " ms");
 finish("scenarios");

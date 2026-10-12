@@ -22,6 +22,7 @@ const ACTIONS = [
   ["perfHud", "Performance overlay"],
   ["netHud", "Network panel"],
   ["interact", "Pick up weapon (hold)"],
+  ["ping", "Ping (mark enemy, weapon or place)"],
 ];
 const DEF_BIND = {
   forward: ["KeyW", "ArrowUp"],
@@ -46,6 +47,7 @@ const DEF_BIND = {
   perfHud: ["F3"],
   netHud: ["F4"],
   interact: ["KeyE"],
+  ping: ["KeyZ", "Mouse1"],
 };
 const PAD_NAMES = [
   "A",
@@ -81,6 +83,7 @@ const DEF_PAD = {
   switchTeam: [12],
   swapNade: [14, 15],
   interact: [2],
+  ping: [13],
 };
 const T_GFX = "Graphics",
   T_CTL = "Controls",
