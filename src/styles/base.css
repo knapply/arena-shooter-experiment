@@ -1340,3 +1340,37 @@ table.stats tr.total td {
     flex: 1 1 100%;
   }
 }
+
+/* your melee: a quick bright swipe across the view */
+#mswipe {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgba(230, 245, 255, 0.28) 48%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 58%
+  );
+  transform: translateX(40%);
+}
+#mswipe.on {
+  animation: mswipe 0.22s ease-out;
+}
+@keyframes mswipe {
+  0% {
+    opacity: 0.9;
+    transform: translateX(35%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-45%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #mswipe.on {
+    animation: none;
+  }
+}

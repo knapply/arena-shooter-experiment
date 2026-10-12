@@ -101,24 +101,32 @@ vmBox(vmPis, 0.006, 0.012, 0.008, vmDark, 0, 0.0525, -0.135);
 vmBox(vmPis, 0.009, 0.012, 0.01, vmDark, -0.011, 0.0525, 0.05);
 vmBox(vmPis, 0.009, 0.012, 0.01, vmDark, 0.011, 0.0525, 0.05);
 dot(vmPis, 0x8cffb0, 0.0035, 0, PIS.y - 0.002, PIS.z + 0.001);
+/* the support hand through a reload (RELOAD_T in characters/rig.js): out, pouch, in, a palm slap,
+   then the charging handle (carbine) or the slide (magnum) pulled back and let go */
 const VM_RELOAD = [
   [0, "F"],
-  [0.12, [0, -0.2, -0.12]],
-  [0.3, [0, -0.44, -0.08]],
-  [0.45, [-0.08, -0.62, 0.12]],
-  [0.62, [0, -0.4, -0.12]],
-  [0.78, [0, -0.2, -0.12]],
-  [0.88, [0.07, 0.07, -0.02]],
+  [RELOAD_T.grab, [0, -0.2, -0.12]],
+  [RELOAD_T.out, [0, -0.44, -0.08]],
+  [RELOAD_T.pouch, [-0.08, -0.62, 0.12]],
+  [RELOAD_T.well, [0, -0.4, -0.12]],
+  [RELOAD_T.seat, [0, -0.22, -0.12]],
+  [RELOAD_T.slap, [0, -0.16, -0.12]],
+  [RELOAD_T.reach, [-0.04, 0.07, 0.0]],
+  [RELOAD_T.back, [-0.04, 0.075, 0.1]],
+  [RELOAD_T.release, [-0.06, 0.06, 0.02]],
   [1, "F"],
 ];
 const PIS_RELOAD = [
   [0, "F"],
-  [0.15, [0, -0.15, 0.05]],
-  [0.32, [-0.02, -0.36, 0.08]],
-  [0.5, [-0.05, -0.5, 0.12]],
-  [0.68, [0, -0.3, 0.06]],
-  [0.82, [0, -0.14, 0.05]],
-  [0.9, [0, 0.06, -0.03]],
+  [RELOAD_T.grab, [0, -0.15, 0.05]],
+  [RELOAD_T.out, [-0.02, -0.36, 0.08]],
+  [RELOAD_T.pouch, [-0.05, -0.5, 0.12]],
+  [RELOAD_T.well, [0, -0.3, 0.06]],
+  [RELOAD_T.seat, [0, -0.15, 0.05]],
+  [RELOAD_T.slap, [0, -0.11, 0.05]],
+  [RELOAD_T.reach, [0, 0.06, 0.02]],
+  [RELOAD_T.back, [0, 0.065, 0.1]],
+  [RELOAD_T.release, [-0.03, 0.05, 0.03]],
   [1, "F"],
 ];
 const VMW = [

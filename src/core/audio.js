@@ -273,6 +273,17 @@ function sfx(kind, vol = 1) {
         tone(t, "sine", 65, 58, 0.7, 0.18 * vol, 0.08);
         nz(t, 0.5, "lowpass", 300, 0.08 * vol, 1, 0.1);
         break;
+      case "boltback":
+        /* the charging handle or slide pulled back: a ratchet and a click */
+        nz(t, 0.06, "bandpass", 2400, 0.22 * vol, 3);
+        tone(t + 0.05, "square", 900, 700, 0.03, 0.05 * vol);
+        break;
+      case "boltfwd":
+        /* and slammed home: a sharp metallic clack */
+        nz(t, 0.05, "highpass", 3500, 0.3 * vol);
+        tone(t, "triangle", 1700, 1100, 0.07, 0.12 * vol, 0.002);
+        tone(t, "sine", 180, 90, 0.08, 0.12 * vol, 0.002);
+        break;
       case "swing": {
         const f = nz(t, 0.18, "bandpass", 700, 0.18 * vol, 2, 0.02);
         f.frequency.exponentialRampToValueAtTime(1800, t + 0.15);

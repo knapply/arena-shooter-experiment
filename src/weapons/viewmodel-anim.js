@@ -24,12 +24,14 @@ function updVM(dt, c) {
     _c.y += Math.abs(Math.cos(ph)) * 0.0025;
   }
   if (c.melee >= 0) {
-    const m = Math.sin(Math.PI * c.melee);
-    _c.z -= 0.25 * m;
-    _c.x -= 0.08 * m;
-    _c.y += 0.05 * m;
-    _e1.x -= 0.7 * m;
-    _e1.y += 0.35 * m;
+    /* the strike: the gun swings hard across and forward, butt first, then recovers */
+    const m = meleeCurve(c.melee);
+    _c.z -= 0.34 * m;
+    _c.x -= 0.16 * m;
+    _c.y += 0.07 * m;
+    _e1.x -= 0.5 * m;
+    _e1.y += 0.95 * m;
+    _e1.z += 0.55 * m;
   }
   if (c.pound1) {
     _c.x += rnd(-0.006, 0.006);
@@ -78,11 +80,8 @@ function updVM(dt, c) {
     _c.y -= 0.22 * s;
     _e1.x -= 0.6 * s;
   }
-  if (c.reload >= 0) {
-    const r = c.reload;
-    if (r > 0.76 && r < 0.84) _c.y += 0.02 * Math.sin(((r - 0.76) / 0.08) * Math.PI);
-    if (r > 0.86 && r < 0.94) _e1.z += 0.12 * Math.sin(((r - 0.86) / 0.08) * Math.PI);
-  }
+  /* the gun's part in the reload: tilt to the hand, the slap's jolt, the bolt's tug (rig.js) */
+  if (c.reload >= 0) reloadGunMotion(c.reload, _c, _e1);
   const sw = ads ? 0.25 : 1;
   vmS.swayY += (clamp((me.yaw - vmS.lastYaw) * -2.5, -0.12, 0.12) * sw - vmS.swayY) * Math.min(1, dt * 10);
   vmS.swayP += (clamp((me.pitch - vmS.lastPitch) * 2.5, -0.1, 0.1) * sw - vmS.swayP) * Math.min(1, dt * 10);
@@ -113,20 +112,26 @@ function updVM(dt, c) {
   const r = c.reload,
     mg = V.mag;
   if (r >= 0) {
-    const inHand = (r >= 0.12 && r < 0.3) || (r >= 0.45 && r < 0.78);
-    mg.visible = !(r >= 0.3 && r < 0.45);
+    const T = RELOAD_T,
+      inHand = magInHand(r);
+    mg.visible = !(r >= T.out && r < T.pouch);
     if (inHand) {
       _m1.copy(g.matrix).invert();
       mg.position.copy(vmS.lh).applyMatrix4(_m1);
       mg.position.y += 0.02;
     } else mg.position.copy(V.slot);
-    if (vmS.lastR < 0.12 && r >= 0.12) sfx("magout", 0.9);
-    if (vmS.lastR >= 0 && vmS.lastR < 0.3 && r >= 0.3) {
+    if (vmS.lastR < T.grab && r >= T.grab) sfx("magout", 0.9);
+    if (vmS.lastR >= 0 && vmS.lastR < T.out && r >= T.out) {
       camera.updateMatrixWorld(true);
       dropMag(mg.getWorldPosition(new V3()), mg.getWorldQuaternion(new THREE.Quaternion()));
     }
-    if (vmS.lastR < 0.78 && r >= 0.78) sfx("magin");
-    if (vmS.lastR < 0.88 && r >= 0.88) sfx("slap");
+    if (vmS.lastR < T.seat && r >= T.seat) sfx("magin");
+    if (vmS.lastR < T.slap && r >= T.slap) {
+      sfx("slap");
+      shakeT = Math.max(shakeT, 0.06);
+    }
+    if (vmS.lastR < T.back && r >= T.back) sfx("boltback");
+    if (vmS.lastR < T.release && r >= T.release) sfx("boltfwd");
     vmS.lastR = r;
   } else {
     mg.visible = true;

@@ -41,6 +41,13 @@ function meEvent(type, d) {
     fovK = 1.2;
   } else if (type === "melee") {
     sfx("swing");
+    /* make the blow felt: a camera punch and a swipe across the view */
+    fovK = Math.max(fovK, 0.8);
+    shakeT = Math.max(shakeT, 0.08);
+    const sw = $("mswipe");
+    sw.classList.remove("on");
+    void sw.offsetWidth;
+    sw.classList.add("on");
     meleeHit(2.3, 70, "melee");
   } else if (type === "slide") {
     sfx("slide");
@@ -593,6 +600,7 @@ function updRigs(dt) {
       shield: r.sh,
       fire: !!(s & 4096),
       wpn: (s & 40960) === 40960 ? 3 : s & 32768 ? 2 : s & 8192 ? 1 : 0,
+      aim: !!(s & 65536),
     };
     if (REC.sampling) {
       REC.put(r.id, root.position, st);
@@ -611,6 +619,30 @@ function updRigs(dt) {
       wpn: b.wpn,
     });
 }
+/** a melee swing's arc: a short-lived bright crescent in front of the pilot, so you see the blow coming */
+function meleeArc(rig) {
+  const r = rig.root,
+    yaw = r.rotation.y,
+    n = pc(9);
+  for (let i = 0; i < n; i++) {
+    const a = yaw + 1.05 - (2.1 * i) / Math.max(1, n - 1);
+    const p = new V3(
+      r.position.x - Math.sin(a) * 1.05,
+      r.position.y + 1.25 - i * 0.03,
+      r.position.z - Math.cos(a) * 1.05
+    );
+    ptAdd(
+      PTS.glow,
+      p,
+      new V3(-Math.sin(a) * 1.5, 0, -Math.cos(a) * 1.5),
+      0.32,
+      0xdff4ff,
+      0.75,
+      0.14 + i * 0.012,
+      { max: 0.25, grow: -1.5 }
+    );
+  }
+}
 function rigEvents(rig, ev) {
   if (!ev) return;
   const p = rig.root.position;
@@ -619,7 +651,14 @@ function rigEvents(rig, ev) {
     sfx("pop", distVol(p, 35));
   }
   if (ev.drop) dropMag(ev.drop, ev.dropQ);
-  if (ev.magIn) sfx("magin", distVol(p, 18) * 0.6);
+  if (ev.magIn) sfxAt("magin", p, 22, 0.7);
+  if (ev.slap) sfxAt("slap", p, 22, 0.6);
+  if (ev.bolt) sfxAt("boltfwd", p, 24, 0.7);
+  /* someone's melee: a swoosh and a bright arc in front of them */
+  if (ev.swing) {
+    sfxAt("swing", p, 30, 0.9);
+    meleeArc(rig);
+  }
   if (ev.land) sfxAt("land", p, 32, Math.min(1, ev.land / 14));
   /* footsteps: positional and loud up close (sprinting louder still) */
   if (ev.step) {

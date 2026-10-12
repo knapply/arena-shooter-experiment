@@ -132,7 +132,13 @@ const POSE = {
   low: { p: new V3(0.12, -0.12, -0.14), r: [-0.7, 0.2, 0.2] },
   rocket: { p: new V3(0.15, 0.13, -0.08), r: [0, 0, 0] },
   rocketRun: { p: new V3(0.12, 0.06, -0.04), r: [-0.35, 0.25, 0.1] },
+  /* aiming down sights: the gun comes up to the eye, stock at the cheek (rifles) or arms out (magnum) */
+  ads: { p: new V3(0.05, 0.19, -0.2), r: [0, 0, 0] },
+  adsPistol: { p: new V3(0.03, 0.21, -0.42), r: [0, 0, 0] },
 };
+/* a melee blow: a fast strike that leads with the stock or the gun's butt, then a slower recovery (0..1) */
+const meleeCurve = m =>
+  m < 0 ? 0 : m < 0.3 ? Math.sin(((m / 0.3) * Math.PI) / 2) : Math.cos((((m - 0.3) / 0.7) * Math.PI) / 2);
 const WPN_RIG = [
   { grip: new V3(0, -0.08, 0.1), fore: new V3(0, -0.06, -0.17), kick: 3, every: 0.1 },
   { grip: new V3(0, -0.08, 0.09), fore: new V3(-0.03, -0.11, 0.1), kick: 6, every: 0.26 },
@@ -140,16 +146,51 @@ const WPN_RIG = [
   { grip: new V3(0, -0.15, 0.08), fore: new V3(0, -0.14, -0.3), kick: 12, every: 0.9 },
 ];
 const MAGSLOT = new V3(0, -0.11, -0.08);
+/* one reload, shared by the first-person viewmodel and every rig (fractions of the reload time):
+   grab the magazine, pull it out (it drops), reach to the pouch, bring the new one up under the
+   well, seat it, slap it home, then reach for the charging handle (slide on the magnum), pull it
+   back and let it go */
+const RELOAD_T = {
+  grab: 0.1,
+  out: 0.24,
+  pouch: 0.38,
+  well: 0.54,
+  seat: 0.66,
+  slap: 0.72,
+  reach: 0.8,
+  back: 0.88,
+  release: 0.93,
+};
 const RIG_RELOAD = [
   [0, "F"],
-  [0.12, [0, -0.17, -0.08]],
-  [0.3, [0, -0.42, -0.04]],
-  [0.45, [-0.06, -0.52, 0.1]],
-  [0.62, [0, -0.36, -0.08]],
-  [0.78, [0, -0.18, -0.08]],
-  [0.88, [0.06, 0.06, 0.02]],
+  [RELOAD_T.grab, [0, -0.17, -0.08]],
+  [RELOAD_T.out, [0, -0.42, -0.04]],
+  [RELOAD_T.pouch, [-0.06, -0.52, 0.1]],
+  [RELOAD_T.well, [0, -0.36, -0.08]],
+  [RELOAD_T.seat, [0, -0.2, -0.08]],
+  [RELOAD_T.slap, [0, -0.15, -0.08]],
+  [RELOAD_T.reach, [-0.05, 0.07, 0.0]],
+  [RELOAD_T.back, [-0.05, 0.075, 0.12]],
+  [RELOAD_T.release, [-0.05, 0.07, 0.03]],
   [1, "F"],
 ];
+/** is the magazine in the support hand at reload fraction r? (out to pouch, and pouch to seated) */
+const magInHand = r => (r >= RELOAD_T.grab && r < RELOAD_T.out) || (r >= RELOAD_T.pouch && r < RELOAD_T.seat);
+/** the gun's own motion through a reload: tilt to show the well, a jolt on the slap, a tug on the bolt */
+function reloadGunMotion(r, pos, rot) {
+  const T = RELOAD_T;
+  const bump = (a, b) => (r > a && r < b ? Math.sin(((r - a) / (b - a)) * Math.PI) : 0);
+  /* present the magazine well to the support hand */
+  const tilt = bump(T.grab - 0.04, T.slap + 0.04);
+  rot.z += 0.38 * tilt;
+  rot.y -= 0.12 * tilt;
+  /* the slap: a sharp upward jolt as the magazine seats */
+  pos.y += 0.035 * bump(T.seat, T.slap + 0.05);
+  /* the bolt: the gun rolls toward the hand pulling it, then snaps forward on release */
+  const bolt = bump(T.reach, T.release);
+  rot.z += 0.22 * bolt;
+  pos.z -= 0.025 * bump(T.release - 0.01, T.release + 0.05);
+}
 function reloadKey(keys, r, fore, out) {
   for (let i = 0; i < keys.length - 1; i++) {
     const [t0, a] = keys[i],
@@ -829,7 +870,10 @@ function makePilot(color, label) {
       else if (st.pound === 2) lean = 0.3;
       if (st.charge) lean = 0.55;
       if (st.clamber) lean = 0.35;
-      if (st.melee >= 0) lean += Math.sin(Math.PI * st.melee) * 0.3;
+      const strike = meleeCurve(st.melee);
+      if (st.melee >= 0) lean += strike * 0.35;
+      /* aiming down sights eases in: the head drops to the sights */
+      S.ads = (S.ads || 0) + ((st.aim && !st.sprint ? 1 : 0) - (S.ads || 0)) * Math.min(1, dt * 12);
       if (!air && !st.slide) {
         lean += clamp(S.accF * 0.008, -0.14, 0.14);
         roll += clamp(-S.turn * spd * 0.012, -0.22, 0.22);
@@ -894,8 +938,14 @@ function makePilot(color, label) {
       pelvis.position.set(sway * 0.02, S.pel + bob + pOff + drop, 0);
       pelvis.rotation.set(0, -S.hip, sway * 0.03);
       /* the spine shares lean, twist and bank between its two segments; breathing lifts the chest */
-      spine.rotation.set((-leanS + st.pitch * 0.3) * 0.5, (S.hip + S.twist) * 0.5, rollS * 0.5);
-      spine2.rotation.set((-leanS + st.pitch * 0.3) * 0.5 + br * 0.012, (S.hip + S.twist) * 0.5, rollS * 0.5);
+      /* a melee blow twists the torso into the strike */
+      const mtw = strike * 0.55;
+      spine.rotation.set((-leanS + st.pitch * 0.3) * 0.5, (S.hip + S.twist + mtw) * 0.5, rollS * 0.5);
+      spine2.rotation.set(
+        (-leanS + st.pitch * 0.3) * 0.5 + br * 0.012,
+        (S.hip + S.twist + mtw) * 0.5,
+        rollS * 0.5
+      );
       chest.position.y = 0.14 + br * 0.004;
       /* the head leads the aim and, at rest, glances around */
       S.glanceT -= dt;
@@ -903,7 +953,11 @@ function makePilot(color, label) {
         S.glanceT = 1.5 + Math.random() * 3;
         S.glance = S.idle > 0.5 ? (Math.random() - 0.5) * 0.9 : 0;
       }
-      neck.rotation.set(st.pitch * 0.2 + leanS * 0.45 - bob * 1.2, -S.turn * 0.02, 0);
+      neck.rotation.set(
+        st.pitch * 0.2 + leanS * 0.45 - bob * 1.2 + S.ads * 0.14,
+        -S.turn * 0.02,
+        -S.ads * 0.12
+      );
       head.rotation.y += (S.glance * S.idle - head.rotation.y) * Math.min(1, dt * 4);
       head.rotation.x = st.pitch * 0.18 - br * 0.01;
       const gy = -pelvis.position.y + 0.07;
@@ -990,7 +1044,7 @@ function makePilot(color, label) {
           cloth.material.emissive.set(st.flagColor);
         }
       }
-      let gp = rocket ? POSE.rocket : POSE.aim;
+      let gp = rocket ? POSE.rocket : st.aim ? (wp === 1 ? POSE.adsPistol : POSE.ads) : POSE.aim;
       if (rl >= 0) gp = POSE.reload;
       else if (!air && st.sprint) gp = rocket ? POSE.rocketRun : POSE.sprint;
       else if (st.pound === 1 || st.clamber || st.charge) gp = POSE.low;
@@ -1001,20 +1055,24 @@ function makePilot(color, label) {
       }
       const kick = spring(S.spKick, 0, dt, 7, 0.45);
       _c.copy(gp.p);
-      _q2.setFromEuler(
-        _e1.set(
-          gp.r[0] + (gp === POSE.aim || gp === POSE.rocket ? st.pitch * 0.6 : 0) + kick * 0.35,
-          gp.r[1],
-          gp.r[2]
-        )
-      );
+      /* aimed guns follow the look pitch (fully when sighted in) */
+      const pf =
+        gp === POSE.ads || gp === POSE.adsPistol ? 0.95 : gp === POSE.aim || gp === POSE.rocket ? 0.6 : 0;
+      _e1.set(gp.r[0] + st.pitch * pf + kick * 0.35, gp.r[1], gp.r[2]);
+      if (rl >= 0) reloadGunMotion(rl, _c, _e1);
+      _q2.setFromEuler(_e1);
       if (st.melee >= 0) {
-        const m = Math.sin(Math.PI * st.melee);
-        _c.z -= 0.22 * m;
-        _c.y += 0.08 * m;
-        _q1.setFromEuler(_e1.set(-0.6 * m, 0.4 * m, 0));
+        /* the strike: the gun swings across and forward, stock first */
+        _c.z -= 0.32 * strike;
+        _c.x -= 0.14 * strike;
+        _c.y += 0.1 * strike;
+        _q1.setFromEuler(_e1.set(-0.45 * strike, 0.95 * strike, 0.4 * strike));
         _q2.multiply(_q1);
+        /* the swing is heard and seen (rigEvents draws its arc) */
+        if ((S.lastMel == null || S.lastMel < 0.08) && st.melee >= 0.08)
+          ev = Object.assign(ev || {}, { swing: true });
       }
+      S.lastMel = st.melee;
       _c.z += kick * 0.07;
       if (gait && !st.sprint) _c.y += Math.sin(S.ph * Math.PI * 4) * 0.012 * w;
       _c.y += br * 0.004;
@@ -1064,22 +1122,30 @@ function makePilot(color, label) {
         handTo(arms[1], frame, 0.85, curlR);
         handTo(arms[0], frame, curlL > 0.7 ? 0.7 : 0.2, curlL);
       }
+      /* the reload's sounds, heard from anyone: seat, slap, bolt */
+      if (rl >= 0 && S.lastRS >= 0) {
+        if (S.lastRS < RELOAD_T.slap && rl >= RELOAD_T.slap) ev = Object.assign(ev || {}, { slap: true });
+        if (S.lastRS < RELOAD_T.release && rl >= RELOAD_T.release)
+          ev = Object.assign(ev || {}, { bolt: true });
+      }
+      S.lastRS = rl >= 0 ? rl : -1;
       if (rl >= 0 && wp === 0) {
-        const inHand = (rl >= 0.12 && rl < 0.3) || (rl >= 0.45 && rl < 0.78);
-        mag.visible = !(rl >= 0.3 && rl < 0.45);
+        const inHand = magInHand(rl);
+        mag.visible = !(rl >= RELOAD_T.out && rl < RELOAD_T.pouch);
         if (inHand) {
           _m1.copy(gun.matrix).invert();
           mag.position.copy(S.lh).applyMatrix4(_m1);
           mag.position.y += 0.03;
         } else mag.position.copy(MAGSLOT);
-        if (S.lastR >= 0 && S.lastR < 0.3 && rl >= 0.3) {
+        if (S.lastR >= 0 && S.lastR < RELOAD_T.out && rl >= RELOAD_T.out) {
           root.updateMatrixWorld(true);
           ev = Object.assign(ev || {}, {
             drop: mag.getWorldPosition(new V3()),
             dropQ: mag.getWorldQuaternion(new THREE.Quaternion()),
           });
         }
-        if (S.lastR >= 0 && S.lastR < 0.78 && rl >= 0.78) ev = Object.assign(ev || {}, { magIn: true });
+        if (S.lastR >= 0 && S.lastR < RELOAD_T.seat && rl >= RELOAD_T.seat)
+          ev = Object.assign(ev || {}, { magIn: true });
         S.lastR = rl;
       } else {
         mag.visible = true;
@@ -1178,6 +1244,7 @@ function bodyState(B, extra) {
     clamber: !!B.clamber,
     charge: B.chargeT > 0,
     melee: B.meleeT > 0 ? 1 - B.meleeT / 0.4 : -1,
+    aim: !!B.aiming,
     pitch: B.pitch,
     shield: B.shield,
     reload: extra && extra.reload != null ? extra.reload : -1,

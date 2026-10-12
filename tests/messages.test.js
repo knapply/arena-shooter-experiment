@@ -22,7 +22,7 @@ const arena = {
   v: [-8.5, 0.25, 11.75],
   y: 2.5,
   pt: -0.31,
-  st: 4096 | 2 | 512,
+  st: 65536 | 32768 | 4096 | 2 | 512 /* aiming down sights is bit 65536 (protocol 5) */,
   sh: 64,
   dead: false,
   k: 7,

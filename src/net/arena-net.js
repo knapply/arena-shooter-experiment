@@ -85,7 +85,8 @@ function myBits() {
     (me.pound === 2 ? 2048 : 0) |
     (now - lastFireT < 0.12 ? 4096 : 0) |
     (wi === 1 || wi === 3 ? 8192 : 0) |
-    (wi >= 2 ? 32768 : 0)
+    (wi >= 2 ? 32768 : 0) |
+    (aiming && !me.sprint && !me.dead ? 65536 : 0)
   );
 }
 function sendPresence(force) {

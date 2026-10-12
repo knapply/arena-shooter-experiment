@@ -187,6 +187,8 @@ class Body {
       v = this.vel,
       f = this._f.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)),
       rt = this._r.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    /** aiming down sights this step (drawn by the rig, sent to other players) */
+    this.aiming = !!inp.aim && !this.sprint;
     this.thrustCD = Math.max(0, this.thrustCD - dt);
     this.slideCD = Math.max(0, this.slideCD - dt);
     this.meleeCD = Math.max(0, this.meleeCD - dt);

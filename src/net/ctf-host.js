@@ -111,7 +111,8 @@
       (o.fire ? 4096 : 0) |
       (o.wpn === 1 || o.wpn === 3 ? 8192 : 0) |
       (o.wpn >= 2 ? 32768 : 0) |
-      (o.carry ? 16384 : 0)
+      (o.carry ? 16384 : 0) |
+      (b.aiming ? 65536 : 0)
     );
   };
   NET.applyBits = function (b, s) {
@@ -126,6 +127,7 @@
     b.clamber = s & 256 ? {} : null;
     b.ground = !(s & 512);
     b.chargeT = s & 1024 ? 0.2 : 0;
+    b.aiming = !!(s & 65536);
   };
   NET.readBody = function (b, pr) {
     K.vec(pr.p, b.pos);
