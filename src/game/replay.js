@@ -116,7 +116,7 @@ function killCamTick() {
   if (!k || REPLAY.active || now < k.startAt) return;
   KILLCAM.pending = null;
   if (!me.dead || !REC.sample(k.killer, k.at - 0.2)) return;
-  const len = Math.min(3.6, Math.max(1.5, respawnAt - now - 0.9));
+  const len = Math.min(3.6, Math.max(1.5, respawnStart() - now - 0.9));
   const t1 = k.at + 0.25,
     t0 = t1 - len;
   const W_NAMES = {

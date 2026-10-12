@@ -166,6 +166,20 @@ function frame(t) {
 }
 /* ---- respawning (in place, or out of a drop pod) ---- */
 let myPod = null;
+/** where this respawn will happen, picked once when it starts (a pod needs open sky above it) */
+let spawnPick = null;
+/** when your respawn starts: a pod launches POD_EARLY before respawnAt and lands when you would have */
+const respawnStart = () => respawnAt - (podsOn() && !INTRO.active ? POD_EARLY : 0);
+/** skip the pod camera: watch from where you will land instead (you're out until it does) */
+function skipPodCam(p) {
+  p.skip = true;
+  podViewEnd(p);
+  me.pos.copy(p.at);
+  me.vel.set(0, 0, 0);
+  prevPos.copy(me.pos);
+  me.yaw = Math.atan2(p.at.x, p.at.z);
+  me.pitch = 0;
+}
 function respawnMe(at) {
   if (EXT && EXT.respawn) EXT.respawn();
   else {
@@ -294,22 +308,34 @@ function frameBody(t) {
   }
   if (me.dead) {
     if (myPod) {
-      /* riding the drop pod down */
-    } else if (now > respawnAt) {
-      const sp = EXT && EXT.spawnPoint ? EXT.spawnPoint() : spawnPoint();
-      const at = sp ? new V3(sp[0], sp[1] + 0.02, sp[2]) : null;
+      /* riding the drop pod down; Jump, Fire or Melee skips the pod camera */
+      if (!myPod.skip && (P("jump") || P("fire") || P("melee"))) skipPodCam(myPod);
+    } else if (now > respawnStart()) {
+      if (!spawnPick || spawnPick.for !== respawnAt) {
+        const sp = EXT && EXT.spawnPoint ? EXT.spawnPoint() : spawnPoint();
+        spawnPick = { for: respawnAt, at: sp ? new V3(sp[0], sp[1] + 0.02, sp[2]) : null };
+      }
+      const at = spawnPick.at;
       if (at && podsOn() && !INTRO.active && skyClear(at)) {
+        spawnPick = null;
         $("dead").hidden = true;
         myPod = dropPod(at, myColor, {
           onLand(p) {
+            const look = myPod && myPod.skip ? [me.yaw, me.pitch] : null;
             myPod = null;
             respawnMe(p);
+            if (look) [me.yaw, me.pitch] = look;
             podCrush(p);
           },
         });
         emitFx("pod", v3a(at), [0, 0, 0], 0);
-      } else respawnMe(null);
-    } else $("deadT").textContent = `Respawning in ${Math.ceil(respawnAt - now)}`;
+        toast("Jump to skip the pod camera");
+      } else if (now > respawnAt) {
+        /* no open sky there: appear in place at the usual time */
+        spawnPick = null;
+        respawnMe(null);
+      }
+    } else $("deadT").textContent = `Respawning in ${Math.ceil(respawnStart() - now)}`;
   } else if (!paused && !INTRO.active) {
     if (pad.on) padGame(dt);
     const fw = clamp((A("forward") ? 1 : 0) - (A("back") ? 1 : 0) + touch.f - (pad.on ? GP.ax[1] : 0), -1, 1),
@@ -436,7 +462,7 @@ function frameBody(t) {
   camera.fov += (tf - camera.fov) * Math.min(1, dt * (zf > 3 ? 30 : 12));
   if (!(camera.fov > 1 && camera.fov < 170)) camera.fov = fb;
   camera.updateProjectionMatrix();
-  if (myPod) podCamera(myPod, dt);
+  if (myPod && !myPod.skip) podCamera(myPod, dt);
   updVM(dt, {
     aim: aiming,
     sprint: me.sprint && me.ground,

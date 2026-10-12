@@ -4,6 +4,7 @@ window.KA = {
   AI_SKILL,
   SWITCH_TIME,
   POD_TIME,
+  POD_EARLY,
   MAPS,
   buildMap,
   validateMap,

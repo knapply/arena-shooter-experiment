@@ -194,6 +194,48 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       "dying drops your weapon and grenades",
       loot
     );
+    /* the pod's longer fall is spectacle only: dead to back on your feet takes what it always did
+       (the mode's respawn delay plus the old 1.35 s drop), and Jump skips the pod camera */
+    const rt = await p.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      KA.me.spawnT = -99;
+      KA.hurtMe(999, { w: "self", name: "test" });
+      const t0 = KA.now;
+      let launch = -1;
+      for (let i = 0; i < 200 && KA.me.dead; i++) {
+        if (launch < 0 && KA.myPod) launch = KA.now - t0;
+        await wait(50);
+      }
+      return { launch, total: KA.now - t0, want: KA.MODE_DATA.ffa.respawn + 1.35, early: KA.POD_EARLY };
+    });
+    check(
+      rt.launch > 0 && Math.abs(rt.total - rt.want) < 0.25,
+      "dead to back in the fight takes the respawn delay plus 1.35 s, as before the higher drop",
+      rt
+    );
+    const skip = await p.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      KA.me.spawnT = -99;
+      KA.hurtMe(999, { w: "self", name: "test" });
+      for (let i = 0; i < 200 && !KA.myPod; i++) await wait(50);
+      await wait(200);
+      const high = KA.camera.position.y - KA.myPod.at.y;
+      return { high, at: KA.myPod.at.toArray() };
+    });
+    await p.keyboard.press("Space");
+    const skipped = await p.evaluate(async at => {
+      await new Promise(r => setTimeout(r, 250));
+      const pod = KA.myPod;
+      const c = KA.camera.position;
+      const d = Math.hypot(c.x - at[0], c.z - at[2]);
+      for (let i = 0; i < 100 && KA.me.dead; i++) await new Promise(r => setTimeout(r, 50));
+      return { skip: !!(pod && pod.skip), low: c.y - at[1], d, alive: !KA.me.dead };
+    }, skip.at);
+    check(
+      skip.high > 20 && skipped.skip && skipped.low < 3 && skipped.d < 1 && skipped.alive,
+      "Jump skips the pod camera to the landing spot",
+      { ...skip, ...skipped }
+    );
     const items = await p.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
       KA.me.spawnT = KA.now + 5;

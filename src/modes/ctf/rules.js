@@ -454,23 +454,32 @@
       for (const a of G.agents) {
         if (a.human) continue;
         if (a.dead) {
-          if (G.t >= a.respawnAt) {
+          /* a pod launches POD_EARLY before the respawn time and lands when an in-place spawn would
+             have plus the old 1.35 s drop (the longer fall is spectacle only) */
+          if (G.t >= a.respawnAt - (G.pods ? K.POD_EARLY : 0)) {
             if (!G.pods) a.spawn(G.spawnPoint(a.team));
             else if (!a.podAt) {
-              const pt = G.spawnPoint(a.team);
-              a.podPt = pt;
-              const up = new K.THREE.Vector3(pt[0], pt[1] + 2.2, pt[2]);
-              const open = K.rayWorld(up, new K.THREE.Vector3(0, 1, 0), 60) >= 59;
-              if (open) {
+              /* the spot is picked once, when the respawn starts */
+              if (!a.podPt || a.podFor !== a.respawnAt) {
+                const pt = G.spawnPoint(a.team);
+                const up = new K.THREE.Vector3(pt[0], pt[1] + 2.2, pt[2]);
+                a.podPt = pt;
+                a.podFor = a.respawnAt;
+                a.podOpen = K.rayWorld(up, new K.THREE.Vector3(0, 1, 0), 60) >= 59;
+              }
+              const pt = a.podPt;
+              if (a.podOpen) {
                 a.podAt = G.t + K.POD_TIME;
                 G.emit("pod", { a, pos: new K.THREE.Vector3(pt[0], pt[1] + 0.02, pt[2]) });
-              } else {
+              } else if (G.t >= a.respawnAt) {
+                /* no open sky there: appear in place at the usual time */
                 a.spawn(pt);
                 a.podPt = null;
               }
             } else if (G.t >= a.podAt) {
               a.spawn(a.podPt);
               a.podAt = 0;
+              a.podPt = null;
               /* a pod landing on someone takes them out */
               for (const e of G.agents)
                 if (

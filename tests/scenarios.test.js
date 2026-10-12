@@ -464,6 +464,37 @@ const fix = v => +v.toFixed(2);
     guns.map(g => g.type)
   );
 }
+/* ---------- respawn timing: the pod's longer fall doesn't lengthen the time out ---------- */
+{
+  const outFor = pods => {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const G = CTF.Game({ mode: "sim", render: false, seed: 4, pods });
+    G.start();
+    for (let i = 0; i < 10; i++) G.step(1 / 30);
+    const times = [];
+    for (const a of G.agents.slice(0, 4)) {
+      const t0 = G.t;
+      G.kill(a, null, "rifle", false);
+      let n = 0;
+      while (a.dead && n++ < 30 * 20) G.step(1 / 30);
+      times.push(G.t - t0);
+    }
+    return times;
+  };
+  const want = K.MODE_DATA.ctf.respawn + 1.35;
+  const withPods = outFor(true),
+    classic = outFor(false);
+  check(
+    withPods.every(t => Math.abs(t - want) < 0.1),
+    "AI: dead to back with a pod is the respawn delay plus the old 1.35 s drop",
+    { want, got: withPods.map(fix), early: fix(K.POD_EARLY) }
+  );
+  check(
+    classic.every(t => Math.abs(t - K.MODE_DATA.ctf.respawn) < 0.1),
+    "AI: classic spawns keep the plain respawn delay",
+    classic.map(fix)
+  );
+}
 /* ---------- pings: AI teammates go where a teammate pings ---------- */
 {
   K.STORE.setBackend(K.STORE.memoryBackend());

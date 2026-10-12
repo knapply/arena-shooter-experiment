@@ -122,9 +122,14 @@ function losTo(a, b) {
 function botStep(b, dt) {
   const B = b.body;
   if (B.dead) {
-    if (now > b.respawn && !b.pod) {
-      const s = spawnPoint(),
-        at = new V3(s[0], s[1] + 0.01, s[2]);
+    /* a pod launches POD_EARLY before the respawn time (see data/modes.js); the spot is picked once */
+    if (!b.pod && now > b.respawn - (podsOn() ? POD_EARLY : 0)) {
+      if (!b.pick || b.pick.for !== b.respawn) {
+        const s = spawnPoint(),
+          p = new V3(s[0], s[1] + 0.01, s[2]);
+        b.pick = { for: b.respawn, at: p, sky: podsOn() && skyClear(p) };
+      }
+      const at = b.pick.at;
       const up = () => {
         spawn(B);
         B.pos.copy(at);
@@ -137,7 +142,8 @@ function botStep(b, dt) {
         b.switchT = 0;
       };
       /* drones drop in by pod too (and a pod landing on you takes you out) */
-      if (podsOn() && skyClear(at))
+      if (b.pick.sky) {
+        b.pick = null;
         b.pod = dropPod(at, b.color, {
           onLand() {
             b.pod = null;
@@ -151,7 +157,10 @@ function botStep(b, dt) {
               hurtMe(999, { bot: b, w: "pod" });
           },
         });
-      else up();
+      } else if (now > b.respawn) {
+        b.pick = null;
+        up();
+      }
     }
     return;
   }
