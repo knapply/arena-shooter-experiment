@@ -9,20 +9,22 @@ function sandboxValues() {
   for (const [k] of SANDBOX_DEFS) o[k] = SB_OVERRIDE && k in SB_OVERRIDE ? SB_OVERRIDE[k] : SET[k];
   return o;
 }
-/** this player's sandbox, to send when hosting */
+/** this player's sandbox, to send when hosting: only the values that differ from the defaults
+    (presence goes out many times a second, and most rooms play on defaults: then it is just {}) */
 function sandboxRules() {
   const o = {};
-  for (const [k] of SANDBOX_DEFS) o[k] = SET[k];
+  for (const [k, , def] of SANDBOX_DEFS) if (SET[k] !== def) o[k] = SET[k];
   return o;
 }
-/** play by the host's sandbox (validated against each setting's range), or null for your own */
+/** play by the host's sandbox (missing values are the defaults; each is clamped to its range), or
+    null for your own */
 function setSandboxOverride(o) {
   if (!o || typeof o !== "object") SB_OVERRIDE = null;
   else {
     SB_OVERRIDE = {};
-    for (const [k, , , min, max] of SANDBOX_DEFS) {
-      const v = +o[k];
-      if (Number.isFinite(v)) SB_OVERRIDE[k] = Math.max(min, Math.min(max, v));
+    for (const [k, , def, min, max] of SANDBOX_DEFS) {
+      const v = k in o ? +o[k] : def;
+      SB_OVERRIDE[k] = Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : def;
     }
   }
   applySandbox();

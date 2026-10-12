@@ -37,70 +37,75 @@ const stats = async p => {
 (async () => {
   const b = await launch({ gpu: true });
   const ctx = await b.newContext({ viewport: { width: 960, height: 540 } });
-  for (const preset of ["low", "medium", "high", "ultra"]) {
-    const p = await open(ctx, { tag: preset, realThree: true });
-    await p.waitForTimeout(1500);
-    await p.click("#openSet");
-    await p.selectOption("#set_preset", preset);
-    await p.click("#setDone");
-    await p.click("#deploy");
-    await p.waitForTimeout(5000);
-    await p.evaluate(() => {
-      const e = document.querySelector(".toast");
-      if (e) e.remove();
-    });
-    const s = await stats(p);
-    check(
-      s.mean > 25 && s.mean < 200 && s.white < 15 && s.contrast > 12,
-      `${preset} preset renders a normal frame`,
-      s
-    );
-    check(p.errors.length === 0, `${preset} preset has no errors`, p.errors.slice(0, 3));
-    await p.close();
-  }
-  /* draw-call and triangle budgets (tests/budgets.json) */
-  {
-    const B = require("./budgets.json");
-    const p = await open(ctx, { tag: "budget", realThree: true });
-    await p.waitForTimeout(1500);
-    const info = () =>
-      p.evaluate(() => ({ calls: KA.renderer.info.render.calls, tris: KA.renderer.info.render.triangles }));
-    await p.click("#deploy");
-    await p.waitForTimeout(2500);
-    /* spawn points are random, so measure the worst view from every spawn at eight headings */
-    let a = { calls: 0, tris: 0 };
-    const nSp = await p.evaluate(() => KA.SPAWNS.length);
-    for (let i = 0; i < nSp; i++)
-      for (let k = 0; k < 8; k++) {
-        await p.evaluate(
-          ([i, yaw]) => {
-            const s = KA.SPAWNS[i];
-            KA.me.pos.set(s[0], s[1], s[2]);
-            KA.me.vel.set(0, 0, 0);
-            KA.me.yaw = yaw;
-            KA.me.pitch = 0;
-          },
-          [i, (k * Math.PI) / 4]
-        );
-        await p.waitForTimeout(120);
-        const v = await info();
-        a = { calls: Math.max(a.calls, v.calls), tris: Math.max(a.tris, v.tris) };
-      }
-    check(a.calls <= B.arena.drawCalls && a.tris <= B.arena.triangles, "arena view within draw budget", a);
-    await p.evaluate(() => KA.extStop());
-    await p.waitForTimeout(400);
-    await p.click("#ctfSim");
-    await p.waitForTimeout(2500);
-    /* the spectator camera moves on its own, so take the worst of several samples */
-    let c = { calls: 0, tris: 0 };
-    for (let i = 0; i < 16; i++) {
-      await p.waitForTimeout(400);
-      const v = await info();
-      c = { calls: Math.max(c.calls, v.calls), tris: Math.max(c.tris, v.tris) };
+  try {
+    for (const preset of ["low", "medium", "high", "ultra"]) {
+      const p = await open(ctx, { tag: preset, realThree: true });
+      await p.waitForTimeout(1500);
+      await p.click("#openSet");
+      await p.selectOption("#set_preset", preset);
+      await p.click("#setDone");
+      await p.click("#deploy");
+      await p.waitForTimeout(5000);
+      await p.evaluate(() => {
+        const e = document.querySelector(".toast");
+        if (e) e.remove();
+      });
+      const s = await stats(p);
+      check(
+        s.mean > 25 && s.mean < 200 && s.white < 15 && s.contrast > 12,
+        `${preset} preset renders a normal frame`,
+        s
+      );
+      check(p.errors.length === 0, `${preset} preset has no errors`, p.errors.slice(0, 3));
+      await p.close();
     }
-    check(c.calls <= B.ctf.drawCalls && c.tris <= B.ctf.triangles, "CTF view within draw budget", c);
-    check(p.errors.length === 0, "budget scenes have no errors", p.errors.slice(0, 3));
-    await p.close();
+    /* draw-call and triangle budgets (tests/budgets.json) */
+    {
+      const B = require("./budgets.json");
+      const p = await open(ctx, { tag: "budget", realThree: true });
+      await p.waitForTimeout(1500);
+      const info = () =>
+        p.evaluate(() => ({ calls: KA.renderer.info.render.calls, tris: KA.renderer.info.render.triangles }));
+      await p.click("#deploy");
+      await p.waitForTimeout(2500);
+      /* spawn points are random, so measure the worst view from every spawn at eight headings */
+      let a = { calls: 0, tris: 0 };
+      const nSp = await p.evaluate(() => KA.SPAWNS.length);
+      for (let i = 0; i < nSp; i++)
+        for (let k = 0; k < 8; k++) {
+          await p.evaluate(
+            ([i, yaw]) => {
+              const s = KA.SPAWNS[i];
+              KA.me.pos.set(s[0], s[1], s[2]);
+              KA.me.vel.set(0, 0, 0);
+              KA.me.yaw = yaw;
+              KA.me.pitch = 0;
+            },
+            [i, (k * Math.PI) / 4]
+          );
+          await p.waitForTimeout(120);
+          const v = await info();
+          a = { calls: Math.max(a.calls, v.calls), tris: Math.max(a.tris, v.tris) };
+        }
+      check(a.calls <= B.arena.drawCalls && a.tris <= B.arena.triangles, "arena view within draw budget", a);
+      await p.evaluate(() => KA.extStop());
+      await p.waitForTimeout(400);
+      await p.click("#ctfSim");
+      await p.waitForTimeout(2500);
+      /* the spectator camera moves on its own, so take the worst of several samples */
+      let c = { calls: 0, tris: 0 };
+      for (let i = 0; i < 16; i++) {
+        await p.waitForTimeout(400);
+        const v = await info();
+        c = { calls: Math.max(c.calls, v.calls), tris: Math.max(c.tris, v.tris) };
+      }
+      check(c.calls <= B.ctf.drawCalls && c.tris <= B.ctf.triangles, "CTF view within draw budget", c);
+      check(p.errors.length === 0, "budget scenes have no errors", p.errors.slice(0, 3));
+      await p.close();
+    }
+  } catch (e) {
+    /* report it as a failed check, so CI shows what went wrong */
+    check(false, "test script error", e.message.split("\n").slice(0, 3).join(" | "));
   }
   await b.close();
   finish("render");
