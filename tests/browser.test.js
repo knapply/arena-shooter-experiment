@@ -467,20 +467,29 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     );
     /* directional damage: an arc points where the hit came from (a drone to your right: +90°) */
     const arc = await p.evaluate(async () => {
-      const b = KA.bots[0];
-      KA.me.pos.set(-30, 0, 30);
-      KA.me.yaw = 0;
+      /* a drone may have just taken you down: wait to be back */
+      for (let i = 0; i < 120 && KA.me.dead; i++) await new Promise(r => setTimeout(r, 100));
       KA.me.spawnT = -99;
       KA.me.shield = 70;
       KA.me.health = 45;
-      b.body.pos.set(-22, 0, 30);
-      KA.hurtMe(5, { bot: b, w: "rifle" });
+      /* a shot from 8 m to your right (a fixed point: a live drone would move) */
+      const from = new KA.THREE.Vector3(Math.cos(KA.me.yaw) * 8, 0, -Math.sin(KA.me.yaw) * 8).add(KA.me.pos);
+      KA.hurtMe(5, { pos: from, w: "rifle" });
       await new Promise(r => setTimeout(r, 120));
       const el = document.querySelector("#dmgDir .darc");
-      return { n: document.querySelectorAll("#dmgDir .darc").length, tf: el ? el.style.transform : "" };
+      /* where it should point now (you may have turned or moved a little since) */
+      const ang = Math.atan2(-(from.x - KA.me.pos.x), -(from.z - KA.me.pos.z)) - KA.me.yaw;
+      let want = (-ang * 180) / Math.PI;
+      want = ((((want + 180) % 360) + 360) % 360) - 180;
+      return { n: document.querySelectorAll("#dmgDir .darc").length, tf: el ? el.style.transform : "", want };
     });
-    const deg = parseFloat((arc.tf.match(/rotate\(([-\d.e]+)deg\)/) || [])[1]);
-    check(arc.n >= 1 && Math.abs(deg - 90) < 8, "a hit shows an arc toward the shooter", arc);
+    let deg = parseFloat((arc.tf.match(/rotate\(([-\d.e]+)deg\)/) || [])[1]);
+    deg = ((((deg + 180) % 360) + 360) % 360) - 180;
+    check(
+      arc.n >= 1 && Math.abs(deg - arc.want) < 3 && Math.abs(arc.want - 90) < 30,
+      "a hit shows an arc toward the shooter",
+      { ...arc, deg }
+    );
     /* the roster (hold Tab): every pilot with full stats, your row highlighted, sortable */
     await p.keyboard.down("Tab");
     await p.waitForTimeout(400);
@@ -659,9 +668,19 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       "the HUD shows the power spawn's weapon and timer",
       await text(A, "#powerT")
     );
+    /* live bots may take power weapons too, so look for this holder among the callout events */
+    const listen = q =>
+      q.evaluate(() => {
+        window.__pt = [];
+        KA.EVENTS.on("powerTaken", e => window.__pt.push({ name: e.name, weapon: e.weapon, enemy: e.enemy }));
+      });
+    await listen(A);
+    await listen(B);
     const holder = await A.evaluate(() => {
       const g = CTF.UI.game();
-      const e = g.teams[1 - g.human.team].agents.find(a => !a.human && !a.remote && a.alive);
+      const e = g.teams[1 - g.human.team].agents.find(
+        a => !a.human && !a.remote && a.alive && !(a.sniper > 0) && !(a.rocket > 0)
+      );
       g.arm(
         e,
         KA.WEAPON_DATA.findIndex(w => w.key === "sniper")
@@ -669,21 +688,16 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       return e.name;
     });
     await A.waitForTimeout(800);
-    const callA = await A.evaluate(() => ({
-        t: document.getElementById("callout").textContent,
-        marks: KA.powerMarks,
-      })),
-      callB = await B.evaluate(() => ({
-        t: document.getElementById("callout").textContent,
-        marks: KA.powerMarks,
-      }));
+    const seenBy = q => q.evaluate(() => ({ events: window.__pt, marks: KA.powerMarks }));
+    const callA = await seenBy(A),
+      callB = await seenBy(B);
     check(
-      /Enemy has the sniper/i.test(callA.t) && callA.marks >= 1,
+      callA.events.some(e => e.name === holder && e.enemy && e.weapon === "sniper") && callA.marks >= 1,
       "an enemy taking the sniper is called out and marked",
-      callA
+      { holder, ...callA }
     );
     check(
-      new RegExp(holder + " has the sniper", "i").test(callB.t) && callB.marks >= 1,
+      callB.events.some(e => e.name === holder && !e.enemy && e.weapon === "sniper") && callB.marks >= 1,
       "an ally with the sniper is named and marked for teammates online",
       { holder, ...callB }
     );

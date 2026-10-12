@@ -13,7 +13,8 @@ let pickups = 0,
   magKills = 0,
   carbKills = 0;
 for (let m = 0; m < 2; m++) {
-  const G = CTF.Game({ mode: "sim", render: false });
+  /* seeded, so the test is the same every run (an unseeded 8-minute stalemate is possible) */
+  const G = CTF.Game({ mode: "sim", render: false, seed: 1 + m });
   const ev = {};
   const kinds = {};
   let breaks = 0;
