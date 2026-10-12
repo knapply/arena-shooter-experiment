@@ -17,30 +17,24 @@ const PICKMAT = new THREE.MeshStandardMaterial({ color: "#2a3338", roughness: 0.
 const NADE_CAP = 2;
 const wName = t => (t < 0 ? "Grenades" : WEAPONS[t].name.split(" ").slice(1).join(" ") || WEAPONS[t].name);
 const capWord = s => s.charAt(0).toUpperCase() + s.slice(1);
-function weaponModel(type) {
-  const g = new THREE.Group();
-  const b = (w, h, d, m, x, y, z) => {
-    const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-    o.position.set(x, y, z);
-    o.castShadow = true;
-    g.add(o);
-    return o;
+/* each weapon's floor model is merged into one mesh per material once, and shared by every copy
+   (a floor full of drops stays a handful of draw calls) */
+const MODEL_PARTS = new Map();
+function floorParts(type) {
+  if (MODEL_PARTS.has(type)) return MODEL_PARTS.get(type);
+  /** @type {Map<any, any[]>} */
+  const by = new Map();
+  const put = (geo, m, x, y, z, rx = 0) => {
+    const mx = new THREE.Matrix4().makeRotationX(rx).setPosition(x, y, z);
+    if (!by.has(m)) by.set(m, []);
+    by.get(m).push([geo, mx]);
   };
-  const cyl = (r, l, m, x, y, z) => {
-    const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, 14), m);
-    o.rotation.x = Math.PI / 2;
-    o.position.set(x, y, z);
-    o.castShadow = true;
-    g.add(o);
-    return o;
-  };
+  const b = (w, h, d, m, x, y, z) => put(new THREE.BoxGeometry(w, h, d), m, x, y, z);
+  const cyl = (r, l, m, x, y, z) => put(new THREE.CylinderGeometry(r, r, l, 14), m, x, y, z, Math.PI / 2);
   if (type < 0) {
     /* a frag and a plasma grenade */
-    const f = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), NADEMAT);
-    f.position.set(-0.08, 0, 0);
-    const p = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), NADEGLOW);
-    p.position.set(0.09, 0, 0);
-    g.add(f, p);
+    put(new THREE.SphereGeometry(0.09, 10, 8), NADEMAT, -0.08, 0, 0);
+    put(new THREE.SphereGeometry(0.08, 10, 8), NADEGLOW, 0.09, 0, 0);
   } else if (WEAPONS[type].key === "rocket") {
     cyl(0.085, 1.0, PICKMAT, 0, 0, 0);
     cyl(0.1, 0.08, PICKMAT, 0, 0, -0.52);
@@ -58,6 +52,23 @@ function weaponModel(type) {
     b(0.07, 0.16, 0.25, PICKMAT, 0, -0.02, sn ? 0.52 : 0.32);
     b(0.05, 0.14, 0.07, PICKMAT, 0, -0.12, 0.2);
     if (sn) cyl(0.04, 0.32, PICKMAT, 0, 0.13, 0.05);
+  }
+  const parts = [...by].map(([m, list]) => {
+    /* mergeGeos keeps uvs only when every piece has them; these all do */
+    const g = mergeGeos(list);
+    for (const [geo] of list) geo.dispose();
+    return [g, m];
+  });
+  MODEL_PARTS.set(type, parts);
+  return parts;
+}
+/** a weapon (or grenades, type -1) lying on the floor; power weapons also cast a shadow */
+function weaponModel(type, shadow = true) {
+  const g = new THREE.Group();
+  for (const [geo, m] of floorParts(type)) {
+    const o = new THREE.Mesh(geo, m);
+    o.castShadow = shadow;
+    g.add(o);
   }
   return g;
 }
@@ -84,31 +95,35 @@ function labelSprite() {
   return s;
 }
 const PK_VIS = new Map();
+const RING_GEO = new THREE.RingGeometry(0.55, 0.68, 32);
+const ringMat = c => {
+  const m = new THREE.MeshBasicMaterial({
+    color: c,
+    transparent: true,
+    opacity: 0.7,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  m.color.multiplyScalar(2);
+  return m;
+};
+/* drops share one ring material (they are always available while shown) */
+const DROP_RING = ringMat(0xffc070);
 function pkVisual(p) {
   let v = PK_VIS.get(p.id);
   if (v && v.type === p.type) return v;
   if (v) {
     v.g.remove(v.model);
-    v.model = weaponModel(p.type);
+    v.model = weaponModel(p.type, !!p.power);
     v.g.add(v.model);
     v.type = p.type;
     v.last = "";
     return v;
   }
   const g = new THREE.Group();
-  const model = weaponModel(p.type);
+  const model = weaponModel(p.type, !!p.power);
   g.add(model);
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.55, 0.68, 32),
-    new THREE.MeshBasicMaterial({
-      color: p.power ? 0x5ab8ff : 0xffc070,
-      transparent: true,
-      opacity: 0.7,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    })
-  );
-  ring.material.color.multiplyScalar(2);
+  const ring = new THREE.Mesh(RING_GEO, p.power ? ringMat(0x5ab8ff) : DROP_RING);
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.04;
   ring.scale.setScalar(p.power ? 1 : 0.6);
@@ -336,7 +351,15 @@ function updPickups(dt) {
       pkNear = p;
     }
   }
-  for (const [id, v] of PK_VIS) if (!seen.has(id)) v.g.visible = false;
+  for (const [id, v] of PK_VIS)
+    if (!seen.has(id)) {
+      v.g.visible = false;
+      /* a drop that's gone for good: let its visual go too */
+      if (v.ring.material === DROP_RING) {
+        scene.remove(v.g);
+        PK_VIS.delete(id);
+      }
+    }
   /* the prompt: the nearest weapon, or what the mode offers (the flag) */
   let act = null;
   if (pkNear) act = { label: `pick up ${wName(pkNear.type)}`, hold: 0.35, go: () => swapFor(pkNear) };

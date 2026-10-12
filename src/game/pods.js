@@ -7,16 +7,25 @@
 const PODS = [];
 const POD_TIME = 1.35;
 const podsOn = () => SET.spawnStyle !== "classic";
+/* the pod's fixed parts are merged once into one geometry per material and shared by every pod
+   (a pod draws in seven calls: hull, nose, frame, team bands and the three doors) */
 const POD_GEO = {};
 function podGeo() {
-  if (POD_GEO.body) return POD_GEO;
-  POD_GEO.body = new THREE.CylinderGeometry(0.72, 0.62, 2.2, 14);
-  POD_GEO.nose = new THREE.ConeGeometry(0.62, 0.7, 14);
-  POD_GEO.nose.rotateX(Math.PI);
-  POD_GEO.cap = new THREE.CylinderGeometry(0.42, 0.74, 0.45, 14);
-  POD_GEO.fin = new THREE.BoxGeometry(0.08, 1.2, 0.5);
+  if (POD_GEO.hull) return POD_GEO;
+  const at = (g, x, y, z, ry = 0) => [g, new THREE.Matrix4().makeRotationY(ry).setPosition(x, y, z)];
+  const nose = new THREE.ConeGeometry(0.62, 0.7, 14);
+  nose.rotateX(Math.PI);
+  POD_GEO.hull = mergeGeos([at(new THREE.CylinderGeometry(0.72, 0.62, 2.2, 14), 0, 1.45, 0)]);
+  POD_GEO.nose = mergeGeos([at(nose, 0, 0, 0)]);
+  const frame = [at(new THREE.CylinderGeometry(0.42, 0.74, 0.45, 14), 0, 2.75, 0)];
+  for (let i = 0; i < 4; i++) {
+    const a = (i * Math.PI) / 2;
+    frame.push(at(new THREE.BoxGeometry(0.08, 1.2, 0.5), Math.sin(a) * 0.72, 1.6, Math.cos(a) * 0.72, a));
+  }
+  POD_GEO.frame = mergeGeos(frame);
+  const band = () => new THREE.CylinderGeometry(0.735, 0.735, 0.08, 14);
+  POD_GEO.bands = mergeGeos([at(band(), 0, 2.2, 0), at(band(), 0, 0.7, 0)]);
   POD_GEO.door = new THREE.BoxGeometry(0.62, 1.7, 0.08);
-  POD_GEO.band = new THREE.CylinderGeometry(0.735, 0.735, 0.08, 14);
   return POD_GEO;
 }
 const POD_MAT = {
@@ -55,21 +64,10 @@ function makePod(color) {
     g.add(o);
     return o;
   };
-  add(G0.body, POD_MAT.hull, 0, 1.45, 0);
-  add(G0.nose, POD_MAT.burn, 0, 0.0, 0);
-  add(G0.cap, POD_MAT.dark, 0, 2.75, 0);
-  add(G0.band, team, 0, 2.2, 0);
-  add(G0.band, team, 0, 0.7, 0);
-  for (let i = 0; i < 4; i++) {
-    const f = add(
-      G0.fin,
-      POD_MAT.dark,
-      Math.sin((i * Math.PI) / 2) * 0.72,
-      1.6,
-      Math.cos((i * Math.PI) / 2) * 0.72
-    );
-    f.rotation.y = (i * Math.PI) / 2;
-  }
+  add(G0.hull, POD_MAT.hull, 0, 0, 0);
+  add(G0.nose, POD_MAT.burn, 0, 0, 0);
+  add(G0.frame, POD_MAT.dark, 0, 0, 0);
+  add(G0.bands, team, 0, 0, 0);
   /* three doors that blow off on landing */
   const doors = [0, 1, 2].map(i => {
     const a = (i * Math.PI * 2) / 3 + Math.PI / 6;
@@ -162,12 +160,19 @@ function updPods(dt) {
     p.team.emissiveIntensity = Math.max(0.3, 1.6 - p.life * 0.4);
     if (p.life > 6) p.g.position.y = p.at.y - (p.life - 6) * 1.2;
     if (p.life > 8.5) {
-      scene.remove(p.g);
+      disposePod(p);
       PODS.splice(i, 1);
     }
   }
 }
+/* the geometry is shared; the per-pod materials are not */
+function disposePod(p) {
+  scene.remove(p.g);
+  p.team.dispose();
+  p.fire.material.dispose();
+  p.retro.material.dispose();
+}
 function clearPods() {
-  for (const p of PODS) scene.remove(p.g);
+  for (const p of PODS) disposePod(p);
   PODS.length = 0;
 }

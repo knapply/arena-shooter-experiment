@@ -51,12 +51,12 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/replay.js` | 154 | `REPLAY` `KILLCAM` `killCamTick` |
 | `src/game/highlights.js` | 111 | `HL` `HL_KEEP` `HL_BEFORE` `HL_AFTER` `HL_POWER` `hlConsider` `hlTick` `playOfTheGame` |
 | `src/game/intro.js` | 119 | `INTRO` `_ic` `centroid` `playIntro` `endIntro` `introFrame` |
-| `src/game/pods.js` | 174 | `PODS` `POD_TIME` `podsOn` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `makePod` `dropPod` `_podV` `updPods` `clearPods` |
+| `src/game/pods.js` | 179 | `PODS` `POD_TIME` `podsOn` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `makePod` `dropPod` `_podV` `updPods` `disposePod` `clearPods` |
 | `src/ui/pings.js` | 103 | `PINGS` `PING_LIFE` `_pgD` `_pgO` `_pgV` `pingTarget` `addPing` `pingNow` `pingLayer` `updPings` |
 | `src/game/loop.js` | 566 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `meEvent` `chargeCheck` `myFeel` … (+18) |
 | `src/modes/tech-demo.js` | 476 | `demo` `seg` `segT` `snapCam` `demoRig` `segOnce` `camLook` `dummies` `makeDummies` `placeDummy` `placeMe` `once` `PI` `SEGS` `nextSeg` `startDemo` `exitDemo` `demoFrame` |
 | `src/ui/settings-ui.js` | 433 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `closeSettings` `onSetChange` `renderSettings` `renderKeys` `renderPadBinds` `padCapture` `renderKeyHelp` `hudHook` `hideBots` `showWorld` `extPlay` `extFull` … (+1) |
-| `src/weapons/pickups.js` | 373 | `PICKMAT` `PICKACC` `PICKHOT` `NADEMAT` `NADEGLOW` `NADE_CAP` `wName` `capWord` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `powerSpawn` `ARENA_PICKS` `ITEM_LIFE` `makeItem` `ITEMS` `itemSeq` … (+12) |
+| `src/weapons/pickups.js` | 396 | `PICKMAT` `PICKACC` `PICKHOT` `NADEMAT` `NADEGLOW` `NADE_CAP` `wName` `capWord` `MODEL_PARTS` `floorParts` `weaponModel` `labelSprite` `PK_VIS` `RING_GEO` `ringMat` `DROP_RING` `pkVisual` `powerSpawn` … (+17) |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 32 | `_sd` `RANGE` `updAim` |
 | `src/game/exports.js` | 228 | `KA_API` |
