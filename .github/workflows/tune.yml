@@ -1,0 +1,79 @@
+# Sandbox tuning simulations on GitHub's runners (a backup for when no fast machine is around).
+# Each matrix job runs tools/tune.js for one knob group and seed set; the merge job combines them
+# and commits the result to the tune-results branch.
+name: Tune
+on:
+  workflow_dispatch:
+    inputs:
+      matches:
+        description: Matches per variant and kind
+        default: "16"
+      minutes:
+        description: Minutes per match
+        default: "4"
+      lock:
+        description: Weapon lock(s), e.g. carbine,magnum (empty for none)
+        default: ""
+permissions:
+  contents: write
+jobs:
+  sim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [100, 700]
+        group:
+          - "sbRun sbSprint sbAccel sbAir"
+          - "sbJump sbGrav sbThrust"
+          - "sbCarbDmg sbCarbRate sbCarbSpread sbCarbBloom"
+          - "sbMagDmg sbMagRate"
+          - "sbNadeThrow sbNadeBounce sbNadeFuse sbNadeRadius"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Simulate
+        env:
+          MATCHES: ${{ inputs.matches }}
+          MINUTES: ${{ inputs.minutes }}
+          LOCK: ${{ inputs.lock }}
+          SEED: ${{ matrix.seed }}
+          OUT: tune.json
+        run: node tools/tune.js ${{ matrix.group }}
+      - name: Name the output
+        run: |
+          key=$(echo "${{ matrix.group }}" | cut -d' ' -f1)-${{ matrix.seed }}
+          echo "KEY=$key" >> "$GITHUB_ENV"
+          mv tools/out/tune.json "tools/out/tune-$key.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tune-${{ env.KEY }}
+          path: tools/out/tune-${{ env.KEY }}.json
+  merge:
+    needs: sim
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          path: parts
+          merge-multiple: true
+      - name: Merge
+        run: node tools/tune-merge.js tune-merged.json parts/*.json
+      - name: Commit to tune-results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          mkdir -p /tmp/res && cp tune-merged.json parts/*.json /tmp/res/
+          git fetch origin tune-results || true
+          if git rev-parse --verify -q origin/tune-results; then git checkout tune-results; else git checkout --orphan tune-results && git rm -rqf .; fi
+          stamp=$(date -u +%Y%m%d-%H%M)
+          mkdir -p "runs/$stamp" && cp /tmp/res/*.json "runs/$stamp/"
+          git add runs && git commit -m "Tuning run $stamp" && git push origin tune-results

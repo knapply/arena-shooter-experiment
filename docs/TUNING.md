@@ -18,12 +18,14 @@ Defaults should keep the game **accessible** (fights last long enough to react t
 Each variant plays the same seeded matches as the baseline, so differences come from the setting, not from luck in which matches were drawn. Results were checked on more than one set of seeds before a default changed. The run-to-run noise on skill share is about ±0.02, so smaller effects are treated as no effect.
 
 ```bash
-node tools/tune.js                                  # sweep every knob (~10 min on two cores)
+node tools/tune.js                                  # sweep every knob
 MATCHES=16 MINUTES=4 SEED=700 node tools/tune.js sbAccel   # more matches, a different seed set
 TRY="sbAccel=80,90" node tools/tune.js sbAccel      # try specific values
+LOCK=magnum node tools/tune.js sbMagDmg sbMagRate   # every AI pilot uses only the magnum
+LOCK=carbine,magnum,sniper,rocket,nades KNOBS=none node tools/tune.js   # each single-weapon baseline
 ```
 
-Results are written to `tools/out/tune.json`.
+Every match is an independent job, spread over one worker thread per CPU core (`JOBS=n` to change); results are identical to a single-threaded run because each match is seeded on its own. `LOCK` gives every AI pilot one weapon with endless ammo (`carbine`, `magnum`, `sniper`, `rocket`, or `nades` for grenades only) and turns off power spawns, death drops and other grenades, so a weapon's own numbers can be tuned in isolation. Results are written to `tools/out/tune.json` (`OUT=name.json`); `node tools/tune-merge.js merged.json a.json b.json` combines runs (each row keeps its seed set, lock and skill change against its own baseline). The **Tune** GitHub Actions workflow (run by hand) does the same sweep as a matrix of knob groups and seed sets and commits the merged result to the `tune-results` branch.
 
 ## Results
 

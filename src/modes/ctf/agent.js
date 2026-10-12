@@ -7,7 +7,9 @@
   const V3 = T.Vector3,
     clamp = K.clamp,
     rnd = (a, b) => a + K.rand() * (b - a);
+  /* the sandbox edits these entries in place, so they always hold the live numbers */
   const RIFLE = K.WEAPON_DATA[0],
+    MAGNUM = K.WEAPON_DATA[1],
     SNIPER = K.WEAPON_DATA[2];
   const gauss = () => {
     let u = 0,
@@ -66,7 +68,9 @@
       /** a teammate's ping to act on: { pos, until } */
       this.ping = null;
       this.goalCell = -1;
-      this.mag = 32;
+      /** the gun in hand (0 carbine, 1 magnum; the WEAPON_DATA index) and each one's magazine */
+      this.wpn = 0;
+      this.ammo = [RIFLE.mag, MAGNUM.mag];
       this.reloadT = 0;
       this.fireCD = 0;
       this.firedT = -9;
@@ -106,6 +110,16 @@
     get pos() {
       return this.body.pos;
     }
+    /** the magazine of the gun in hand */
+    get mag() {
+      return this.ammo[this.wpn];
+    }
+    set mag(v) {
+      this.ammo[this.wpn] = v;
+    }
+    gun() {
+      return this.wpn === 1 ? MAGNUM : RIFLE;
+    }
     get alive() {
       return this.human && !this.remote ? !K.me.dead : !this.dead;
     }
@@ -127,7 +141,9 @@
       b.spawnT = this.G.t;
       this.dead = false;
       this.spawned = true;
-      this.mag = 32;
+      this.wpn = this.G.lock === "magnum" ? 1 : 0;
+      this.ammo[0] = RIFLE.mag;
+      this.ammo[1] = MAGNUM.mag;
       this.reloadT = 0;
       this.target = null;
       this.nadeInv.frag = 2;
@@ -141,6 +157,11 @@
       this.sniperMag = 0;
       this.rocket = 0;
       this.flagHold = 0;
+      /* weapon-lock simulations (tools/tune.js): a power weapon with endless ammo */
+      if (this.G.lock === "sniper") {
+        this.sniper = 1e6;
+        this.sniperMag = SNIPER.mag;
+      } else if (this.G.lock === "rocket") this.rocket = 1e6;
       if (this.rig) {
         this.rig.revive();
         this.rig.root.visible = this.G.render;
@@ -580,7 +601,8 @@
           inp.sprint = true;
           if (b.sprint && this.path && this.mustMove && K.rand() < dt * 0.15) inp.crouchP = true;
         }
-        if (this.reloadT <= 0 && this.mag < 18 && G.t - this.lastHitT > 2) this.reloadT = K.RELOAD_TIME;
+        if (this.reloadT <= 0 && this.mag < this.gun().mag * 0.56 && G.t - this.lastHitT > 2)
+          this.reloadT = this.gun().reload;
       }
       if (this.poundHold > 0) {
         this.poundHold -= dt;
@@ -641,7 +663,7 @@
       this.fireCD -= dt;
       if (this.reloadT > 0) {
         this.reloadT -= dt;
-        if (this.reloadT <= 0) this.mag = 32;
+        if (this.reloadT <= 0) this.mag = this.gun().mag;
       }
       if (
         engaged &&
@@ -655,9 +677,15 @@
         const err = Math.abs(angDiff(lookYaw, b.yaw)) + Math.abs(lookPitch - b.pitch);
         if (err < (this.sniper > 0 && tgt.pos.distanceTo(this.pos) > 6 ? 0.05 : 0.09)) this.shoot(tgt);
       }
-      if (this.mag <= 0 && this.reloadT <= 0) this.reloadT = K.RELOAD_TIME;
+      if (this.mag <= 0 && this.reloadT <= 0) this.reloadT = this.gun().reload;
       this.nadeCD -= dt;
-      if (this.nadeCD <= 0 && !b.clamber && b.pound === 0 && !this.carrying) {
+      if (
+        this.nadeCD <= 0 &&
+        !b.clamber &&
+        b.pound === 0 &&
+        !this.carrying &&
+        (!G.lock || G.lock === "nades")
+      ) {
         const plan = this.nadePlan();
         if (plan) this.throwNade(plan.type, plan.at);
       }
@@ -725,7 +753,7 @@
         this.nadeCD = 1.5;
         return;
       }
-      this.nadeInv[type]--;
+      if (G.lock !== "nades") this.nadeInv[type]--;
       this.nadeCD = 5 + K.rand() * 3;
       o.addScaledVector(v.clone().normalize(), 0.45);
       b.yaw = Math.atan2(-v.x, -v.z);
@@ -925,16 +953,24 @@
       if (this.sniper > 0) return this.shootSniper(tgt);
       const G = this.G,
         b = this.body;
+      /* grenades-only simulations: guns stay holstered */
+      if (G.lock === "nades") {
+        this.fireCD = 0.3;
+        return;
+      }
+      /* the gun in hand, with the player's numbers (data/weapons.js) */
+      const W = this.gun();
       this.mag--;
-      this.fireCD = this.carrying ? 0.16 : RIFLE.rate;
+      this.fireCD = W.rate;
       this.firedT = G.t;
       this.shots++;
       const eye = this.eye(new V3());
       const d = b.aimDir();
-      /* the carbine's own spread and bloom (data/weapons.js): aimed on the ground, hip-fire in the air */
-      this.bloom = G.t - (this.lastShotT || -9) < RIFLE.rate * 2.5 ? Math.min(8, (this.bloom || 0) + 1) : 0;
+      /* the carbine's own spread and bloom: aimed on the ground, hip-fire in the air; precision weapons
+         go exactly where they point (the aim error is in aimPoint) */
+      this.bloom = G.t - (this.lastShotT || -9) < W.rate * 2.5 ? Math.min(8, (this.bloom || 0) + 1) : 0;
       this.lastShotT = G.t;
-      const sp = (b.ground ? RIFLE.adsSpread : RIFLE.spread * 0.85) + this.bloom * RIFLE.bloom * 0.25;
+      const sp = W.precision ? 0 : (b.ground ? W.adsSpread : W.spread * 0.85) + this.bloom * W.bloom * 0.25;
       d.x += rnd(-sp, sp);
       d.y += rnd(-sp, sp);
       d.z += rnd(-sp, sp);
@@ -955,21 +991,22 @@
         K.tracer(mz, end, CTF.TEAM_INT[this.team]);
         if (best) K.spark(end, 2, best.e.body.shield > 0 ? 0xffd36b : 0xff7a6a);
         else if (wt < 90) K.spark(end);
-        K.sfx("shot", K.distVol(eye, 55) * 0.7);
+        K.sfx(W.snd, K.distVol(eye, 55) * 0.7);
       }
-      if (!best && wh.b) K.damageBox(wh.b, 5.4, eye.clone().addScaledVector(d, wt), "bullet", G.render);
+      if (!best && wh.b)
+        K.damageBox(wh.b, W.body * 0.6, eye.clone().addScaledVector(d, wt), "bullet", G.render);
       if (best) {
         this.hits++;
-        /* same numbers as the player's carbine (data/weapons.js); headshot bonus once shields are down */
-        const dmg = best.h.head && best.e.body.shield <= 0 ? RIFLE.head : RIFLE.body;
+        /* headshot bonus once shields are down */
+        const dmg = best.h.head && (best.e.body.shield <= 0 || W.headAlways) ? W.head : W.body;
         const br = this.brain();
         br.model.acc[0]++;
         if (best.e.human)
-          G.hurtHuman(best.e, dmg, { name: this.name, agent: this, w: "rifle", hd: best.h.head });
-        else best.e.onHit(dmg, "rifle", best.h.head, this);
+          G.hurtHuman(best.e, dmg, { name: this.name, agent: this, w: W.dmg, hd: best.h.head });
+        else best.e.onHit(dmg, W.dmg, best.h.head, this);
       }
       this.brain().model.acc[1]++;
-      if (this.mag <= 0) this.reloadT = K.RELOAD_TIME;
+      if (this.mag <= 0) this.reloadT = W.reload;
     }
     /* events from the physics body */
     onEvent(type, d) {

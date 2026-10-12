@@ -38,6 +38,9 @@
       /** weapons and grenades on the floor (death drops) */
       items: [],
       itemSeq: 0,
+      /** simulations only (tools/tune.js): every AI pilot uses one weapon, "carbine", "magnum", "sniper",
+          "rocket" or "nades" (grenades only); power spawns, death drops and other grenades are off */
+      lock: opts.lock || null,
     };
     const models = CTF.loadModels();
     G.teams = [0, 1].map(t => ({ team: t, score: 0, agents: [], brain: new CTF.TeamBrain(t, models[t]) }));
@@ -180,6 +183,7 @@
       };
       return p;
     });
+    if (G.lock) G.pickups = [];
     const keyOf = t => (K.WEAPON_DATA[t] ? K.WEAPON_DATA[t].key : "");
     /** an AI pilot arms itself with a power weapon (ammo: [mag, reserve], or full) */
     G.arm = function (a, type, ammo) {
@@ -329,7 +333,7 @@
       if (killer && killer !== victim) killer.k += killer.team === victim.team ? -1 : 1;
       const p = victim.pos.clone();
       /* weapons and grenades fall where they died (you report your own drop) */
-      if (!victim.local) G.addItems(G.loadoutOf(victim), p);
+      if (!victim.local && !G.lock) G.addItems(G.loadoutOf(victim), p);
       victim.sniper = victim.sniperMag = victim.rocket = 0;
       if (victim.carrying) {
         const f = victim.carrying;

@@ -4,19 +4,30 @@
      skill   legendary AI vs normal AI   → how much skill decides fights (the skill ceiling)
      even    normal vs normal            → how fights feel for everyone (time to kill, grenade self-kills)
    Each knob is varied one at a time around the defaults; the report lists the effect of each step.
-     node tools/tune.js                 sweep every knob (a few minutes)
+   Matches run in parallel on every CPU core (one worker thread per core; JOBS=n to change).
+     node tools/tune.js                 sweep every knob
      node tools/tune.js sbJump sbNadeThrow   only these knobs
      MATCHES=6 MINUTES=4 node tools/tune.js  more samples per variant
      SEED=500 node tools/tune.js              a different set of matches (to check a result holds)
      TRY="sbAccel=80,90" node tools/tune.js sbAccel   try other values
-   Output: a table on stdout and tools/out/tune.json. See docs/TUNING.md for how defaults were chosen. */
+     LOCK=magnum node tools/tune.js sbMagDmg     every AI pilot uses only that weapon: carbine, magnum,
+                                                 sniper, rocket or nades (grenades only); several
+                                                 (LOCK=carbine,magnum) run the sweep once per lock
+     KNOBS=none node tools/tune.js              baselines only
+     DIFF=recruit node tools/tune.js            the even matches use this difficulty (default normal)
+   Output: a table on stdout and tools/out/tune.json (OUT=name.json). tools/tune-merge.js combines
+   several outputs. See docs/TUNING.md for how defaults were chosen. */
 const fs = require("fs"),
-  path = require("path");
+  path = require("path"),
+  os = require("os");
+const { Worker, isMainThread, parentPort } = require("worker_threads");
 const CTF = require("../tests/lib/headless.js");
 const K = window.KA;
 const SEED = +(process.env.SEED || 100),
   MATCHES = +(process.env.MATCHES || 4),
-  MINUTES = +(process.env.MINUTES || 3);
+  MINUTES = +(process.env.MINUTES || 3),
+  EVEN = process.env.DIFF || "normal";
+const LOCKS = ["carbine", "magnum", "sniper", "rocket", "nades"];
 /* each knob: how to apply a value to the simulation, its default and the values to try */
 const W = key => K.WEAPON_DATA.find(w => w.key === key);
 const KNOBS = {
@@ -42,9 +53,9 @@ const KNOBS = {
   sbMagDmg: {
     set: v => Object.assign(W("pistol"), { body: v, head: Math.round(v * 2.5) }),
     def: 23,
-    try: [20, 26],
+    try: [18, 22],
   },
-  sbMagRate: { set: v => (W("pistol").rate = v), def: 0.28, try: [0.24, 0.32] },
+  sbMagRate: { set: v => (W("pistol").rate = v), def: 0.28, try: [0.22, 0.3] },
   sbNadeThrow: { set: v => (K.NADE_TUNE.throw = v), def: 19, try: [16, 22] },
   sbNadeBounce: { set: v => (K.NADE_TUNE.bounce = v), def: 0.38, try: [0.25, 0.5] },
   sbNadeFuse: { set: v => (K.NADES.frag.fuse = v), def: 2.2, try: [1.8, 2.6] },
@@ -55,8 +66,6 @@ for (const part of (process.env.TRY || "").split(";").filter(Boolean)) {
   const [k, vals] = part.split("=");
   if (KNOBS[k]) KNOBS[k].try = vals.split(",").map(Number);
 }
-const pick = process.argv.slice(2).filter(k => KNOBS[k]);
-const names = pick.length ? pick : Object.keys(KNOBS);
 /* read the real defaults from the data so the table always starts from what ships */
 KNOBS.sbCarbDmg.def = W("carbine").body;
 KNOBS.sbCarbRate.def = W("carbine").rate;
@@ -82,9 +91,9 @@ function resetAll() {
   for (const k of Object.keys(KNOBS)) KNOBS[k].set(KNOBS[k].def);
 }
 /** one match: returns kills by team, captures, times to kill and grenade outcomes */
-function match(diff, seed) {
+function match(diff, seed, lock) {
   K.STORE.setBackend(K.STORE.memoryBackend());
-  const G = CTF.Game({ mode: "sim", render: false, seed, diff });
+  const G = CTF.Game({ mode: "sim", render: false, seed, diff, lock });
   const out = { k: [0, 0], cap: [0, 0], ttk: [], nadeKills: 0, selfNade: 0, kills: 0, team: 0 };
   G.onEvent = (t, d) => {
     if (t === "kill") {
@@ -114,12 +123,135 @@ function match(diff, seed) {
   for (let i = 0; i < steps && !G.over; i++) G.step(1 / 30);
   return out;
 }
+
+if (!isMainThread) {
+  /* worker: play the matches it is handed, one at a time */
+  match(["normal", "normal"], 1, null); /* a throwaway match first: lazy setup happens here */
+  parentPort.on("message", job => {
+    resetAll();
+    if (job.knob) KNOBS[job.knob].set(job.value);
+    const r = match(job.diff, job.seed, job.lock);
+    parentPort.postMessage({ id: job.id, r });
+  });
+} else main();
+
+function main() {
+  const knobArg = process.argv.slice(2);
+  const bad = knobArg.filter(k => !KNOBS[k]);
+  if (bad.length) {
+    console.error(`unknown knob(s): ${bad.join(" ")}\nknobs: ${Object.keys(KNOBS).join(" ")}`);
+    process.exit(1);
+  }
+  const names = process.env.KNOBS === "none" ? [] : knobArg.length ? knobArg : Object.keys(KNOBS);
+  const locks = (process.env.LOCK || "").split(",").filter(Boolean);
+  for (const l of locks)
+    if (!LOCKS.includes(l)) {
+      console.error(`unknown LOCK ${l} (one of ${LOCKS.join(", ")})`);
+      process.exit(1);
+    }
+  /* variants: the baseline and each knob value, once per lock */
+  const variants = [];
+  for (const lock of locks.length ? locks : [null]) {
+    variants.push({ lock, knob: null, value: null });
+    for (const n of names) for (const v of KNOBS[n].try) variants.push({ lock, knob: n, value: v });
+  }
+  /* jobs: every match of every variant. The same seeds for every variant, so differences come from
+     the setting and not from which matches were drawn */
+  const jobs = [];
+  variants.forEach((vr, vi) => {
+    vr.left = MATCHES * 2;
+    vr.res = [];
+    for (let m = 0; m < MATCHES; m++) {
+      const swap = m % 2 === 1;
+      const base = { vi, m, knob: vr.knob, value: vr.value, lock: vr.lock };
+      jobs.push({ ...base, kind: "skill", diff: swap ? ["normal", "legendary"] : ["legendary", "normal"] });
+      jobs[jobs.length - 1].seed = SEED + m;
+      jobs.push({ ...base, kind: "even", diff: [EVEN, EVEN], seed: SEED + 1000 + m });
+    }
+  });
+  jobs.forEach((j, i) => (j.id = i));
+  const nWorkers = Math.max(1, Math.min(jobs.length, +(process.env.JOBS || os.availableParallelism())));
+  const t0 = Date.now();
+  console.log(
+    `${variants.length} variants x ${MATCHES * 2} matches (${MINUTES} min each), seed ${SEED}, ${nWorkers} workers` +
+      (locks.length ? `, lock ${locks.join(",")}` : "")
+  );
+  const base = new Map(); /* lock → baseline result */
+  const rows = [];
+  const lockName = l => l || "none";
+  function finish(vr) {
+    const r = summarize(vr);
+    if (!vr.knob) {
+      base.set(vr.lock, r);
+      console.log(`baseline [${lockName(vr.lock)}]`, JSON.stringify(r));
+    } else {
+      const b = base.get(vr.lock);
+      rows.push({ knob: vr.knob, value: vr.value, def: KNOBS[vr.knob].def, lock: vr.lock, ...r });
+      const ds = b ? r.skill - b.skill : 0;
+      console.log(
+        `${vr.knob.padEnd(13)} ${String(vr.value).padStart(6)} (def ${KNOBS[vr.knob].def}) [${lockName(vr.lock)}]  skill ${r.skill} (${(ds >= 0 ? "+" : "") + ds.toFixed(3)})  ttk ${r.ttk}s  kpm ${r.kpm}  nades ${r.nadeShare} self ${r.selfNade}  tk ${r.teamKills}`
+      );
+    }
+  }
+  /* variants report in order, so a knob's line always follows its baseline */
+  let nextReport = 0;
+  function flush() {
+    while (nextReport < variants.length && variants[nextReport].left === 0) finish(variants[nextReport++]);
+  }
+  let next = 0,
+    live = nWorkers;
+  for (let i = 0; i < nWorkers; i++) {
+    const w = new Worker(__filename, { env: process.env });
+    const feed = () => {
+      if (next < jobs.length) w.postMessage(jobs[next++]);
+      else {
+        w.terminate();
+        if (--live === 0) done();
+      }
+    };
+    w.on("message", ({ id, r }) => {
+      const j = jobs[id],
+        vr = variants[j.vi];
+      vr.res.push({ j, r });
+      vr.left--;
+      flush();
+      feed();
+    });
+    w.on("error", e => {
+      console.error(e);
+      process.exit(1);
+    });
+    feed();
+  }
+  function done() {
+    flush();
+    const baseOut = Object.fromEntries([...base].map(([l, r]) => [lockName(l), r]));
+    fs.mkdirSync(path.join(__dirname, "out"), { recursive: true });
+    fs.writeFileSync(
+      path.join(__dirname, "out", process.env.OUT || "tune.json"),
+      JSON.stringify(
+        {
+          base: base.get(locks.length ? locks[0] : null),
+          bases: baseOut,
+          rows,
+          MATCHES,
+          MINUTES,
+          SEED,
+          DIFF: EVEN,
+        },
+        null,
+        1
+      )
+    );
+    console.log(`done in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  }
+}
 const median = a => {
   const s = a.slice().sort((x, y) => x - y);
   return s.length ? s[s.length >> 1] : 0;
 };
-/** play a variant: skill matches (legendary on team 0, then swapped sides) and even matches */
-function variant() {
+/** a variant's matches: skill matches (legendary on team 0, then swapped sides) and even matches */
+function summarize(vr) {
   let kL = 0,
     kN = 0,
     capL = 0,
@@ -129,20 +261,22 @@ function variant() {
     self = 0,
     kills = 0,
     team = 0;
-  for (let m = 0; m < MATCHES; m++) {
-    const swap = m % 2 === 1;
-    const r = match(swap ? ["normal", "legendary"] : ["legendary", "normal"], SEED + m);
-    const L = swap ? 1 : 0;
-    kL += r.k[L];
-    kN += r.k[1 - L];
-    capL += r.cap[L];
-    capN += r.cap[1 - L];
-    const e = match(["normal", "normal"], SEED + 1000 + m);
-    ttk = ttk.concat(e.ttk);
-    nk += e.nadeKills;
-    self += e.selfNade;
-    kills += e.kills;
-    team += e.team;
+  /* in match order, so the result doesn't depend on which worker finished first */
+  vr.res.sort((a, b) => a.j.id - b.j.id);
+  for (const { j, r } of vr.res) {
+    if (j.kind === "skill") {
+      const L = j.m % 2 === 1 ? 1 : 0;
+      kL += r.k[L];
+      kN += r.k[1 - L];
+      capL += r.cap[L];
+      capN += r.cap[1 - L];
+    } else {
+      ttk = ttk.concat(r.ttk);
+      nk += r.nadeKills;
+      self += r.selfNade;
+      kills += r.kills;
+      team += r.team;
+    }
   }
   return {
     /* the share of kills the better team gets: higher means skill shows more */
@@ -156,28 +290,3 @@ function variant() {
     teamKills: team,
   };
 }
-const t0 = Date.now();
-resetAll();
-/* a throwaway match first: lazy setup on the first run would otherwise skew the baseline */
-match(["normal", "normal"], 1);
-const base = variant();
-console.log(`baseline (${MATCHES} matches x ${MINUTES} min each kind)`, JSON.stringify(base));
-const rows = [];
-for (const n of names) {
-  for (const v of KNOBS[n].try) {
-    resetAll();
-    KNOBS[n].set(v);
-    const r = variant();
-    rows.push({ knob: n, value: v, def: KNOBS[n].def, ...r });
-    console.log(
-      `${n.padEnd(13)} ${String(v).padStart(6)} (def ${KNOBS[n].def})  skill ${r.skill} (${(r.skill - base.skill >= 0 ? "+" : "") + (r.skill - base.skill).toFixed(3)})  ttk ${r.ttk}s  kpm ${r.kpm}  nades ${r.nadeShare} self ${r.selfNade}  tk ${r.teamKills}`
-    );
-  }
-}
-resetAll();
-fs.mkdirSync(path.join(__dirname, "out"), { recursive: true });
-fs.writeFileSync(
-  path.join(__dirname, "out", process.env.OUT || "tune.json"),
-  JSON.stringify({ base, rows, MATCHES, MINUTES }, null, 1)
-);
-console.log(`done in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
