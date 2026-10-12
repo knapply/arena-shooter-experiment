@@ -22,7 +22,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/maps/arena.js` | 262 | `floorTex` `crateTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `mergeGeos` `mergeMapGroup` `strip` `stairs` `buildMap` `SPAWNS` |
 | `src/world/physics.js` | 535 | `R` `H_STAND` `H_CROUCH` `TUNE_DEF` `TUNE` `NO_PILOTS` `pilotsFn` `setPilotCollider` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
 | `src/world/spawns.js` | 90 | `SPAWN_W` `_spE` `_spD` `spawnScore` `pickSpawn` `noteFight` |
-| `src/characters/rig.js` | 1257 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+38) |
+| `src/characters/rig.js` | 1298 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+38) |
 | `src/game/recorder.js` | 101 | `REC` |
 | `src/game/pilot.js` | 81 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |
 | `src/data/weapons.js` | 158 | `PILOT_SHIELD` `PILOT_HEALTH` `WEAPON_DATA` `SWITCH_TIME` `POWER_ROTATION` `killStats` `MELEE_KILL` `meleeDamage` `meleeBehind` |
