@@ -64,6 +64,6 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/modes/ctf/ui.js` | 405 |  |
 | `src/net/ctf-host.js` | 637 |  |
 | `src/net/ctf-client.js` | 616 |  |
-| `src/modes/ctf/modes.js` | 747 |  |
+| `src/modes/ctf/modes.js` | 889 |  |
 | `src/modes/trailer-score.js` | 700 |  |
 | `src/modes/trailer.js` | 1007 |  |

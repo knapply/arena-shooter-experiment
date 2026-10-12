@@ -1,3 +1,4 @@
+/* global WheelEvent, PointerEvent */
 /* Browser tests: arena weapons and pickups, settings and rebinding, destruction, online rooms and CTF over a simulated peer network. */
 const { check, finish } = require("./lib/check.js");
 const { launch, open, text, visible, roster, closeTab } = require("./lib/browser.js");
@@ -549,6 +550,35 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     await S.click("#ctfSim");
     await S.waitForTimeout(2500);
     check(/\d:\d\d/.test((await text(S, "#cClock")) || ""), "AI vs AI runs", await text(S, "#cClock"));
+    /* spectating: big moments cut in slow motion; the tactical camera turns and zooms */
+    const spec = await S.evaluate(async () => {
+      const g = CTF.UI.game();
+      const a = g.agents[2];
+      CTF.spectator.event("capture", { by: a, team: a.team, flag: g.flags[1 - a.team] });
+      const slow = KA.CINE.timeK(0) < 1;
+      const shot = CTF.spectator.shot;
+      document.getElementById("cCam").click();
+      const cv = document.getElementById("game");
+      const d0 = CTF.spectator.tac.dist,
+        y0 = CTF.spectator.tac.yaw;
+      cv.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, bubbles: true, cancelable: true }));
+      cv.dispatchEvent(new PointerEvent("pointerdown", { clientX: 300, clientY: 300, bubbles: true }));
+      dispatchEvent(new PointerEvent("pointermove", { clientX: 380, clientY: 300 }));
+      dispatchEvent(new PointerEvent("pointerup", {}));
+      return {
+        slow,
+        shot,
+        mode: CTF.spectator.mode,
+        zoomed: CTF.spectator.tac.dist < d0,
+        turned: CTF.spectator.tac.yaw !== y0,
+      };
+    });
+    check(spec.slow && spec.shot === "orbit", "the director cuts to a capture in slow motion", spec);
+    check(
+      spec.mode === "tactical" && spec.zoomed && spec.turned,
+      "the tactical camera zooms and turns",
+      spec
+    );
     await S.click("#cExit");
     await S.waitForTimeout(300);
     await S.click("#watch");

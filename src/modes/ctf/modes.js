@@ -32,7 +32,9 @@
   const cpos = new V3(),
     clook = new V3(),
     _a = new V3(),
-    _b = new V3();
+    _b = new V3(),
+    _c = new V3(),
+    _d = new V3();
   function pct(a, b) {
     return a / (a + b);
   }
@@ -483,12 +485,33 @@
     newMatch();
     K.say("Simulation online", true);
   }
+  /* the director cuts to big moments, in slow motion when it's a capture or a multikill */
+  const recentKills = new Map();
   function simEvent(type, d) {
+    if (!G || mode !== "sim") return;
     if (type === "flagTaken" || type === "capture") {
       focus = d.by;
       focusT = 6;
-    } else if (type === "kill" && d.victim === focus) focusT = Math.min(focusT, 1.6);
-    else if (type === "end") showBanner();
+      pickShot(true);
+      snap = true;
+      if (camMode === "director")
+        K.CINE.slowmo(type === "capture" ? 0.3 : 0.45, type === "capture" ? 1.4 : 0.9);
+    } else if (type === "kill") {
+      if (d.victim === focus) focusT = Math.min(focusT, 1.6);
+      const k = d.killer;
+      if (k) {
+        const ks = (recentKills.get(k) || []).filter(t => G.t - t < 4);
+        ks.push(G.t);
+        recentKills.set(k, ks);
+        if (ks.length >= 2 && camMode === "director") {
+          focus = k;
+          focusT = 4;
+          pickShot(true);
+          snap = true;
+          K.CINE.slowmo(0.4, 1);
+        }
+      }
+    } else if (type === "end") showBanner();
   }
   function simFrame(dt) {
     if (G && !training) {
@@ -528,6 +551,115 @@
     const live = G.agents.filter(a => a.alive && (a.role === "attack" || a.role === "mid"));
     return live[(Math.random() * live.length) | 0] || G.agents[0];
   }
+  /* ---------------- director shots ---------------- */
+  const SHOTS = ["track", "shoulder", "low", "orbit"];
+  let shotType = "track",
+    shotT = 0;
+  function pickShot(big) {
+    shotT = 0;
+    if (big) shotType = "orbit";
+    else {
+      const opts = SHOTS.filter(s => s !== shotType);
+      shotType = opts[(Math.random() * opts.length) | 0];
+    }
+  }
+  function directorShot(f, dt) {
+    shotT += dt;
+    const b = f.body;
+    if (shotType === "shoulder") return K.CINE.track(f, 2.7, 0.85, 1.95, 7)();
+    if (shotType === "low") {
+      /* in front and to the side, near the floor, looking up at them */
+      const fx = -Math.sin(b.yaw),
+        fz = -Math.cos(b.yaw);
+      const p = _c.set(b.pos.x + fx * 4.2 + fz * 1.8, b.pos.y + 0.45, b.pos.z + fz * 4.2 - fx * 1.8);
+      const dir = p.clone().sub(_d.set(b.pos.x, b.pos.y + 1, b.pos.z));
+      const L = dir.length();
+      const hit = K.rayWorld(_d, dir.multiplyScalar(1 / L), L);
+      if (hit < L) return K.CINE.track(f, 5.5, 1.6, 2.6, 3)();
+      return { p: p.clone(), l: new V3(b.pos.x, b.pos.y + 1.5, b.pos.z) };
+    }
+    if (shotType === "orbit")
+      return K.CINE.orbit(
+        _d.set(b.pos.x, b.pos.y + 1.1, b.pos.z).clone(),
+        6.5,
+        2.6,
+        b.yaw + 0.8,
+        0.35
+      )(shotT);
+    return K.CINE.track(f, 5.5, 1.6, 2.6, 3)();
+  }
+  /* ---------------- tactical camera ---------------- */
+  const TAC = { yaw: -Math.PI / 2, pitch: 0.8, dist: 86, at: new V3(0, 0, 0), drag: null, pinch: 0 };
+  const tacClamp = () => {
+    TAC.pitch = Math.max(0.2, Math.min(1.45, TAC.pitch));
+    TAC.dist = Math.max(14, Math.min(130, TAC.dist));
+  };
+  function tacPad(dt) {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const g = pads && [...pads].find(x => x && x.connected);
+    if (!g) return;
+    const dz = v => (Math.abs(v) < 0.15 ? 0 : v);
+    TAC.yaw -= dz(g.axes[2] || 0) * dt * 2;
+    TAC.pitch += dz(g.axes[3] || 0) * dt * 1.4;
+    const zt = ((g.buttons[7] && g.buttons[7].value) || 0) - ((g.buttons[6] && g.buttons[6].value) || 0);
+    TAC.dist *= Math.exp(-zt * dt * 1.5);
+    tacClamp();
+  }
+  {
+    const cv = $("game");
+    const on = () => mode === "sim" && camMode === "tactical";
+    cv.addEventListener("pointerdown", e => {
+      if (!on()) return;
+      TAC.drag = { x: e.clientX, y: e.clientY };
+    });
+    addEventListener("pointermove", e => {
+      if (!on() || !TAC.drag) return;
+      TAC.yaw -= (e.clientX - TAC.drag.x) * 0.006;
+      TAC.pitch += (e.clientY - TAC.drag.y) * 0.004;
+      TAC.drag = { x: e.clientX, y: e.clientY };
+      tacClamp();
+    });
+    addEventListener("pointerup", () => (TAC.drag = null));
+    cv.addEventListener(
+      "wheel",
+      e => {
+        if (!on()) return;
+        e.preventDefault();
+        TAC.dist *= Math.exp(e.deltaY * 0.001);
+        tacClamp();
+      },
+      { passive: false }
+    );
+    cv.addEventListener(
+      "touchmove",
+      e => {
+        if (!on() || e.touches.length !== 2) return;
+        const d = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        if (TAC.pinch) TAC.dist *= TAC.pinch / d;
+        TAC.pinch = d;
+        tacClamp();
+        e.preventDefault();
+      },
+      { passive: false }
+    );
+    cv.addEventListener("touchend", () => (TAC.pinch = 0));
+  }
+  /* for tests and tools: the spectator camera's state */
+  CTF.spectator = {
+    get tac() {
+      return TAC;
+    },
+    get shot() {
+      return shotType;
+    },
+    get mode() {
+      return camMode;
+    },
+    event: simEvent,
+  };
   function camera(dt) {
     const cam = K.camera;
     if (!G || training) {
@@ -541,8 +673,15 @@
     let want = _a,
       look = _b;
     if (camMode === "tactical") {
-      want.set(-60, 62, 0);
-      look.set(0, 0, 0);
+      /* free orbit around the map: drag or right stick to turn, wheel, pinch or triggers to zoom */
+      tacPad(dt);
+      const cp = Math.cos(TAC.pitch);
+      want.set(
+        TAC.at.x + Math.sin(TAC.yaw) * cp * TAC.dist,
+        TAC.at.y + Math.sin(TAC.pitch) * TAC.dist,
+        TAC.at.z + Math.cos(TAC.yaw) * cp * TAC.dist
+      );
+      look.copy(TAC.at);
     } else {
       let f;
       if (camMode === "follow") f = G.agents[followIdx];
@@ -555,11 +694,14 @@
             focus = nf;
           }
           focusT = 6;
+          /* a new subject gets a new kind of shot */
+          pickShot(false);
+          snap = true;
         }
         f = focus;
       }
-      /* the shared chase shot (over the shoulder, pulled in front of walls) */
-      const s = K.CINE.track(f, 5.5, 1.6, 2.6, 3)();
+      /* the director varies its shots: chase, close over the shoulder, low angle, orbit */
+      const s = camMode === "follow" ? K.CINE.track(f, 5.5, 1.6, 2.6, 3)() : directorShot(f, dt);
       want.copy(s.p);
       look.copy(s.l);
     }
