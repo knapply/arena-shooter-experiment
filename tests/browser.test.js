@@ -553,6 +553,34 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       "AI training runs in the background worker and saves what it learned",
       tr
     );
+    /* ---------- match intro: plays at deploy, holds the clock, then hands over ---------- */
+    const I = await open(ctx, { tag: "I", intros: true });
+    pages.push(I);
+    await I.waitForTimeout(600);
+    await I.evaluate(() => (KA.SET.intros = true));
+    await I.click("#deploy");
+    await I.waitForTimeout(500);
+    const intro = await I.evaluate(() => ({
+      active: KA.INTRO.active,
+      card: document.querySelector("#cine .card").textContent,
+      shots: KA.INTRO.shots.length,
+      total: KA.INTRO.shots.reduce((a, s) => a + s.dur, 0),
+    }));
+    await I.waitForTimeout(3500);
+    const after = await I.evaluate(() => ({
+      active: KA.INTRO.active,
+      card: document.querySelector("#cine .card").textContent,
+    }));
+    check(
+      intro.active &&
+        /Proving Grounds/.test(intro.card) &&
+        intro.total <= 5 &&
+        !after.active &&
+        /First to/.test(after.card),
+      "deploying plays a short map intro, then the mode card",
+      { intro, after }
+    );
+    await I.evaluate(() => KA.extStop && KA.leaveGame && KA.leaveGame());
     /* ---------- developer console (?dev) ---------- */
     const D = await open(ctx, { tag: "dev", hash: "#dev" });
     pages.push(D);

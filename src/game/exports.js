@@ -89,6 +89,8 @@ const KA_API = {
   SPAWNS,
   makePilot,
   EVENTS,
+  INTRO,
+  playIntro,
   HL,
   playOfTheGame,
   REPLAY,

@@ -148,12 +148,24 @@
     K.extPlay(hostExt(host), { color: CTF.TEAM_HEX[myTeam] });
     G.human.name = K.myName;
     G.start();
+    ctfIntro();
     UI.line(
       "sys",
       `You're on ${TN[myTeam]}. Bring the enemy flag to your stand while yours is home. J or D-pad up switches teams.`
     );
     if (CTF.NET.room) UI.line("sys", "Friends in your room can join from the menu.");
     K.say("Capture the flag", true);
+  }
+  function ctfIntro() {
+    if (!K.SET.intros) return;
+    const names = [0, 1].map(t => G.teams[t].agents.map(a => (a.local ? K.myName : a.name)).slice(0, 4));
+    K.playIntro(K.MAPS.ctf, {
+      mode: K.MODE_DATA.ctf.name,
+      limit: `First to ${G.scoreLimit}`,
+      teams: names,
+      teamNames: TN,
+      teamColors: CTF.TEAM_HEX,
+    });
   }
   /** the engine hooks for hosting a match (fresh, or taken over from a host who left) */
   function hostExt(host) {
@@ -171,7 +183,8 @@
       },
       tick(dt) {
         if (!G) return;
-        G.step(dt);
+        /* the match clock holds while the intro plays */
+        if (!K.INTRO.active) G.step(dt);
         host.tick(dt);
         UI.frame(dt);
         if (G.over) {
@@ -373,6 +386,8 @@
     };
     K.extPlay(ext, { color: CTF.TEAM_HEX[myTeam] });
     G.human.name = K.myName;
+    /* joining as the match begins: the same intro the host is watching */
+    if (G.t < 2) ctfIntro();
     UI.line("sys", `Joined ${h.name}'s match on ${TN[myTeam]}. J or D-pad up switches teams.`);
     K.say("Capture the flag", true);
   }

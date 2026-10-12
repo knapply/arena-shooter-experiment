@@ -29,7 +29,12 @@ async function serveRepo(ctx) {
     r.fulfill({ contentType: type, body: fs.readFileSync(f) });
   });
 }
-async function open(ctx, { tag = "", init = [], realThree = false, hash = "", http = false } = {}) {
+/* tests start with match intros off (they would hold input for a few seconds after every deploy);
+   pass intros: true to test them */
+async function open(
+  ctx,
+  { tag = "", init = [], realThree = false, hash = "", http = false, intros = false } = {}
+) {
   if (http) await serveRepo(ctx);
   const p = await ctx.newPage();
   p.errors = [];
@@ -38,6 +43,21 @@ async function open(ctx, { tag = "", init = [], realThree = false, hash = "", ht
     if (m.type() === "error") p.errors.push(tag + " console: " + m.text());
   });
   for (const f of init) await p.addInitScript({ path: path.join(__dirname, "..", "stubs", f) });
+  if (!intros)
+    await p.addInitScript(() => {
+      try {
+        if (!localStorage.getItem("ka-doc-settings"))
+          localStorage.setItem(
+            "ka-doc-settings",
+            JSON.stringify({
+              app: "kinetic-arena",
+              doc: "settings",
+              version: 2,
+              data: { settings: { intros: false }, keys: {}, pad: {} },
+            })
+          );
+      } catch (e) {}
+    });
   const three =
     realThree && process.env.THREE_PATH
       ? fs.readFileSync(process.env.THREE_PATH, "utf8")

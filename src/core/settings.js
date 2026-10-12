@@ -570,6 +570,14 @@ const SCHEMA = [
   },
   { k: "speedLines", tab: T_GAME, label: "Speed lines", type: "toggle", def: true },
   {
+    k: "intros",
+    tab: T_GAME,
+    label: "Match intros",
+    type: "toggle",
+    def: true,
+    desc: "A five-second flyover of the map, the teams and the objectives before each match. Jump skips it.",
+  },
+  {
     k: "killCam",
     tab: T_GAME,
     label: "Kill cam",

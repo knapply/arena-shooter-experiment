@@ -263,7 +263,7 @@ function frameBody(t) {
       reloadT = 0;
       refill();
     } else $("deadT").textContent = `Respawning in ${Math.ceil(respawnAt - now)}`;
-  } else if (!paused) {
+  } else if (!paused && !INTRO.active) {
     if (pad.on) padGame(dt);
     const fw = clamp((A("forward") ? 1 : 0) - (A("back") ? 1 : 0) + touch.f - (pad.on ? GP.ax[1] : 0), -1, 1),
       sw = clamp((A("right") ? 1 : 0) - (A("left") ? 1 : 0) + touch.s + (pad.on ? GP.ax[0] : 0), -1, 1);
@@ -344,7 +344,7 @@ function frameBody(t) {
   flinch *= Math.exp(-9 * dt);
   if (EXT) {
     if (EXT.tick) EXT.tick(dt);
-  } else for (const b of bots) botStep(b, dt);
+  } else if (!INTRO.active) for (const b of bots) botStep(b, dt);
   const hs = Math.hypot(me.vel.x, me.vel.z);
   const lr = me.vel.x * Math.cos(me.yaw) - me.vel.z * Math.sin(me.yaw);
   rpos.copy(prevPos).lerp(me.pos, physAcc * 120);
@@ -426,6 +426,7 @@ function frameBody(t) {
   hud();
   killCamTick();
   hlTick();
+  introFrame(Math.min(0.05, raw));
   if (REPLAY.active) REPLAY.frame(Math.min(0.05, raw));
   renderFrame();
 }

@@ -11,6 +11,12 @@ $("deploy").onclick = () => {
   EVENTS.setContext({ map: "arena", mode: "ffa" });
   ffaStart();
   EVENTS.emit("matchStart", {});
+  if (SET.intros)
+    playIntro(
+      MAPS.arena,
+      { mode: MODE_DATA.ffa.name, limit: `First to ${MODE_DATA.ffa.scoreLimit}` },
+      () => (FFA.t0 = now)
+    );
   audio();
   myArmor = myColor;
   vmArmor.color.set(myColor).multiplyScalar(0.55);
