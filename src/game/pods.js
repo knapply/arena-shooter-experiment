@@ -1,11 +1,12 @@
 /* ============ DROP PODS: spawns that fall from orbit ============
-   With Spawns set to "Drop pods" (Gameplay settings), pilots come back in a pod that streaks down
-   from the sky, fires its retros just before impact, slams in with a shockwave and blows its doors
-   off; the pilot steps out where it landed. A pod that lands on an enemy takes them out. Pods only
-   use spawn points with open sky above them (otherwise the pilot appears in place, as before).
-   dropPod(pos, color, { dur, onLand }) starts one; updPods runs them (from updFX). */
+   With Spawns set to "Drop pods" (Gameplay settings), pilots come back in a pod that drops from
+   POD_HEIGHT (200 m) in POD_TIME (data/modes.js): its nose glows white-hot and it trails a re-entry
+   burn of flame, embers and smoke you can see from anywhere on the map, fires its retros just before
+   impact, slams in with a shockwave and blows its doors off; the pilot steps out where it landed.
+   A pod that lands on an enemy takes them out. Pods only use spawn points with open sky above them
+   (otherwise the pilot appears in place, as before).
+   dropPod(pos, color, { dur, h, onLand }) starts one; updPods runs them (from updFX). */
 const PODS = [];
-const POD_TIME = 1.35;
 const podsOn = () => SET.spawnStyle !== "classic";
 /* the pod's fixed parts are merged once into one geometry per material and shared by every pod
    (a pod draws in seven calls: hull, nose, frame, team bands and the three doors) */
@@ -65,7 +66,9 @@ function makePod(color) {
     return o;
   };
   add(G0.hull, POD_MAT.hull, 0, 0, 0);
-  add(G0.nose, POD_MAT.burn, 0, 0, 0);
+  /* each pod's nose heats and cools on its own */
+  const burn = POD_MAT.burn.clone();
+  add(G0.nose, burn, 0, 0, 0);
   add(G0.frame, POD_MAT.dark, 0, 0, 0);
   add(G0.bands, team, 0, 0, 0);
   /* three doors that blow off on landing */
@@ -85,30 +88,100 @@ function makePod(color) {
   retro.material.opacity = 0;
   g.add(retro);
   scene.add(g);
-  return { g, doors, fire, retro, team };
+  return { g, doors, fire, retro, team, burn };
 }
 /**
  * start a drop pod falling onto `pos`. onLand() runs on impact (place the pilot then).
+ * h: the height it falls from (the trailer uses a short drop for its close shots)
  * @param {any} pos
  * @param {string} color team or pilot color
- * @param {{ dur?: number, onLand?: Function, quiet?: boolean }} [o]
+ * @param {{ dur?: number, h?: number, onLand?: Function, quiet?: boolean }} [o]
  */
 function dropPod(pos, color, o = {}) {
+  const h = o.h || POD_HEIGHT;
   const p = Object.assign(makePod(color), {
     at: pos.clone(),
     t: 0,
     dur: o.dur || POD_TIME,
+    h,
     landed: false,
     life: 0,
     onLand: o.onLand || null,
+    prev: new V3(pos.x, pos.y + h, pos.z),
+    fog: null,
   });
-  p.g.position.set(pos.x, pos.y + 70, pos.z);
+  p.g.position.copy(p.prev);
   p.g.rotation.y = Math.random() * 6;
-  if (!o.quiet) sfx("pod", distVol(pos, 70));
+  if (!o.quiet) sfx(p.dur < 2 ? "podq" : "pod", distVol(pos, 140));
   PODS.push(p);
   return p;
 }
-const _podV = new V3();
+const _podV = new V3(),
+  _podW = new V3();
+/* the re-entry burn: red, orange and ember-yellow flame shed from the nose */
+const BURN_COLS = [0xff3a14, 0xff6a1c, 0xff9a30, 0xffc45a];
+/** the re-entry trail between where the pod was last frame and where it is now (heat: 0..1) */
+function podTrail(p, heat) {
+  const a = p.prev,
+    b = p.g.position;
+  const n = Math.min(10, pc(Math.ceil(a.distanceTo(b) / 1.6)));
+  for (let i = 0; i < n; i++) {
+    _podV.lerpVectors(a, b, (i + Math.random()) / n);
+    _podV.y -= 0.2;
+    /* the plasma sheath: big, bright and short-lived; it hangs where the pod passed */
+    ptAdd(
+      PTS.glow,
+      _podV,
+      new V3(rnd(-1, 1), rnd(2, 6), rnd(-1, 1)),
+      rnd(2.6, 4.4) * (0.5 + heat * 0.6),
+      BURN_COLS[(Math.random() * BURN_COLS.length) | 0],
+      0.9 * heat,
+      rnd(0.6, 1.4),
+      { max: 1.4, grow: -0.5, drag: 2 }
+    );
+    /* smoke: a dark column that lingers and spreads */
+    if (Math.random() < 0.7)
+      ptAdd(
+        PTS.soft,
+        _podW.copy(_podV).add(_fx.set(rnd(-0.4, 0.4), 1.5, rnd(-0.4, 0.4))),
+        new V3(rnd(-0.6, 0.6), rnd(0.5, 1.5), rnd(-0.6, 0.6)),
+        rnd(3, 4.8),
+        Math.random() < 0.5 ? 0x4a423c : 0x5c534b,
+        0.55 * heat,
+        rnd(2.5, 4),
+        { max: 4, grow: 0.5, drag: 0.6 }
+      );
+    /* embers flung off the sheath */
+    if (Math.random() < 0.5)
+      ptAdd(
+        PTS.glow,
+        _podV,
+        new V3(rnd(-6, 6), rnd(-2, 8), rnd(-6, 6)),
+        rnd(0.18, 0.35),
+        Math.random() < 0.5 ? 0xffb347 : 0xff5a1a,
+        1,
+        rnd(0.8, 1.6),
+        { max: 1.6, g: 9, drag: 0.8 }
+      );
+  }
+}
+/* riding your pod down: the fog and far plane lift with your height so the ground stays in view */
+function podView(p) {
+  if (!p.fog) p.fog = { near: scene.fog.near, far: scene.fog.far, cam: camera.far };
+  const up = Math.max(0, p.g.position.y - p.at.y);
+  scene.fog.near = p.fog.near + up;
+  scene.fog.far = p.fog.far + up;
+  camera.far = p.fog.cam + up;
+  camera.updateProjectionMatrix();
+}
+function podViewEnd(p) {
+  if (!p || !p.fog) return;
+  scene.fog.near = p.fog.near;
+  scene.fog.far = p.fog.far;
+  camera.far = p.fog.cam;
+  camera.updateProjectionMatrix();
+  p.fog = null;
+}
 function updPods(dt) {
   for (let i = PODS.length - 1; i >= 0; i--) {
     const p = PODS[i];
@@ -116,13 +189,19 @@ function updPods(dt) {
       p.t += dt;
       const k = Math.min(1, p.t / p.dur);
       /* falls fast and accelerates; retros flare in the last moments */
-      const h = 70 * (1 - k * k * (0.35 + 0.65 * k));
+      const h = p.h * (1 - k * k * (0.35 + 0.65 * k));
+      p.prev.copy(p.g.position);
       p.g.position.set(p.at.x, p.at.y + h, p.at.z);
       p.g.rotation.y += dt * 2.5;
       p.fire.material.opacity = 0.6 + Math.random() * 0.4;
-      p.retro.material.opacity = k > 0.75 ? (k - 0.75) * 4 * (0.7 + Math.random() * 0.3) : 0;
-      POD_MAT.burn.emissiveIntensity = 1.2;
-      if (Math.random() < dt * 30) dust(_podV.copy(p.g.position).setY(p.g.position.y + 3), 1, 0.4, 1.5, 0.6);
+      p.retro.material.opacity = k > 0.8 ? (k - 0.8) * 5 * (0.7 + Math.random() * 0.3) : 0;
+      /* the nose runs white-hot through the burn and dims as the retros take over */
+      const heat = k < 0.8 ? 1 : Math.max(0.25, 1 - (k - 0.8) * 3.5);
+      p.burn.emissiveIntensity = 1.4 + heat * 2.6;
+      podTrail(p, heat);
+      /* the fireball at the head of the trail */
+      ptAdd(PTS.glow, p.g.position, new V3(), 7 * heat, 0xffc070, 1, 0.05);
+      ptAdd(PTS.glow, p.g.position, new V3(), 3 * heat, 0xfff0d0, 1, 0.05);
       if (k >= 1) {
         p.landed = true;
         p.g.position.copy(p.at);
@@ -141,11 +220,12 @@ function updPods(dt) {
           d.v.set(Math.sin(d.a) * 5 + rnd(-1, 1), 3 + rnd(0, 2), Math.cos(d.a) * 5 + rnd(-1, 1));
           d.spin = rnd(-6, 6);
         }
+        podViewEnd(p);
         if (p.onLand) p.onLand(p.at);
       }
       continue;
     }
-    /* landed: the doors tumble away, the pod cools, then sinks out of sight */
+    /* landed: the doors tumble away, the hot nose cools and smokes, then the pod sinks out of sight */
     p.life += dt;
     for (const d of p.doors) {
       if (d.m.position.y < 0.05 && p.life > 0.2) continue;
@@ -158,6 +238,18 @@ function updPods(dt) {
       }
     }
     p.team.emissiveIntensity = Math.max(0.3, 1.6 - p.life * 0.4);
+    p.burn.emissiveIntensity = Math.max(0, 2 - p.life * 0.5);
+    if (p.life < 3 && Math.random() < dt * 6)
+      ptAdd(
+        PTS.soft,
+        _podV.copy(p.at).add(_fx.set(rnd(-0.5, 0.5), 0.4, rnd(-0.5, 0.5))),
+        new V3(rnd(-0.3, 0.3), rnd(0.8, 1.6), rnd(-0.3, 0.3)),
+        rnd(0.8, 1.4),
+        0x5c534b,
+        0.35,
+        2.5,
+        { grow: 0.6, drag: 0.5 }
+      );
     if (p.life > 6) p.g.position.y = p.at.y - (p.life - 6) * 1.2;
     if (p.life > 8.5) {
       disposePod(p);
@@ -169,10 +261,14 @@ function updPods(dt) {
 function disposePod(p) {
   scene.remove(p.g);
   p.team.dispose();
+  p.burn.dispose();
   p.fire.material.dispose();
   p.retro.material.dispose();
 }
 function clearPods() {
-  for (const p of PODS) disposePod(p);
+  for (const p of PODS) {
+    podViewEnd(p);
+    disposePod(p);
+  }
   PODS.length = 0;
 }

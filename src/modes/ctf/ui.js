@@ -183,7 +183,7 @@
       ht = hum ? hum.team : -1;
     switch (type) {
       case "pod":
-        if (G.render !== false && d.pos) K.dropPod(d.pos, CTF.TEAM_HEX[d.a.team], { dur: 1.35 });
+        if (G.render !== false && d.pos) K.dropPod(d.pos, CTF.TEAM_HEX[d.a.team], { dur: K.POD_TIME });
         break;
       case "kill": {
         const k = d.killer,

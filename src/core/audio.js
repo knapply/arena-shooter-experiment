@@ -44,7 +44,12 @@ function nz(t, dur, type, freq, peak, q = 1, attack) {
   f.connect(g);
   g.connect(master);
   env(g, t, peak, dur, attack);
-  n.start(t, Math.random() * Math.max(0, 0.97 - dur), Math.min(1, dur + 0.03));
+  /* the noise buffers are a second long: longer bursts loop one */
+  if (dur > 0.97) {
+    n.loop = true;
+    n.start(t, Math.random());
+    n.stop(t + dur + 0.03);
+  } else n.start(t, Math.random() * Math.max(0, 0.97 - dur), Math.min(1, dur + 0.03));
   return f;
 }
 function tone(t, type, f0, f1, dur, peak, attack) {
@@ -106,7 +111,17 @@ function sfx(kind, vol = 1) {
         break;
       }
       case "pod": {
-        /* a drop pod's whistle as it falls */
+        /* a drop pod's re-entry: a long whistle over a rising roar of burning air */
+        const T = POD_TIME;
+        const o = tone(t, "sawtooth", 1600, 240, T, 0.045 * vol, 0.4);
+        o.detune.value = 8;
+        const f = nz(t, T, "bandpass", 3200, 0.15 * vol, 1.5, 0.5);
+        f.frequency.exponentialRampToValueAtTime(400, t + T - 0.05);
+        nz(t + 0.2, T - 0.2, "lowpass", 500, 0.22 * vol, 1, T * 0.6);
+        break;
+      }
+      case "podq": {
+        /* a short drop (trailer close-ups) */
         const o = tone(t, "sawtooth", 1400, 260, 1.3, 0.05 * vol, 0.25);
         o.detune.value = 8;
         const f = nz(t, 1.3, "bandpass", 3000, 0.16 * vol, 1.5, 0.3);

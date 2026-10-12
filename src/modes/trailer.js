@@ -686,6 +686,7 @@
             const c = new V3(q.p[0], q.p[1], q.p[2]);
             K.dropPod(c, q.a.color, {
               dur: 1.3,
+              h: 70,
               onLand: () => {
                 put(q.a, q.p, q.yaw);
                 q.a.ctl = (a, s2) =>

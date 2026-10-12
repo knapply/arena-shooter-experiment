@@ -3,6 +3,7 @@ window.KA = {
   MODE_DATA,
   AI_SKILL,
   SWITCH_TIME,
+  POD_TIME,
   MAPS,
   buildMap,
   validateMap,

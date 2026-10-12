@@ -462,7 +462,7 @@
               const up = new K.THREE.Vector3(pt[0], pt[1] + 2.2, pt[2]);
               const open = K.rayWorld(up, new K.THREE.Vector3(0, 1, 0), 60) >= 59;
               if (open) {
-                a.podAt = G.t + 1.35;
+                a.podAt = G.t + K.POD_TIME;
                 G.emit("pod", { a, pos: new K.THREE.Vector3(pt[0], pt[1] + 0.02, pt[2]) });
               } else {
                 a.spawn(pt);

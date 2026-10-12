@@ -191,6 +191,7 @@ function podCrush(at) {
 }
 /** the camera rides behind and above your pod, looking down at where it will land */
 function podCamera(p, dt) {
+  podView(p);
   const g = p.g.position;
   camera.position.set(g.x + 5.5, g.y + 7, g.z + 6.5);
   camera.lookAt(p.at.x, Math.min(g.y, p.at.y + 30) - 2, p.at.z);

@@ -17,3 +17,6 @@ const AI_SKILL = {
   heroic: { react: 0.24, err: 0.022, turn: 10, magErr: 1.05, magPace: 0.08, magFrom: 18 },
   legendary: { react: 0.17, err: 0.013, turn: 14, magErr: 0.95, magPace: 0.03, magFrom: 16 },
 };
+/* drop pods fall from POD_HEIGHT metres in POD_TIME seconds (a re-entry burn visible across the map) */
+const POD_TIME = 2.6,
+  POD_HEIGHT = 200;

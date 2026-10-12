@@ -134,6 +134,7 @@ const KA_API = {
   MODE_DATA,
   AI_SKILL,
   SWITCH_TIME,
+  POD_TIME,
   defineMode,
   startMode,
   modeList,
