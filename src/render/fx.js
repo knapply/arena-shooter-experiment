@@ -25,6 +25,120 @@ function fxPush(f) {
   if (FX.length >= FXMAX) fxKill(0);
   FX.push(f);
 }
+/* ---- batched particles: dust, puffs and sparks are points in two shared buffers (one draw call
+   each, however many are alive), instead of a sprite per particle ---- */
+const PT_N = 1200;
+const _ptC = new THREE.Color(),
+  _ptV2 = new THREE.Vector2();
+function makePts(additive) {
+  const geo = new THREE.BufferGeometry();
+  const at = (n, k) => {
+    const a = new THREE.BufferAttribute(new Float32Array(PT_N * k), k);
+    a.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute(n, a);
+    return a;
+  };
+  const P = {
+    pos: at("position", 3),
+    col: at("pcol", 3),
+    size: at("psize", 1),
+    alpha: at("palpha", 1),
+    list: [],
+    geo,
+    mesh: null,
+  };
+  geo.setDrawRange(0, 0);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: Object.assign(
+      { uScale: { value: 500 }, map: { value: additive ? SOFT : SMOKE } },
+      additive
+        ? {}
+        : {
+            fogColor: { value: new THREE.Color() },
+            fogNear: { value: 1 },
+            fogFar: { value: 2000 },
+            fogDensity: { value: 0 },
+          }
+    ),
+    vertexShader: `attribute vec3 pcol;attribute float psize;attribute float palpha;uniform float uScale;
+varying vec3 vC;varying float vA;
+#include <fog_pars_vertex>
+void main(){vec4 mvPosition=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mvPosition;
+gl_PointSize=psize*uScale/max(.05,-mvPosition.z);vC=pcol;vA=palpha;
+#include <fog_vertex>
+}`,
+    fragmentShader: `uniform sampler2D map;varying vec3 vC;varying float vA;
+#include <fog_pars_fragment>
+void main(){vec4 t=texture2D(map,vec2(gl_PointCoord.x,1.-gl_PointCoord.y));
+gl_FragColor=vec4(vC*t.rgb,vA*t.a);
+#include <fog_fragment>
+}`,
+    transparent: true,
+    depthWrite: false,
+    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    fog: !additive,
+  });
+  const m = new THREE.Points(geo, mat);
+  m.frustumCulled = false;
+  m.renderOrder = 2;
+  /* a point's size is in pixels: scale world size by the target's height and the field of view */
+  m.onBeforeRender = (r, sc, cam) => {
+    const rt = r.getRenderTarget();
+    const h = rt ? rt.height : r.getDrawingBufferSize(_ptV2).y;
+    mat.uniforms.uScale.value = (h * 0.5) / Math.tan(((cam.fov || 60) * Math.PI) / 360);
+  };
+  scene.add(m);
+  P.mesh = m;
+  return P;
+}
+const PTS = { soft: makePts(false), glow: makePts(true) };
+/**
+ * one particle. size: world diameter (m); grow: size growth per second; op: starting opacity
+ * @param {any} P PTS.soft or PTS.glow
+ */
+function ptAdd(P, pos, vel, size, hex, op, life, o = {}) {
+  if (P.list.length >= PT_N) P.list.shift();
+  _ptC.setHex(hex);
+  P.list.push({
+    p: pos.clone(),
+    v: vel,
+    s: size,
+    r: _ptC.r,
+    g: _ptC.g,
+    b: _ptC.b,
+    op,
+    life,
+    max: o.max || life,
+    grow: o.grow || 0,
+    drag: o.drag || 0,
+    grav: o.g || 0,
+  });
+}
+function updPts(dt) {
+  for (const P of [PTS.soft, PTS.glow]) {
+    const L = P.list;
+    let n = 0;
+    for (let i = 0; i < L.length; i++) {
+      const q = L[i];
+      q.life -= dt;
+      if (q.life <= 0) continue;
+      if (q.drag) q.v.multiplyScalar(Math.exp(-q.drag * dt));
+      if (q.grav) q.v.y -= q.grav * dt;
+      q.p.addScaledVector(q.v, dt);
+      if (q.grow) q.s *= 1 + q.grow * dt;
+      L[n++] = q;
+      const j = n - 1;
+      P.pos.setXYZ(j, q.p.x, q.p.y, q.p.z);
+      P.col.setXYZ(j, q.r, q.g, q.b);
+      P.size.setX(j, q.s);
+      P.alpha.setX(j, (q.op * q.life) / q.max);
+    }
+    L.length = n;
+    P.geo.setDrawRange(0, n);
+    P.mesh.visible = n > 0;
+    if (n) for (const a of [P.pos, P.col, P.size, P.alpha]) a.needsUpdate = true;
+  }
+}
 const tracerGeo = new THREE.BoxGeometry(0.035, 0.035, 1);
 function tracer(a, b, color, life) {
   life = life || 0.1;
@@ -43,77 +157,51 @@ function tracer(a, b, color, life) {
   m.lookAt(b);
   fxPush({ m, key: "tr", life, max: life, fade: true });
 }
-const sparkMat = new THREE.SpriteMaterial({
-  color: 0xffe0a8,
-  transparent: true,
-  blending: THREE.AdditiveBlending,
-  depthWrite: false,
-});
 function spark(p, n = 1, color) {
   n = pc(n);
-  for (let i = 0; i < n; i++) {
-    const s = fxGet("sp", () => new THREE.Sprite(sparkMat.clone()));
-    s.material.color.setHex(color || 0xffe0a8);
-    s.position.copy(p);
-    s.scale.setScalar(rnd(0.1, 0.24));
-    fxPush({
-      m: s,
-      key: "sp",
-      life: rnd(0.15, 0.3),
-      max: 0.3,
-      fade: true,
-      vel: new V3(rnd(-3, 3), rnd(0, 3.5), rnd(-3, 3)),
-      g: 6,
-    });
-  }
+  for (let i = 0; i < n; i++)
+    ptAdd(
+      PTS.glow,
+      p,
+      new V3(rnd(-3, 3), rnd(0, 3.5), rnd(-3, 3)),
+      rnd(0.1, 0.24),
+      color || 0xffe0a8,
+      0.9,
+      rnd(0.15, 0.3),
+      {
+        max: 0.3,
+        g: 6,
+      }
+    );
 }
-const puffMat = new THREE.SpriteMaterial({
-  color: 0x9fdcff,
-  transparent: true,
-  opacity: 0.7,
-  depthWrite: false,
-});
 function thrustPuff(p, dir) {
   const n = pc(8);
-  for (let i = 0; i < n; i++) {
-    const s = fxGet("pf", () => new THREE.Sprite(puffMat.clone()));
-    s.position.copy(p).add(_fx.set(rnd(-0.2, 0.2), rnd(0.8, 1.4), rnd(-0.2, 0.2)));
-    s.scale.setScalar(rnd(0.25, 0.45));
-    fxPush({
-      m: s,
-      key: "pf",
-      life: 0.35,
-      max: 0.35,
-      fade: true,
-      grow: 2,
-      vel: new V3(-dir.x * rnd(3, 7), rnd(-0.5, 0.5), -dir.z * rnd(3, 7)),
-    });
-  }
+  for (let i = 0; i < n; i++)
+    ptAdd(
+      PTS.soft,
+      _fx.copy(p).add(new V3(rnd(-0.2, 0.2), rnd(0.8, 1.4), rnd(-0.2, 0.2))),
+      new V3(-dir.x * rnd(3, 7), rnd(-0.5, 0.5), -dir.z * rnd(3, 7)),
+      rnd(0.25, 0.45),
+      0x9fdcff,
+      0.7,
+      0.35,
+      { grow: 2 }
+    );
 }
-const dustMat = new THREE.SpriteMaterial({
-  color: 0x8a8178,
-  transparent: true,
-  opacity: 0.5,
-  depthWrite: false,
-});
 function dust(p, n, spread, up = 0.6, size = 0.35) {
   n = pc(n);
   for (let i = 0; i < n; i++) {
-    const s = fxGet("du", () => new THREE.Sprite(dustMat.clone()));
-    s.position.copy(p).add(_fx.set(rnd(-0.15, 0.15), 0.08, rnd(-0.15, 0.15)));
-    s.scale.setScalar(rnd(size * 0.6, size));
     const a = Math.random() * Math.PI * 2;
-    fxPush({
-      m: s,
-      key: "du",
-      life: rnd(0.35, 0.7),
-      max: 0.7,
-      fade: true,
-      grow: 1.6,
-      op: 0.45,
-      vel: new V3(Math.cos(a) * spread * rnd(0.5, 1), rnd(0, up), Math.sin(a) * spread * rnd(0.5, 1)),
-      drag: 3,
-    });
+    ptAdd(
+      PTS.soft,
+      _fx.copy(p).add(new V3(rnd(-0.15, 0.15), 0.08, rnd(-0.15, 0.15))),
+      new V3(Math.cos(a) * spread * rnd(0.5, 1), rnd(0, up), Math.sin(a) * spread * rnd(0.5, 1)),
+      rnd(size * 0.6, size),
+      0x8a8178,
+      0.45,
+      rnd(0.35, 0.7),
+      { max: 0.7, grow: 1.6, drag: 3 }
+    );
   }
 }
 const ringGeo = new THREE.RingGeometry(0.6, 1, 40);
@@ -211,6 +299,7 @@ function shieldPop(p) {
 }
 function updFX(dt) {
   updPods(dt);
+  updPts(dt);
   for (let i = FX.length - 1; i >= 0; i--) {
     const f = FX[i];
     f.life -= dt;

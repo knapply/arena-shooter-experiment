@@ -3,5 +3,5 @@
   "buildKB": 450,
   "simStepMs": 1.0,
   "arena": { "drawCalls": 240, "triangles": 75000 },
-  "ctf": { "drawCalls": 220, "triangles": 110000 }
+  "ctf": { "drawCalls": 300, "triangles": 150000 }
 }

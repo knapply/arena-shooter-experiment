@@ -348,14 +348,12 @@ const hudHook = () => {
       e.style.zoom = String(SET.hudScale);
   if (master) master.gain.value = SET.master * SET.sfx;
 };
-for (const m of [sparkMat, flashMat, shardMat, plasMat, glowMat]) m.map = SOFT;
-puffMat.map = SMOKE;
-dustMat.map = SMOKE;
+for (const m of [flashMat, shardMat, plasMat, glowMat]) m.map = SOFT;
 flashSprite.material.map = STAR;
 vmRoot.traverse(o => {
   if (o.isSprite && o !== flashSprite) o.material.map = SOFT;
 });
-[sparkMat, flashMat, shardMat, plasMat, glowMat, puffMat, dustMat].forEach(m => (m.needsUpdate = true));
+[flashMat, shardMat, plasMat, glowMat].forEach(m => (m.needsUpdate = true));
 SET_HOOKS.push(applyGfx, hudHook);
 gfxReady = true;
 applySettings();
