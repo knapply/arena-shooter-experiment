@@ -566,6 +566,23 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       return { n0, n1: KA.SOLID.length, broken: D.broken.size };
     });
     check(d.broken > 0 && d.n1 < d.n0, "explosions break cover", d);
+    /* progressive damage: cover chips (its mesh is carved) before it collapses, and a rebuild restores it */
+    const chip = await p.evaluate(() => {
+      const bx = KA.DESTR.all.find(b => !b.broken && KA.SOLID.includes(b) && b.hp == null);
+      const geo0 = bx.mesh.geometry;
+      const at = new KA.THREE.Vector3((bx.x0 + bx.x1) / 2, (bx.y0 + bx.y1) / 2, bx.z1);
+      KA.damageBox(bx, 1, at, "blast", true);
+      const hp = bx.maxHp;
+      KA.damageBox(bx, hp * 0.5, at, "blast", true);
+      const mid = { stage: bx.stage, carved: bx.mesh.geometry !== geo0, standing: !bx.broken };
+      KA.resetDestruction();
+      return { ...mid, restored: bx.mesh.geometry === geo0 && !bx.stage };
+    });
+    check(
+      chip.stage === 2 && chip.carved && chip.standing && chip.restored,
+      "cover chips as it takes damage before collapsing, and rebuilds whole",
+      chip
+    );
     await p.evaluate(() => {
       KA.SET.destruct = "off";
       KA.applySettings();

@@ -17,7 +17,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/render/perf.js` | 111 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
 | `src/data/modes.js` | 72 | `MODE_DATA` `AI_SKILL` `POD_TIME` `POD_HEIGHT` `POD_EARLY` |
 | `src/data/maps.js` | 377 | `MAP_SCHEMA` `MAPS` `MAP_MATS` `MAP_LIMIT` `validateMap` `mapPieces` |
-| `src/world/destruction.js` | 250 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` `destrTick` `resetDestruction` `boxById` `applyBreaks` `syncBroken` |
+| `src/world/destruction.js` | 343 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `CHIP_STAGES` `_cp` `_cv` `chipGeo` `chipBox` `unchipBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` … (+5) |
 | `src/world/dress.js` | 179 | `DRESS_MATS` `zoneMat` `dressMap` |
 | `src/world/maps/arena.js` | 262 | `floorTex` `crateTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `mergeGeos` `mergeMapGroup` `strip` `stairs` `buildMap` `SPAWNS` |
 | `src/world/physics.js` | 533 | `R` `H_STAND` `H_CROUCH` `TUNE_DEF` `TUNE` `NO_PILOTS` `pilotsFn` `setPilotCollider` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |

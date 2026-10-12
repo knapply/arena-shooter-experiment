@@ -55,6 +55,12 @@ function damageBox(b, dmg, at, kind, render) {
     b.hp = b.maxHp;
   }
   b.hp -= dmg;
+  /* progressive damage: each time health passes a stage, a chunk comes off where it was hit */
+  const fr = b.hp / b.maxHp;
+  while ((b.stage || 0) < CHIP_STAGES.length && fr < CHIP_STAGES[b.stage || 0]) {
+    b.stage = (b.stage || 0) + 1;
+    if (render !== false && fr > 0) chipBox(b, at);
+  }
   if (render !== false) {
     boxTint(b);
     if (kind === "bullet" && at && SET.debris > 0 && Math.random() < 0.5 * SET.debris) chips(at, 2);
@@ -64,6 +70,91 @@ function damageBox(b, dmg, at, kind, render) {
     return true;
   }
   return false;
+}
+/* ---- chipping: cover loses chunks as it is damaged, before it collapses ---- */
+const CHIP_STAGES = [0.8, 0.6, 0.4, 0.2];
+const _cp = new V3(),
+  _cv = new V3();
+/** the box's mesh gets a subdivided copy of its geometry on the first chip, so craters have room */
+function chipGeo(b) {
+  if (b.chipGeo) return b.chipGeo;
+  const sx = b.x1 - b.x0,
+    sy = b.y1 - b.y0,
+    sz = b.z1 - b.z0;
+  const seg = v => Math.max(2, Math.min(7, Math.round(v / 0.4)));
+  const box = new THREE.BoxGeometry(sx, sy, sz, seg(sx), seg(sy), seg(sz));
+  scaleBoxUV(box, sx, sy, sz, 2.5);
+  /* unshared vertices: each facet of a crater shades flat, so it reads as broken, not bent */
+  const g = box.toNonIndexed();
+  box.dispose();
+  b.baseGeo = b.mesh.geometry;
+  b.chipGeo = g;
+  b.mesh.geometry = g;
+  return g;
+}
+/** carve a crater at world point `at` (or a random spot on top) and throw a few chunks off it */
+function chipBox(b, at) {
+  if (!b.mesh || SET.debris <= 0) return;
+  const g = chipGeo(b),
+    pos = g.attributes.position,
+    c = b.mesh.position;
+  const sx = b.x1 - b.x0,
+    sy = b.y1 - b.y0,
+    sz = b.z1 - b.z0,
+    thin = Math.min(sx, sy, sz);
+  if (at) _cp.copy(at).sub(c);
+  else _cp.set(rnd(-sx, sx) * 0.4, sy / 2, rnd(-sz, sz) * 0.4);
+  /* the impact, pulled onto the box's surface */
+  _cp.set(clamp(_cp.x, -sx / 2, sx / 2), clamp(_cp.y, -sy / 2, sy / 2), clamp(_cp.z, -sz / 2, sz / 2));
+  const r = clamp(thin * 0.7, 0.3, 0.8) * rnd(0.85, 1.15),
+    depth = Math.min(r * 0.55, thin * 0.3);
+  for (let i = 0; i < pos.count; i++) {
+    _cv.fromBufferAttribute(pos, i);
+    const d = _cv.distanceTo(_cp);
+    if (d >= r) continue;
+    /* toward the centre, deepest at the impact, with a jagged edge */
+    const f = (1 - d / r) * (0.75 + Math.random() * 0.5);
+    const L = _cv.length() || 1;
+    _cv.multiplyScalar(1 - Math.min(0.6, (depth * f) / L));
+    pos.setXYZ(i, _cv.x, _cv.y, _cv.z);
+  }
+  pos.needsUpdate = true;
+  g.computeVertexNormals();
+  /* the chunks that came off, flying out from the face */
+  const w = _cv.copy(_cp).add(c);
+  const out = _cp.clone().normalize();
+  const n = Math.round(rnd(3, 6) * SET.debris);
+  for (let k = 0; k < n; k++) {
+    const m = fxGet("db", () => {
+      const o = new THREE.Mesh(debrisGeo, MATS.cover);
+      o.castShadow = true;
+      return o;
+    });
+    m.material = b.baseMat || b.mesh.material;
+    m.position.copy(w).add(new V3(rnd(-0.15, 0.15), rnd(-0.15, 0.15), rnd(-0.15, 0.15)));
+    m.scale.set(rnd(0.1, 0.26), rnd(0.08, 0.22), rnd(0.1, 0.26));
+    fxPush({
+      m,
+      key: "db",
+      life: rnd(2.5, 4),
+      max: 4,
+      fadeTail: 0,
+      vel: new V3(out.x * rnd(2, 5) + rnd(-1, 1), rnd(1.5, 4), out.z * rnd(2, 5) + rnd(-1, 1)),
+      g: 16,
+      spin: new V3(rnd(-8, 8), rnd(-8, 8), rnd(-8, 8)),
+      floor: groundBelow(m.position.x, m.position.z, b.y1 + 0.05, 0.05) + 0.06,
+    });
+  }
+  dust(w, 6, 1.5, 0.8, 0.5);
+  sfx("crumble", distVol(w, 40) * 0.35);
+}
+/** back to the whole box (a rebuild or a new match) */
+function unchipBox(b) {
+  b.stage = 0;
+  if (!b.chipGeo) return;
+  if (b.mesh) b.mesh.geometry = b.baseGeo;
+  b.chipGeo.dispose();
+  b.chipGeo = null;
 }
 function damageRadius(c, r, dmg, render) {
   if (SET.destruct === "off") return;
@@ -159,6 +250,7 @@ function restoreBox(b, fx) {
   if (!b.broken) return;
   b.broken = false;
   b.hp = null;
+  unchipBox(b);
   if (b.dmgMat && b.mesh) {
     b.mesh.material = b.baseMat;
   }
@@ -207,6 +299,7 @@ function resetDestruction() {
   for (const [, o] of [...DESTR.broken]) restoreBox(o.b, false);
   for (const b of DESTR.all) {
     b.hp = null;
+    unchipBox(b);
     if (b.dmgMat && b.mesh) b.mesh.material = b.baseMat;
   }
   DESTR.recent.length = 0;
