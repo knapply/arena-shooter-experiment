@@ -96,8 +96,8 @@ if(pa>0.&&rr>.15&&rr<.25&&!(pr<r&&dot(d,ay)>0.)){c=mix(c,vec3(.62,.54,.48),.55*(
 float col=floor(az*38.);float th=.03+.045*pow(h1(vec2(col,1.)),2.)+.025*n2(vec2(az*6.,0.));
 if(h1(vec2(col,5.))>.93)th+=.05;
 if(h>-.05&&h<th){vec3 sk=vec3(.035,.045,.06);
-vec2 w=vec2(az*520.,h*420.);float win=step(.8,h1(floor(w)))*step(.3,fract(w.x))*step(.35,fract(w.y));
-sk+=win*mix(vec3(1.,.7,.35),vec3(.4,.8,1.),h1(vec2(col,3.)))*.55;
+vec2 w=vec2(az*240.,h*190.);float win=step(.84,h1(floor(w)))*smoothstep(.2,.4,fract(w.x))*smoothstep(.25,.45,fract(w.y));
+sk+=win*mix(vec3(1.,.7,.35),vec3(.4,.8,1.),h1(vec2(col,3.)))*.4;
 if(h>th-.004&&h1(vec2(col,9.))>.6)sk+=vec3(1.,.25,.2)*.9;
 c=sk;}
 gl_FragColor=vec4(pow(c,vec3(2.2))*1.5*tint,1.);}`,

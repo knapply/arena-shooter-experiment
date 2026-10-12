@@ -71,16 +71,22 @@ async function compare(p, a, b) {
   };
   try {
     await p.evaluate(() => {
-      Object.assign(KA.SET, { grain: 0, dynRes: false });
+      /* classic spawns: a pod falling into the shot at a random moment would make it differ run to run */
+      Object.assign(KA.SET, { grain: 0, dynRes: false, spawnStyle: "classic" });
       KA.applySettings();
     });
     await p.waitForTimeout(1500);
-    /* the 3D scene behind the menu (menu text itself depends on the machine's fonts) */
+    /* the 3D scene behind the menu (menu text itself depends on the machine's fonts, as does the
+       frame counter) */
+    await p.addStyleTag({ content: "#fps { visibility: hidden !important; }" });
     await p.evaluate(() => {
       KA.CON.run("timescale 0");
       document.getElementById("menu").style.visibility = "hidden";
+      /* the practice drones wander (and bump into each other) on their own: leave them out */
+      KA.hideBots();
     });
     await shoot("menu");
+    await p.evaluate(() => KA.showWorld());
     await p.evaluate(() => (document.getElementById("menu").style.visibility = ""));
     await p.evaluate(() => {
       KA.CON.run("timescale 1");
