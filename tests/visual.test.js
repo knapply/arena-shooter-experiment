@@ -88,6 +88,8 @@ async function compare(p, a, b) {
     });
     await p.click("#deploy");
     await p.waitForTimeout(800);
+    /* the HUD is text in the machine's fonts (and a fading toast): compare the 3D scene only */
+    await p.addStyleTag({ content: "#hud, #toast, .status, #fps { visibility: hidden !important; }" });
     /* hold the camera still every frame (a page without pointer lock turns with the cursor) */
     await p.evaluate(() => {
       (function hold() {
