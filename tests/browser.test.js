@@ -248,6 +248,28 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       "Jump skips the pod camera to the landing spot",
       { ...skip, ...skipped }
     );
+    /* steering: holding a direction moves where your pod lands (within its radius), and it lands there */
+    await p.evaluate(async () => {
+      KA.me.spawnT = -99;
+      KA.hurtMe(999, { w: "self", name: "test" });
+      for (let i = 0; i < 200 && !KA.myPod; i++) await new Promise(r => setTimeout(r, 50));
+    });
+    await p.keyboard.down("KeyD");
+    await p.waitForTimeout(700);
+    await p.keyboard.up("KeyD");
+    const steer = await p.evaluate(async () => {
+      const pod = KA.myPod;
+      if (!pod) return { pod: false };
+      const moved = Math.hypot(pod.at.x - pod.base.x, pod.at.z - pod.base.z);
+      const at = pod.at.clone();
+      for (let i = 0; i < 100 && KA.me.dead; i++) await new Promise(r => setTimeout(r, 50));
+      return { pod: true, moved, r: pod.steer.r, landed: Math.hypot(KA.me.pos.x - at.x, KA.me.pos.z - at.z) };
+    });
+    check(
+      steer.pod && steer.moved > 1.5 && steer.moved <= steer.r + 0.01 && steer.landed < 0.5,
+      "you can steer your drop pod a little, and it lands where you steered it",
+      steer
+    );
     const items = await p.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
       KA.me.spawnT = KA.now + 5;
@@ -785,6 +807,14 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       return g.teams[fr.team].agents.filter(a => !a.human && a.ping).length;
     });
     check(pinged >= 1, "a friend's ping sends their AI teammates", pinged);
+    /* a steered pod only lands near your own base in CTF */
+    const zone = await A.evaluate(() => {
+      const t = CTF.UI.game().human.team,
+        h = CTF.FLAG_HOME[t],
+        z = KA.EXT.podZone();
+      return { home: z.ok(h.x, h.z), mid: z.ok(0, 0), theirs: z.ok(h.x, -h.z), r: z.r };
+    });
+    check(zone.home && !zone.mid && !zone.theirs, "CTF pods can only be steered near your own base", zone);
     await A.evaluate(() => {
       KA.me.pos.set(6, 0, -16);
     });

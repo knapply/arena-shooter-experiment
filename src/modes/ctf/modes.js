@@ -205,6 +205,14 @@
       };
     });
   }
+  /** a steered drop pod stays near your own base: within 26 m of your flag stand, on your half */
+  function podZone(team) {
+    const h = CTF.FLAG_HOME[team];
+    return {
+      r: 12,
+      ok: (x, z) => Math.hypot(x - h.x, z - h.z) <= 26 && Math.sign(z) === Math.sign(h.z),
+    };
+  }
   /** who holds a power weapon, for the marks and callouts (ui/power.js) */
   function holdersOf(list) {
     const me = G && G.human;
@@ -240,6 +248,7 @@
       },
       dropItems: (list, at) => G && G.addItems(list, at),
       spawnPoint: () => G.spawnPoint(G.human.team),
+      podZone: () => podZone(G.human.team),
       carrying: () => !!(G && G.human.carrying),
       dropFlag: () => G && G.dropFlagBy(G.human),
       interactables: () => flagPrompt(G.human, () => G.humanTakeFlag(G.human)),
@@ -437,6 +446,7 @@
       },
       carrying: () => !!(G && G.human.carrying),
       spawnPoint: () => G.spawnPoint(G.human.team),
+      podZone: () => podZone(G.human.team),
       dropFlag() {
         G.fd++;
         G.newsy = true;

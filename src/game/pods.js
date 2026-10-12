@@ -95,7 +95,9 @@ function makePod(color) {
  * h: the height it falls from (the trailer uses a short drop for its close shots)
  * @param {any} pos
  * @param {string} color team or pilot color
- * @param {{ dur?: number, h?: number, onLand?: Function, quiet?: boolean }} [o]
+ * steer: { r, ok(x, z) } lets the rider nudge the landing point within r metres of where it was
+ *   aimed, onto open ground that ok() accepts (CTF keeps you near your base); see steerPod
+ * @param {{ dur?: number, h?: number, onLand?: Function, quiet?: boolean, steer?: { r: number, ok?: (x: number, z: number) => boolean } }} [o]
  */
 function dropPod(pos, color, o = {}) {
   const h = o.h || POD_HEIGHT;
@@ -109,6 +111,11 @@ function dropPod(pos, color, o = {}) {
     onLand: o.onLand || null,
     prev: new V3(pos.x, pos.y + h, pos.z),
     fog: null,
+    /* steering: where it was aimed, and where it is drawn (eases toward at) */
+    base: pos.clone(),
+    vis: pos.clone(),
+    steer: o.steer || null,
+    skip: false,
   });
   p.g.position.copy(p.prev);
   p.g.rotation.y = Math.random() * 6;
@@ -165,6 +172,49 @@ function podTrail(p, heat) {
       );
   }
 }
+/* ---- steering your own pod: the landing point moves with your input, never past the pod's
+   radius, never onto ground without open sky above it, and only where the mode allows; it locks
+   for the last moments so everyone can see where it will hit ---- */
+const POD_STEER_SPEED = 9,
+  POD_STEER_LOCK = 0.82;
+const _stC = new V3();
+/** is steering still open for this pod? */
+const podSteerable = p => !!p.steer && !p.landed && p.t / p.dur < POD_STEER_LOCK;
+/** move the landing point by (dx, dz) world metres per second; returns true if it moved */
+function steerPod(p, dx, dz, dt) {
+  if (!podSteerable(p) || (!dx && !dz)) return false;
+  const s = p.steer;
+  _stC.set(p.at.x + dx * POD_STEER_SPEED * dt, 0, p.at.z + dz * POD_STEER_SPEED * dt);
+  /* stay within the radius around where it was aimed */
+  const ox = _stC.x - p.base.x,
+    oz = _stC.z - p.base.z,
+    L = Math.hypot(ox, oz);
+  if (L > s.r) {
+    _stC.x = p.base.x + (ox / L) * s.r;
+    _stC.z = p.base.z + (oz / L) * s.r;
+  }
+  if (s.ok && !s.ok(_stC.x, _stC.z)) return false;
+  /* the ground there, and open sky above it */
+  _stC.y = groundBelow(_stC.x, _stC.z, p.base.y + 8, 0.6) + 0.02;
+  if (_stC.y < -10 || !skyClear(_stC) || !freeAt(_stC.x, _stC.y + 0.05, _stC.z, H_STAND)) return false;
+  p.at.copy(_stC);
+  return true;
+}
+/* the landing marker under your own pod while you can steer it */
+const POD_MARK = new THREE.Mesh(
+  new THREE.RingGeometry(0.9, 1.25, 40),
+  new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.85, depthWrite: false })
+);
+POD_MARK.rotation.x = -Math.PI / 2;
+POD_MARK.visible = false;
+scene.add(POD_MARK);
+function podMarker(p) {
+  POD_MARK.visible = !!p && !p.landed;
+  if (!POD_MARK.visible) return;
+  POD_MARK.position.set(p.vis.x, p.at.y + 0.06, p.vis.z);
+  POD_MARK.material.color.setHex(podSteerable(p) ? 0xffb347 : 0xff5a3a);
+  POD_MARK.scale.setScalar(1 + Math.sin(now * 8) * 0.06);
+}
 /* riding your pod down: the fog and far plane lift with your height so the ground stays in view */
 function podView(p) {
   if (!p.fog) p.fog = { near: scene.fog.near, far: scene.fog.far, cam: camera.far };
@@ -191,7 +241,8 @@ function updPods(dt) {
       /* falls fast and accelerates; retros flare in the last moments */
       const h = p.h * (1 - k * k * (0.35 + 0.65 * k));
       p.prev.copy(p.g.position);
-      p.g.position.set(p.at.x, p.at.y + h, p.at.z);
+      p.vis.lerp(p.at, Math.min(1, dt * 8));
+      p.g.position.set(p.vis.x, p.at.y + h, p.vis.z);
       p.g.rotation.y += dt * 2.5;
       p.fire.material.opacity = 0.6 + Math.random() * 0.4;
       p.retro.material.opacity = k > 0.8 ? (k - 0.8) * 5 * (0.7 + Math.random() * 0.3) : 0;
@@ -204,6 +255,7 @@ function updPods(dt) {
       ptAdd(PTS.glow, p.g.position, new V3(), 3 * heat, 0xfff0d0, 1, 0.05);
       if (k >= 1) {
         p.landed = true;
+        p.vis.copy(p.at);
         p.g.position.copy(p.at);
         p.fire.visible = false;
         p.retro.visible = false;

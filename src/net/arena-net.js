@@ -285,7 +285,14 @@ function applyPeer(pe) {
       thrustPuff(a, b);
       sfxAt("thrust", a, 45, 0.8);
     } else if (f.k === "pk" && ARENA_PICKS[f.g | 0]) ARENA_PICKS[f.g | 0].consume();
-    else if (f.k === "pod" && a && a.distanceTo(me.pos) < 300) dropPod(a, color);
+    else if (f.k === "pod" && a && a.distanceTo(me.pos) < 300) r.pod = dropPod(a, color);
+    /* they steered it: it lands somewhere else now */ else if (
+      f.k === "podto" &&
+      a &&
+      r.pod &&
+      !r.pod.landed
+    )
+      r.pod.at.copy(a);
     else if ((f.k === "drop" || f.k === "take") && Array.isArray(f.b)) remoteItem(f.k, a, f.b, f.g | 0);
     else if (f.k === "nade" && a && b) remoteProjectile(f.g | 0, a, b);
   }

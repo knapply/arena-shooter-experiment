@@ -165,7 +165,9 @@ function frame(t) {
   perfEnd();
 }
 /* ---- respawning (in place, or out of a drop pod) ---- */
-let myPod = null;
+let myPod = null,
+  /** when your pod's steering last changed its landing point (0: sent) */
+  podSteerSent = 0;
 /** where this respawn will happen, picked once when it starts (a pod needs open sky above it) */
 let spawnPick = null;
 /** when your respawn starts: a pod launches POD_EARLY before respawnAt and lands when you would have */
@@ -203,11 +205,11 @@ function podCrush(at) {
       toast("Pod kill!");
     }
 }
-/** the camera rides behind and above your pod, looking down at where it will land */
+/** the camera rides behind and above your pod (turned by where you look), looking down at where it will land */
 function podCamera(p, dt) {
   podView(p);
   const g = p.g.position;
-  camera.position.set(g.x + 5.5, g.y + 7, g.z + 6.5);
+  camera.position.set(g.x + Math.sin(me.yaw) * 7.5, g.y + 7, g.z + Math.cos(me.yaw) * 7.5);
   camera.lookAt(p.at.x, Math.min(g.y, p.at.y + 30) - 2, p.at.z);
   camera.fov = 70;
   camera.updateProjectionMatrix();
@@ -314,6 +316,26 @@ function frameBody(t) {
     if (myPod) {
       /* riding the drop pod down; Jump, Fire or Melee skips the pod camera */
       if (!myPod.skip && (P("jump") || P("fire") || P("melee"))) skipPodCam(myPod);
+      /* move (keys or stick) steers where it lands, relative to where you look */
+      const fw = clamp(
+          (A("forward") ? 1 : 0) - (A("back") ? 1 : 0) + touch.f - (pad.on ? GP.ax[1] : 0),
+          -1,
+          1
+        ),
+        sw = clamp((A("right") ? 1 : 0) - (A("left") ? 1 : 0) + touch.s + (pad.on ? GP.ax[0] : 0), -1, 1);
+      if (fw || sw) {
+        const sy = Math.sin(me.yaw),
+          cy = Math.cos(me.yaw);
+        if (steerPod(myPod, -sy * fw + cy * sw, -cy * fw - sy * sw, dt)) {
+          if (myPod.skip) me.pos.copy(myPod.at);
+          podSteerSent = podSteerSent || now;
+        }
+      }
+      /* tell the room where it will land now (a few times a second) */
+      if (podSteerSent && now - podSteerSent > 0.2) {
+        podSteerSent = 0;
+        emitFx("podto", v3a(myPod.at), [0, 0, 0], 0);
+      }
     } else if (now > respawnStart()) {
       if (!spawnPick || spawnPick.for !== respawnAt) {
         const sp = EXT && EXT.spawnPoint ? EXT.spawnPoint() : spawnPoint(me);
@@ -323,7 +345,9 @@ function frameBody(t) {
       if (at && podsOn() && !INTRO.active && skyClear(at)) {
         spawnPick = null;
         $("dead").hidden = true;
+        const zone = EXT && EXT.podZone ? EXT.podZone() : null;
         myPod = dropPod(at, myColor, {
+          steer: { r: zone ? zone.r : 14, ok: zone ? zone.ok : null },
           onLand(p) {
             const look = myPod && myPod.skip ? [me.yaw, me.pitch] : null;
             myPod = null;
@@ -467,6 +491,7 @@ function frameBody(t) {
   if (!(camera.fov > 1 && camera.fov < 170)) camera.fov = fb;
   camera.updateProjectionMatrix();
   if (myPod && !myPod.skip) podCamera(myPod, dt);
+  podMarker(myPod);
   updVM(dt, {
     aim: aiming,
     sprint: me.sprint && me.ground,

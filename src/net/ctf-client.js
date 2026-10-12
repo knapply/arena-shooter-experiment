@@ -256,19 +256,9 @@
       ];
     };
     M.spawnPoint = function (t) {
-      let best = null,
-        bv = -1;
-      for (const s of CTF.SPAWNS[t]) {
-        let md = 99;
-        for (const a of M.map.values())
-          if (a.team !== t && a.alive) md = Math.min(md, Math.hypot(a.pos.x - s[0], a.pos.z - s[2]));
-        const v = md + Math.random() * 3;
-        if (v > bv) {
-          bv = v;
-          best = s;
-        }
-      }
-      return best;
+      /* the same spawn safety as the host (world/spawns.js), from what this client sees */
+      const foes = [...M.map.values()].filter(a => a.team !== t && a.alive).map(a => a.body);
+      return K.pickSpawn(CTF.SPAWNS[t], foes, [], M.t || 0, Math.random);
     };
     function mirrorBits(a, st) {
       NET.applyBits(a.body, st);
