@@ -15,6 +15,8 @@
                                                  (LOCK=carbine,magnum) run the sweep once per lock
      KNOBS=none node tools/tune.js              baselines only
      DIFF=recruit node tools/tune.js            the even matches use this difficulty (default normal)
+     PAIR=normal,recruit node tools/tune.js     the skill matches' better and worse levels
+                                                 (default legendary,normal)
    Output: a table on stdout and tools/out/tune.json (OUT=name.json). tools/tune-merge.js combines
    several outputs. See docs/TUNING.md for how defaults were chosen. */
 const fs = require("fs"),
@@ -26,7 +28,9 @@ const K = window.KA;
 const SEED = +(process.env.SEED || 100),
   MATCHES = +(process.env.MATCHES || 4),
   MINUTES = +(process.env.MINUTES || 3),
-  EVEN = process.env.DIFF || "normal";
+  EVEN = process.env.DIFF || "normal",
+  /* the skill matches: the better level first */
+  PAIR = (process.env.PAIR || "legendary,normal").split(",");
 const LOCKS = ["carbine", "magnum", "sniper", "rocket", "nades"];
 /* each knob: how to apply a value to the simulation, its default and the values to try */
 const W = key => K.WEAPON_DATA.find(w => w.key === key);
@@ -56,6 +60,10 @@ const KNOBS = {
     try: [18, 22],
   },
   sbMagRate: { set: v => (W("pistol").rate = v), def: 0.28, try: [0.22, 0.3] },
+  sbSnipeDmg: { set: v => (W("sniper").body = v), def: 60, try: [50, 70] },
+  sbSnipeRate: { set: v => (W("sniper").rate = v), def: 0.62, try: [0.5, 0.75] },
+  sbRocketSplash: { set: v => (W("rocket").splash = v), def: 150, try: [120, 180] },
+  sbRocketRadius: { set: v => (W("rocket").radius = v), def: 4.2, try: [3.4, 5] },
   sbNadeThrow: { set: v => (K.NADE_TUNE.throw = v), def: 19, try: [16, 22] },
   sbNadeBounce: { set: v => (K.NADE_TUNE.bounce = v), def: 0.38, try: [0.25, 0.5] },
   sbNadeFuse: { set: v => (K.NADES.frag.fuse = v), def: 2.2, try: [1.8, 2.6] },
@@ -73,6 +81,10 @@ KNOBS.sbCarbSpread.def = W("carbine").spread;
 KNOBS.sbCarbBloom.def = W("carbine").bloom;
 KNOBS.sbMagDmg.def = W("pistol").body;
 KNOBS.sbMagRate.def = W("pistol").rate;
+KNOBS.sbSnipeDmg.def = W("sniper").body;
+KNOBS.sbSnipeRate.def = W("sniper").rate;
+KNOBS.sbRocketSplash.def = W("rocket").splash;
+KNOBS.sbRocketRadius.def = W("rocket").radius;
 KNOBS.sbNadeFuse.def = K.NADES.frag.fuse;
 KNOBS.sbNadeRadius.def = K.NADES.frag.r;
 for (const [k, f] of [
@@ -164,7 +176,7 @@ function main() {
     for (let m = 0; m < MATCHES; m++) {
       const swap = m % 2 === 1;
       const base = { vi, m, knob: vr.knob, value: vr.value, lock: vr.lock };
-      jobs.push({ ...base, kind: "skill", diff: swap ? ["normal", "legendary"] : ["legendary", "normal"] });
+      jobs.push({ ...base, kind: "skill", diff: swap ? [PAIR[1], PAIR[0]] : [PAIR[0], PAIR[1]] });
       jobs[jobs.length - 1].seed = SEED + m;
       jobs.push({ ...base, kind: "even", diff: [EVEN, EVEN], seed: SEED + 1000 + m });
     }
@@ -238,6 +250,7 @@ function main() {
           MINUTES,
           SEED,
           DIFF: EVEN,
+          PAIR,
         },
         null,
         1

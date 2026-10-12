@@ -14,7 +14,8 @@
   NAV.Z0 = Z0;
   NAV.H = H;
   let top = null,
-    ok = null;
+    ok = null,
+    pruned = null;
   const STEP = 0.47,
     JUMP = 2.15,
     CLEAR = 0.42;
@@ -50,11 +51,19 @@
       i1 = Math.min(W - 1, Math.floor(b.x1 - X0) + 2),
       j0 = Math.max(0, Math.floor(b.z0 - Z0) - 2),
       j1 = Math.min(H - 1, Math.floor(b.z1 - Z0) + 2);
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) cellCalc(j * W + i, K.SOLID);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const c = j * W + i;
+        cellCalc(c, K.SOLID);
+        /* cells the build found unreachable stay closed (otherwise a break and restore would open
+           wall tops for good, and every later match would path differently) */
+        if (pruned[c]) ok[c] = 0;
+      }
   };
   NAV.build = function (solids) {
     top = new Float32Array(N);
     ok = new Uint8Array(N);
+    pruned = new Uint8Array(N);
     for (let j = 0; j < H; j++)
       for (let i = 0; i < W; i++) {
         cellCalc(j * W + i, solids);
@@ -87,7 +96,11 @@
         q.push(n);
       }
     }
-    for (let c = 0; c < N; c++) if (!seen[c]) ok[c] = 0;
+    for (let c = 0; c < N; c++)
+      if (!seen[c]) {
+        if (ok[c]) pruned[c] = 1;
+        ok[c] = 0;
+      }
   };
   NAV.cell = (x, z) => {
     const i = Math.floor(x - X0),

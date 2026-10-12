@@ -896,7 +896,8 @@
       at.z += gauss() * this.skill().err * d0;
       const dir = at.sub(eye).normalize();
       this.rocket--;
-      this.fireCD = this.rocket % 2 === 0 ? 3.2 : R.rate + 0.3;
+      /* the player's numbers: fire rate (plus a beat to re-aim) and a reload every two rockets */
+      this.fireCD = this.rocket % 2 === 0 ? R.reload : R.rate + 0.3;
       this.firedT = G.t;
       this.shots++;
       const o = eye.clone().addScaledVector(dir, 0.7);
@@ -935,8 +936,8 @@
       this.sniperMag--;
       if (this.sniperMag <= 0) {
         this.sniperMag = Math.min(4, this.sniper);
-        this.fireCD = 2.4;
-      } else this.fireCD = 0.75;
+        this.fireCD = SNIPER.reload;
+      } else this.fireCD = SNIPER.rate + 0.13; /* the bolt, plus a beat to re-aim */
       this.firedT = G.t;
       this.shots++;
       const eye = this.eye(new V3());

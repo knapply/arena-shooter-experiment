@@ -102,6 +102,8 @@ function chips(p, n) {
 function breakBox(b, at, render, local) {
   if (b.broken) return;
   b.broken = true;
+  /* remember every solid's build order (first break of the map), so a restore puts it back in place */
+  if (b.ord == null) SOLID.forEach((s, k) => s.ord == null && (s.ord = k));
   const i = SOLID.indexOf(b);
   if (i >= 0) SOLID.splice(i, 1);
   DESTR.broken.set(b.id, { b, t: now });
@@ -160,7 +162,14 @@ function restoreBox(b, fx) {
   if (b.dmgMat && b.mesh) {
     b.mesh.material = b.baseMat;
   }
-  SOLID.push(b);
+  /* back where it was: the collision list's order decides ray and collision ties, and a match
+     replayed from the same seed has to see the same list */
+  let at = SOLID.length;
+  if (b.ord != null) {
+    at = SOLID.findIndex(s => s.ord != null && s.ord > b.ord);
+    if (at < 0) at = SOLID.length;
+  }
+  SOLID.splice(at, 0, b);
   DESTR.broken.delete(b.id);
   if (b.mesh) {
     b.mesh.visible = true;

@@ -69,6 +69,17 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     b = run(42),
     c = run(43);
   check(a === b, "same seed replays the same match", a.length);
+  /* ...even after other matches broke cover in between (destruction and the AI's walkable grid are
+     restored exactly, so a match never depends on what was played before it) */
+  const long = seed => {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const G = CTF.Game({ mode: "sim", render: false, seed });
+    G.start();
+    for (let n = 0; n < 30 * 150 && !G.over; n++) G.step(1 / 30);
+  };
+  long(101);
+  long(7);
+  check(run(42) === a, "a match plays the same after other matches broke cover");
   check(a !== c, "a different seed plays differently");
 }
 /* Recruit is the gentle start: a Recruit team loses most fights to Normal */

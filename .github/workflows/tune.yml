@@ -29,6 +29,7 @@ jobs:
           - "sbJump sbGrav sbThrust"
           - "sbCarbDmg sbCarbRate sbCarbSpread sbCarbBloom"
           - "sbMagDmg sbMagRate"
+          - "sbSnipeDmg sbSnipeRate sbRocketSplash sbRocketRadius"
           - "sbNadeThrow sbNadeBounce sbNadeFuse sbNadeRadius"
     steps:
       - uses: actions/checkout@v5
