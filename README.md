@@ -37,7 +37,8 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - **Shields and health:** recharging shields that flash on impact, with headshot rules that reward finishing cracked opponents
 - **Four weapons with fixed kill times:** a precision magnum (5-shot perfect kill in about a second), an automatic pulse carbine, and two power weapons, a sniper rifle and a rocket launcher, that take turns at the map's central power spawn. Precision weapons have no random spread
 - **Grenades:** bouncing frags and sticky plasmas
-- **Drop pods:** you respawn by falling out of the sky in a pod that slams into the ground, blows its doors off and lets you out (land on someone and they're done). Classic in-place spawns are one setting away
+- **Drop pods:** you respawn by falling 200 m out of the sky in a pod: its nose glows white-hot and it trails a re-entry burn of flame, embers and smoke that the whole map can see, then it slams into the ground, blows its doors off and lets you out (land on someone and they're done). The longer fall costs no extra time: the pod launches earlier, so you're back exactly as soon as before. Press Jump to skip the pod camera. Classic in-place spawns are one setting away
+- **Safe spawns:** every spawn point is scored against enemy sight lines, nearby enemies and fights in the last few seconds, so you don't appear in someone's crosshair. Spawn protection ends as soon as you fire
 - **Loot what falls:** the dead drop their weapon and grenades. Grenades and ammo for guns you already carry are picked up by walking over them; anything else is a manual pickup, so you choose what to carry
 - **Friendly fire, on by default:** teammates' rounds, rockets and grenades hurt you too, and a teamkill costs a point. Switch it off in the settings
 - **Bodies are solid:** pilots collide with each other, so you can body-block a doorway or a flag carrier
@@ -47,11 +48,18 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - **Free-for-all matches:** first to 15 kills, with practice drones when it's quiet
 - **Capture the Flag:** 4v4 on a mirrored map, with AI filling every empty slot
 - **Kill cam:** after you die, see the last few seconds through your killer's eyes
+- **Readable fights:** arcs around the crosshair point at whoever is hitting you; positional footsteps, thrusts and landings are loud up close; shield hits, shield breaks, headshots and kills each have their own hit marker and sound, and the target flashes
+- **Power weapon loop:** the HUD counts down to the power spawn's next weapon, an enemy grabbing the sniper or rockets is called out, and anyone holding one is marked through walls
+- **Flag clarity:** a named waypoint on every flag carrier, a score bar that says who has each flag, and distinct sounds and announcer lines for taken, dropped and returned
+- **Match stats:** hold Tab for a sortable table of every pilot (AI included): kills, deaths, assists, K/D, damage, accuracy, headshots, medals, spree, power weapon held, and captures, returns, carries and flag time in CTF, with team totals
+- **Results screen:** after Play of the Game, the winner and score, your match (kills by weapon, accuracy, best spree, damage, medals), awards (MVP, most damage, best accuracy, top flag runner), a timeline of the big moments, and Play again, Change mode or Leave
 - **Play of the Game:** every match ends with a cinematic replay of its best moment (multikills, sprees, clutch captures)
 - **Match intros:** a five-second flyover of the map, both teams at their spawns, the objective and the power weapon
 - **Motion tracker:** a 25 m radar showing enemies who run, jump or shoot (crouch-walking keeps you off it)
 - **Pings:** mark an enemy, weapon or place for your team; AI teammates respond to them
 - **Medals:** multikills, sprees, Perfect (a minimum-shot kill with no misses), headshots, revenge and more, with announcer callouts
+- **AI with the full arsenal:** bots carry the carbine and the magnum like you, switch with your switch time, and pick the magnum at range and to finish a pilot whose shields are down
+- **Four bot skill levels:** Recruit (the gentle default for your first match: slow to react, loose aim, short sight, few dodges and grenades), Normal, Heroic and Legendary, for the practice drones and CTF bots alike
 - **AI that learns:** bot teams adapt strategy, lane choice and fighting style across matches, and talk to each other in team comms
 - **AI that only knows what it sees:** bots notice you in their field of view, when they hear gunfire or someone sprinting close by, when you shoot them, or when a teammate calls you out. No wallhacks
 - **AI vs AI spectating:** a director camera that cuts to the big moments in slow motion, a free tactical camera, a live intel panel and background training
@@ -68,7 +76,7 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 
 | Mode | Players | Description |
 |---|---|---|
-| **Arena** | 1–8 | Free-for-all on Proving Grounds. First to 15 kills (or the most kills after 10 minutes) wins, then Play of the Game and a fresh match. Practice drones fill in when it's quiet. |
+| **Arena** | 1–8 | Free-for-all on Proving Grounds. First to 15 kills (or the most kills after 10 minutes) wins, then Play of the Game and the results screen. Practice drones fill in when it's quiet. |
 | **Capture the Flag** | 1–8 humans, 8 total | 4v4 on Twin Foundry. Bring the enemy flag to your stand while yours is home. First to 3 captures wins, with an 8-minute time limit. Humans take a bot's slot on their team. |
 | **AI vs AI** | Spectator | Two learning AI teams play CTF. Speed controls (1×/2×/4×), a director camera that varies its shots and slows down for captures and multikills, follow cameras, and a tactical camera you can turn and zoom (drag, wheel, pinch or controller). The intel panel shows each team's strategy odds and evolved play style. "Train 10 matches" runs headless matches in the background. |
 | **Trailer** | Spectator | A 72-second cinematic cut of the game: the squad drops in by pod, three rules of the arena, an action montage with the rocket launcher, a live AI capture-the-flag match and a frozen-time finale, synced to an original score. |
@@ -168,7 +176,7 @@ CTF bots are built to be competitive, not scripted:
 - **Roles:** attack, defend, mid control, escort, chase, flag return, carry. Roles are reassigned dynamically as the flags change hands.
 - **Team communication:** callouts for enemy positions, cracked targets to focus, flag status, grenades and the sniper.
 - **Pings:** when a teammate pings, the two nearest AI teammates head there; a pinged enemy is shared with the whole team.
-- **Combat:** reaction time and aim error depend on difficulty (Normal / Heroic / Legendary). They lead moving targets, predict strafe reversals, dodge with thrust, ground-pound from above, throw frags at clusters and stick plasmas.
+- **Combat:** reaction time, aim error, sight range, dodging and grenade use depend on the skill level (Recruit / Normal / Heroic / Legendary). They carry the carbine and the magnum with a magazine each, take the magnum at mid and long range and to finish a cracked target, switch instead of reloading mid-fight, and aim the magnum more tightly the better they are. They lead moving targets, predict strafe reversals, dodge with thrust, ground-pound from above, throw frags at clusters and stick plasmas.
 - **Learning:** each team keeps a model of its opponent. It tracks strategy win odds (Thompson sampling), where attacks come from, how often enemies change strafe direction, and preferred fight range. Play-style traits (aggression, dodge, patience and so on) evolve between matches. What they learn is saved in your browser and carries over between sessions. Training runs on a background thread.
 - **Navigation:** grid A* pathfinding, built from the map and updated when cover is destroyed.
 
@@ -211,7 +219,7 @@ External resources loaded at runtime:
 - Best on current desktop **Chrome, Edge or Firefox**. Safari works, but its pointer lock and gamepad support are less consistent.
 - Any GPU from the last several years handles the High preset. Use **Low** or lower the render scale on integrated graphics.
 - Game logic costs well under 1 ms per frame on a typical laptop. If you see stutter, the GPU settings are the place to look.
-- The whole game is about 430 KB (about 160 KB compressed). Draw calls and triangle counts are held to fixed budgets that CI checks on every push.
+- The whole game is about 460 KB (about 170 KB compressed). Draw calls and triangle counts are held to fixed budgets that CI checks on every push.
 - Enable the FPS counter in **Settings → Graphics** to see frame rate and current render resolution, or the network panel to see ping, loss and playback delay.
 
 ## Privacy and security
@@ -258,7 +266,7 @@ node tests/maps.test.js        # map validation and overlaps
 node tests/perf.test.js        # size, draw call and triangle budgets
 node tests/browser.test.js     # gameplay, settings and online rooms
 node tests/net.test.js         # mesh, host migration and smoothness on a simulated bad network
-node tools/tune.js             # sandbox tuning: simulated matches for small changes to each setting
+node tools/tune.js             # sandbox tuning: simulated matches on every CPU core (LOCK=magnum etc. for single-weapon runs)
 THREE_PATH=three.min.js node tests/render.test.js   # every graphics preset renders a normal frame
 THREE_PATH=three.min.js node tests/visual.test.js   # compare scenes against tests/visual baselines
 VISUAL_UPDATE=1 THREE_PATH=three.min.js node tests/visual.test.js   # accept new baselines
