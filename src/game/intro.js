@@ -38,12 +38,12 @@ function playIntro(map, o, onEnd) {
         out = c.clone().sub(mid).setY(0).normalize();
       const from = c
           .clone()
-          .addScaledVector(out, -9)
-          .setY(c.y + 3.2),
+          .addScaledVector(out, -13)
+          .setY(c.y + 4.6),
         to = c
           .clone()
-          .addScaledVector(out, -6.5)
-          .setY(c.y + 2.4);
+          .addScaledVector(out, -10)
+          .setY(c.y + 3.2);
       shots.push({
         dur: 1.2,
         card: [`${o.teamNames[t]} team`, "", o.teams[t].join(" · ")],

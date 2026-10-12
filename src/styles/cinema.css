@@ -84,6 +84,10 @@
 
 /* while a replay plays, the live HUD and death screen step aside */
 body.cinematic #hud,
+body.cinematic #ctfHud,
+body.cinematic #cMarks,
+body.replaying #ctfHud,
+body.replaying #cMarks,
 body.cinematic #xh,
 body.replaying #hud,
 body.replaying #cBanner,
