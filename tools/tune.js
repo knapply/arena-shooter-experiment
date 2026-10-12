@@ -15,6 +15,8 @@
                                                  (LOCK=carbine,magnum) run the sweep once per lock
      KNOBS=none node tools/tune.js              baselines only
      DIFF=recruit node tools/tune.js            the even matches use this difficulty (default normal)
+     MAP=arena node tools/tune.js               team deathmatch on the arena instead of capture the flag
+                                                 on Twin Foundry (the arena's own combat, 4 v 4)
      PAIR=normal,recruit node tools/tune.js     the skill matches' better and worse levels
                                                  (default legendary,normal)
    Output: a table on stdout and tools/out/tune.json (OUT=name.json). tools/tune-merge.js combines
@@ -29,6 +31,8 @@ const SEED = +(process.env.SEED || 100),
   MATCHES = +(process.env.MATCHES || 4),
   MINUTES = +(process.env.MINUTES || 3),
   EVEN = process.env.DIFF || "normal",
+  /* the map (and with it the mode): ctf (capture the flag on Twin Foundry) or arena (team deathmatch) */
+  MAPID = process.env.MAP || "ctf",
   /* the skill matches: the better level first */
   PAIR = (process.env.PAIR || "legendary,normal").split(",");
 const LOCKS = ["carbine", "magnum", "sniper", "rocket", "nades"];
@@ -105,7 +109,16 @@ function resetAll() {
 /** one match: returns kills by team, captures, times to kill and grenade outcomes */
 function match(diff, seed, lock) {
   K.STORE.setBackend(K.STORE.memoryBackend());
-  const G = CTF.Game({ mode: "sim", render: false, seed, diff, lock });
+  /* team deathmatch plays the full time (a score limit would end matches at different lengths) */
+  const G = CTF.Game({
+    mode: "sim",
+    render: false,
+    seed,
+    diff,
+    lock,
+    map: MAPID,
+    scoreLimit: MAPID === "arena" ? 1e9 : 0,
+  });
   const out = { k: [0, 0], cap: [0, 0], ttk: [], nadeKills: 0, selfNade: 0, kills: 0, team: 0 };
   G.onEvent = (t, d) => {
     if (t === "kill") {
@@ -133,6 +146,8 @@ function match(diff, seed, lock) {
   }
   const steps = MINUTES * 60 * 30;
   for (let i = 0; i < steps && !G.over; i++) G.step(1 / 30);
+  /* minutes actually played (a capture limit can end a match early) */
+  out.min = G.t / 60;
   return out;
 }
 
@@ -185,7 +200,7 @@ function main() {
   const nWorkers = Math.max(1, Math.min(jobs.length, +(process.env.JOBS || os.availableParallelism())));
   const t0 = Date.now();
   console.log(
-    `${variants.length} variants x ${MATCHES * 2} matches (${MINUTES} min each), seed ${SEED}, ${nWorkers} workers` +
+    `${variants.length} variants x ${MATCHES * 2} matches (${MINUTES} min each, ${MAPID}), seed ${SEED}, ${nWorkers} workers` +
       (locks.length ? `, lock ${locks.join(",")}` : "")
   );
   const base = new Map(); /* lock → baseline result */
@@ -251,6 +266,7 @@ function main() {
           SEED,
           DIFF: EVEN,
           PAIR,
+          MAP: MAPID,
         },
         null,
         1
@@ -273,7 +289,8 @@ function summarize(vr) {
     nk = 0,
     self = 0,
     kills = 0,
-    team = 0;
+    team = 0,
+    minutes = 0;
   /* in match order, so the result doesn't depend on which worker finished first */
   vr.res.sort((a, b) => a.j.id - b.j.id);
   for (const { j, r } of vr.res) {
@@ -289,6 +306,7 @@ function summarize(vr) {
       self += r.selfNade;
       kills += r.kills;
       team += r.team;
+      minutes += r.min || MINUTES;
     }
   }
   return {
@@ -297,7 +315,7 @@ function summarize(vr) {
     capGap: capL - capN,
     /* for everyone: the median time from first hit to the kill, and grenade outcomes */
     ttk: +median(ttk).toFixed(2),
-    kpm: +(kills / (MATCHES * MINUTES)).toFixed(1),
+    kpm: +(kills / Math.max(0.01, minutes)).toFixed(1),
     nadeShare: +(nk / Math.max(1, kills)).toFixed(3),
     selfNade: self,
     teamKills: team,

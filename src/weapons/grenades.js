@@ -1,6 +1,11 @@
 /* ============ grenades: frag (bounces, 2.2s fuse) and plasma (sticks to surfaces and pilots) ============ */
 const NADES = {
-  frag: { fuse: 2.2, r: 5.2, dmg: 105, color: 0xffa040 },
+  frag: {
+    fuse: 2.2,
+    r: 4.2,
+    dmg: 105,
+    color: 0xffa040,
+  } /* radius 5.2 -> 4.2 by simulation, see docs/TUNING.md */,
   plasma: { fuse: 1.7, r: 4.2, dmg: 115, color: 0x5ad2ff },
 };
 /* throw speed and frag bounciness: the Sandbox settings change them */

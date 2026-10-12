@@ -14,6 +14,9 @@ on:
       lock:
         description: Weapon lock(s), e.g. carbine,magnum (empty for none)
         default: ""
+      map:
+        description: ctf (capture the flag) or arena (team deathmatch)
+        default: ctf
 permissions:
   contents: write
 jobs:
@@ -42,6 +45,7 @@ jobs:
           MATCHES: ${{ inputs.matches }}
           MINUTES: ${{ inputs.minutes }}
           LOCK: ${{ inputs.lock }}
+          MAP: ${{ inputs.map }}
           SEED: ${{ matrix.seed }}
           OUT: tune.json
         run: node tools/tune.js ${{ matrix.group }}

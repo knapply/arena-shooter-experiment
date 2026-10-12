@@ -400,6 +400,18 @@
         them = 1 - me;
       const team = G.teams[me].agents;
       const bots = team.filter(a => !a.human);
+      /* team deathmatch: no flags to carry or defend, everyone hunts */
+      if (G.tdm) {
+        for (const a of bots) {
+          if (a.role !== "hunt") {
+            a.roleSince = G.t;
+            a.path = null;
+          }
+          a.role = "hunt";
+        }
+        this.roles = new Map(bots.map(a => [a, "hunt"]));
+        return;
+      }
       const ourFlag = G.flags[me],
         theirFlag = G.flags[them];
       const weCarry = theirFlag.state === "carried" && theirFlag.carrier && theirFlag.carrier.team === me;

@@ -7,13 +7,15 @@
     ["Sol", "Brix", "Nyx", "Talon"],
   ];
   CTF.NAMES = NAMES;
-  let navReady = false;
+  /* opts.map picks the map (default Twin Foundry); a map without flags plays team deathmatch: the AI
+     hunts, and a kill on the other team scores a point */
   CTF.Game = function (opts) {
-    if (!navReady) {
-      CTF.NAV.build(CTF.buildMap().solids);
-      navReady = true;
-    }
+    CTF.useMap(opts.map || "ctf");
+    /* the AI's walkable grid is built once per map (and patched as cover breaks) */
+    if (CTF.NAV.mapId !== CTF.MAP.id) CTF.NAV.build(CTF.buildMap().solids);
     CTF.enterMap();
+    const tdm = !CTF.hasFlags(),
+      MD = tdm ? K.MODE_DATA.tdm : K.MODE_DATA.ctf;
     /* seeded before anything random happens, so seed + inputs reproduce the match */
     const seed = K.RNG.seed(opts.seed);
     const G = {
@@ -22,8 +24,11 @@
       mode: opts.mode,
       render: !!opts.render,
       diff: opts.diff || ["legendary", "legendary"],
-      scoreLimit: opts.scoreLimit || K.MODE_DATA.ctf.scoreLimit,
-      timeLimit: opts.timeLimit || K.MODE_DATA.ctf.timeLimit,
+      scoreLimit: opts.scoreLimit || MD.scoreLimit,
+      timeLimit: opts.timeLimit || MD.timeLimit,
+      /** team deathmatch: no flags, kills score */
+      tdm,
+      respawnDelay: MD.respawn,
       over: false,
       winner: -1,
       human: null,
@@ -46,7 +51,7 @@
     };
     const models = CTF.loadModels();
     G.teams = [0, 1].map(t => ({ team: t, score: 0, agents: [], brain: new CTF.TeamBrain(t, models[t]) }));
-    G.flags = [0, 1].map(t => ({
+    G.flags = (tdm ? [] : [0, 1]).map(t => ({
       team: t,
       state: "home",
       pos: CTF.FLAG_HOME[t].clone(),
@@ -313,7 +318,7 @@
       if (victim.dead && !victim.human) return;
       if (!victim.local) {
         victim.dead = true;
-        victim.respawnAt = G.t + 6;
+        victim.respawnAt = G.t + G.respawnDelay;
         if (victim.rig && G.render)
           victim.rig.die(
             killer && killer !== victim ? killer.pos : null,
@@ -323,6 +328,11 @@
       victim.d++;
       /* a teamkill (friendly fire) costs a point instead of earning one */
       if (killer && killer !== victim) killer.k += killer.team === victim.team ? -1 : 1;
+      /* team deathmatch: a kill on the other team is the score */
+      if (G.tdm && killer && killer !== victim && killer.team !== victim.team) {
+        G.teams[killer.team].score++;
+        if (G.teams[killer.team].score >= G.scoreLimit) G.finish(killer.team);
+      }
       const p = victim.pos.clone();
       /* weapons and grenades fall where they died (you report your own drop) */
       if (!victim.local && !G.lock) G.addItems(G.loadoutOf(victim), p);
@@ -585,7 +595,7 @@
       }
       // stalled segments re-plan
       for (const tm of G.teams) {
-        if (G.t - tm.brain.segStart > 80 && !G.flags[1 - tm.team].carrier) {
+        if (!G.tdm && G.t - tm.brain.segStart > 80 && !G.flags[1 - tm.team].carrier) {
           tm.brain.endSegment(G, 0.3 + Math.min(0.3, tm.brain.segFlagPulls * 0.1));
           tm.brain.chooseStrategy(G, "This isn't working.");
         }

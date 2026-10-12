@@ -25,7 +25,7 @@ LOCK=magnum node tools/tune.js sbMagDmg sbMagRate   # every AI pilot uses only t
 LOCK=carbine,magnum,sniper,rocket,nades KNOBS=none node tools/tune.js   # each single-weapon baseline
 ```
 
-Every match is an independent job, spread over one worker thread per CPU core (`JOBS=n` to change); results are identical to a single-threaded run because each match is seeded on its own. `LOCK` gives every AI pilot one weapon with endless ammo (`carbine`, `magnum`, `sniper`, `rocket`, or `nades` for grenades only) and turns off power spawns, death drops and other grenades, so a weapon's own numbers can be tuned in isolation. Results are written to `tools/out/tune.json` (`OUT=name.json`); `node tools/tune-merge.js merged.json a.json b.json` combines runs (each row keeps its seed set, lock and skill change against its own baseline). The **Tune** GitHub Actions workflow (run by hand) does the same sweep as a matrix of knob groups and seed sets and commits the merged result to the `tune-results` branch.
+Every match is an independent job, spread over one worker thread per CPU core (`JOBS=n` to change); results are identical to a single-threaded run because each match is seeded on its own. `LOCK` gives every AI pilot one weapon with endless ammo (`carbine`, `magnum`, `sniper`, `rocket`, or `nades` for grenades only) and turns off power spawns, death drops and other grenades, so a weapon's own numbers can be tuned in isolation. `MAP=arena` runs everything as team deathmatch on the arena instead of capture the flag on Twin Foundry. Results are written to `tools/out/tune.json` (`OUT=name.json`); `node tools/tune-merge.js merged.json a.json b.json` combines runs (each row keeps its seed set, lock and skill change against its own baseline). The **Tune** GitHub Actions workflow (run by hand) does the same sweep as a matrix of knob groups and seed sets and commits the merged result to the `tune-results` branch.
 
 ### Null controls
 
@@ -63,7 +63,22 @@ Single-weapon baselines (Legendary vs Normal, every pilot with one weapon): **ma
 
 **Recruit** (the default for a first bot match) is genuinely easy: in Recruit-vs-better matches the better team gets **70% of kills against Normal, 83% against Heroic and 94% against Legendary** (0.704/0.707, 0.826/0.831, 0.936/0.946 on two seed sets), and Recruit pilots throw a tenth as many grenades (2% of kills from grenades in Recruit vs Recruit, against 14% for Normal). In Recruit vs Recruit, time to kill is 2.3 to 2.4 s once a fight starts, because Recruits engage late and close; they see 42 m instead of 75 and dodge a third as often.
 
-No default changed in this pass.
+No default changed in that pass.
+
+## All modes: team deathmatch on the arena as well as capture the flag
+
+The free-for-all arena's own AI (the practice drones) only fights you, so the arena is measured with the CTF AI playing **team deathmatch** there: 4 v 4 on Proving Grounds, no flags, kills score (`MAP=arena`; see "A map" in [EXTENDING.md](EXTENDING.md)). The arena is small and open around its core: fights there are faster (time to kill 2.1 s, 30 kills per minute) and closer than on Twin Foundry (3.1 s, 14.7 per minute). Simulated matches run the full 4 minutes (no score limit), and kills per minute now use the minutes actually played (capture the flag can end early).
+
+Every knob was swept on both maps with three seed sets (100, 700, 1300), 48 matches of each kind per variant, with null controls; Legendary vs Normal skill share is 0.77 to 0.78 on the arena and 0.84 on Twin Foundry (null noise ±0.003 to ±0.009).
+
+| Setting | Arena (team deathmatch) | Twin Foundry (CTF) | Decision |
+|---|---|---|---|
+| **Frag blast radius 4.2** (was 5.2) | skill +0.020, +0.003, +0.008; self-kills −25, −59, −35; teamkills −74, −162, −78; grenade kills share −2 points | skill +0.012, +0.010, +0.008 (all clear of the noise); teamkills down on two of three sets | **Changed to 4.2.** The only setting that raised skill share on all six seed sets across both modes, and it makes grenades kinder to their throwers and teammates (an accessibility gain, not a cost). Grenades-only runs agree on average (+0.008, mixed sign). Frags are still lethal at the centre (105). |
+| Magnum fire interval 0.22 | +0.013, +0.008, +0.009 | +0.013, +0.013, −0.006 | Kept at 0.26: not consistent on Twin Foundry or magnum-only, and the 1.04 s perfect kill is part of the accessibility goal. |
+| Sprint 8.2, thrust 20 | within noise | +0.005 to +0.010, same sign | Kept: small, not seen on the arena; movement is for playtesting. |
+| Everything else | mixed signs | mixed signs | Kept. |
+
+**Recruit on the arena:** Normal takes 66 to 68% of the kills against Recruit (Legendary 94%, measured on Twin Foundry).
 
 ## Earlier results (before the AI carried magnums)
 

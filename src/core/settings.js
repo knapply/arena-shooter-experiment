@@ -135,7 +135,7 @@ const SANDBOX_DEFS = [
     "Share of speed kept when a frag hits the floor.",
   ],
   ["sbNadeFuse", "Frag fuse", 2.2, 1.2, 3.4, 0.1, " s"],
-  ["sbNadeRadius", "Frag blast radius", 5.2, 3, 7, 0.1, " m"],
+  ["sbNadeRadius", "Frag blast radius", 4.2, 3, 7, 0.1, " m"],
 ];
 /** @type {SettingDef[]} */
 const SCHEMA = [

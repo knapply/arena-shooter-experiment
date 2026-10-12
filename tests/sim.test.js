@@ -114,4 +114,35 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     }
   );
 }
+/* team deathmatch on the arena (the AI on a map without flags): kills score, the match finishes, and
+   capture the flag still plays normally afterwards */
+{
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 3, map: "arena" });
+  let kills = 0;
+  G.onEvent = t => {
+    if (t === "kill") kills++;
+  };
+  G.start();
+  while (!G.over) G.step(1 / 30);
+  const top = Math.max(G.teams[0].score, G.teams[1].score);
+  check(
+    G.tdm && G.flags.length === 0 && top === G.scoreLimit && kills >= top,
+    "team deathmatch on the arena: kills score and the match finishes",
+    { score: G.teams.map(t => t.score), kills, t: G.t | 0, nav: CTF.NAV.mapId }
+  );
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const H = CTF.Game({ mode: "sim", render: false, seed: 1 });
+  let flags = 0;
+  H.onEvent = t => {
+    if (t === "flagTaken") flags++;
+  };
+  H.start();
+  for (let i = 0; i < 30 * 150 && !H.over; i++) H.step(1 / 30);
+  check(
+    !H.tdm && H.flags.length === 2 && flags > 0,
+    "capture the flag after it still has its flags and pulls them",
+    flags
+  );
+}
 finish("sim");

@@ -10,33 +10,57 @@
   CTF.TEAM_NAMES = ["Red", "Blue"];
   CTF.TEAM_HEX = ["#ff6a5c", "#5aa9ff"];
   CTF.TEAM_INT = [0xff6a5c, 0x5aa9ff];
-  /* everything about the map's layout comes from its data document (data/maps.js) */
-  const MAP = K.MAPS.ctf;
-  CTF.MAP = MAP;
-  CTF.FLAG_HOME = MAP.flags.map(p => new T.Vector3(p[0], p[1], p[2]));
-  CTF.SPAWNS = MAP.spawns.teams.map(t => t.map(p => p.slice()));
-  CTF.PICKUP_DEFS = MAP.pickups.map(p => ({
-    id: p.id,
-    type: K.WEAPON_DATA.findIndex(w => w.key === p.weapon),
-    pos: new T.Vector3(p.p[0], p.p[1], p.p[2]),
-    respawn: p.respawn,
-    rotate: !!p.rotate,
-    weapon: p.weapon,
-  }));
-  CTF.BOUNDS = Object.assign({}, MAP.bounds);
+  /* everything about a map's layout comes from its data document (data/maps.js). CTF.useMap(id) picks
+     the map the next match is built on: Twin Foundry (flags, team spawns, lanes) for capture the flag,
+     or the arena (no flags: both teams use its free-for-all spawns, kept apart by spawn safety) for the
+     team deathmatch simulations. Everything below reads CTF.MAP, so it follows the choice. */
+  CTF.useMap = function (id) {
+    const doc = K.MAPS[id];
+    if (!doc) throw new Error("no map " + id);
+    if (CTF.MAP === doc) return;
+    if (CTF.MAP && CTF.MAP !== doc) CTF.exitMap();
+    CTF.MAP = doc;
+    CTF.FLAG_HOME = (doc.flags || []).map(p => new T.Vector3(p[0], p[1], p[2]));
+    CTF.SPAWNS = doc.spawns.teams
+      ? doc.spawns.teams.map(t => t.map(p => p.slice()))
+      : [0, 1].map(() => doc.spawns.ffa.map(p => p.slice()));
+    CTF.PICKUP_DEFS = (doc.pickups || []).map(p => ({
+      id: p.id,
+      type: K.WEAPON_DATA.findIndex(w => w.key === p.weapon),
+      pos: new T.Vector3(p.p[0], p.p[1], p.p[2]),
+      respawn: p.respawn,
+      rotate: !!p.rotate,
+      weapon: p.weapon,
+    }));
+    CTF.BOUNDS = Object.assign({}, doc.bounds);
+  };
+  /** does the current map have flags (capture the flag) or not (team deathmatch)? */
+  CTF.hasFlags = () => CTF.FLAG_HOME.length === 2;
 
-  let built = null;
+  /* each map's built world, made once: Twin Foundry is built hidden and swapped in; the arena is the
+     world that is already there */
+  const BUILT = {};
   CTF.buildMap = function () {
-    if (built) return built;
+    const id = CTF.MAP.id;
+    if (BUILT[id]) return BUILT[id];
+    if (id === "arena") {
+      /* the arena as built (every cover box standing) */
+      K.resetDestruction();
+      return (BUILT[id] = { group: K.ARENA_G, solids: K.SOLID.slice(), arena: null, home: true });
+    }
     const g = new T.Group();
     K.scene.add(g);
-    const { solids } = K.buildMap(MAP, g);
+    const { solids } = K.buildMap(CTF.MAP, g);
     g.visible = false;
-    built = { group: g, solids, arena: null };
-    return built;
+    return (BUILT[id] = { group: g, solids, arena: null });
   };
   CTF.enterMap = function () {
     const m = CTF.buildMap();
+    if (m.home) {
+      /* the arena: nothing to swap, but the AI's grid follows its destruction */
+      K.DESTR.onChange = b => CTF.NAV.patch(b);
+      return;
+    }
     if (m.arena) return;
     K.resetDestruction();
     K.DESTR.onChange = b => CTF.NAV.patch(b);
@@ -54,7 +78,11 @@
     m.group.visible = true;
   };
   CTF.exitMap = function () {
-    const m = built;
+    const m = BUILT[CTF.MAP.id];
+    if (m && m.home) {
+      K.DESTR.onChange = null;
+      return;
+    }
     if (!m || !m.arena) return;
     K.resetDestruction();
     K.DESTR.onChange = null;
@@ -75,8 +103,12 @@
     m.group.visible = false;
   };
 
-  /* lanes, team-relative: 0 = carrier's left wing, 1 = mid, 2 = right wing (mirrored so both teams describe the same geometry the same way) */
-  CTF.worldLane = x => (x < -MAP.lanes.split ? 0 : x > MAP.lanes.split ? 2 : 1);
+  /* lanes, team-relative: 0 = carrier's left wing, 1 = mid, 2 = right wing (mirrored so both teams
+     describe the same geometry the same way). A map without lanes is all "mid". */
+  CTF.worldLane = x => {
+    const L = CTF.MAP.lanes;
+    return !L ? 1 : x < -L.split ? 0 : x > L.split ? 2 : 1;
+  };
   CTF.relLane = (team, x) => {
     const w = CTF.worldLane(x);
     return team === 0 ? w : 2 - w;
@@ -84,9 +116,10 @@
   CTF.LANE_NAMES = ["left", "mid", "right"];
   /* lane waypoint x for a team going on its own relative lane */
   CTF.laneX = (team, lane) => {
-    const wx = MAP.lanes.x[lane];
+    const wx = CTF.MAP.lanes ? CTF.MAP.lanes.x[lane] : 0;
     return team === 0 ? wx : -wx;
   };
+  CTF.useMap("ctf");
 
   /* flag visuals */
   CTF.makeFlag = function (team) {

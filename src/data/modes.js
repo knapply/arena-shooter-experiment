@@ -4,6 +4,8 @@
 const MODE_DATA = {
   ffa: { name: "Free for all", scoreLimit: 15, timeLimit: 600, respawn: 5, restartDelay: 8 },
   ctf: { name: "Capture the flag", scoreLimit: 3, timeLimit: 480, respawn: 6, teamSize: 4 },
+  /* team deathmatch on a map without flags (the arena): the AI plays it for the balance simulations */
+  tdm: { name: "Team deathmatch", scoreLimit: 50, timeLimit: 600, respawn: 5, teamSize: 4 },
 };
 /* AI skill levels, shared by CTF agents and arena drones.
    react    seconds from spotting someone to engaging (and to re-targeting)

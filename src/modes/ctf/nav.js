@@ -1,18 +1,16 @@
-/* ===== CTF navigation: 1m height grid over the map, A* with walk / jump-clamber / drop edges and per-team danger costs ===== */
+/* ===== AI navigation: a 1 m height grid over the current map (sized from its bounds), A* with walk /
+   jump-clamber / drop edges and per-team danger costs. NAV.build(solids, mapDoc) sets it up for a map. ===== */
 (function () {
   const K = window.KA,
     T = K.THREE,
     CTF = window.CTF;
   const NAV = (CTF.NAV = /** @type {Record<string, any>} */ ({}));
-  const X0 = -26,
-    Z0 = -50,
-    W = 52,
-    H = 100,
-    N = W * H;
-  NAV.W = W;
-  NAV.X0 = X0;
-  NAV.Z0 = Z0;
-  NAV.H = H;
+  /* the grid: X0, Z0 its corner, W x H cells of 1 m (from the map's bounds; see NAV.build) */
+  let X0 = 0,
+    Z0 = 0,
+    W = 1,
+    H = 1,
+    N = 1;
   let top = null,
     ok = null,
     pruned = null;
@@ -60,7 +58,28 @@
         if (pruned[c]) ok[c] = 0;
       }
   };
-  NAV.build = function (solids) {
+  /** size the grid and its search buffers for a map's bounds */
+  function alloc(b) {
+    X0 = Math.floor(b.x0);
+    Z0 = Math.floor(b.z0);
+    W = Math.ceil(b.x1) - X0;
+    H = Math.ceil(b.z1) - Z0;
+    N = W * H;
+    Object.assign(NAV, { X0, Z0, W, H });
+    heapI = new Int32Array(N * 8);
+    heapF = new Float32Array(N * 8);
+    g = new Float32Array(N);
+    from = new Int32Array(N);
+    stamp = new Int32Array(N);
+    closed = new Int32Array(N);
+    gen = 0;
+  }
+  /** build the grid for a map: its solids, and its document for bounds, lanes and a reachable start */
+  NAV.build = function (solids, doc) {
+    doc = doc || CTF.MAP;
+    alloc(doc.bounds);
+    NAV.mapId = doc.id;
+    const split = doc.lanes ? doc.lanes.split : Infinity;
     top = new Float32Array(N);
     ok = new Uint8Array(N);
     pruned = new Uint8Array(N);
@@ -74,11 +93,13 @@
     NAV.cz = new Float32Array(N);
     for (let c = 0; c < N; c++) {
       const x = X0 + (c % W) + 0.5;
-      NAV.wl[c] = x < -9.5 ? 0 : x > 9.5 ? 2 : 1;
+      NAV.wl[c] = x < -split ? 0 : x > split ? 2 : 1;
       NAV.cz[c] = Z0 + ((c / W) | 0) + 0.5;
     }
-    // keep only cells reachable from Red's flag stand so goals never point at unreachable wall tops
-    const s = NAV.cell(0, -43);
+    /* keep only cells reachable from the first flag stand (or spawn) so goals never point at unreachable
+       wall tops */
+    const p0 = doc.flags ? doc.flags[0] : doc.spawns.teams ? doc.spawns.teams[0][0] : doc.spawns.ffa[0];
+    const s = NAV.nearest(p0[0], p0[2], p0[1]);
     const seen = new Uint8Array(N),
       q = [s];
     seen[s] = 1;
@@ -145,8 +166,8 @@
     return dh > STEP ? "jump" : dh < -1.2 ? "drop" : "walk";
   };
   // binary heap
-  const heapI = new Int32Array(N * 8),
-    heapF = new Float32Array(N * 8);
+  let heapI = new Int32Array(8),
+    heapF = new Float32Array(8);
   let hn = 0;
   function push(i, f) {
     let k = hn++;
@@ -189,10 +210,10 @@
     }
     return r;
   }
-  const g = new Float32Array(N),
-    from = new Int32Array(N),
-    stamp = new Int32Array(N),
-    closed = new Int32Array(N);
+  let g = new Float32Array(1),
+    from = new Int32Array(1),
+    stamp = new Int32Array(1),
+    closed = new Int32Array(1);
   let gen = 0;
   const D8 = [
     [1, 0, 1],

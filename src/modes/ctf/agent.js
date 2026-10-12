@@ -303,10 +303,29 @@
       const of = G.flags[me],
         tf = G.flags[them];
       const g = this.goal;
-      const home = CTF.FLAG_HOME[me];
+      /* where to fall back to: the flag stand, or (no flags) the nearest of the team's spawns */
+      const home = CTF.FLAG_HOME[me] || this.nearestSpawn();
       const sign = me === 0 ? 1 : -1;
       this.mustMove = false;
       switch (this.role) {
+        case "hunt": {
+          /* team deathmatch: go where the team last saw someone, else sweep the map's spawns and power spawn */
+          const th = this.nearestThreat(this.pos, 60);
+          if (th) {
+            g.copy(th.pos);
+            this.mustMove = true;
+            break;
+          }
+          if (!this.huntPt || this.pos.distanceTo(this.huntPt) < 3 || G.t > this.huntUntil) {
+            const pts = CTF.SPAWNS[me].map(p => new V3(p[0], p[1], p[2]));
+            for (const p of G.pickups || []) pts.push(p.pos.clone());
+            this.huntPt = pts[(K.rand() * pts.length) | 0];
+            this.huntUntil = G.t + 12;
+          }
+          g.copy(this.huntPt);
+          this.mustMove = true;
+          break;
+        }
         case "carry":
           if (of.state === "home") {
             g.copy(home);
@@ -465,6 +484,19 @@
         g.copy(this.ping.pos);
         this.mustMove = this.pos.distanceTo(g) > 3;
       }
+    }
+    /** the nearest of the team's spawn points (a place to regroup on a map without flags) */
+    nearestSpawn() {
+      let best = null,
+        bd = 1e9;
+      for (const s of CTF.SPAWNS[this.team]) {
+        const d = Math.hypot(s[0] - this.pos.x, s[2] - this.pos.z);
+        if (d < bd) {
+          bd = d;
+          best = s;
+        }
+      }
+      return new V3(best[0], best[1], best[2]);
     }
     nearestThreat(p, r) {
       let best = null,
@@ -676,7 +708,7 @@
       }
       /* at the enemy flag: stop and pick it up (it takes a moment, like a player holding Interact) */
       const ef = G.flags[1 - this.team];
-      if (!this.carrying && ef.state !== "carried" && this.pos.distanceTo(ef.pos) < 1.3) {
+      if (ef && !this.carrying && ef.state !== "carried" && this.pos.distanceTo(ef.pos) < 1.3) {
         wish.set(0, 0, 0);
         inp.sprint = false;
       }
