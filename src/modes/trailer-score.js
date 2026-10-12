@@ -1,5 +1,7 @@
 /* ===== Trailer score: an original piece synthesized live with Web Audio (no samples).
    Choir chant over a drone -> synthwave drop -> lead theme -> breakdown -> title hit.
+   Same 120 BPM grid as the edit, driven in 16ths: a pulsing synth engine from the chant on, 16th
+   bass and hats, claps, fills and crashes, and a pulse that keeps running through the breakdown.
    score(ctx, out, t0) schedules everything on any AudioContext, including OfflineAudioContext for rendering to a file. ===== */
 (function () {
   const BPM = 120,
@@ -23,6 +25,12 @@
     ["C3", "E3", "G3"],
   ];
   const ROOT = ["D2", "Bb1", "F2", "C2"];
+  let timer = 0;
+  /** stop feeding a live score (the trailer ended early) */
+  function stop() {
+    if (timer) clearInterval(timer);
+    timer = 0;
+  }
   function score(ctx, out, t0) {
     const sr = ctx.sampleRate;
     /* ---------- shared buses ---------- */
@@ -258,6 +266,60 @@
       n.start(t);
       n.stop(t + 0.3);
       send(g, 0.7, 0.05);
+    }
+    function clap(t, vel = 1) {
+      for (const d of [0, 0.011, 0.024]) {
+        const n = noise(),
+          bp = ctx.createBiquadFilter();
+        bp.type = "bandpass";
+        bp.frequency.value = 1500;
+        bp.Q.value = 1.4;
+        const g = ctx.createGain();
+        gainEnv(g, t + d, 0.001, 0.16 * vel, 0, d === 0.024 ? 0.16 : 0.03);
+        n.connect(bp);
+        bp.connect(g);
+        n.start(t + d);
+        n.stop(t + d + 0.3);
+        send(g, 0.6, 0.25);
+      }
+    }
+    function crash(t, vel = 1) {
+      const n = noise(),
+        hp = ctx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = 4200;
+      const g = ctx.createGain();
+      gainEnv(g, t, 0.002, 0.12 * vel, 0, 1.8);
+      n.connect(hp);
+      hp.connect(g);
+      n.start(t);
+      n.stop(t + 2.2);
+      send(g, 0.6, 0.3);
+    }
+    /* driving 16th-note synth pulse (the synthwave engine under the drop) */
+    function pulse(t, note, vel = 0.06) {
+      const o = ctx.createOscillator(),
+        o2 = ctx.createOscillator(),
+        lp = ctx.createBiquadFilter(),
+        g = ctx.createGain();
+      o.type = "sawtooth";
+      o2.type = "square";
+      o.frequency.value = hz(note);
+      o2.frequency.value = hz(note) * 1.003;
+      lp.type = "lowpass";
+      lp.Q.value = 6;
+      lp.frequency.setValueAtTime(2400, t);
+      lp.frequency.exponentialRampToValueAtTime(380, t + 0.11);
+      gainEnv(g, t, 0.003, vel, 0, 0.1);
+      o.connect(lp);
+      o2.connect(lp);
+      lp.connect(g);
+      o.start(t);
+      o2.start(t);
+      o.stop(t + 0.16);
+      o2.stop(t + 0.16);
+      g.connect(shaper);
+      send(g, 0.15, 0.2);
     }
     function tom(t, note, vel = 1) {
       const o = ctx.createOscillator();
@@ -501,199 +563,307 @@
       send(g, 0.6, 0.3);
     }
 
-    /* ================= arrangement (beats at 120 BPM; bar = 2 s) ================= */
-    const B = b => at(b * BEAT);
-    /* A: chant (bars 1-8) */
-    drone(at(0), "D2", 16, 0.09);
-    drone(at(0), "A2", 16, 0.05);
-    /** @type {[string, number][]} */
-    const chant = [
-      ["D3", 2],
-      ["F3", 1],
-      ["G3", 1],
-      ["A3", 2],
-      ["G3", 1],
-      ["F3", 1],
-      ["E3", 1],
-      ["F3", 1],
-      ["D3", 2],
-      ["C3", 2],
-      ["D3", 2],
-    ];
-    let b = 0;
-    for (const [n, l] of chant) {
-      choir(B(b), n, l * BEAT, 0.15, "ah");
-      b += l;
-    }
-    b = 16;
-    /** @type {[string, number][]} */
-    const chant2 = [
-      ["D3", 2],
-      ["F3", 1],
-      ["G3", 1],
-      ["A3", 2],
-      ["C4", 1],
-      ["A3", 1],
-      ["G3", 2],
-      ["F3", 1],
-      ["E3", 1],
-      ["D3", 4],
-    ];
-    for (const [n, l] of chant2) {
-      choir(B(b), n, l * BEAT, 0.15, "ah");
-      choir(B(b), midi(n) + 7, l * BEAT, 0.09, "oh");
-      choir(B(b), midi(n) - 12, l * BEAT, 0.07, "oh");
-      b += l;
-    }
-    for (let k = 16; k < 32; k += 2) taiko(B(k), 0.35 + (k - 16) * 0.04);
-    for (const k of [29, 29.5, 30, 30.5, 31, 31.25, 31.5, 31.75]) taiko(B(k), 0.7);
-    riser(B(24), BEAT * 7.6, 0.32);
-    /* B: drop (bars 9-16) */
-    boom(B(32), 1.1);
-    braam(B(32), 3);
-    for (let bar = 8; bar < 16; bar++) {
-      const i = bar % 4,
-        t = bar * 4;
-      pad(
-        B(t),
-        PROG[i].map(n => midi(n) + 12),
-        BAR,
-        0.045
-      );
-      choir(B(t), midi(PROG[i][0]) + 12, BAR, 0.045, "ah", 0.8);
-      for (let s = 0; s < 8; s++)
-        bass(B(t + s * 0.5), midi(ROOT[i]) + (s % 4 === 2 ? 12 : 0), BEAT * 0.48, s % 2 ? 0.75 : 1);
-      for (let q = 0; q < 4; q++) {
-        kick(B(t + q));
-        hat(B(t + q + 0.5), 0.8, q === 3);
-        if (q % 2) snare(B(t + q));
+    /* Live playback queues every note and creates its nodes only a few seconds before it sounds: built
+       all at once, the thousands of idle filters and gains would overload the audio thread. Offline
+       rendering builds everything up front. */
+    const raw = {
+      choir,
+      drone,
+      taiko,
+      kick,
+      snare,
+      hat,
+      clap,
+      crash,
+      pulse,
+      tom,
+      bass,
+      pad,
+      pluck,
+      lead,
+      boom,
+      braam,
+      riser,
+      whoosh,
+    };
+    const live = typeof OfflineAudioContext === "undefined" || !(ctx instanceof OfflineAudioContext);
+    /** @type {[number, Function, any[]][]} */
+    const queue = [];
+    const I = live
+      ? Object.fromEntries(
+          Object.entries(raw).map(([k, fn]) => [k, (t, ...args) => queue.push([t, fn, args])])
+        )
+      : raw;
+    arrange(/** @type {typeof raw} */ (I));
+    function arrange({
+      choir,
+      drone,
+      taiko,
+      kick,
+      snare,
+      hat,
+      clap,
+      crash,
+      pulse,
+      tom,
+      bass,
+      pad,
+      pluck,
+      lead,
+      boom,
+      braam,
+      riser,
+      whoosh,
+    }) {
+      /* ================= arrangement (beats at 120 BPM; bar = 2 s) ================= */
+      const B = b => at(b * BEAT);
+      /* A: chant (bars 1-8) */
+      drone(at(0), "D2", 16, 0.09);
+      drone(at(0), "A2", 16, 0.05);
+      /** @type {[string, number][]} */
+      const chant = [
+        ["D3", 2],
+        ["F3", 1],
+        ["G3", 1],
+        ["A3", 2],
+        ["G3", 1],
+        ["F3", 1],
+        ["E3", 1],
+        ["F3", 1],
+        ["D3", 2],
+        ["C3", 2],
+        ["D3", 2],
+      ];
+      let b = 0;
+      for (const [n, l] of chant) {
+        choir(B(b), n, l * BEAT, 0.15, "ah");
+        b += l;
       }
-      const ar = [...PROG[i], ...PROG[i].map(n => midi(n) + 12)].map(n =>
-        typeof n === "string" ? midi(n) : n
-      );
-      for (let s = 0; s < 16; s++)
-        if (bar >= 10) pluck(B(t + s * 0.25), ar[[0, 1, 2, 3, 4, 5, 4, 3][s % 8]] + 12, 0.07);
-    }
-    /* C: theme (bars 17-24) */
-    const theme = [
-      ["A4", 1],
-      ["D5", 1],
-      ["E5", 0.5],
-      ["F5", 1.5],
-      ["E5", 1],
-      ["D5", 1],
-      ["C5", 0.5],
-      ["D5", 1.5],
-      ["C5", 1],
-      ["A4", 1],
-      ["F4", 0.5],
-      ["A4", 1.5],
-      ["G4", 2],
-      ["E4", 1],
-      ["G4", 1],
-      ["A4", 1],
-      ["D5", 1],
-      ["E5", 0.5],
-      ["F5", 1.5],
-      ["G5", 1],
-      ["F5", 1],
-      ["E5", 0.5],
-      ["D5", 1.5],
-      ["C5", 1],
-      ["F5", 1],
-      ["A5", 1],
-      ["G5", 1],
-      ["E5", 3],
-      [null, 1],
-    ];
-    lead(B(64), theme, 0.1);
-    for (let bar = 16; bar < 24; bar++) {
-      const i = bar % 4,
-        t = bar * 4;
-      pad(
-        B(t),
-        PROG[i].map(n => midi(n) + 12),
-        BAR,
-        0.05
-      );
-      choir(B(t), midi(PROG[i][1]) + 12, BAR, 0.045, "oh", 0.8);
-      choir(B(t), midi(PROG[i][0]), BAR, 0.045, "ah", 0.8);
-      for (let s = 0; s < 8; s++)
-        bass(B(t + s * 0.5), midi(ROOT[i]) + (s % 4 === 2 ? 12 : 0), BEAT * 0.48, s % 2 ? 0.75 : 1);
-      for (let q = 0; q < 4; q++) {
-        kick(B(t + q));
-        hat(B(t + q + 0.5), 0.9, q === 3);
-        hat(B(t + q + 0.25), 0.4);
-        hat(B(t + q + 0.75), 0.4);
-        if (q % 2) snare(B(t + q));
+      b = 16;
+      /** @type {[string, number][]} */
+      const chant2 = [
+        ["D3", 2],
+        ["F3", 1],
+        ["G3", 1],
+        ["A3", 2],
+        ["C4", 1],
+        ["A3", 1],
+        ["G3", 2],
+        ["F3", 1],
+        ["E3", 1],
+        ["D3", 4],
+      ];
+      for (const [n, l] of chant2) {
+        choir(B(b), n, l * BEAT, 0.15, "ah");
+        choir(B(b), midi(n) + 7, l * BEAT, 0.09, "oh");
+        choir(B(b), midi(n) - 12, l * BEAT, 0.07, "oh");
+        b += l;
       }
-      if (bar % 4 === 3) {
-        tom(B(t + 3), "A2");
-        tom(B(t + 3.25), "F2");
-        tom(B(t + 3.5), "D2");
-        tom(B(t + 3.75), "A1");
+      for (let k = 16; k < 32; k += 2) taiko(B(k), 0.35 + (k - 16) * 0.04);
+      /* the engine starts early: a filtered 16th pulse and ticking hats under the chant */
+      for (let s = 64; s < 128; s++) pulse(B(s / 4), s % 8 === 6 ? "D3" : "D2", 0.02 + (s - 64) * 0.0007);
+      for (let k = 20; k < 32; k += 0.5) hat(B(k), 0.35 + (k - 20) * 0.03);
+      for (let k = 24; k < 29; k++) taiko(B(k + 1), 0.5);
+      for (const k of [29, 29.5, 30, 30.5, 31, 31.25, 31.5, 31.75]) taiko(B(k), 0.7);
+      for (let k = 30; k < 32; k += 0.25) snare(B(k), 0.25 + (k - 30) * 0.3);
+      riser(B(24), BEAT * 7.6, 0.32);
+      /* B: drop (bars 9-16) */
+      boom(B(32), 1.1);
+      braam(B(32), 3);
+      for (let bar = 8; bar < 16; bar++) {
+        const i = bar % 4,
+          t = bar * 4;
+        pad(
+          B(t),
+          PROG[i].map(n => midi(n) + 12),
+          BAR,
+          0.045
+        );
+        choir(B(t), midi(PROG[i][0]) + 12, BAR, 0.045, "ah", 0.8);
+        /* 16th-note bass and pulse: twice the motion of the old 8ths */
+        for (let s = 0; s < 16; s++) {
+          bass(
+            B(t + s * 0.25),
+            midi(ROOT[i]) + (s % 8 === 4 || s % 8 === 7 ? 12 : 0),
+            BEAT * 0.23,
+            s % 2 ? 0.6 : 1
+          );
+          pulse(B(t + s * 0.25), midi(ROOT[i]) + 24 + (s % 4 === 3 ? 7 : 0), 0.035);
+        }
+        if (bar % 4 === 0) crash(B(t), 0.9);
+        for (let q = 0; q < 4; q++) {
+          kick(B(t + q));
+          if (q === 3 || (q === 1 && bar % 2)) kick(B(t + q + 0.75), 0.6);
+          hat(B(t + q + 0.5), 0.9, q === 3);
+          hat(B(t + q + 0.25), 0.45);
+          hat(B(t + q + 0.75), 0.45);
+          if (q % 2) {
+            snare(B(t + q));
+            clap(B(t + q), 0.8);
+          }
+        }
+        if (bar % 2 === 1) for (const f of [3.5, 3.625, 3.75, 3.875]) snare(B(t + f), 0.45);
+        const ar = [...PROG[i], ...PROG[i].map(n => midi(n) + 12)].map(n =>
+          typeof n === "string" ? midi(n) : n
+        );
+        for (let s = 0; s < 16; s++)
+          pluck(B(t + s * 0.25), ar[[0, 1, 2, 3, 4, 5, 4, 3][s % 8]] + 12, bar >= 10 ? 0.07 : 0.05);
       }
-    }
-    /* D: breakdown (bars 25-28), half-time drums and a full choir */
-    boom(B(96), 0.8);
-    const BD = [
-      ["G2", "Bb2", "D3"],
-      ["Bb2", "D3", "F3"],
-      ["A2", "C#3", "E3"],
-      ["A2", "C#3", "E3"],
-    ];
-    for (let k = 0; k < 4; k++) {
-      const t = 96 + k * 4;
-      for (const n of BD[k]) {
-        choir(B(t), midi(n) + 12, BAR, 0.08, "ah");
-        choir(B(t), midi(n), BAR, 0.06, "oh");
-      }
-      pad(
-        B(t),
-        BD[k].map(n => midi(n) + 12),
-        BAR,
-        0.03
-      );
-      taiko(B(t), 0.9);
-      taiko(B(t + 2.5), 0.6);
-      snare(B(t + 2), 0.6);
-      bass(B(t), midi(BD[k][0]) - 12, BAR * 0.9, 0.7);
-    }
-    lead(
-      B(104),
-      [
-        ["E5", 2],
-        ["F5", 1],
+      /* C: theme (bars 17-24) */
+      const theme = [
+        ["A4", 1],
+        ["D5", 1],
+        ["E5", 0.5],
+        ["F5", 1.5],
+        ["E5", 1],
+        ["D5", 1],
+        ["C5", 0.5],
+        ["D5", 1.5],
+        ["C5", 1],
+        ["A4", 1],
+        ["F4", 0.5],
+        ["A4", 1.5],
+        ["G4", 2],
+        ["E4", 1],
+        ["G4", 1],
+        ["A4", 1],
+        ["D5", 1],
+        ["E5", 0.5],
+        ["F5", 1.5],
         ["G5", 1],
-        ["A5", 3],
-        ["C#5", 1],
-      ],
-      0.08
-    );
-    riser(B(104), BEAT * 7.8, 0.38);
-    /* E: title hit (bars 29-32) */
-    boom(B(112), 1.3);
-    braam(B(112), 4.5, 0.26);
-    for (const n of ["D3", "F3", "A3", "E4"]) {
-      choir(B(112), n, BAR * 2, 0.11, "ah");
-      choir(B(112), midi(n) - 12, BAR * 2, 0.07, "oh");
+        ["F5", 1],
+        ["E5", 0.5],
+        ["D5", 1.5],
+        ["C5", 1],
+        ["F5", 1],
+        ["A5", 1],
+        ["G5", 1],
+        ["E5", 3],
+        [null, 1],
+      ];
+      lead(B(64), theme, 0.1);
+      for (let bar = 16; bar < 24; bar++) {
+        const i = bar % 4,
+          t = bar * 4;
+        pad(
+          B(t),
+          PROG[i].map(n => midi(n) + 12),
+          BAR,
+          0.05
+        );
+        choir(B(t), midi(PROG[i][1]) + 12, BAR, 0.045, "oh", 0.8);
+        choir(B(t), midi(PROG[i][0]), BAR, 0.045, "ah", 0.8);
+        for (let s = 0; s < 16; s++) {
+          bass(
+            B(t + s * 0.25),
+            midi(ROOT[i]) + (s % 8 === 4 || s % 8 === 7 ? 12 : 0),
+            BEAT * 0.23,
+            s % 2 ? 0.6 : 1
+          );
+          pulse(B(t + s * 0.25), midi(ROOT[i]) + 24 + (s % 4 === 3 ? 7 : 0), 0.03);
+        }
+        if (bar % 4 === 0) crash(B(t), 1);
+        for (let q = 0; q < 4; q++) {
+          kick(B(t + q));
+          if (q === 3) kick(B(t + q + 0.75), 0.6);
+          hat(B(t + q + 0.5), 0.9, q === 3);
+          hat(B(t + q + 0.25), 0.45);
+          hat(B(t + q + 0.75), 0.45);
+          if (q % 2) {
+            snare(B(t + q));
+            clap(B(t + q), 0.8);
+          }
+        }
+        if (bar % 4 === 3) {
+          tom(B(t + 3), "A2");
+          tom(B(t + 3.25), "F2");
+          tom(B(t + 3.5), "D2");
+          tom(B(t + 3.75), "A1");
+        }
+      }
+      /* D: breakdown (bars 25-28), half-time drums and a full choir */
+      boom(B(96), 0.8);
+      const BD = [
+        ["G2", "Bb2", "D3"],
+        ["Bb2", "D3", "F3"],
+        ["A2", "C#3", "E3"],
+        ["A2", "C#3", "E3"],
+      ];
+      for (let k = 0; k < 4; k++) {
+        const t = 96 + k * 4;
+        for (const n of BD[k]) {
+          choir(B(t), midi(n) + 12, BAR, 0.08, "ah");
+          choir(B(t), midi(n), BAR, 0.06, "oh");
+        }
+        pad(
+          B(t),
+          BD[k].map(n => midi(n) + 12),
+          BAR,
+          0.03
+        );
+        taiko(B(t), 0.9);
+        taiko(B(t + 2.5), 0.6);
+        snare(B(t + 2), 0.6);
+        clap(B(t + 2), 0.6);
+        bass(B(t), midi(BD[k][0]) - 12, BAR * 0.9, 0.7);
+        /* the pulse keeps running through the breakdown so the energy never drops out */
+        for (let s = 0; s < 16; s++)
+          pulse(B(t + s * 0.25), midi(BD[k][0]) + 12 + (s % 4 === 3 ? 7 : 0), 0.022 + k * 0.006);
+        for (let s = 0; s < 8; s++) hat(B(t + s * 0.5 + 0.5), 0.3 + k * 0.1);
+      }
+      lead(
+        B(104),
+        [
+          ["E5", 2],
+          ["F5", 1],
+          ["G5", 1],
+          ["A5", 3],
+          ["C#5", 1],
+        ],
+        0.08
+      );
+      riser(B(104), BEAT * 7.8, 0.38);
+      for (let k = 108; k < 112; k += 0.25) snare(B(k), 0.2 + (k - 108) * 0.17);
+      /* E: title hit (bars 29-32) */
+      boom(B(112), 1.3);
+      crash(B(112), 1.2);
+      braam(B(112), 4.5, 0.26);
+      for (const n of ["D3", "F3", "A3", "E4"]) {
+        choir(B(112), n, BAR * 2, 0.11, "ah");
+        choir(B(112), midi(n) - 12, BAR * 2, 0.07, "oh");
+      }
+      pad(B(112), ["D4", "F4", "A4", "E5"], BAR * 2, 0.05);
+      drone(B(112), "D2", BAR * 3, 0.1);
+      for (const k of [120, 121, 122, 122.5, 123]) taiko(B(k), 1);
+      for (const k of [120, 121, 122, 122.5, 123]) {
+        bass(B(k), midi("D2"), BEAT * 0.4, 1);
+      }
+      boom(B(124), 1.4);
+      braam(B(124), 3.5, 0.3);
+      for (const n of ["D3", "A3", "D4", "F4"]) choir(B(124), n, BAR * 1.5, 0.1, "ah");
+      /* scene-change whooshes */
+      for (const k of [8, 16, 20, 24, 28, 36, 40, 44, 48, 52, 56, 60, 72, 80, 88]) whoosh(B(k) - 0.25, 0.12);
     }
-    pad(B(112), ["D4", "F4", "A4", "E5"], BAR * 2, 0.05);
-    drone(B(112), "D2", BAR * 3, 0.1);
-    for (const k of [120, 121, 122, 122.5, 123]) taiko(B(k), 1);
-    for (const k of [120, 121, 122, 122.5, 123]) {
-      bass(B(k), midi("D2"), BEAT * 0.4, 1);
+    if (live) {
+      queue.sort((x, y) => x[0] - y[0]);
+      let qi = 0;
+      const flush = () => {
+        const until = ctx.currentTime + 4;
+        while (qi < queue.length && queue[qi][0] < until) {
+          const [t, fn, args] = queue[qi++];
+          fn(t, ...args);
+        }
+        if (qi >= queue.length) stop();
+      };
+      stop();
+      flush();
+      if (qi < queue.length) timer = setInterval(flush, 250);
     }
-    boom(B(124), 1.4);
-    braam(B(124), 3.5, 0.3);
-    for (const n of ["D3", "A3", "D4", "F4"]) choir(B(124), n, BAR * 1.5, 0.1, "ah");
-    /* scene-change whooshes */
-    for (const k of [8, 16, 20, 24, 28, 36, 40, 44, 48, 52, 56, 60, 72, 80, 88]) whoosh(B(k) - 0.25, 0.12);
     master.gain.setValueAtTime(0.82, t0 + LENGTH - 1.2);
     master.gain.linearRampToValueAtTime(0, t0 + LENGTH);
     return LENGTH;
   }
-  const api = { score, BPM, BEAT, BAR, LENGTH };
+  const api = { score, stop, BPM, BEAT, BAR, LENGTH };
   if (window.KA) window.KA.trailerScore = api;
   else window.TRAILER_SCORE = api;
 })();

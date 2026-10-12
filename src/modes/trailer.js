@@ -754,18 +754,34 @@
       },
     },
     {
+      /* "Nothing is safe": the east lane's cover comes apart on the beat */
       t: 44,
-      name: "ctf-flank",
+      name: "ctf-destruction",
       ctf: true,
       setup() {
-        pickFocus(true);
+        K.resetDestruction();
+        this.hits = [
+          { at: 0.5, p: V(13.5, 0.6, 2), r: 3.2 },
+          { at: 1.5, p: V(20, 0.6, 5), r: 3 },
+          { at: 2.5, p: V(21.6, 0.6, 6.2), r: 3.2 },
+          { at: 3.25, p: V(18.6, 0.6, 3.6), r: 4.2 },
+        ];
+        for (const h of this.hits) h.done = false;
       },
       update(lt, dt) {
-        pickFocus();
-        if (!focus) return;
-        const p = focus.body.pos,
-          y = focus.body.yaw;
-        cam(V(p.x + Math.cos(y) * 9, p.y + 2.4, p.z - Math.sin(y) * 9), V(p.x, p.y + 1.2, p.z), 48, 0, 3, dt);
+        for (const h of this.hits)
+          if (!h.done && lt >= h.at) {
+            h.done = true;
+            K.blast(h.p, 0xffa040, 6);
+            K.shock(h.p);
+            K.dust(h.p, 30, 3, 1.4, 0.8);
+            K.sfx("boom", 1);
+            K.damageRadius(h.p, h.r, 6000, true);
+            shakeT = 0.45;
+          }
+        /* a slow push in along the lane */
+        const k = ease(lt / 4);
+        cam(V(9.5 + k * 1.5, 2.6 - k * 0.4, -4.5 + k * 1.2), V(18.5, 0.9, 4.4), 50, 0, 0, dt);
       },
     },
     {
@@ -946,6 +962,7 @@
   }
   function cleanup() {
     TR.active = false;
+    SC.stop();
     if (music) {
       try {
         music.gain.setTargetAtTime(0, K.AC.currentTime, 0.05);

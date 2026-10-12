@@ -56,7 +56,7 @@ interface HostServices {
 
 /** Members modes attach to KA after the engine loads. */
 interface KAExtensions {
-  trailerScore: { score(ctx: BaseAudioContext, out: AudioNode, t0: number): number; BPM: number; BEAT: number; BAR: number; LENGTH: number };
+  trailerScore: { score(ctx: BaseAudioContext, out: AudioNode, t0: number): number; stop(): void; BPM: number; BEAT: number; BAR: number; LENGTH: number };
   trailer: {
     active: boolean;
     recording: boolean;
