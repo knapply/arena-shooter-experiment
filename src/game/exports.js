@@ -56,6 +56,13 @@ const KA_API = {
   get myPod() {
     return myPod;
   },
+  /** where the menu backdrop camera is in its orbit (tests pin it for a repeatable shot) */
+  get menuT() {
+    return menuT;
+  },
+  set menuT(v) {
+    menuT = v;
+  },
   POWER_ROTATION,
   NADES,
   NADE_TUNE,

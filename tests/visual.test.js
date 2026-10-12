@@ -81,6 +81,8 @@ async function compare(p, a, b) {
     await p.addStyleTag({ content: "#fps { visibility: hidden !important; }" });
     await p.evaluate(() => {
       KA.CON.run("timescale 0");
+      /* the backdrop camera orbits with time: pin it so every machine frames the same view */
+      KA.menuT = 1.2;
       document.getElementById("menu").style.visibility = "hidden";
       /* the practice drones wander (and bump into each other) on their own: leave them out */
       KA.hideBots();
