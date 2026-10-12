@@ -42,7 +42,8 @@ function resize() {
 addEventListener("resize", resize);
 resize();
 
-scene.add(new THREE.HemisphereLight(0xb4cbe0, 0x5a4a3c, 1.35));
+const hemi = new THREE.HemisphereLight(0xb4cbe0, 0x5a4a3c, 1.35);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffe2c0, 2.3);
 sun.position.set(30, 50, 18);
 sun.castShadow = true;
@@ -51,9 +52,12 @@ Object.assign(sun.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, n
 sun.shadow.bias = -0.0006;
 scene.add(sun);
 const _skyP = new THREE.Vector3();
+/* sky tint: cutscenes grade the sky with the scene (1,1,1 is the normal sky) */
+const skyTint = new THREE.Vector3(1, 1, 1);
 {
   const g = new THREE.SphereGeometry(40, 32, 16);
   const m = new THREE.ShaderMaterial({
+    uniforms: { tint: { value: skyTint } },
     side: THREE.BackSide,
     depthWrite: false,
     depthTest: false,
@@ -61,7 +65,7 @@ const _skyP = new THREE.Vector3();
     vertexShader:
       "varying vec3 v;void main(){v=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
     fragmentShader:
-      "varying vec3 v;void main(){float h=v.y;vec3 lo=vec3(.08,.12,.14);vec3 mid=vec3(.33,.27,.24);vec3 hi=vec3(.06,.09,.13);vec3 c=h<0.08?mix(lo,mid,smoothstep(-.2,.08,h)):mix(mid,hi,smoothstep(.08,.6,h));gl_FragColor=vec4(pow(c,vec3(2.2))*1.5,1.);}",
+      "uniform vec3 tint;varying vec3 v;void main(){float h=v.y;vec3 lo=vec3(.08,.12,.14);vec3 mid=vec3(.33,.27,.24);vec3 hi=vec3(.06,.09,.13);vec3 c=h<0.08?mix(lo,mid,smoothstep(-.2,.08,h)):mix(mid,hi,smoothstep(.08,.6,h));gl_FragColor=vec4(pow(c,vec3(2.2))*1.5*tint,1.);}",
   }); /* the sky follows whichever camera renders it and draws behind everything, so it is never clipped by the far plane */
   const sky = new THREE.Mesh(g, m);
   sky.renderOrder = -10;

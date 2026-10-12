@@ -63,7 +63,16 @@ function tone(t, type, f0, f1, dur, peak, attack) {
 const SFX_LAST = {};
 let sfxVoices = 0,
   sfxVoiceT = 0;
+/* trailer capture listens to sound effects instead of playing them, then renders them to a file */
+let SFX_TAP = null;
+function sfxTap(fn) {
+  SFX_TAP = fn;
+}
 function sfx(kind, vol = 1) {
+  if (SFX_TAP) {
+    if (vol > 0.01) SFX_TAP(kind, vol);
+    return;
+  }
   if (!AC || vol <= 0.01) return;
   const t = AC.currentTime;
   if (t - (SFX_LAST[kind] || -1) < 0.016) return;
@@ -194,4 +203,43 @@ function sfx(kind, vol = 1) {
 }
 function distVol(p, max = 40) {
   return clamp(1 - camera.position.distanceTo(p) / max, 0, 1);
+}
+
+/**
+ * schedule sound effects ([seconds, kind, volume] each) into an OfflineAudioContext before it renders,
+ * through the same synthesis the game uses. Call the returned function once rendering finishes.
+ * @param {OfflineAudioContext} ctx
+ * @param {AudioNode} out
+ * @param {[number, string, number][]} list
+ */
+function renderSfx(ctx, out, list, gain = 1) {
+  const keep = { AC, master, NOISE, tap: SFX_TAP };
+  SFX_TAP = null;
+  AC = /** @type {any} */ (ctx);
+  NOISE = null;
+  master = ctx.createGain();
+  master.gain.value = gain;
+  master.connect(out);
+  for (const k in SFX_LAST) delete SFX_LAST[k];
+  sfxVoices = 0;
+  sfxVoiceT = -1;
+  /* the offline context can only pause on 128-frame boundaries; group sounds by the boundary they start on */
+  const groups = new Map();
+  for (const [t, kind, vol] of list) {
+    const f = Math.round((t * ctx.sampleRate) / 128);
+    if ((f * 128) / ctx.sampleRate >= ctx.length / ctx.sampleRate - 0.05) continue;
+    if (!groups.has(f)) groups.set(f, []);
+    groups.get(f).push([kind, vol]);
+  }
+  for (const [f, evs] of groups)
+    ctx.suspend((f * 128) / ctx.sampleRate).then(() => {
+      for (const [kind, vol] of evs) sfx(kind, vol);
+      ctx.resume();
+    });
+  return () => {
+    AC = keep.AC;
+    master = keep.master;
+    NOISE = keep.NOISE;
+    SFX_TAP = keep.tap;
+  };
 }

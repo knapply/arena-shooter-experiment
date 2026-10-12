@@ -62,10 +62,15 @@ interface KAExtensions {
     recording: boolean;
     readonly t: number;
     END: number;
+    /** what went wrong in the last run: pilots hitting walls, the camera inside geometry, and an event log */
+    diag: { bumps: any[]; cam: any[]; log: any[] };
+    /** sound effects heard during a capture: [seconds, kind, volume] */
+    sfxLog: [number, string, number][];
+    shots?: { t: number; name: string }[];
     start(): void;
     stop(): void;
     record(): void;
-    step(dt: number): number;
+    step(dt: number, render?: boolean): number;
     seek(t: number): void;
   };
 }

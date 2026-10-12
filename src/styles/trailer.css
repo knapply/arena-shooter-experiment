@@ -6,11 +6,17 @@
   z-index: 30;
   font-family: var(--f-display);
 }
+#trFade {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+}
 #trailer .lb {
   position: absolute;
   left: 0;
   right: 0;
-  height: 11.5vh;
+  height: 12.8vh;
   background: #000;
 }
 #trailer .lb.top {
@@ -53,9 +59,30 @@
   margin-top: 0.7em;
   color: #cfdbe0;
 }
-#trCard.punch .big {
-  font-size: clamp(48px, 11vw, 170px);
-  letter-spacing: 0.2em;
+#trCard.low {
+  top: auto;
+  bottom: 17vh;
+}
+/* lower-third supers over the live match, so the action stays clear */
+#trCard.lower {
+  top: auto;
+  bottom: 16vh;
+  left: 6vw;
+  right: auto;
+  text-align: left;
+  transform-origin: left bottom;
+}
+#trCard.lower .big {
+  font-size: clamp(26px, 4.6vw, 70px);
+}
+/* black interstitial cards: one line, tight and bright */
+#trCard.black .big {
+  font-size: clamp(30px, 6.2vw, 96px);
+  letter-spacing: inherit;
+  color: #f6f9fb;
+  text-shadow:
+    0 0 28px #ffb34733,
+    0 0 90px #62cdff22;
 }
 #trTitle {
   position: absolute;
@@ -71,14 +98,13 @@
   font-size: clamp(34px, 7.4vw, 124px);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #f4f8fa;
-  text-shadow:
-    0 0 40px #ffb34766,
-    0 0 120px #62cdff33;
-}
-#trTitle .logo em {
-  font-style: normal;
-  color: #ffb347;
+  /* a light sweep crosses the logo (the trailer moves background-position) */
+  color: transparent;
+  background: linear-gradient(105deg, #e9eff2 0 42%, #fff6e6 47%, #ffd08a 50%, #fff6e6 53%, #e9eff2 58% 100%)
+    140% 50% / 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 30px #ffb34755) drop-shadow(0 0 90px #62cdff2a);
 }
 #trTitle .tag {
   font: 600 clamp(12px, 1.6vw, 20px) var(--f-mono);
@@ -86,6 +112,14 @@
   text-transform: uppercase;
   color: #9fe1ff;
   margin-top: 1.2em;
+  opacity: 0;
+}
+#trTitle .foot {
+  font: 500 clamp(11px, 1.2vw, 15px) var(--f-mono);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #b9c7cd;
+  margin-top: 1.4em;
   opacity: 0;
 }
 #trFlash {
@@ -115,7 +149,7 @@
 #trailer .trnav {
   position: absolute;
   right: 16px;
-  top: calc(11.5vh + 12px);
+  top: calc(12.8vh + 12px);
   display: flex;
   gap: 8px;
   pointer-events: auto;

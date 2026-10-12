@@ -13,6 +13,10 @@ const GFX = {
   env: null,
   failed: false,
   lastKey: "",
+  b3: null,
+  b4: null,
+  /* cinematic look (trailer and cutscenes): see CINE.look */
+  look: null,
 };
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.outputEncoding = THREE.LinearEncoding;
@@ -33,6 +37,33 @@ const blurMat = new THREE.ShaderMaterial({
   fragmentShader:
     "uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb*.227027;c+=texture2D(t,vUv+dir*1.3846).rgb*.316216;c+=texture2D(t,vUv-dir*1.3846).rgb*.316216;c+=texture2D(t,vUv+dir*3.2308).rgb*.07027;c+=texture2D(t,vUv-dir*3.2308).rgb*.07027;gl_FragColor=vec4(c,1.);}",
 });
+/* depth of field: each pixel's color weighted by how out of focus it is (alpha = weight), so sharp
+   foreground subjects don't bleed into the blurred background */
+const DOF_COC =
+  "uniform sampler2D tD;uniform vec4 dof;uniform vec2 clip;float lz(vec2 uv){float d=texture2D(tD,uv).x;return clip.x*clip.y/(clip.y-d*(clip.y-clip.x));}float coc(vec2 uv){float z=lz(uv);float k=clamp(abs(z-dof.y)/dof.z,0.,1.);if(z<dof.y)k=min(1.,k*(1.+dof.w));return smoothstep(0.,1.,k);}";
+const cocMat = new THREE.ShaderMaterial({
+  uniforms: {
+    t: { value: null },
+    tD: { value: null },
+    dof: { value: new THREE.Vector4() },
+    clip: { value: new THREE.Vector2(0.1, 500) },
+  },
+  vertexShader: FSV,
+  depthTest: false,
+  depthWrite: false,
+  fragmentShader:
+    "uniform sampler2D t;varying vec2 vUv;" +
+    DOF_COC +
+    "void main(){float k=coc(vUv);gl_FragColor=vec4(texture2D(t,vUv).rgb*k,k);}",
+});
+const blur4Mat = new THREE.ShaderMaterial({
+  uniforms: { t: { value: null }, dir: { value: new THREE.Vector2() } },
+  vertexShader: FSV,
+  depthTest: false,
+  depthWrite: false,
+  fragmentShader:
+    "uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;void main(){vec4 c=texture2D(t,vUv)*.227027;c+=texture2D(t,vUv+dir*1.3846)*.316216;c+=texture2D(t,vUv-dir*1.3846)*.316216;c+=texture2D(t,vUv+dir*3.2308)*.07027;c+=texture2D(t,vUv-dir*3.2308)*.07027;gl_FragColor=c;}",
+});
 const compMat = new THREE.ShaderMaterial({
   depthTest: false,
   depthWrite: false,
@@ -49,9 +80,20 @@ const compMat = new THREE.ShaderMaterial({
     vig: { value: 0.3 },
     grain: { value: 0.04 },
     time: { value: 0 },
+    /* cinematic look: depth of field (needs tD and tF), split-tone grade, lens fringing, anamorphic streaks */
+    cine: { value: 0 },
+    tD: { value: null },
+    tF: { value: null },
+    dof: { value: new THREE.Vector4(0, 10, 6, 0) },
+    clip: { value: new THREE.Vector2(0.1, 500) },
+    grade: { value: 0 },
+    ca: { value: 0 },
+    streak: { value: 0 },
   },
   fragmentShader: [
     "uniform sampler2D tS;uniform sampler2D tB;uniform vec2 texel;uniform float fx;uniform float sharp;uniform float bloom;uniform float expo;uniform float sat;uniform float vig;uniform float grain;uniform float time;varying vec2 vUv;",
+    "uniform float cine;uniform sampler2D tF;uniform float grade;uniform float ca;uniform float streak;",
+    DOF_COC,
     "vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}",
     "float luma(vec3 c){return dot(c,vec3(.299,.587,.114));}",
     "vec3 S(vec2 uv){return aces(texture2D(tS,uv).rgb*expo);}",
@@ -62,10 +104,21 @@ const compMat = new THREE.ShaderMaterial({
     " if(lb<lmin||lb>lmax)return a;return b;}",
     "void main(){vec2 uv=vUv;vec3 c=fx>.5?fxaa(uv):S(uv);",
     " if(sharp>.001){vec3 n=S(uv-vec2(0.,texel.y)),s=S(uv+vec2(0.,texel.y)),e=S(uv+vec2(texel.x,0.)),w=S(uv-vec2(texel.x,0.));vec3 mn=min(c,min(min(n,s),min(e,w))),mx=max(c,max(max(n,s),max(e,w)));c=clamp(c+(4.*c-n-s-e-w)*sharp*.3,mn,mx);}",
+    " vec2 q=uv-.5;",
+    " if(cine>.5){",
+    /* lens fringing: red and blue sampled apart toward the frame edges */
+    "  if(ca>0.){vec2 o2=q*dot(q,q)*ca;c.r=S(uv+o2).r;c.b=S(uv-o2).b;}",
+    /* depth of field: blend toward a blurred copy by circle of confusion (dof = amount, focus m, range m, near blur) */
+    "  if(dof.x>0.){vec4 F=texture2D(tF,uv);float k=coc(uv)*dof.x*smoothstep(0.,.25,F.a);c=mix(c,aces(F.rgb/max(F.a,.001)*expo),k);}",
+    /* anamorphic streaks: bloom smeared sideways, tinted cool */
+    "  if(streak>0.){vec3 s2=vec3(0.);for(int i=1;i<7;i++){float f=float(i)*.022;s2+=(texture2D(tB,uv+vec2(f,0.)).rgb+texture2D(tB,uv-vec2(f,0.)).rgb)*(1.-float(i)/7.);}c+=aces(s2*expo*.18)*vec3(.55,.8,1.)*streak;}",
+    " }",
     " c+=aces(texture2D(tB,uv).rgb*expo)*bloom;",
     " float l=luma(c);c=max(mix(vec3(l),c,sat),0.);",
-    " vec2 q=uv-.5;c*=1.-vig*smoothstep(.3,.95,length(q)*1.25);",
+    " c*=1.-vig*smoothstep(.3,.95,length(q)*1.25);",
     " float g=fract(sin(dot(uv+fract(time),vec2(12.9898,78.233)))*43758.5453);vec3 o=pow(clamp(c,0.,1.),vec3(1./2.2));",
+    /* split-tone grade: cool shadows, warm highlights, a gentle S-curve */
+    " if(cine>.5&&grade>0.){float L=luma(o);o+=grade*((1.-L)*(1.-L)*vec3(-.035,.012,.05)+L*L*vec3(.05,.012,-.045));o=mix(o,o*o*(3.-2.*o),grade*.35);}",
     " gl_FragColor=vec4(o+(g-.5)*grain*.6,1.);}" /* grain after gamma so dark areas are not swamped by noise */,
   ].join("\n"),
 });
@@ -84,10 +137,11 @@ function gfxResize() {
   const w = Math.max(1, Math.round(W * s)),
     h = Math.max(1, Math.round(H * s));
   const msaa = SET.aa === "msaa" && GFX.webgl2 && THREE.WebGLMultisampleRenderTarget;
-  const key = w + "x" + h + (msaa ? "m" : "") + (SET.bloom > 0 ? "b" : "");
+  const wantDof = !!(GFX.look && GFX.look.dof > 0) && GFX.webgl2;
+  const key = w + "x" + h + (msaa && !wantDof ? "m" : "") + (SET.bloom > 0 ? "b" : "") + (wantDof ? "d" : "");
   if (key === GFX.lastKey && GFX.rt) return;
   GFX.lastKey = key;
-  for (const k of ["rt", "b1", "b2"])
+  for (const k of ["rt", "b1", "b2", "b3", "b4"])
     if (GFX[k]) {
       GFX[k].dispose();
       GFX[k] = null;
@@ -101,15 +155,27 @@ function gfxResize() {
     stencilBuffer: false,
   };
   try {
-    GFX.rt = msaa
-      ? new THREE.WebGLMultisampleRenderTarget(w, h, opt)
-      : new THREE.WebGLRenderTarget(w, h, opt);
-    if (msaa) GFX.rt.samples = 4;
+    /* depth of field reads the depth buffer, which a multisampled target can't share */
+    GFX.rt =
+      msaa && !wantDof
+        ? new THREE.WebGLMultisampleRenderTarget(w, h, opt)
+        : new THREE.WebGLRenderTarget(w, h, opt);
+    if (msaa && !wantDof) GFX.rt.samples = 4;
+    if (wantDof) {
+      GFX.rt.depthTexture = new THREE.DepthTexture(w, h);
+      GFX.rt.depthTexture.type = THREE.UnsignedIntType;
+    }
     const bo = Object.assign({}, opt, { depthBuffer: false });
     const bw = Math.max(1, w >> 2),
       bh = Math.max(1, h >> 2);
     GFX.b1 = new THREE.WebGLRenderTarget(bw, bh, bo);
     GFX.b2 = new THREE.WebGLRenderTarget(bw, bh, bo);
+    if (wantDof) {
+      const fw = Math.max(1, w >> 1),
+        fh = Math.max(1, h >> 1);
+      GFX.b3 = new THREE.WebGLRenderTarget(fw, fh, bo);
+      GFX.b4 = new THREE.WebGLRenderTarget(fw, fh, bo);
+    }
   } catch (e) {
     GFX.on = false;
   }
@@ -161,6 +227,35 @@ function renderFrame() {
         blurMat.uniforms.dir.value.set(0, 1 / GFX.b1.height);
         fsPass(blurMat, GFX.b1);
       }
+    }
+    const L = GFX.look;
+    U.cine.value = L ? 1 : 0;
+    if (L) {
+      const dofOn = L.dof > 0 && !!GFX.b3 && !!GFX.rt.depthTexture;
+      if (dofOn) {
+        /* a half-resolution blurred copy of the out-of-focus parts of the scene */
+        const C = cocMat.uniforms;
+        C.t.value = GFX.rt.texture;
+        C.tD.value = GFX.rt.depthTexture;
+        C.dof.value.set(1, L.focus || 10, L.range || 6, L.near == null ? 1 : L.near);
+        C.clip.value.set(camera.near, camera.far);
+        fsPass(cocMat, GFX.b3);
+        for (let i = 0; i < 2; i++) {
+          blur4Mat.uniforms.t.value = GFX.b3.texture;
+          blur4Mat.uniforms.dir.value.set((1.6 + i) / GFX.b3.width, 0);
+          fsPass(blur4Mat, GFX.b4);
+          blur4Mat.uniforms.t.value = GFX.b4.texture;
+          blur4Mat.uniforms.dir.value.set(0, (1.6 + i) / GFX.b3.height);
+          fsPass(blur4Mat, GFX.b3);
+        }
+        U.tD.value = GFX.rt.depthTexture;
+        U.tF.value = GFX.b3.texture;
+      }
+      U.dof.value.set(dofOn ? L.dof : 0, L.focus || 10, L.range || 6, L.near == null ? 1 : L.near);
+      U.clip.value.set(camera.near, camera.far);
+      U.grade.value = L.grade || 0;
+      U.ca.value = L.ca || 0;
+      U.streak.value = SET.bloom > 0 ? L.streak || 0 : 0;
     }
     U.tS.value = GFX.rt.texture;
     U.tB.value = GFX.b1.texture;

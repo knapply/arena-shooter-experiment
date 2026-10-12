@@ -410,6 +410,8 @@ class Body {
         }
         if (d > 0) p[ax] = b[ax + "0"] - R - 1e-4;
         else p[ax] = b[ax + "1"] + R + 1e-4;
+        /* running into something solid at speed (scripted pilots are checked against this) */
+        if (Math.abs(v[ax]) > 2.5) ev("bump", { ax, speed: Math.abs(v[ax]), box: b });
         v[ax] = 0;
         if (this.chargeT > 0) this.chargeT = 0;
       }

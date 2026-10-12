@@ -8,7 +8,7 @@ A fast, movement-focused arena shooter that runs entirely in the browser. Thrust
 
 [![Kinetic Arena trailer](media/trailer-preview.gif)](https://knapply.github.io/arena-shooter-experiment/media/trailer.mp4)
 
-**🔊 [Watch the full trailer with sound](https://knapply.github.io/arena-shooter-experiment/media/trailer.mp4)** · captured straight from the game, with an original soundtrack synthesized in the browser. Or press **Watch trailer** in the game menu to play it live.
+**🔊 [Watch the full trailer with sound](https://knapply.github.io/arena-shooter-experiment/media/trailer.mp4)** · every frame captured straight from the game engine, with an original soundtrack synthesized in the browser. Or press **Watch trailer** in the game menu to play it live.
 
 ---
 
@@ -51,7 +51,7 @@ A fast, movement-focused arena shooter that runs entirely in the browser. Thrust
 - **Online play:** peer-to-peer rooms with a 5-character code or invite link, up to 8 players, with direct player-to-player links, smooth remote movement under real-world lag, and host migration
 - **Controller support:** Xbox-style controllers with remapping, aim assist, response curves and vibration
 - **Deep settings:** graphics presets plus 50+ individual options, full keyboard and controller rebinding, and export/import of settings as a file
-- **Cinematic trailer:** a one-minute in-engine trailer with letterboxed cinematography, slow motion and an original choir-and-synthwave score, playable from the menu
+- **Cinematic trailer:** a 72-second in-engine trailer, built shot by shot: anamorphic letterbox, depth of field with rack focus, a split-tone grade, dusk and daylight lighting moods, speed ramps into slow motion and a frozen-time finale, all scored to an original synthesized soundtrack. Playable live from the menu
 - **Animation:** procedural characters with distance-synced strides, hip-led strafing and backpedaling, feet that plant on stairs and ledges, spring-driven lean, landing compression, hit flinches, recoil and momentum-based death falls
 - **Movement tutorial:** a narrated, self-playing walkthrough of every movement and combat mechanic
 - **Procedural audio and announcer:** synthesized weapon and movement sounds, with spoken callouts using your browser's speech engine
@@ -63,7 +63,7 @@ A fast, movement-focused arena shooter that runs entirely in the browser. Thrust
 | **Arena** | 1–8 | Free-for-all on Proving Grounds. First to 15 kills (or the most kills after 10 minutes) wins, then Play of the Game and a fresh match. Practice drones fill in when it's quiet. |
 | **Capture the Flag** | 1–8 humans, 8 total | 4v4 on Twin Foundry. Bring the enemy flag to your stand while yours is home. First to 3 captures wins, with an 8-minute time limit. Humans take a bot's slot on their team. |
 | **AI vs AI** | Spectator | Two learning AI teams play CTF. Speed controls (1×/2×/4×), a director camera that varies its shots and slows down for captures and multikills, follow cameras, and a tactical camera you can turn and zoom (drag, wheel, pinch or controller). The intel panel shows each team's strategy odds and evolved play style. "Train 10 matches" runs headless matches in the background. |
-| **Trailer** | Spectator | A one-minute cinematic cut of the game with an original score, synced to the music. |
+| **Trailer** | Spectator | A 72-second cinematic cut of the game: three rules of the arena, an action montage, a live AI capture-the-flag match and a frozen-time finale, synced to an original score. |
 | **Movement tutorial** | Spectator | A scripted walkthrough of every movement and combat mechanic, with the keys for each. |
 
 ## Playing with friends
@@ -183,7 +183,8 @@ Settings are saved in your browser automatically and can be exported to or impor
   - When a direct link can't be made, traffic falls back to a relay through the host, or through an optional TURN server.
 - **Recording and replays:** the simulation is seeded and every match records its inputs and events, which drive the kill cam, Play of the Game and highlight clips. An events stream feeds the HUD, announcer, stats and replays from one place.
 - **Save data:** settings, keybinds and AI learning are stored as versioned documents with migrations, so updates never wipe your setup.
-- **Audio:** every sound is synthesized with the Web Audio API, including the trailer score (choir formant synthesis, drums, bass, pads and lead, no samples), which can also render offline to a file. The announcer uses the Speech Synthesis API.
+- **Trailer:** the cut is a list of shots, each a function of time, so it plays live (clocked by the music) or steps frame by frame for video capture. Pilots are real game bodies following routes that are steered every physics step; any collision with a wall at speed is logged, and the tests fail if a pilot runs into one or the camera ends up inside the level. Cutscenes get a cinematic post look on top of the normal pipeline: depth of field from the depth buffer (weighted so sharp subjects don't bleed into the blur), a split-tone grade, lens fringing and anamorphic streaks.
+- **Audio:** every sound is synthesized with the Web Audio API, including the trailer score (choir formant synthesis, drums, bass, pads, lead, string tremolo, bells and sub drops, no samples), which can also render offline to a file. Live, notes are created just before they sound so the audio thread keeps real time. The announcer uses the Speech Synthesis API.
 - **Input:** an action-mapping layer over keyboard, mouse, Gamepad API and touch.
 - **No WebAssembly.** Game logic is JavaScript, rendering is on the GPU, and AI training can run in a Web Worker.
 
@@ -222,7 +223,7 @@ The game is developed as modules and built into the single `index.html` that Git
 ```
 src/        engine, rendering, world, characters, weapons, UI, networking, maps and game modes
 tests/      headless AI matches, scenarios, browser and network tests, render and visual checks
-tools/      dev server, verify script, trailer recorder, unused-code check
+tools/      dev server, verify script, trailer recorder and previewer, unused-code check
 docs/       ARCHITECTURE.md, a generated module index and the sandbox kill-time table
 build.mjs   bundles src/ into index.html and sim-worker.js
 ```
@@ -246,6 +247,15 @@ node tests/net.test.js         # mesh, host migration and smoothness on a simula
 THREE_PATH=three.min.js node tests/render.test.js   # every graphics preset renders a normal frame
 THREE_PATH=three.min.js node tests/visual.test.js   # compare scenes against tests/visual baselines
 VISUAL_UPDATE=1 THREE_PATH=three.min.js node tests/visual.test.js   # accept new baselines
+```
+
+Working on the trailer:
+
+```bash
+node tools/trailer-preview.js check                       # simulate the whole cut: wall bumps, camera clipping, event log
+THREE_PATH=three.min.js node tools/trailer-preview.js stills 12,20.5,60   # a contact sheet of frames
+THREE_PATH=three.min.js node tools/trailer-preview.js clip 11 16          # a small video of a stretch, with the score
+THREE_PATH=three.min.js node tools/record-trailer.js      # re-record media/trailer.mp4 and the preview GIF
 ```
 
 Add `?dev` to the page address (or use `npm run dev`), then press the backquote key for the developer console: time scale, teleport, god mode, bad-network simulation and the network panel. Type `help` for the full list.

@@ -597,7 +597,7 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       await S.evaluate(() => +getComputedStyle(document.getElementById("trCard")).opacity > 0.5),
       "trailer shows its opening title card"
     );
-    await S.evaluate(() => KA.trailer.seek(33.5));
+    await S.evaluate(() => KA.trailer.seek(41.5));
     check(await S.evaluate(() => !!CTF.UI.game()), "trailer cuts to the live CTF montage");
     await S.keyboard.press("Escape");
     await S.waitForTimeout(300);
@@ -610,6 +610,25 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
           !CTF.UI.game()
       ),
       "trailer exits to the menu and cleans up"
+    );
+    /* the whole cut, simulated without drawing: scripted pilots stay on their routes (no running
+       into walls), the camera never ends up inside the level, and the big moments happen */
+    const cut = await S.evaluate(() => {
+      const TR = KA.trailer;
+      TR.record();
+      while (TR.t < TR.END) TR.step(1 / 30, false);
+      const d = TR.diag,
+        ev = new Set(d.log.map(e => e.ev));
+      const r = { bumps: d.bumps.slice(0, 5), cam: d.cam.slice(0, 5), ev: [...ev] };
+      TR.stop();
+      return r;
+    });
+    check(cut.bumps.length === 0, "trailer pilots never run into walls", cut.bumps);
+    check(cut.cam.length === 0, "the trailer camera never goes inside the level", cut.cam);
+    check(
+      ["thrust", "slide", "clamber", "slam", "charge", "melee"].every(e => cut.ev.includes(e)),
+      "the trailer's moves all happen (thrust, slide, clamber, ground pound, charge, melee)",
+      cut.ev
     );
     /* ---------- AI training runs on a background thread when served over http ---------- */
     const W = await open(ctx, { tag: "W", http: true });

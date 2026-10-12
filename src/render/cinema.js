@@ -8,7 +8,8 @@
      CINE.crane(fromShot, toShot, ease)                      blend between two shots over t = 0..1
      CINE.fixed(p, look)
    Presentation: letterbox(on), card(eyebrow, big, sub, seconds), caption(text), flash(strength),
-   shake(amount), slowmo(scale, seconds). Easing: CINE.ease.inOut/out/in. */
+   shake(amount), slowmo(scale, seconds), look({ dof, focus, range, grade, ca, streak }) for the
+   cinematic post look. Easing: CINE.ease.inOut/out/in. */
 const CINE = (() => {
   const _p = new V3(),
     _l = new V3(),
@@ -125,6 +126,16 @@ const CINE = (() => {
     firstPerson,
     crane,
     apply,
+    /**
+     * the cinematic look for the post pipeline, or null for the normal game look.
+     * dof: 0..1 blur strength, focus: distance in focus (m), range: depth of field (m), near: extra
+     * foreground blur; grade: split-tone strength; ca: lens fringing; streak: anamorphic flares
+     * @param {{dof?: number, focus?: number, range?: number, near?: number, grade?: number, ca?: number, streak?: number} | null} l
+     */
+    look(l) {
+      GFX.look = l;
+      if (gfxReady) gfxResize();
+    },
     /** forget the smoothed camera (next apply cuts) */
     cut() {
       state.init = false;

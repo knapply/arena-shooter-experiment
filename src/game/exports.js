@@ -51,6 +51,8 @@ const KA_API = {
     return wi;
   },
   sun,
+  hemi,
+  skyTint,
   blast,
   ring,
   fxGet,
@@ -138,6 +140,8 @@ const KA_API = {
   dropMag,
   updFX,
   sfx,
+  sfxTap,
+  renderSfx,
   audio,
   distVol,
   say,
