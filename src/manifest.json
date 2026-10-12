@@ -78,10 +78,7 @@
   ],
   "worker": {
     "_comment": "Background simulation worker (sim-worker.js): the simulation modules with rendering stubbed out. tests/lib/headless.js loads the same list.",
-    "env": [
-      "worker/sim-env.js",
-      "worker/three-lite.js"
-    ],
+    "env": ["worker/sim-env.js", "worker/three-lite.js"],
     "prelude": "worker/sim-prelude.js",
     "engine": [
       "core/store.js",

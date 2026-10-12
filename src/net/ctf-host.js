@@ -309,7 +309,7 @@
             NET.bitsOf(b, {
               reload: rl,
               fire,
-              wpn: loc ? K.wi : a.remote ? a.wpn : a.rocket > 0 ? 3 : a.sniper > 0 ? 2 : 0,
+              wpn: loc ? K.wi : a.remote ? a.wpn : a.rocket > 0 ? 3 : a.sniper > 0 ? 2 : a.wpn || 0,
               carry: !!a.carrying,
             }),
             Math.ceil(b.shield),
@@ -383,7 +383,7 @@
                 st: NET.bitsOf(b, {
                   reload: loc ? K.reloadT > 0 : a.remote ? !!a.reloading : a.reloadT > 0,
                   fire: loc ? K.now - K.lastFireT < 0.12 : a.remote ? !!a.firing : G.t - a.firedT < 0.12,
-                  wpn: loc ? K.wi : a.remote ? a.wpn : a.sniper > 0 ? 2 : 0,
+                  wpn: loc ? K.wi : a.remote ? a.wpn : a.rocket > 0 ? 3 : a.sniper > 0 ? 2 : a.wpn || 0,
                   carry: !!a.carrying,
                 }),
                 sh: Math.ceil(b.shield),

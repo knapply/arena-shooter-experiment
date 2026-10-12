@@ -1,6 +1,8 @@
 /* ============ SIM EXPORTS: the slice of window.KA the CTF simulation uses ============ */
 window.KA = {
   MODE_DATA,
+  AI_SKILL,
+  SWITCH_TIME,
   MAPS,
   buildMap,
   validateMap,

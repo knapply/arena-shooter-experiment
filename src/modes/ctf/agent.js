@@ -21,7 +21,8 @@
   const _v = new V3(),
     _w = new V3(),
     _e = new V3(),
-    _t = new V3();
+    _t = new V3(),
+    _eye = new V3();
   const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
   function arcVel(from, to, deg, g) {
     const dx = to.x - from.x,
@@ -36,11 +37,8 @@
     if (v > Math.max(14, K.NADE_TUNE.throw * 1.1)) return null;
     return new V3((dx / x) * v * c, v * Math.sin(th), (dz / x) * v * c);
   }
-  const DIFF = {
-    normal: { react: 0.32, err: 0.035, turn: 7 },
-    heroic: { react: 0.24, err: 0.022, turn: 10 },
-    legendary: { react: 0.17, err: 0.013, turn: 14 },
-  };
+  /* skill levels live in data/modes.js (shared with the arena drones) */
+  const DIFF = K.AI_SKILL;
   CTF.DIFF = DIFF;
   let NEXT_ID = 1;
   class Agent {
@@ -71,6 +69,9 @@
       /** the gun in hand (0 carbine, 1 magnum; the WEAPON_DATA index) and each one's magazine */
       this.wpn = 0;
       this.ammo = [RIFLE.mag, MAGNUM.mag];
+      /** bringing the other gun up (the player's switch time), and when they last switched */
+      this.switchT = 0;
+      this.lastSwitch = -9;
       this.reloadT = 0;
       this.fireCD = 0;
       this.firedT = -9;
@@ -120,6 +121,35 @@
     gun() {
       return this.wpn === 1 ? MAGNUM : RIFLE;
     }
+    /** holding the magnum (not a power weapon) */
+    get magnum() {
+      return this.wpn === 1 && !(this.sniper > 0) && !(this.rocket > 0);
+    }
+    /** carbine or magnum for this moment: the magnum at mid and long range and to finish a pilot whose
+        shields are down (one headshot), the carbine up close and to break shields */
+    pickGun(tgt) {
+      const o = 1 - this.wpn,
+        full = w => (w ? MAGNUM : RIFLE).mag * 0.56;
+      if (!tgt)
+        /* between fights: bring up the other gun to reload it if that's the one running low */
+        return this.reloadT <= 0 && this.mag >= full(this.wpn) && this.ammo[o] < full(o) ? o : this.wpn;
+      const r = this.pos.distanceTo(tgt.pos);
+      /* out of rounds mid-fight: switching is faster than reloading */
+      if (this.mag <= 0) return this.ammo[o] > 0 && r > 3 ? o : this.wpn;
+      if (this.ammo[o] <= 0) return this.wpn;
+      const S = this.skill();
+      if (tgt.body.shield <= 0 && r > 8) return 1;
+      if (r >= S.magFrom) return 1;
+      if (r <= S.magFrom - 6) return 0;
+      return this.wpn;
+    }
+    switchTo(w) {
+      this.wpn = w;
+      this.reloadT = 0;
+      this.switchT = K.SWITCH_TIME;
+      this.lastSwitch = this.G.t;
+      this.bloom = 0;
+    }
     get alive() {
       return this.human && !this.remote ? !K.me.dead : !this.dead;
     }
@@ -144,6 +174,7 @@
       this.wpn = this.G.lock === "magnum" ? 1 : 0;
       this.ammo[0] = RIFLE.mag;
       this.ammo[1] = MAGNUM.mag;
+      this.switchT = 0;
       this.reloadT = 0;
       this.target = null;
       this.nadeInv.frag = 2;
@@ -659,6 +690,12 @@
           inp.thrust = b.thrustCD <= 0;
         }
       } else this.stuckT = 0;
+      // carbine or magnum: switching takes the player's switch time and cancels a reload
+      if (this.switchT > 0) this.switchT -= dt;
+      if (!G.lock && !(this.sniper > 0) && !(this.rocket > 0) && this.switchT <= 0) {
+        const w = this.pickGun(engaged ? tgt : null);
+        if (w !== this.wpn && (G.t - this.lastSwitch > 0.8 || this.mag <= 0)) this.switchTo(w);
+      }
       // fire
       this.fireCD -= dt;
       if (this.reloadT > 0) {
@@ -668,6 +705,7 @@
       if (
         engaged &&
         this.reloadT <= 0 &&
+        this.switchT <= 0 &&
         this.fireCD <= 0 &&
         !b.sprint &&
         b.pound === 0 &&
@@ -675,7 +713,9 @@
         b.chargeT <= 0
       ) {
         const err = Math.abs(angDiff(lookYaw, b.yaw)) + Math.abs(lookPitch - b.pitch);
-        if (err < (this.sniper > 0 && tgt.pos.distanceTo(this.pos) > 6 ? 0.05 : 0.09)) this.shoot(tgt);
+        /* precision weapons wait for the reticle to settle */
+        const careful = (this.sniper > 0 && tgt.pos.distanceTo(this.pos) > 6) || this.magnum;
+        if (err < (careful ? 0.05 : 0.09)) this.shoot(tgt);
       }
       if (this.mag <= 0 && this.reloadT <= 0) this.reloadT = this.gun().reload;
       this.nadeCD -= dt;
@@ -795,10 +835,13 @@
     aimPoint(e, out) {
       const br = this.brain(),
         G = this.G;
-      const eye = this.eye(_e);
+      /* not this.eye(_e): eye() uses _e as its own scratch vector */
+      const eye = this.eye(_eye);
       const head = e.body.pos.clone().add(_w.set(0, e.body.h - 0.24, 0));
       const range = eye.distanceTo(head);
-      if (range > 30) head.y -= 0.45; // body shots at long range
+      if (range > 30)
+        head.y -= 0.45; // body shots at long range
+      else if (this.magnum && e.body.shield > 0) head.y -= 0.3; // the magnum's head bonus needs shields down
       // lateral velocity relative to line of sight
       const los = _w.copy(head).sub(eye).setY(0).normalize();
       const lat = _t.set(-los.z, 0, los.x);
@@ -822,7 +865,8 @@
       if (since + react > br.model.enemyRev * (0.9 + K.rand() * 0.2)) lead = -lead * 0.4; // predicted reversal
       out.copy(head).addScaledVector(lat, lead * 0.85);
       const mv = Math.hypot(this.body.vel.x, this.body.vel.z);
-      const sig = S.err * (1 + mv * 0.05 + (this.body.ground ? 0 : 0.6)) * range;
+      const sig =
+        S.err * (this.magnum ? S.magErr : 1) * (1 + mv * 0.05 + (this.body.ground ? 0 : 0.6)) * range;
       out.x += gauss() * sig;
       out.y += gauss() * sig * 0.8;
       out.z += gauss() * sig;
@@ -961,7 +1005,7 @@
       /* the gun in hand, with the player's numbers (data/weapons.js) */
       const W = this.gun();
       this.mag--;
-      this.fireCD = W.rate;
+      this.fireCD = W.rate + (this.magnum ? this.skill().magPace : 0);
       this.firedT = G.t;
       this.shots++;
       const eye = this.eye(new V3());

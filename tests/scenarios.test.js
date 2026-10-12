@@ -381,6 +381,89 @@ const fix = v => +v.toFixed(2);
     check(a.target === e, "the same AI spots them once they're in view", a.target && a.target.name);
   }
 }
+/* ---------- AI sidearms: carbine and magnum, chosen by range and situation ---------- */
+{
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 9, diff: ["heroic", "normal"] });
+  G.start();
+  for (let i = 0; i < 10; i++) G.step(1 / 30);
+  const a = G.teams[0].agents[0],
+    e = G.teams[1].agents[0];
+  const S = CTF.DIFF.heroic;
+  const at = (r, shield) => {
+    e.body.pos.copy(a.body.pos).add(new K.THREE.Vector3(0, 0, -r));
+    e.body.shield = shield;
+    return a.pickGun(e);
+  };
+  a.wpn = 0;
+  check(at(S.magFrom + 6, 70) === 1, "AI: the magnum at long range", S.magFrom + 6);
+  a.wpn = 1;
+  check(at(4, 70) === 0, "AI: the carbine up close to break shields");
+  a.wpn = 0;
+  check(at(S.magFrom - 6, 0) === 1, "AI: the magnum to finish a pilot whose shields are down");
+  check(at(4, 0) === 0, "AI: ...but not point blank, where the switch costs more than it saves");
+  a.wpn = 0;
+  a.ammo[0] = 0;
+  check(at(6, 70) === 1, "AI: an empty carbine mid-fight means switching, not reloading");
+  a.ammo[0] = 32;
+  /* switching takes the player's switch time and cancels a reload; each gun keeps its own magazine */
+  a.wpn = 0;
+  a.reloadT = 1;
+  a.switchTo(1);
+  check(
+    a.wpn === 1 && a.reloadT === 0 && a.switchT === K.SWITCH_TIME,
+    "AI: switching takes the switch time and cancels the reload",
+    { switchT: a.switchT, reloadT: a.reloadT }
+  );
+  a.switchT = 0;
+  a.fireCD = 0;
+  const m0 = a.ammo.slice();
+  e.body.pos.copy(a.body.pos).add(new K.THREE.Vector3(0, 0, -15));
+  a.body.yaw = 0;
+  a.body.pitch = 0;
+  a.shoot(e);
+  check(
+    a.ammo[1] === m0[1] - 1 && a.ammo[0] === m0[0],
+    "AI: a magnum shot spends magnum rounds only",
+    a.ammo
+  );
+  check(
+    Math.abs(a.fireCD - (K.WEAPON_DATA[1].rate + S.magPace)) < 1e-9,
+    "AI: magnum shots are paced by fire rate plus skill",
+    a.fireCD
+  );
+  /* aim: the magnum's error shrinks with skill */
+  const spread = diff => {
+    G.diff[0] = diff;
+    a.wpn = 1;
+    a.body.vel.set(0, 0, 0);
+    a.body.ground = true;
+    e.body.pos.copy(a.body.pos).add(new K.THREE.Vector3(0, 0, -22));
+    e.body.vel.set(0, 0, 0);
+    e.body.shield = 0;
+    const c = e.body.pos.clone().add(new K.THREE.Vector3(0, e.body.h - 0.24, 0));
+    let s = 0;
+    for (let i = 0; i < 400; i++) s += a.aimPoint(e, new K.THREE.Vector3()).distanceTo(c);
+    return s / 400;
+  };
+  const sN = spread("normal"),
+    sL = spread("legendary");
+  check(sL < sN * 0.5, "AI: legendary magnum aim is much tighter than normal", {
+    normal: fix(sN),
+    legendary: fix(sL),
+  });
+  G.diff[0] = "heroic";
+  /* death drops: the gun in hand */
+  a.wpn = 1;
+  const n0 = G.items.length;
+  G.kill(a, e, "pistol", false);
+  const guns = G.items.slice(n0).filter(it => it.type >= 0);
+  check(
+    guns.length === 1 && guns[0].type === 1,
+    "AI: a pilot holding the magnum drops the magnum",
+    guns.map(g => g.type)
+  );
+}
 /* ---------- pings: AI teammates go where a teammate pings ---------- */
 {
   K.STORE.setBackend(K.STORE.memoryBackend());

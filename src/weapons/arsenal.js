@@ -40,7 +40,7 @@ function setSlot(i, instant) {
   mag = ammo[wi];
   reloadT = 0;
   prevReload = 0;
-  switchT = instant ? 0 : 0.36;
+  switchT = instant ? 0 : SWITCH_TIME;
   zoomLvl = 0;
   showVM();
   wpnHud();

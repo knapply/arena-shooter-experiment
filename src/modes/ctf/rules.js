@@ -257,11 +257,11 @@
       } else if (a.sniper > 0) {
         const t = K.WEAPON_DATA.findIndex(w => w.key === "sniper");
         out.push({ type: t, ammo: [Math.min(4, a.sniper), Math.max(0, a.sniper - 4)] });
-      } else
-        out.push({
-          type: a.remote && a.wpn ? a.wpn : 0,
-          ammo: [K.WEAPON_DATA[a.remote && a.wpn ? a.wpn : 0].mag, Infinity],
-        });
+      } else {
+        /* the gun in hand (carbine or magnum), with what was left in it */
+        const t = a.wpn === 1 ? 1 : 0;
+        out.push({ type: t, ammo: [a.remote || !a.ammo ? K.WEAPON_DATA[t].mag : a.ammo[t], Infinity] });
+      }
       const nf = a.nadeInv ? a.nadeInv.frag : 0,
         np = a.nadeInv ? a.nadeInv.plasma : 0;
       if (nf + np > 0) out.push({ type: -1, nades: { frag: nf, plasma: np } });

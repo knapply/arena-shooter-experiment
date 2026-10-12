@@ -41,14 +41,10 @@ function dealDamage(t, n, type, head) {
       kills++;
       b.d++;
       b.respawn = now + 3;
-      /* drones drop their carbine, and sometimes a grenade */
+      /* drones drop the gun in their hands, and sometimes a grenade */
+      const gun = { type: b.wpn === 1 ? 1 : 0, ammo: [WEAPON_DATA[b.wpn === 1 ? 1 : 0].mag, Infinity] };
       dropItems(
-        Math.random() < 0.5
-          ? [
-              { type: 0, ammo: [32, Infinity] },
-              { type: -1, nades: { frag: 1, plasma: 0 } },
-            ]
-          : [{ type: 0, ammo: [32, Infinity] }],
+        Math.random() < 0.5 ? [gun, { type: -1, nades: { frag: 1, plasma: 0 } }] : [gun],
         b.body.pos,
         false
       );

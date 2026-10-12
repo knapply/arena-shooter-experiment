@@ -546,7 +546,11 @@ function updRigs(dt) {
     r.body.pitch = r.pitch;
   }
   for (const b of bots)
-    b.pose(dt, { reload: b.reloadT > 0 ? 1 - b.reloadT / RELOAD_TIME : -1, fire: now - b.firedT < 0.1 });
+    b.pose(dt, {
+      reload: b.reloadT > 0 ? 1 - b.reloadT / droneGun(b).reload : -1,
+      fire: now - b.firedT < 0.1,
+      wpn: b.wpn,
+    });
 }
 function rigEvents(rig, ev) {
   if (!ev) return;

@@ -48,7 +48,7 @@ Baseline skill share was 0.716 to 0.728 depending on the seed set, with a median
 | Grenade throw speed | 16, 22 | within ±0.004 | 22: more grenade kills (spammier); 16: fewer self-kills | Kept at 19. |
 | Frag bounciness | 0.25, 0.3, 0.46, 0.5 | 0.3: +0.017 then +0.001; 0.5: −0.009 | none | Kept at 0.38. |
 
-The magnum is only used by players (the AI carries the carbine and picks up the power weapons), so its numbers come from the kill-time table in [SANDBOX.md](SANDBOX.md) instead: the 5-shot, 1.04 s perfect kill is long enough to react to and short enough that landing every shot is what wins. The power weapons are rare enough in a match that their numbers barely move these statistics; they were set by hand (one-shot kills that reward the aim or the read, with a slow fire rate and small magazines).
+The magnum's numbers were first set from the kill-time table in [SANDBOX.md](SANDBOX.md): the 5-shot, 1.04 s perfect kill is long enough to react to and short enough that landing every shot is what wins. The AI carries it too (carbine and magnum, each with its own magazine; it switches with the player's switch time and picks the magnum at mid and long range and to finish a pilot whose shields are down, with aim and trigger pace set by skill level in `AI_SKILL`, `data/modes.js`), so the simulations measure it like the carbine. The power weapons are rare enough in a match that their numbers barely move these statistics; they were set by hand (one-shot kills that reward the aim or the read, with a slow fire rate and small magazines).
 
 ## Limits of the method
 

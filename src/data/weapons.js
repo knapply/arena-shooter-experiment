@@ -116,6 +116,8 @@ const WEAPON_DATA = [
     power: true,
   },
 ];
+/* seconds to bring the other gun up (players and AI) */
+const SWITCH_TIME = 0.36;
 /* the power weapons the centre spawn rotates through */
 const POWER_ROTATION = ["sniper", "rocket"];
 /** shots and time to kill a full-shield pilot: best case (headshot once shields drop) and body shots only */

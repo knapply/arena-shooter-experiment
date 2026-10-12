@@ -63,6 +63,12 @@ function spawn(b) {
 }
 
 /* bots */
+/** the practice drones' skill level (AI_SKILL in data/modes.js) */
+let botSkill = "normal";
+/* a drone's carbine holds 24 rounds; its magnum is the player's */
+const DRONE_MAG = 24;
+const droneGun = b => WEAPON_DATA[b.wpn === 1 ? 1 : 0];
+const droneCap = w => (w === 1 ? WEAPON_DATA[1].mag : DRONE_MAG);
 const BOT_NAMES = ["Drone-04", "Drone-11", "Drone-27"];
 const BOT_COLORS = ["#8b9aa3", "#a0a8ad", "#7f8f99"];
 function makeBots() {
@@ -78,8 +84,13 @@ function makeBots() {
       strafe: 1,
       respawn: 0,
       burst: 0,
-      mag: 24,
+      /* carbine and magnum, each with its own magazine */
+      wpn: 0,
+      ammo: [DRONE_MAG, WEAPON_DATA[1].mag],
       reloadT: 0,
+      reloading: false,
+      switchT: 0,
+      lastSwitch: -9,
       firedT: -9,
     });
     spawn(b.body);
@@ -118,8 +129,12 @@ function botStep(b, dt) {
         spawn(B);
         B.pos.copy(at);
         b.rig.revive();
-        b.mag = 24;
+        b.wpn = 0;
+        b.ammo[0] = DRONE_MAG;
+        b.ammo[1] = WEAPON_DATA[1].mag;
         b.reloadT = 0;
+        b.reloading = false;
+        b.switchT = 0;
       };
       /* drones drop in by pod too (and a pod landing on you takes you out) */
       if (podsOn() && skyClear(at))
@@ -172,7 +187,30 @@ function botStep(b, dt) {
   };
   b.think -= dt;
   b.reloadT = Math.max(0, b.reloadT - dt);
-  if (b.reloadT === 0 && b.mag === 0) b.mag = 24;
+  if (b.reloadT === 0 && b.reloading) {
+    b.reloading = false;
+    b.ammo[b.wpn] = droneCap(b.wpn);
+  }
+  b.switchT = Math.max(0, b.switchT - dt);
+  const S = AI_SKILL[botSkill] || AI_SKILL.normal;
+  if (sees && b.switchT <= 0) {
+    /* carbine up close and to break shields; magnum at range and to finish you once your shields
+       are down; switching beats reloading when a magazine runs dry */
+    const o = 1 - b.wpn;
+    let w = b.wpn;
+    if (b.ammo[b.wpn] <= 0) w = b.ammo[o] > 0 && dist > 3 ? o : b.wpn;
+    else if (me.shield <= 0 && dist > 8) w = 1;
+    else if (dist >= S.magFrom) w = 1;
+    else if (dist <= S.magFrom - 6) w = 0;
+    if (w !== b.wpn && (now - b.lastSwitch > 0.8 || b.ammo[b.wpn] <= 0)) {
+      b.wpn = w;
+      b.reloadT = 0;
+      b.reloading = false;
+      b.switchT = SWITCH_TIME;
+      b.lastSwitch = now;
+      b.burst = 0;
+    }
+  }
   if (sees) {
     const want = Math.atan2(-(myEye.x - eye.x), -(myEye.z - eye.z));
     let dy = want - B.yaw;
@@ -188,31 +226,44 @@ function botStep(b, dt) {
     inp.s = b.strafe;
     inp.f = dist > 16 ? 0.8 : dist < 7 ? -0.6 : 0;
     b.fireCD -= dt;
-    if (Math.abs(dy) < 0.25 && b.fireCD <= 0 && b.reloadT <= 0) {
-      b.fireCD = 0.16;
-      b.burst++;
-      b.mag--;
+    const M = b.wpn === 1,
+      Wd = droneGun(b);
+    if (Math.abs(dy) < (M ? 0.12 : 0.25) && b.fireCD <= 0 && b.reloadT <= 0 && b.switchT <= 0) {
+      if (M) b.fireCD = Wd.rate + S.magPace + 0.12;
+      else {
+        b.fireCD = 0.16;
+        b.burst++;
+        if (b.burst > 7) {
+          b.burst = 0;
+          b.fireCD = 0.9;
+        }
+      }
+      b.ammo[b.wpn]--;
       b.firedT = now;
-      if (b.burst > 7) {
-        b.burst = 0;
-        b.fireCD = 0.9;
+      if (b.ammo[b.wpn] <= 0) {
+        b.reloadT = Wd.reload;
+        b.reloading = true;
+        b.fireCD = Wd.reload;
       }
-      if (b.mag <= 0) {
-        b.reloadT = RELOAD_TIME;
-        b.fireCD = RELOAD_TIME;
-        b.mag = 0;
-      }
+      /* aim error scales with skill (normal is the drones' classic spray); the magnum's with magErr */
+      const sp = (S.err / 0.035) * (M ? S.magErr : 1);
       const d = B.aimDir();
-      d.x += rnd(-0.055, 0.055);
-      d.y += rnd(-0.045, 0.045);
-      d.z += rnd(-0.055, 0.055);
+      d.x += rnd(-0.055, 0.055) * sp;
+      d.y += rnd(-0.045, 0.045) * sp;
+      d.z += rnd(-0.055, 0.055) * sp;
       d.normalize();
       const wt = rayWorld(eye, d, 80);
       const hit = rayTarget(eye, d, me.pos, me.h, wt);
       const end = eye.clone().addScaledVector(d, hit ? hit.t : Math.min(wt, 60));
       tracer(eye.clone().add(new V3(0.1, -0.3, 0)), end, 0xc9d3d8);
-      sfx("shot", Math.max(0.1, 0.6 - dist / 80));
-      if (hit) hurtMe(hit.head ? 10 : 6, { bot: b, w: "rifle" });
+      sfx(Wd.snd, Math.max(0.1, 0.6 - dist / 80));
+      /* the drone carbine is a practice gun (6 body, 10 head); the magnum hits like yours */
+      if (hit)
+        hurtMe(M ? (hit.head && me.shield <= 0 ? Wd.head : Wd.body) : hit.head ? 10 : 6, {
+          bot: b,
+          w: Wd.dmg,
+          hd: hit.head,
+        });
       else if (wt < 60) spark(end);
     }
   } else {
@@ -229,9 +280,9 @@ function botStep(b, dt) {
     inp.f = 1;
     inp.sprint = Math.abs(dy) < 0.3 && b.reloadT <= 0;
     if (B.vel.lengthSq() < 1 && B.ground && Math.random() < 0.05) inp.jumpP = true;
-    if (b.mag < 24 && b.reloadT <= 0 && Math.random() < dt * 0.5) {
-      b.reloadT = RELOAD_TIME;
-      b.mag = 0;
+    if (b.ammo[b.wpn] < droneCap(b.wpn) && b.reloadT <= 0 && Math.random() < dt * 0.5) {
+      b.reloadT = droneGun(b).reload;
+      b.reloading = true;
     }
   }
   B.step(dt, inp, (t, d) => {

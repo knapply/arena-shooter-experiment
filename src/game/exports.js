@@ -132,6 +132,8 @@ const KA_API = {
   REPLAY,
   CINE,
   MODE_DATA,
+  AI_SKILL,
+  SWITCH_TIME,
   defineMode,
   startMode,
   modeList,
