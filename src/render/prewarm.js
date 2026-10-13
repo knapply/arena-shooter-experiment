@@ -24,6 +24,7 @@ function prewarmEffects() {
     .filter(Boolean);
   const rk = MAIN_ROCKETS.fire(q, new THREE.Vector3(0, 0, -1), null);
   const pod = dropPod(q, "#62cdff", { quiet: true });
+  podDraw();
   renderer.compile(scene, camera);
   /* take it all away again */
   for (const n of nades) {
@@ -36,6 +37,7 @@ function prewarmEffects() {
   }
   PODS.splice(PODS.indexOf(pod), 1);
   disposePod(pod);
+  podDraw();
   for (let i = FX.length - 1; i >= nFx; i--) fxKill(i);
   ptClearBelow(-400);
   for (const T of [casings, chunks]) T.list = T.list.filter(o => o.p.y > -400);

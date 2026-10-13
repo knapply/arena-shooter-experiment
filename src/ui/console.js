@@ -166,6 +166,7 @@ const CON = (() => {
           me.pos.set(s[0], s[1], s[2]);
         } else me.pos.set(num(a[0], me.pos.x), num(a[1], me.pos.y), num(a[2], me.pos.z));
         me.vel.set(0, 0, 0);
+        snapView();
         return `at ${me.pos.x.toFixed(1)} ${me.pos.y.toFixed(1)} ${me.pos.z.toFixed(1)}`;
       },
     ],

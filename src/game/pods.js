@@ -21,7 +21,7 @@ const POD_R = 0.76,
   /** seconds after impact that the shell blows */
   POD_BLOW = 0.08;
 /* the pod's fixed parts are merged once into one geometry per material and shared by every pod
-   (a pod draws in seven calls: hull, nose, team bands, cap and the three petals) */
+   (drawn instanced for every pod at once: see POD_DRAW) */
 const POD_GEO = {};
 function podGeo() {
   if (POD_GEO.hull) return POD_GEO;
@@ -72,12 +72,6 @@ const POD_MAT = {
     side: THREE.DoubleSide,
   }),
   dark: new THREE.MeshStandardMaterial({ color: "#1d2226", roughness: 0.6, metalness: 0.5 }),
-  burn: new THREE.MeshStandardMaterial({
-    color: "#2a1e18",
-    roughness: 0.9,
-    emissive: "#ff5a1a",
-    emissiveIntensity: 0,
-  }),
 };
 const podFireMat = new THREE.SpriteMaterial({
   color: 0xff9a40,
@@ -160,40 +154,131 @@ function podSeat(at) {
   const bury = off ? Math.max(0, Math.min(POD_BURY, d - POD_NOSE - 0.08)) : 0;
   return { x, z, bury, deep: d === Infinity, ok: !!off, key: at.x * 1e4 + at.y * 1e2 + at.z };
 }
-function makePod(color) {
+/* ---- drawing: every pod's parts are one instanced mesh per part (hull, nose, bands, petal, cap),
+   so all the pods in the world cost five draws, plus the hull's shadow. A pod is a group whose
+   petal and cap nodes carry their own transforms; podDraw() writes them out each frame before the
+   render. The nose and bands take a per-pod tint (podTint: rgb multiplies the colour, a the glow) ---- */
+const POD_N = 40;
+function podTintMat(m) {
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute vec4 podTint;\nvarying vec4 vTint;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvTint = podTint;");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec4 vTint;")
+      .replace(
+        "vec4 diffuseColor = vec4( diffuse, opacity );",
+        "vec4 diffuseColor = vec4( diffuse * vTint.rgb, opacity );"
+      )
+      .replace(
+        "vec3 totalEmissiveRadiance = emissive;",
+        "vec3 totalEmissiveRadiance = emissive * vTint.rgb * vTint.a;"
+      );
+  };
+  m.customProgramCacheKey = () => "podTint";
+  return m;
+}
+const POD_DRAW = (() => {
   const G0 = podGeo();
+  const make = (geo, mat, n, tint, shadow = false) => {
+    const m = new THREE.InstancedMesh(geo, mat, n);
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    if (tint) {
+      const t = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4);
+      t.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute("podTint", t);
+    }
+    m.frustumCulled = false;
+    m.castShadow = shadow;
+    m.count = 0;
+    m.visible = false;
+    scene.add(m);
+    return m;
+  };
+  /* (the nose and band geometries get the tint attribute: they are only drawn here) */
+  return {
+    hull: make(G0.hull, POD_MAT.hull, POD_N, false, true),
+    nose: make(
+      G0.nose,
+      podTintMat(new THREE.MeshStandardMaterial({ color: "#2a1e18", roughness: 0.9, emissive: "#ff5a1a" })),
+      POD_N,
+      true
+    ),
+    bands: make(
+      G0.bands,
+      podTintMat(
+        new THREE.MeshStandardMaterial({
+          color: "#ffffff",
+          emissive: "#ffffff",
+          roughness: 0.4,
+          side: THREE.DoubleSide,
+        })
+      ),
+      POD_N,
+      true
+    ),
+    petal: make(G0.petal, POD_MAT.hull, POD_N * 3),
+    cap: make(G0.cap, POD_MAT.dark, POD_N),
+  };
+})();
+/** every pod body in the world (live pods and the replay's ghosts) */
+const POD_BODIES = new Set();
+const _pdM = new THREE.Matrix4();
+/** is this object and everything above it visible and in the scene? */
+function podShown(o) {
+  for (let i = 0; o && i < 16; o = o.parent, i++) {
+    if (!o.visible) return false;
+    if (o === scene) return true;
+  }
+  return false;
+}
+/** write every pod's parts into the instanced meshes (called just before the frame renders) */
+function podDraw() {
+  const D = POD_DRAW;
+  let n = 0,
+    np = 0;
+  for (const b of POD_BODIES) {
+    if (n >= POD_N || !podShown(b.g)) continue;
+    b.g.updateMatrixWorld();
+    const w = b.g.matrixWorld;
+    D.hull.setMatrixAt(n, w);
+    D.nose.setMatrixAt(n, w);
+    D.bands.setMatrixAt(n, w);
+    D.nose.geometry.attributes.podTint.setXYZW(n, 1, 1, 1, b.heatGlow);
+    D.bands.geometry.attributes.podTint.setXYZW(n, b.color.r, b.color.g, b.color.b, b.glow);
+    for (const d of b.doors) {
+      if (d.cap) D.cap.setMatrixAt(n, _pdM.multiplyMatrices(w, d.m.matrix));
+      else D.petal.setMatrixAt(np++, _pdM.multiplyMatrices(w, d.m.matrix));
+    }
+    n++;
+  }
+  for (const m of [D.hull, D.nose, D.bands, D.cap, D.petal]) {
+    m.count = m === D.petal ? np : n;
+    m.visible = m.count > 0;
+    if (m.count) m.instanceMatrix.needsUpdate = true;
+  }
+  if (n) {
+    D.nose.geometry.attributes.podTint.needsUpdate = true;
+    D.bands.geometry.attributes.podTint.needsUpdate = true;
+  }
+}
+function makePod(color) {
   const g = new THREE.Group();
-  const team = new THREE.MeshStandardMaterial({
-    color,
-    emissive: color,
-    emissiveIntensity: 1.6,
-    roughness: 0.4,
-    side: THREE.DoubleSide,
-  });
-  /* only the hull casts a shadow: the nose, bands, petals and cap would each cost a shadow-pass
-     draw per pod for a shadow lost inside the hull's (a match start lands a pod per pilot) */
-  const add = (geo, m, x, y, z, shadow = false) => {
-    const o = new THREE.Mesh(geo, m);
+  /* the upper shell: three petals and the cap, blown off on landing (nodes: drawn by podDraw) */
+  const node = (x, y, z) => {
+    const o = new THREE.Object3D();
     o.position.set(x, y, z);
-    o.castShadow = shadow;
     g.add(o);
     return o;
   };
-  add(G0.hull, POD_MAT.hull, 0, 0, 0, true);
-  /* each pod's nose heats and cools on its own */
-  const burn = POD_MAT.burn.clone();
-  add(G0.nose, burn, 0, 0, 0);
-  add(G0.bands, team, 0, 0, 0);
-  /* the upper shell: three petals and the cap, blown off on landing */
   const doors = [0, 1, 2].map(i => {
     const a = (i * Math.PI * 2) / 3;
-    const d = add(G0.petal, POD_MAT.hull, Math.sin(a) * 0.72, 2.05, Math.cos(a) * 0.72);
+    const d = node(Math.sin(a) * 0.72, 2.05, Math.cos(a) * 0.72);
     d.rotation.order = "YXZ";
     d.rotation.y = a;
     return { m: d, a, v: new V3(), spin: 0, cap: false, rest: false };
   });
-  const cap = add(G0.cap, POD_MAT.dark, 0, 2.775, 0);
-  doors.push({ m: cap, a: 0, v: new V3(), spin: 0, cap: true, rest: false });
+  doors.push({ m: node(0, 2.775, 0), a: 0, v: new V3(), spin: 0, cap: true, rest: false });
   const fire = new THREE.Sprite(podFireMat.clone());
   fire.position.y = 3.1;
   fire.scale.set(1.6, 2.6, 1);
@@ -202,9 +287,13 @@ function makePod(color) {
   retro.position.y = -0.4;
   retro.scale.set(1.2, 1.6, 1);
   retro.material.opacity = 0;
+  retro.visible = false;
   g.add(retro);
   scene.add(g);
-  return { g, doors, fire, retro, team, burn };
+  /* glow: the team bands' brightness; heatGlow: the nose's */
+  const body = { g, doors, fire, retro, color: new THREE.Color(color), glow: 1.6, heatGlow: 0 };
+  POD_BODIES.add(body);
+  return body;
 }
 /**
  * start a drop pod falling onto `pos`. onLand() runs on impact (place the pilot then).
@@ -547,7 +636,7 @@ function updPods(dt) {
       /* the nose runs white-hot through the burn and dims as the retros take over */
       const heat = k < 0.8 ? 1 : Math.max(0.25, 1 - (k - 0.8) * 3.5);
       p.heat = heat;
-      p.burn.emissiveIntensity = 1.4 + heat * 2.6;
+      p.heatGlow = 1.4 + heat * 2.6;
       const near =
         ride && ride !== p
           ? clamp(
@@ -596,8 +685,8 @@ function updPods(dt) {
           else d.m.rotation.x = Math.PI / 2;
         }
       }
-    p.team.emissiveIntensity = Math.max(0.3, 1.6 - p.life * 0.4);
-    p.burn.emissiveIntensity = Math.max(0, 2 - p.life * 0.5);
+    p.glow = Math.max(0.3, 1.6 - p.life * 0.4);
+    p.heatGlow = Math.max(0, 2 - p.life * 0.5);
     /* the hot wreck smokes, and the crater glows a little */
     if (p.life < 4 && (!p.rider || p.life > 1.2) && Math.random() < dt * 8)
       ptAdd(
@@ -635,8 +724,7 @@ function updPods(dt) {
 /* the geometry is shared; the per-pod materials are not */
 function disposePod(p) {
   scene.remove(p.g);
-  p.team.dispose();
-  p.burn.dispose();
+  POD_BODIES.delete(p);
   p.fire.material.dispose();
   p.retro.material.dispose();
 }
