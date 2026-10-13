@@ -1245,6 +1245,8 @@ function makePilot(color, label) {
       for (const g of glows) {
         g.material.opacity += (gl - g.material.opacity) * kf;
         g.scale.y = 0.25 + g.material.opacity * 0.35;
+        /* (a sprite draws even when it is fully transparent) */
+        g.visible = g.material.opacity > 0.01;
       }
       if (S.mocap && S.loco.step && !air) ev = Object.assign(ev || {}, { step: true, sprint: st.sprint });
       return ev;
@@ -1297,7 +1299,10 @@ function makePilot(color, label) {
       A.fing.rotation.set(0, 0, -A.side * A.grip);
       A.tip.rotation.set(0, 0, -A.side * A.grip);
     }
-    for (const g of glows) g.material.opacity = 0;
+    for (const g of glows) {
+      g.material.opacity = 0;
+      g.visible = false;
+    }
     rig.jet = 0;
     if (S.deadT > 3.4) root.visible = false;
   }

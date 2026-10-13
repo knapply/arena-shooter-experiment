@@ -299,6 +299,8 @@ const podSeats = map => {
     );
     /* the pod's longer fall is spectacle only: dead to back on your feet takes what it always did
        (the mode's respawn delay plus the old 1.35 s drop), and Jump skips the pod camera */
+    /* (kill cams off: a kill cam can play over the start of the fall and move the camera) */
+    await p.evaluate(() => (KA.SET.killCam = false));
     const rt = await p.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
       KA.me.spawnT = -99;

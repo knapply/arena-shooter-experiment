@@ -170,14 +170,16 @@ function makePod(color) {
     roughness: 0.4,
     side: THREE.DoubleSide,
   });
-  const add = (geo, m, x, y, z) => {
+  /* only the hull casts a shadow: the nose, bands, petals and cap would each cost a shadow-pass
+     draw per pod for a shadow lost inside the hull's (a match start lands a pod per pilot) */
+  const add = (geo, m, x, y, z, shadow = false) => {
     const o = new THREE.Mesh(geo, m);
     o.position.set(x, y, z);
-    o.castShadow = true;
+    o.castShadow = shadow;
     g.add(o);
     return o;
   };
-  add(G0.hull, POD_MAT.hull, 0, 0, 0);
+  add(G0.hull, POD_MAT.hull, 0, 0, 0, true);
   /* each pod's nose heats and cools on its own */
   const burn = POD_MAT.burn.clone();
   add(G0.nose, burn, 0, 0, 0);
@@ -540,6 +542,8 @@ function updPods(dt) {
       p.g.visible = !p.rider;
       p.fire.material.opacity = 0.6 + Math.random() * 0.4;
       p.retro.material.opacity = k > 0.8 ? (k - 0.8) * 5 * (0.7 + Math.random() * 0.3) : 0;
+      /* a sprite draws even when it is fully transparent */
+      p.retro.visible = p.retro.material.opacity > 0.01;
       /* the nose runs white-hot through the burn and dims as the retros take over */
       const heat = k < 0.8 ? 1 : Math.max(0.25, 1 - (k - 0.8) * 3.5);
       p.heat = heat;
