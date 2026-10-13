@@ -37,6 +37,7 @@ window.KA = {
   falloffAt,
   pulseBody,
   mapDoc,
+  MAP_MODS,
   NADES,
   NADE_TUNE,
   MAIN_NADES,

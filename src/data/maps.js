@@ -466,6 +466,17 @@ const MAP_MODS = {
           { id: "wing-r", weapon: "rocket", p: [24.5, 2.6, 0], respawn: 150 },
         ]),
   },
+  /* Twin Foundry: a scattergun on each wing platform (the tower keeps its rotation): a close-range
+     power position on each wing, away from the long lines */
+  pads: {
+    map: "ctf",
+    name: "Scattergun pads",
+    pickups: list =>
+      list.concat([
+        { id: "pad-l", weapon: "scatter", p: [-24.5, 2.6, 0], respawn: 60 },
+        { id: "pad-r", weapon: "scatter", p: [24.5, 2.6, 0], respawn: 60 },
+      ]),
+  },
   /* the arena: a ring of high ground around the walls (see ringPieces) */
   ring: { map: "arena", name: "High ring", add: ringPieces() },
   /* the arena: four pillars off the core's corners that break its long lines to the corner lanes */

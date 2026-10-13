@@ -125,4 +125,33 @@ check(
     ctf: coverCount(K.MAPS.ctf),
   }
 );
+/* lab map mods (docs/PROPOSALS.md): each one, and every pair on the same map, validates; their pickups
+   stand on a surface, clear of walls (split and pads use the same two platforms: pick one) */
+{
+  const mods = Object.entries(K.MAP_MODS);
+  for (const [m, M] of mods)
+    for (const others of [[], ...mods.filter(([o, O]) => o !== m && O.map === M.map).map(([o]) => [o])]) {
+      const doc = K.mapDoc(M.map, [m, ...others]);
+      const v = K.validateMap(doc);
+      check(v.ok && doc.id !== K.MAPS[M.map].id, `map mod ${[m, ...others].join(" + ")} validates`, v.errors);
+    }
+  for (const key of ["ctf", "arena"]) {
+    const doc = K.mapDoc(key, Object.keys(K.MAP_MODS));
+    K.LABS.mods = Object.keys(K.MAP_MODS);
+    const G = CTF.Game({ mode: "sim", render: false, seed: 1, map: key });
+    K.LABS.mods = [];
+    check(CTF.MAP === doc, `the ${key} match is built on the modded map`, CTF.MAP.id);
+    const bad = (doc.pickups || []).filter(p => {
+      const x = p.p[0],
+        z = p.p[2];
+      const ground = K.groundBelow(x, z, p.p[1] + 0.5, 0.05);
+      return Math.abs(ground - p.p[1]) > 0.05 || !K.freeAt(x, ground + 0.05, z);
+    });
+    check(
+      G && !bad.length,
+      `every pickup on ${key} with all mods stands clear on a surface`,
+      bad.map(p => p.id)
+    );
+  }
+}
 finish("maps");

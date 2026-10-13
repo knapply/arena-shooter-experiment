@@ -93,9 +93,18 @@ const KNOBS = {
   labScatter: { set: lab("scatter"), def: 0, try: [1] },
   labBeam: { set: lab("beam"), def: 0, try: [1] },
   labPulse: { set: lab("pulse"), def: 0, try: [1] },
+  labMelee: { set: lab("melee"), def: 0, try: [1] },
+  /* lab weapon numbers (for reworks; use with LOCK or the lab on) */
+  labBeamDmg: { set: v => Object.assign(W("beam"), { body: v, head: v }), def: 4, try: [5, 6] },
+  labBurstDmg: {
+    set: v => Object.assign(W("burst"), { body: v, head: Math.round(v * 2.75) }),
+    def: 8,
+    try: [7, 9],
+  },
   labWeapons: { set: v => ["burst", "scatter", "beam", "pulse"].forEach(k => lab(k)(v)), def: 0, try: [1] },
   modDoors: { set: mod("doors"), def: 0, try: [1] },
   modSplit: { set: mod("split"), def: 0, try: [1] },
+  modPads: { set: mod("pads"), def: 0, try: [1] },
   modRing: { set: mod("ring"), def: 0, try: [1] },
   modPillars: { set: mod("pillars"), def: 0, try: [1] },
 };

@@ -166,10 +166,22 @@ const LAB_DEFS = [
     "pulse",
   ],
   [
+    "labMelee",
+    "Lighter melee",
+    "A melee blow takes at most 40 shield instead of all of it. Behind, or on a pilot with no shield left, it still kills.",
+    "melee",
+  ],
+  [
     "labDoors",
     "Twin Foundry: crossover doors",
     "A doorway through each wing wall, so mid and the wings can rotate early.",
     "doors",
+  ],
+  [
+    "labPads",
+    "Twin Foundry: scattergun pads",
+    "A scattergun on each wing platform, respawning every 60 s; the tower keeps the sniper and rockets.",
+    "pads",
   ],
   [
     "labSplit",

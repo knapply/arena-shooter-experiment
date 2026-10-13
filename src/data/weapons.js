@@ -216,6 +216,7 @@ const POWER_ROTATION = ["sniper", "rocket"];
    tools/tune.js turns it on for simulations.
      burst    burst rifle pickups on the maps        scatter  the scattergun joins the power rotation
      beam     arc beam pickups on the maps           pulse    pulse grenades (strip shields, jam thrust)
+     melee    a melee blow takes at most 40 shield (meleeDamage)
      mods     map changes by name (MAP_MODS, data/maps.js) */
 const LABS = {
   on: true,
@@ -223,6 +224,7 @@ const LABS = {
   scatter: false,
   beam: false,
   pulse: false,
+  melee: false,
   mods: /** @type {string[]} */ ([]),
 };
 /** is a lab feature live right now? */
@@ -265,8 +267,12 @@ function killStats(w) {
 const MELEE_KILL = 999;
 /** damage for a melee blow on a pilot with `shield` left; `behind` from meleeBehind */
 function meleeDamage(shield, behind) {
-  return behind || shield <= 0 ? MELEE_KILL : shield;
+  if (behind || shield <= 0) return MELEE_KILL;
+  /* lab (LABS.melee): a blow takes at most MELEE_LAB_SHIELD of the shield, so melee finishes fights
+     the guns start instead of winning them on its own */
+  return labOn("melee") ? Math.min(shield, MELEE_LAB_SHIELD) : shield;
 }
+const MELEE_LAB_SHIELD = 40;
 /** is the attacker (at ax, az) behind a victim at (vx, vz) facing `yaw`? (more than ~110° off their facing) */
 function meleeBehind(ax, az, vx, vz, yaw) {
   const dx = ax - vx,

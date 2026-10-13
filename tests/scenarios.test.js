@@ -696,7 +696,25 @@ const fix = v => +v.toFixed(2);
     kbm
   );
   const L = K.LABS;
-  check(!L.burst && !L.scatter && !L.beam && !L.pulse && !L.mods.length, "every lab is off by default", L);
+  check(
+    !L.burst && !L.scatter && !L.beam && !L.pulse && !L.melee && !L.mods.length,
+    "every lab is off by default",
+    L
+  );
+  const m0 = [K.meleeDamage(70, false), K.meleeDamage(0, false)];
+  L.melee = true;
+  const m1 = [
+    K.meleeDamage(70, false),
+    K.meleeDamage(30, false),
+    K.meleeDamage(0, false),
+    K.meleeDamage(70, true),
+  ];
+  L.melee = false;
+  check(
+    m0[0] === 70 && m0[1] >= 999 && m1[0] === 40 && m1[1] === 30 && m1[2] >= 999 && m1[3] >= 999,
+    "lighter melee: a blow takes at most 40 shield; bare health and backs still die",
+    { shipped: m0, lab: m1 }
+  );
   const play = (opts, steps) => {
     K.STORE.setBackend(K.STORE.memoryBackend());
     const G = CTF.Game(Object.assign({ mode: "sim", render: false, seed: 2 }, opts));
