@@ -28,6 +28,7 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - [Known limitations](#known-limitations)
 - [Development](#development)
 - [Roadmap](#roadmap)
+- [Credits](#credits)
 - [License](#license)
 
 ---
@@ -195,7 +196,10 @@ Settings are saved in your browser automatically and can be exported to or impor
 ## Tech overview
 - **One self-contained HTML file.** The shipped `index.html` runs straight from disk or any static host. It is built from modular source in `src/` (see [Development](#development)). A second generated file, `sim-worker.js`, runs AI training in the background when the page is served over http(s).
 - **Rendering:** [three.js](https://threejs.org/) r128 on WebGL with linear-space color management, and a custom post-processing pipeline: half-float render target, bloom, then a composite with ACES tone mapping, FXAA, contrast-adaptive sharpening, saturation, vignette and grain. Static map geometry and character parts are merged by material, which keeps a full CTF scene well under a thousand draw calls. It falls back automatically if a shader fails to compile and has an exposure safety check.
-- **Characters:** 32-bone procedural rigs, rigidly skinned into one mesh per material and shared by every pilot, so a fully articulated pilot costs about ten draw calls. Two-bone IK for elbows and knees, with clavicles that shrug into the reach. The gait cycle advances by distance travelled so feet never skate, hips turn toward the direction of travel while the torso keeps aiming, feet raycast the ground, and damped springs drive lean, bank, landing compression, flinch and recoil. Deaths topple in the direction of momentum and the killing blow.
+- **Characters:** 32-bone rigs, rigidly skinned into one mesh per material and shared by every pilot, so a fully articulated pilot costs about ten draw calls.
+  - Locomotion is motion capture: walk, jog, run, sprint, side steps, backpedal, crouched walks, idle and a jump with its landing, retargeted onto the rig and packed into about 43 KB of 16-bit keys. A blend space over speed and direction (relative to where the pilot aims) mixes them on one shared phase; strides lengthen, cadence quickens and stances shorten to match the game's speeds, and the hips turn toward the travel while the torso keeps aiming. A small state machine cross-fades idle, moving, crouched, airborne and landing.
+  - Planted feet lock to the ground (tests check they drift under 3 cm a stride at every speed and direction), follow stairs and ledges, and step when a pilot turns on the spot.
+  - Procedural layers on top: two-bone IK arms holding the weapon or flag, aiming down sights, reloads, melee, recoil, flinch, a head that looks at the aim point, breathing that deepens after a run, and springs for lean into acceleration and turns. Deaths topple in the direction of momentum and the killing blow. About 10 µs of animation per pilot per frame.
 - **Physics:** custom capsule-vs-box collision and raycasting, with a fixed 120 Hz step.
 - **Maps and modes as data.** Each map is a plain document (geometry, spawns, flags, pickups, lanes, bounds) that is validated, built and mirrored automatically, and match intros are generated from it. Modes are declared with a small framework (rules, scoring, HUD, spawn logic), so Free-for-All, CTF and the sandbox share one match loop.
 - **Networking:** [PeerJS](https://peerjs.com/) WebRTC data channels in a full mesh. Movement travels on unordered, unreliable fast channels as compact binary messages (40 per second in Arena, 30 in CTF); events and setup use a reliable channel. A versioned message registry defines every packet, and peers check protocol versions when they join.
@@ -303,6 +307,9 @@ Every push runs the full suite in GitHub Actions. See [docs/ARCHITECTURE.md](doc
 - See [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) for a longer list of ideas across gameplay, graphics, sound and engineering
 - A WebGPU renderer
 - Desktop packaging
+
+## Credits
+Character motion comes from the [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu/) (Carnegie Mellon University; the database was created with funding from NSF EIA-0196217), by way of B. Hahne's BVH conversion. The takes used are listed in `src/data/anim-clips.js`, which `tools/mocap/convert.js` generates from them.
 
 ## License
 No license has been chosen yet. All rights reserved.

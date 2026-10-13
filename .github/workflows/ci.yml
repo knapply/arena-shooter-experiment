@@ -29,6 +29,8 @@ jobs:
         run: node tests/scenarios.test.js
       - name: Performance budgets (size, simulation)
         run: node tests/perf.test.js
+      - name: Motion-captured animation (loops, foot skate, cost)
+        run: node tests/anim.test.js
       - name: Install browser
         run: npx playwright install --with-deps chromium
       - name: Browser tests

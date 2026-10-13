@@ -25,6 +25,8 @@
     "world/maps/arena.js",
     "world/physics.js",
     "world/spawns.js",
+    "data/anim-clips.js",
+    "characters/anim.js",
     "characters/rig.js",
     "game/recorder.js",
     "game/pilot.js",

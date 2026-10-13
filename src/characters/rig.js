@@ -4,10 +4,11 @@
    knees, ankles and toes, front hip tassets and a sprung antenna. Every armor part is attached to a
    bone and the whole body is skinned rigidly into one mesh per material, so a pilot draws in about
    ten calls however many joints it has (the skinned geometry is shared by every pilot).
-   Motion: two-bone IK limbs with clavicles that shrug into the reach, a distance-synced gait with
-   heel strike and toe-off, hands that close around whatever they hold (weapon, flag), a head that
-   leads the aim, breathing and weight shifts at rest, and springs for lean, bank, landing, flinch,
-   recoil, tassets and antenna. */
+   Motion: locomotion comes from motion capture (characters/anim.js: the pelvis, spine and legs, with
+   the feet placed by two-bone leg IK); on top of it, two-bone IK arms with clavicles that shrug into
+   the reach, hands that close around whatever they hold (weapon, flag), a head that looks at the aim,
+   breathing, the special moves' legs, and springs for lean, bank, landing, flinch, recoil, tassets
+   and antenna. */
 const DOWN = new V3(0, -1, 0);
 /** @type {[string, number][]} */
 const SIDES = [
@@ -626,9 +627,29 @@ function makePilot(color, label) {
   /* animation state. Springs give lean, bounce, flinch, recoil and armor some follow-through. */
   const S = {
     t: Math.random() * 10,
-    ph: 0,
     pel: 0.96,
-    twist: 0,
+    /* motion-captured locomotion (characters/anim.js) and its per-frame input */
+    loco: ANIM.make(),
+    li: {
+      dt: 0,
+      lr: 0,
+      lf: 0,
+      spd: 0,
+      crouch: false,
+      sprint: false,
+      air: false,
+      vy: 0,
+      gd: 9,
+      x: 0,
+      z: 0,
+      yaw: 0,
+      gL: 0,
+      gR: 0,
+      near: true,
+      aim: false,
+    },
+    mocap: false,
+    gly: 0,
     lh: new V3(-0.2, -0.1, -0.3),
     rh: new V3(0.1, -0.1, -0.2),
     sh: 70,
@@ -636,7 +657,6 @@ function makePilot(color, label) {
     shellVis: false,
     deadT: 0,
     lastR: -1,
-    hip: 0,
     air: false,
     vy: 0,
     lf: 0,
@@ -779,6 +799,7 @@ function makePilot(color, label) {
       S.uI = 0;
       S.yaw = null;
       S.spP.x = S.spP.v = 0;
+      ANIM.reset(S.loco);
     },
     chestWorld(out) {
       return out.copy(root.position).add(_kA.set(0, 1.25, 0));
@@ -851,14 +872,58 @@ function makePilot(color, label) {
       S.turn += (clamp(dyaw * idt, -8, 8) - S.turn) * Math.min(1, dt * 10);
       const still = !air && spd < 0.4 && !st.crouch;
       S.idle = still ? Math.min(1, S.idle + dt * 0.8) : Math.max(0, S.idle - dt * 4);
+      /* locomotion comes from motion capture (characters/anim.js: walk, run, sprint, strafe,
+         backpedal, crouch, jump and land, idle); the special moves (slide, ground pound, clamber,
+         jetpack, stabilizer) keep procedural legs */
+      const mocap = !(st.slide || st.pound || st.clamber || st.stab || st.thrust);
+      const LO = S.loco;
+      if (mocap) {
+        /* the ground under each foot (stairs, ledges), where the feet were last frame */
+        if (!air && root.position.distanceToSquared(camera.position) < 1600) {
+          const rp = root.position;
+          for (let i = 0; i < 2; i++) {
+            const lx = LO.ank[i * 3],
+              lz = LO.ank[i * 3 + 2];
+            const wx = rp.x + lx * cy + lz * sy,
+              wz = rp.z - lx * sy + lz * cy;
+            const g = clamp(groundBelow(wx, wz, rp.y + 0.5, 0.06) - rp.y, -0.45, 0.4);
+            if (i) S.gR += (g - S.gR) * kf;
+            else S.gL += (g - S.gL) * kf;
+          }
+        } else {
+          S.gL *= 1 - kf;
+          S.gR *= 1 - kf;
+        }
+        const I = S.li;
+        I.dt = dt;
+        I.lr = lr;
+        I.lf = lf;
+        I.spd = spd;
+        I.crouch = !!st.crouch && !air;
+        I.sprint = !!st.sprint;
+        I.air = air;
+        I.vy = st.vy;
+        I.gd = S.gd;
+        I.x = root.position.x;
+        I.z = root.position.z;
+        I.yaw = st.yaw;
+        I.gL = S.gL;
+        I.gR = S.gR;
+        I.near = near;
+        I.aim = !!st.aim;
+        if (!S.mocap) ANIM.reset(LO);
+        ANIM.update(LO, I);
+      }
+      S.mocap = mocap;
+      /* the body's lean: the capture leans into its own gait, so speed adds less of it here */
       let pel = 0.96,
-        lean = Math.min(0.16, spd * 0.022),
+        lean = Math.min(0.16, spd * 0.022) * (mocap ? 0.4 : 1),
         roll = 0;
       if (!air && st.crouch) {
         pel = 0.7;
         lean = 0.2;
       }
-      if (!air && st.sprint) lean = 0.36;
+      if (!air && st.sprint) lean = mocap ? 0.16 : 0.36;
       if (st.slide) {
         pel = 0.58;
         lean = -0.32;
@@ -881,186 +946,109 @@ function makePilot(color, label) {
       /* aiming down sights eases in: the head drops to the sights */
       S.ads = (S.ads || 0) + ((st.aim && !st.sprint ? 1 : 0) - (S.ads || 0)) * Math.min(1, dt * 12);
       if (!air && !st.slide) {
+        /* lean into acceleration and bank into turns */
         lean += clamp(S.accF * 0.008, -0.14, 0.14);
         roll += clamp(-S.turn * spd * 0.012, -0.22, 0.22);
       }
-      /* breathing and a slow weight shift at rest */
-      const br = Math.sin(S.t * 1.7),
+      /* breathing (faster and deeper after running), and a slow weight shift at rest */
+      S.puff = clamp((S.puff || 0) + (spd > 4 ? dt * 0.12 : -dt * 0.05), 0, 1);
+      S.brT = (S.brT || 0) + dt * (1.7 + 1.6 * S.puff);
+      const br = Math.sin(S.brT) * (1 + S.puff),
         sway = Math.sin(S.t * 0.45) * S.idle;
-      roll += sway * 0.025;
+      if (!mocap) roll += sway * 0.025;
       S.pel += (pel - S.pel) * k;
       const leanS = spring(S.spLean, lean, dt, 4.5, 0.6) + spring(S.spFl, 0, dt, 3.2, 0.35),
         rollS = spring(S.spRoll, roll, dt, 4, 0.55) + spring(S.spFr, 0, dt, 3.2, 0.35);
       const pOff = clamp(spring(S.spP, 0, dt, 4.2, 0.42), -0.32, 0.12);
-      /* gait: stride length grows with speed and the cycle advances by distance covered, so planted feet do not skate */
-      const gait = !air && !st.slide;
-      const w = gait ? clamp(spd / 1.2, 0, 1) : 0;
-      let step = false,
-        bob = 0;
-      /* L: how far a foot travels fore and aft of the hip; H: how high the swinging foot lifts;
-         D: the duty factor, the share of the cycle a foot is on the ground. Walking keeps a foot
-         down most of the time (0.6); running drops under half, so there is a moment with both feet
-         off the ground; sprinting is mostly flight, with the knees driving high */
-      const run = clamp((spd - 2) / 4, 0, 1);
-      const L = st.sprint ? 0.78 : st.crouch ? 0.3 : clamp(0.14 + spd * 0.072, 0.16, 0.6),
-        H = st.sprint ? 0.38 : st.crouch ? 0.1 : 0.1 + spd * 0.02,
-        D = st.sprint ? 0.36 : st.crouch ? 0.6 : 0.6 - 0.18 * run;
-      S.duty = D;
-      if (gait) {
-        const prev = S.ph;
-        /* the cycle advances by distance: a planted foot covers 2L while it is down (D of a cycle),
-           so it moves exactly with the ground and never skates */
-        S.ph = (S.ph + dt * (w > 0.05 ? (spd * D) / (2 * L) : 0)) % 1;
-        if (w > 0.4) {
-          for (const o of [0, 0.5]) {
-            const a = (prev + o) % 1,
-              b = (S.ph + o) % 1;
-            if (b < a) step = true;
-          }
-        }
-        /* the body is lowest in the middle of each stance and rises through the flight between */
-        let load = 0;
-        for (const o of [0, 0.5]) {
-          const p = (S.ph + o) % 1;
-          if (p < D) load = Math.max(load, Math.sin((Math.PI * p) / D));
-        }
-        const amp = st.sprint ? 0.085 : 0.03 + 0.035 * run;
-        bob = (-load + (load < 0.05 ? 0.3 : 0)) * amp * w;
-      }
-      /* hips turn toward the direction of travel while the torso keeps aiming: forward, strafe and backpedal gaits */
-      let mvA = spd > 0.6 ? Math.atan2(lr, lf) : 0;
-      if (Math.abs(mvA) > 1.75) mvA -= Math.sign(mvA) * Math.PI;
-      const hipT =
-        gait && !st.sprint && !st.crouch
-          ? clamp(mvA, -1.05, 1.05) * 0.8
-          : gait && st.crouch
-            ? clamp(mvA, -1, 1) * 0.5
-            : 0;
-      S.hip += (hipT - S.hip) * Math.min(1, dt * 9);
-      /* the shoulders counter-rotate against the hips with each stride (strongest at a sprint) */
-      const tw = gait ? Math.sin(S.ph * Math.PI * 2) * (st.sprint ? 0.16 : 0.08 * run) * w : 0;
-      S.twist += (tw - S.twist) * kf;
-      /* feet find the real ground (stairs, ledges); the pelvis drops so the lower foot can still reach */
-      if (gait && !st.crouch && root.position.distanceToSquared(camera.position) < 1600) {
-        const rp = root.position;
-        for (let i = 0; i < 2; i++) {
-          const lg = legs[i];
-          const lx = lg.cur.x,
-            lz = lg.cur.z;
-          const wx = rp.x + lx * cy + lz * sy,
-            wz = rp.z - lx * sy + lz * cy;
-          const g = clamp(groundBelow(wx, wz, rp.y + 0.5, 0.06) - rp.y, -0.45, 0.4);
-          if (i) S.gR += (g - S.gR) * kf;
-          else S.gL += (g - S.gL) * kf;
-        }
-      } else {
+      if (!mocap) {
         S.gL *= 1 - kf;
         S.gR *= 1 - kf;
       }
       const drop = Math.min(0, S.gL, S.gR);
-      pelvis.position.set(sway * 0.02, S.pel + bob + pOff + drop, 0);
-      /* the pelvis swings opposite the shoulders and drops a little toward the swinging leg */
-      pelvis.rotation.set(
-        0,
-        -S.hip - S.twist * 0.6,
-        sway * 0.03 + (gait ? Math.cos(S.ph * Math.PI * 2) * 0.035 * w : 0)
-      );
-      /* the spine shares lean, twist and bank between its two segments; breathing lifts the chest */
-      /* a melee blow twists the torso into the strike */
+      /* the pelvis: the capture's (with the hips turned toward the travel), or held for a special move */
+      if (mocap) {
+        pelvis.position.set(LO.pelP[0], LO.pelP[1] + pOff * 0.5, LO.pelP[2]);
+        pelvis.quaternion.fromArray(LO.pelQ);
+      } else {
+        pelvis.position.set(sway * 0.02, S.pel + pOff + drop, 0);
+        pelvis.rotation.set(0, 0, sway * 0.03);
+      }
+      /* the spine shares lean and bank between its two segments on top of the capture; breathing
+         lifts the chest; a melee blow twists the torso into the strike */
       const mtw = strike * 0.55;
-      spine.rotation.set((-leanS + st.pitch * 0.3) * 0.5, (S.hip + S.twist + mtw) * 0.5, rollS * 0.5);
-      spine2.rotation.set(
-        (-leanS + st.pitch * 0.3) * 0.5 + br * 0.012,
-        (S.hip + S.twist + mtw) * 0.5,
-        rollS * 0.5
-      );
+      spine.rotation.set((-leanS + st.pitch * 0.3) * 0.5, mtw * 0.5, rollS * 0.5);
+      spine2.rotation.set((-leanS + st.pitch * 0.3) * 0.5 + br * 0.012, mtw * 0.5, rollS * 0.5);
+      if (mocap) {
+        spine.quaternion.premultiply(_q1.fromArray(LO.spine, 0));
+        spine2.quaternion.premultiply(_q1.fromArray(LO.spine, 4));
+        chest.quaternion.fromArray(LO.spine, 8);
+      } else chest.quaternion.identity();
       chest.position.y = 0.14 + br * 0.004;
-      /* the head leads the aim and, at rest, glances around */
+      /* the head looks where the pilot aims, whatever the body does, and glances around at rest */
       S.glanceT -= dt;
       if (S.glanceT < 0) {
         S.glanceT = 1.5 + Math.random() * 3;
         S.glance = S.idle > 0.5 ? (Math.random() - 0.5) * 0.9 : 0;
       }
-      neck.rotation.set(
-        st.pitch * 0.2 + leanS * 0.45 - bob * 1.2 + S.ads * 0.14,
-        -S.turn * 0.02,
-        -S.ads * 0.12
+      S.gly += (S.glance * S.idle - S.gly) * Math.min(1, dt * 4);
+      _q1
+        .copy(pelvis.quaternion)
+        .multiply(spine.quaternion)
+        .multiply(spine2.quaternion)
+        .multiply(chest.quaternion);
+      _q2.setFromEuler(
+        _e1.set(st.pitch * 0.68 + leanS * 0.25 - S.ads * 0.1, S.gly - S.turn * 0.02, 0, "YXZ")
       );
-      head.rotation.y += (S.glance * S.idle - head.rotation.y) * Math.min(1, dt * 4);
-      head.rotation.x = st.pitch * 0.18 - br * 0.01;
+      _q1.invert().multiply(_q2);
+      neck.quaternion.identity().slerp(_q1, 0.5);
+      head.quaternion.copy(neck.quaternion);
+      /* sighting in, the head tilts onto the stock */
+      head.quaternion.multiply(_q3.setFromEuler(_e1.set(S.ads * 0.14, 0, -S.ads * 0.12, "XYZ")));
+      head.rotation.x -= br * 0.01;
       const gy = -pelvis.position.y + 0.07;
-      /* travel direction expressed in the (rotated) pelvis frame */
-      const mx0 = spd > 0.05 ? lr / spd : 0,
-        mz0 = spd > 0.05 ? -lf / spd : -1,
-        ch = Math.cos(S.hip),
-        shh = Math.sin(S.hip);
-      const mx = mx0 * ch + mz0 * shh,
-        mz = -mx0 * shh + mz0 * ch;
+      /* travel direction in the body's frame, for the jetpack's legs */
+      const mx = spd > 0.05 ? lr / spd : 0,
+        mz = spd > 0.05 ? -lf / spd : -1;
       legs.forEach((g, i) => {
         const side = g.side;
-        const tg = _lk;
-        const gf = i ? S.gR : S.gL;
         let roll = 0,
           toe = 0;
-        if (gait) {
-          const p = (S.ph + (i ? 0.5 : 0)) % 1;
-          let off,
-            lift = 0,
-            u = -1;
-          if (p < D) off = L - (2 * L * p) / D;
-          else {
-            /* the swing: the foot trails, the heel kicks up early, then the knee drives it through */
-            u = (p - D) / (1 - D);
-            const e = u * u * (3 - 2 * u);
-            off = -L + 2 * L * e;
-            lift = Math.sin(Math.PI * Math.pow(u, 0.7)) * H;
-          }
-          off *= w;
-          lift *= w;
-          tg.set(side * (0.12 + Math.abs(mx) * 0.03) + mx * off, gy + gf + lift, mz * off);
-          /* heel strike lifts the toe, toe-off peels the heel up while the toe bends, swing keeps it clear */
-          if (near) {
-            const s = u < 0 ? p / D : 1;
-            const tf = u < 0 ? (s > 0.7 ? (s - 0.7) / 0.3 : 0) : u < 0.2 ? 1 - u / 0.2 : 0;
-            if (u < 0 && s < 0.2) roll = 0.28 * (1 - s / 0.2);
-            else if (tf > 0) {
-              roll = -0.45 * tf;
-              toe = 0.6 * tf;
-            } else if (u >= 0.2) roll = 0.15 * Math.sin(((u - 0.2) / 0.8) * Math.PI);
-            roll *= w * (st.sprint ? 1.25 : 1);
-            toe *= w;
-          }
-        } else if (st.slide) tg.set(i === 0 ? -0.1 : 0.15, i === 0 ? gy + 0.06 : gy, i === 0 ? -0.62 : 0.24);
-        else if (st.pound === 1) tg.set(side * 0.14, -0.42, -0.18);
-        else if (st.pound === 2) tg.set(side * 0.15, -0.83, side * 0.05);
-        else if (st.clamber) tg.set(side * 0.12, i === 0 ? -0.4 : -0.78, i === 0 ? -0.32 : 0.12);
-        else if (st.stab) tg.set(side * 0.13, -0.8, 0.03 + Math.sin(S.t * 3 + i * 2) * 0.05);
-        else if (!air) {
-          /* standing: one knee relaxed, the weight shifting slowly between legs */
-          const relax = (i ? 1 : -1) * sway;
-          tg.set(side * 0.13, gy + gf + Math.max(0, relax) * 0.035, 0.02 * (i ? 1 : -1));
+        if (mocap) {
+          /* the capture's leg: two-bone IK to its (planted, ground-following) ankle, the knee where
+             the capture bends it, the foot turned as the capture's */
+          g.cur.fromArray(LO.tgt, i * 3);
+          _pole.fromArray(LO.pole, i * 3);
+          solve2(g.hip, g.kn, 0.44, 0.43, g.hip.position, g.cur, _pole);
+          _q1.copy(g.hip.quaternion).multiply(g.kn.quaternion).invert();
+          g.an.quaternion.copy(_q1).multiply(_q2.fromArray(LO.ankQ, i * 4));
+          g.toe.rotation.x = near ? LO.toe[i] : 0;
         } else {
-          /* in the air: legs extend through the push-off, tuck up toward the top of the jump, and
-             reach for the ground again before a landing */
-          const tx = side * 0.12 + (st.thrust ? -mx * 0.22 : 0),
-            tz = st.thrust ? -mz * 0.28 : 0;
-          if (S.airT < 0.16 && st.vy > 1.5) {
-            tg.set(tx, -0.86, (i === 0 ? -0.04 : 0.14) + tz);
-            roll = -0.5;
-          } else if (st.vy > -3.5 || S.gd > 1.6) {
-            const tuck = clamp((st.vy + 3) * 0.035, 0, 0.2);
-            tg.set(tx, (i === 0 ? -0.6 : -0.52) + tuck, (i === 0 ? -0.24 : 0.16) + tz);
-            roll = -0.35;
-          } else {
-            tg.set(tx, i === 0 ? -0.82 : -0.76, (i === 0 ? -0.1 : 0.08) + tz);
-            roll = 0.15;
+          const tg = _lk;
+          if (st.slide) tg.set(i === 0 ? -0.1 : 0.15, i === 0 ? gy + 0.06 : gy, i === 0 ? -0.62 : 0.24);
+          else if (st.pound === 1) tg.set(side * 0.14, -0.42, -0.18);
+          else if (st.pound === 2) tg.set(side * 0.15, -0.83, side * 0.05);
+          else if (st.clamber) tg.set(side * 0.12, i === 0 ? -0.4 : -0.78, i === 0 ? -0.32 : 0.12);
+          else if (st.stab) tg.set(side * 0.13, -0.8, 0.03 + Math.sin(S.t * 3 + i * 2) * 0.05);
+          else if (!air) tg.set(side * 0.13, gy, 0.02 * (i ? 1 : -1));
+          else {
+            /* the jetpack: legs trail the thrust, reaching for the ground before a landing */
+            const tx = side * 0.12 - mx * 0.22,
+              tz = -mz * 0.28;
+            if (st.vy > -3.5 || S.gd > 1.6) {
+              const tuck = clamp((st.vy + 3) * 0.035, 0, 0.2);
+              tg.set(tx, (i === 0 ? -0.6 : -0.52) + tuck, (i === 0 ? -0.24 : 0.16) + tz);
+              roll = -0.35;
+            } else {
+              tg.set(tx, i === 0 ? -0.82 : -0.76, (i === 0 ? -0.1 : 0.08) + tz);
+              roll = 0.15;
+            }
           }
+          g.cur.lerp(tg, kf);
+          solve2(g.hip, g.kn, 0.44, 0.43, g.hip.position, g.cur, _pole.set(side * 0.15, 0, -1));
+          _q1.copy(g.hip.quaternion).multiply(g.kn.quaternion).invert();
+          g.an.quaternion.copy(_q1).multiply(_q2.setFromAxisAngle(_a.set(1, 0, 0), roll));
+          g.toe.rotation.x = toe;
         }
-        g.cur.lerp(tg, gait ? Math.min(1, kf * 1.6) : kf);
-        solve2(g.hip, g.kn, 0.44, 0.43, g.hip.position, g.cur, _pole.set(side * 0.15, 0, -1));
-        _q1.copy(g.hip.quaternion).multiply(g.kn.quaternion).invert();
-        g.an.quaternion.copy(_q1).multiply(_q2.setFromAxisAngle(_a.set(1, 0, 0), roll));
-        g.toe.rotation.x = toe;
         /* tassets ride the thigh as it swings forward */
         g.tas.rotation.x = clamp(-g.cur.z * 1.4, -0.1, 0.95) + (st.crouch || st.slide ? 0.6 : 0);
       });
@@ -1114,7 +1102,6 @@ function makePilot(color, label) {
       }
       S.lastMel = st.melee;
       _c.z += kick * 0.07;
-      if (gait && !st.sprint) _c.y += Math.sin(S.ph * Math.PI * 4) * 0.012 * w;
       _c.y += br * 0.004;
       const kg = Math.min(1, k * 1.5);
       gun.position.lerp(_c, kg);
@@ -1124,7 +1111,7 @@ function makePilot(color, label) {
         curlR = 1;
       if (S.flag) {
         /* the flag: carried across the body in both hands, pole up over the right shoulder */
-        const sw = gait ? Math.sin(S.ph * Math.PI * 2) * 0.05 * w : 0;
+        const sw = S.mocap ? Math.sin(S.loco.phase * Math.PI * 2) * 0.05 * Math.min(1, S.loco.moving) : 0;
         flagG.position.set(0.04, -0.02 + sw * 0.3, -0.24);
         flagG.rotation.set(0.35 + sw, 0, -0.5 + (st.melee >= 0 ? Math.sin(Math.PI * st.melee) * 0.5 : 0));
         flagG.updateMatrix();
@@ -1146,10 +1133,10 @@ function makePilot(color, label) {
         else if (st.clamber) {
           _lk.set(-0.22, 0.42, -0.38);
           curlL = 0.3;
-        } else if (!air && st.sprint && !rocket) {
-          const a = S.ph * Math.PI * 2;
-          /* the free arm pumps with the stride: forward and up, back and down, elbow bent */
-          _lk.set(-0.26, -0.2 + 0.1 * Math.cos(a), -0.05 - 0.3 * Math.sin(a));
+        } else if (!air && st.sprint && !rocket && S.mocap) {
+          /* the free arm swings with the stride as the capture's does, held a little off the body */
+          const h = S.loco.hand;
+          _lk.set(Math.min(h[0], -0.24), h[1] + 0.06, h[2]);
           curlL = 0.6;
         } else _lk.copy(R.fore).applyMatrix4(gun.matrix);
       }
@@ -1212,7 +1199,7 @@ function makePilot(color, label) {
         g.material.opacity += (gl - g.material.opacity) * kf;
         g.scale.y = 0.25 + g.material.opacity * 0.35;
       }
-      if (step) ev = Object.assign(ev || {}, { step: true, sprint: st.sprint });
+      if (S.mocap && S.loco.step && !air) ev = Object.assign(ev || {}, { step: true, sprint: st.sprint });
       return ev;
     },
   };

@@ -32,7 +32,7 @@ The browser parses the HTML (menu, HUD, overlays are plain markup), loads three.
 | 5 | `render/renderer.js`, `pipeline.js`, `environment.js`, `perf.js` | WebGL renderer, scene, camera, lights, the procedural sky (with `SKY_TIME`), the post-processing materials and render targets. |
 | 6 | `data/modes.js`, `data/maps.js` | Mode numbers, AI skill levels, pod timing; map documents and their validator. |
 | 7 | `world/destruction.js`, `dress.js`, `maps/arena.js`, `physics.js`, `spawns.js` | **The arena map is built here** (`buildMap`): boxes become meshes and collision (`SOLID`), dressing is added and merged. `Body` (the 120 Hz movement capsule) and raycasts are defined. |
-| 8 | `characters/rig.js`, `game/recorder.js`, `game/pilot.js` | The procedural 32-bone pilot rig, the 30 Hz pose recorder, the `Pilot` registry. |
+| 8 | `data/anim-clips.js`, `characters/anim.js`, `rig.js`, `game/recorder.js`, `game/pilot.js` | Motion capture clips (decoded here) and the locomotion blend space, the 32-bone pilot rig, the 30 Hz pose recorder, the `Pilot` registry. |
 | 9 | `data/weapons.js`, `weapons/*`, `render/fx.js`, `cinema.js`, `atmosphere.js` | Weapon numbers, viewmodels, particle systems, camera toolkit, dust motes. |
 | 10 | `game/sandbox.js`, `core/audio.js`, `announcer.js` | Sandbox overrides; synthesized sound (the AudioContext is created on the first click); speech callouts. |
 | 11 | `game/state.js` | Game state (`me`, score, practice drones), local damage (`hurtMe`), the kill feed and hit markers. |

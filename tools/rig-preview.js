@@ -1,8 +1,10 @@
-/* Contact sheets of the pilot rig's animation, for working on characters/rig.js.
-     THREE_PATH=... node tools/rig-preview.js [gait|poses] [out.png]
-   gait   a side view of a run, a sprint and a jump, six frames each (stepped at exactly 60 Hz)
+/* Contact sheets of the pilot rig's animation, for working on characters/rig.js and anim.js.
+     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses] [out.png]
+   gait   a run, a sprint and a jump, seen from the side, six frames each (stepped at exactly 60 Hz)
+   loco   the other motion-captured gaits: a walk, a strafe (from the front), a backpedal and a crouched run
    poses  idle, aiming down sights (carbine and magnum), a melee strike, the reload's slap and bolt
-   A pilot is posed by hand in the arena with real three.js (software WebGL); needs ffmpeg on the PATH. */
+   A pilot really travels (planted feet lock to the ground) across the largest open floor of the
+   arena, with the camera keeping pace beside it; real three.js (software WebGL); needs ffmpeg on the PATH. */
 const fs = require("fs"),
   os = require("os"),
   path = require("path"),
@@ -20,19 +22,34 @@ if (!process.env.THREE_PATH) {
   await p.waitForTimeout(1500);
   await p.click("#deploy");
   await p.waitForTimeout(1000);
-  /* a pilot in an open stretch of the arena, seen from the side; drones out of the way */
+  /* a pilot facing -x in the middle of the largest open floor; drones out of the way */
   await p.evaluate(() => {
     const K = KA;
     for (const o of K.bots) o.body.pos.set(40, 0, 40);
     document.getElementById("toast").style.display = "none";
+    let best = null;
+    for (let cx = -30; cx <= 30; cx += 2)
+      for (let cz = -30; cz <= 30; cz += 2) {
+        let r = 0;
+        grow: for (; r < 14; r++)
+          for (let dx = -r; dx <= r; dx++)
+            for (let dz = -r; dz <= r; dz++)
+              if (
+                Math.abs(K.groundBelow(cx + dx, cz + dz, 1, 0.3)) > 0.01 ||
+                !K.freeAt(cx + dx, 0.05, cz + dz, 1.9)
+              )
+                break grow;
+        if (!best || r > best.r) best = { cx, cz, r };
+      }
     const a = K.addPilot(new K.Pilot({ id: "actor:preview", color: "#ffb347", ctl: "script" }));
-    a.body.pos.set(-30, 0, 25.6);
     a.body.yaw = Math.PI / 2;
     a.body.ground = true;
     window.__a = a;
-    window.__m = { v: 0, sprint: false, jumpT: -1, st: {} };
+    window.__c = best;
+    window.__m = { v: 0, dir: 0, sprint: false, crouch: false, jumpT: -1, cam: "side", st: {} };
   });
-  /* step the pilot n frames at 60 Hz: run speed v along its facing, a jump arc when jumpT >= 0 */
+  /* step the pilot n frames at 60 Hz: speed v in direction dir (relative to facing, + right),
+     a jump arc when jumpT >= 0; the camera keeps pace, beside it or in front */
   const step = n =>
     p.evaluate(n => {
       const K = KA,
@@ -41,8 +58,12 @@ if (!process.env.THREE_PATH) {
         B = a.body;
       for (let i = 0; i < n; i++) {
         const dt = 1 / 60;
-        B.vel.set(-m.v, 0, 0);
+        /* (facing -x: forward is -x, right is -z) */
+        B.vel.set(-m.v * Math.cos(m.dir), B.vel.y, -m.v * Math.sin(m.dir));
+        B.pos.x += B.vel.x * dt;
+        B.pos.z += B.vel.z * dt;
         B.sprint = m.sprint;
+        B.crouch = m.crouch;
         B.aiming = !!m.st.aim;
         B.meleeT = m.st.melee >= 0 ? 0.4 * (1 - m.st.melee) : 0;
         if (m.jumpT >= 0) {
@@ -53,6 +74,7 @@ if (!process.env.THREE_PATH) {
             m.jumpT = -1;
             B.ground = true;
             B.pos.y = 0;
+            B.vel.y = 0;
           } else {
             B.ground = false;
             B.vel.y = vy;
@@ -65,11 +87,28 @@ if (!process.env.THREE_PATH) {
         }
         a.pose(dt, { reload: m.st.reload == null ? -1 : m.st.reload, fire: false, wpn: m.st.wpn | 0 });
       }
-      K.me.pos.set(-30, 0, 28.6);
-      K.me.yaw = 0;
+      if (m.cam === "front") {
+        K.me.pos.set(B.pos.x - 3.2, 0, B.pos.z);
+        K.me.yaw = -Math.PI / 2;
+      } else {
+        K.me.pos.set(B.pos.x, 0, B.pos.z + 3);
+        K.me.yaw = 0;
+      }
       K.me.pitch = -0.08;
     }, n);
-  const set = m => p.evaluate(m => Object.assign(window.__m, m), m);
+  /* a new gait: start far enough back that the frames are taken near the middle of the floor */
+  const set = (m, lead) =>
+    p.evaluate(
+      ([m, lead]) => {
+        Object.assign(window.__m, m);
+        const c = window.__c,
+          B = window.__a.body,
+          v = window.__m.v,
+          d = window.__m.dir;
+        B.pos.set(c.cx + v * lead * Math.cos(d), 0, c.cz + v * lead * Math.sin(d));
+      },
+      [m, lead]
+    );
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rig-"));
   const frames = [];
   const take = async () => {
@@ -78,6 +117,7 @@ if (!process.env.THREE_PATH) {
     await p.screenshot({ path: f, clip: { x: 300, y: 70, width: 360, height: 430 } });
     frames.push(f);
   };
+  const base = { v: 0, dir: 0, sprint: false, crouch: false, jumpT: -1, cam: "side", st: {} };
   if (mode === "poses") {
     for (const st of [
       {},
@@ -87,26 +127,40 @@ if (!process.env.THREE_PATH) {
       { reload: 0.72 },
       { reload: 0.88 },
     ]) {
-      await set({ v: 0, sprint: false, jumpT: -1, st });
+      await set(Object.assign({}, base, { st }), 0);
       await step(40);
       await take();
     }
   } else {
-    for (const [m, per] of [
-      [{ v: 6.4, sprint: false, jumpT: -1 }, 4],
-      [{ v: 9, sprint: true, jumpT: -1 }, 3],
-    ]) {
-      await set(Object.assign(m, { st: {} }));
-      await step(120);
+    const gaits =
+      mode === "loco"
+        ? [
+            [{ v: 1.3 }, 8],
+            [{ v: 6.4, dir: Math.PI / 2, cam: "front" }, 3],
+            [{ v: 6.4, dir: Math.PI }, 3],
+            [{ v: 3.2, crouch: true }, 4],
+          ]
+        : [
+            [{ v: 6.4 }, 3],
+            [{ v: 9, sprint: true }, 3],
+          ];
+    for (const [m, per] of gaits) {
+      const warm = 70;
+      await set(Object.assign({}, base, m), ((warm + 3 * per) / 60) * 1);
+      await step(warm);
       for (let i = 0; i < 6; i++) {
         await step(per);
         await take();
       }
     }
-    await set({ v: 6.4, sprint: false, jumpT: 0, st: {} });
-    for (let i = 0; i < 6; i++) {
-      await step(6);
-      await take();
+    if (mode !== "loco") {
+      await set(Object.assign({}, base, { v: 6.4 }), 1.2);
+      await step(40);
+      await p.evaluate(() => (window.__m.jumpT = 0));
+      for (let i = 0; i < 6; i++) {
+        await step(7);
+        await take();
+      }
     }
   }
   await b.close();
