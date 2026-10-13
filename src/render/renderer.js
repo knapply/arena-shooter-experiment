@@ -105,6 +105,28 @@ vec3 side=normalize(cross(vec3(0.,1.,0.),base));float sw=sin(tm*(.09+.035*fi)+fi
 vec3 dir=normalize(vec3(0.,1.,0.)+base*.25+side*sw);vec3 nrm=normalize(cross(base,dir));
 float wd=.004+.035*max(h,0.);float beam=smoothstep(wd,0.,abs(dot(d,nrm)))*step(0.,dot(d,base)+.35)*smoothstep(-.01,.08,h)*(1.-smoothstep(.2,.85,h));
 c+=beam*vec3(.42,.52,.68)*.16;}
+/* sky life (Sky detail): drifting cloud banks lit warm toward the sun, lanes of traffic streaming
+   between the towers, and every so often a ship crossing with its running lights */
+if(sq>.5){
+vec2 cp=d.xz/(h+.12);
+float cv=n2(cp*1.3+vec2(tm*.012,0.))*.6+n2(cp*2.9-vec2(0.,tm*.02))*.3+n2(cp*7.+tm*.01)*.1;
+cv=smoothstep(.5,.82,cv)*smoothstep(.03,.2,h)*(1.-smoothstep(.5,.9,h));
+float sl=pow(max(dot(d,sunD),0.),3.);
+c=mix(c,mix(vec3(.15,.12,.16),vec3(.66,.44,.33),.3+.7*sl),cv*.7);
+for(int i=0;i<3;i++){float fi=float(i);float lh=.04+fi*.024+.006*sin(az*3.+fi*2.);
+float dir=mod(fi,2.)*2.-1.;float sp=fract(az*(30.+fi*11.)+tm*dir*(.05+.02*fi)+h1(vec2(floor(az*(30.+fi*11.)),fi)));
+float car=smoothstep(.0,.03,sp)*smoothstep(.16,.05,sp)*smoothstep(.0028,0.,abs(h-lh));
+c+=car*mix(vec3(1.,.22,.12),vec3(1.,.93,.78),step(0.,dir))*1.4;}
+float sc=tm/45.;float ph=fract(sc);float sid=floor(sc);
+if(ph<.45){float a0=h1(vec2(sid,2.))*6.28;vec3 s0=normalize(vec3(cos(a0),.14+.16*h1(vec2(sid,4.)),sin(a0)));
+vec3 td=normalize(cross(vec3(0.,1.,0.),s0));float ang=(ph/.45-.5)*1.8;vec3 sdir=normalize(s0*cos(ang)+td*sin(ang));
+vec3 ly=normalize(cross(sdir,td));vec2 q=vec2(dot(d,td),dot(d,ly));
+if(dot(d,sdir)>.995){float body=smoothstep(1.,.75,length(q*vec2(55.,190.)))+smoothstep(1.,.7,length((q-vec2(-.004,.003))*vec2(110.,260.)));
+c=mix(c,vec3(.025,.03,.04),clamp(body,0.,1.));
+c+=vec3(.45,.75,1.)*smoothstep(.0035,0.,length(q-vec2(-.019,0.)))*3.;
+c+=vec3(1.,.2,.1)*step(.6,fract(tm*1.3))*smoothstep(.0018,0.,length(q-vec2(.012,.002)))*4.;
+c+=vec3(.6,1.,.6)*step(.6,fract(tm*1.3+.5))*smoothstep(.0018,0.,length(q-vec2(.004,-.004)))*4.;}}
+}
 /* the skyline: towers and spires against the horizon glow, with windows */
 float col=floor(az*38.);float th=.03+.045*pow(h1(vec2(col,1.)),2.)+.025*n2(vec2(az*6.,0.));
 if(h1(vec2(col,5.))>.93)th+=.05;

@@ -24,6 +24,7 @@
     "world/destruction.js",
     "world/dress.js",
     "world/bake.js",
+    "world/props.js",
     "world/maps/arena.js",
     "world/physics.js",
     "world/spawns.js",

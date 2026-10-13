@@ -108,7 +108,7 @@ function bakePrep(group, solids, doc) {
   for (const m of group.children) {
     if (!m.isMesh) continue;
     const mat = m.material;
-    if (mat.isMeshBasicMaterial && !mat.transparent && mat.color) {
+    if (mat.isMeshBasicMaterial && !mat.transparent && mat.color && !mat.userData.detail) {
       const col = mat.color;
       if (col.r + col.g + col.b < 2) continue;
       const P = m.geometry.parameters;

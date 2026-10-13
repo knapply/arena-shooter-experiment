@@ -93,6 +93,11 @@ function applyGfx() {
   }
   for (const m of DETAIL_MATS) applyDetail(m);
   for (const m of SURF_MATS) applySurf(m);
+  /* Map detail: the props are their own merged meshes, hidden on Basic */
+  for (const { g } of MAP_GROUPS)
+    for (const o of g.children)
+      if (o.material && o.material.userData.detail) o.visible = SET.mapDetail === "high";
+  SKY_Q.value = SET.sky === "high" ? 1 : 0;
   const an = Math.min(+SET.aniso, renderer.capabilities.getMaxAnisotropy());
   for (const t of [DETAIL.map, DETAIL.nmap, MATS.floor.map])
     if (t) {

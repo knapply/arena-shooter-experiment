@@ -95,7 +95,7 @@ grime=max(grime,smoothstep(.6,.95,sn2(vec2(sp.x*4.,sp.y*.3)))*.4);
 diffuseColor.rgb*=1.-grime*.5;
 float sE=vEdge.y>vEdge.x?min(min(sp.x-vEdge.x,vEdge.y-sp.x),min(sp.y-vEdge.z,vEdge.w-sp.y)):9.;
 float wear=(1.-smoothstep(0.,.015+.05*sn2(sp*7.),sE))*smoothstep(.45,.6,sn2(sp*13.));
-wear=max(wear,(1.-smoothstep(.0,.03,pn.z))*.5*step(.62,sn2(sp*9.)));
+wear=max(wear,(1.-smoothstep(.0,.03,pn.z))*.22*step(.7,sn2(sp*9.)));
 diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.4,.42,.44),wear*.8);
 sRough=(pn.y-.5)*.2+grime*.25-wear*.3;sMetal=wear;
 #endif

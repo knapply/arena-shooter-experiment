@@ -64,6 +64,7 @@ void main(){float a=texture2D(map,gl_PointCoord).a*vA*.55;gl_FragColor=vec4(vec3
 function updAtmosphere(dt) {
   ATMO.t += dt;
   SKY_TIME.value = ATMO.t;
+  PROP_T.value = ATMO.t;
   /* the dust: made on first use, remade when the Particles setting changes */
   const want = Math.round(420 * Math.min(1.5, SET.particles));
   if (!ATMO.motes || ATMO.motes.geometry.attributes.position.count !== want) {
