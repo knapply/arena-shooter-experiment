@@ -57,7 +57,7 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - **Results screen:** after Play of the Game, the winner and score, your match (kills by weapon, accuracy, best spree, damage, medals), awards (MVP, most damage, best accuracy, top flag runner), a timeline of the big moments, and Play again, Change mode or Leave
 - **Play of the Game:** every match ends with a cinematic replay of its best moment (multikills, sprees, clutch captures)
 - **Match intros:** a five-second flyover of the map, both teams at their spawns, the objective and the power weapon
-- **Motion tracker:** a 25 m radar showing enemies who run, jump or shoot (crouch-walking keeps you off it)
+- **Motion tracker:** a 25 m radar showing enemies who run, jump or shoot (crouch-walking keeps you off it). It sits in whichever corner you choose, at the size you choose, and in capture the flag it takes the minimap's place while you play
 - **Pings:** mark an enemy, weapon or place for your team; AI teammates respond to them
 - **Medals:** multikills, sprees, Perfect (a minimum-shot kill with no misses), headshots, revenge and more, with announcer callouts
 - **AI with the full arsenal:** bots carry the carbine and the magnum like you, switch with your switch time, and pick the magnum at range and to finish a pilot whose shields are down
@@ -186,7 +186,7 @@ Settings are saved in your browser automatically and can be exported to or impor
 - **Graphics:** quality presets (Low → Ultra), render scale, upscaling, dynamic resolution, frame rate target, anti-aliasing (FXAA / MSAA), sharpening, reflections, shadows, bloom, surface detail, texture filtering, particles, draw distance, brightness, saturation, vignette, film grain, field of view, FPS counter, performance overlay, network panel
 - **Mouse:** sensitivity, aiming sensitivity, invert Y, smoothing, raw input, hold/toggle for sprint, crouch and aim
 - **Controller:** look and aim sensitivity, response curve, deadzones, turn acceleration, aim assist strength, invert Y, vibration, full button remapping
-- **Gameplay:** friendly fire, spawn style (drop pods or classic), motion tracker, kill cam, match intros, reticle color and size, HUD size, camera bob, screen shake, speed lines, hit sounds
+- **Gameplay:** friendly fire, spawn style (drop pods or classic), motion tracker (on or off, its corner and its size), kill cam, match intros, reticle color and size, HUD size, camera bob, screen shake, speed lines, hit sounds
 - **Sandbox:** movement, weapon and grenade tuning (see [docs/TUNING.md](docs/TUNING.md) for what each number does and how the defaults were picked). A host's sandbox applies to everyone in their room for as long as they're in it; your own saved values come back when you leave
 - **Labs:** prototype weapons (burst rifle, scattergun, arc beam, pulse grenade), a lighter melee rule and Twin Foundry layout changes, all off by default and offline only ([docs/PROPOSALS.md](docs/PROPOSALS.md) has what each does and what the simulations found)
 - **Audio:** master, effects and announcer volume, announcer pace

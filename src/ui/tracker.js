@@ -2,9 +2,12 @@
    A 25 m radar: enemies show up while they run, sprint, jump or shoot, and vanish when they
    crouch-walk or stand still, so moving quietly is a choice. Teammates always show (dimmer). Up is
    where you're looking. Modes can supply their own contacts with EXT.radar(); the arena uses its
-   drones and online players. Off in Gameplay settings for a no-radar competitive game. */
+   drones and online players. Off in Gameplay settings for a no-radar competitive game, and its
+   corner and size are settings too (trackerPos, trackerSize: body[data-trk] and --trk in CSS). */
 const TRACK_RANGE = 25,
-  TRACK_SPEED = 3.6;
+  TRACK_SPEED = 3.6,
+  /* drawing resolution: sharp up to the largest size setting on a high-density screen */
+  TRACK_PX = 300;
 let trackEl = null,
   trackT = 0;
 /** the arena's contacts: { pos, vel, firing, ally } */
@@ -44,7 +47,7 @@ function updTracker(dt) {
   if (!trackEl) {
     trackEl = /** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (document.createElement("canvas")));
     trackEl.id = "tracker";
-    trackEl.width = trackEl.height = 220;
+    trackEl.width = trackEl.height = TRACK_PX;
     $("hud").appendChild(trackEl);
   }
   const on = SET.tracker && playing && !me.dead;
@@ -54,7 +57,7 @@ function updTracker(dt) {
   if (trackT > 0) return;
   trackT = 1 / 20;
   const x = trackEl.getContext("2d"),
-    W = 220,
+    W = TRACK_PX,
     C = W / 2,
     R = C - 6;
   x.clearRect(0, 0, W, W);
@@ -77,7 +80,7 @@ function updTracker(dt) {
   x.fill();
   x.fillStyle = "#dbe6ea";
   x.beginPath();
-  x.arc(C, C, 4, 0, Math.PI * 2);
+  x.arc(C, C, 5.5, 0, Math.PI * 2);
   x.fill();
   for (const c of trackerShown()) {
     const px = C + (c.x / TRACK_RANGE) * R,
@@ -89,11 +92,11 @@ function updTracker(dt) {
     if (above || below) {
       /* a triangle: up for above you, down for below */
       const s = above ? -1 : 1;
-      x.moveTo(px, py + 9 * s);
-      x.lineTo(px - 8, py - 6 * s);
-      x.lineTo(px + 8, py - 6 * s);
+      x.moveTo(px, py + 12 * s);
+      x.lineTo(px - 11, py - 8 * s);
+      x.lineTo(px + 11, py - 8 * s);
       x.closePath();
-    } else x.arc(px, py, c.ally ? 5 : 7, 0, Math.PI * 2);
+    } else x.arc(px, py, c.ally ? 7 : 9.5, 0, Math.PI * 2);
     x.fill();
   }
 }

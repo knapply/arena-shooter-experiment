@@ -829,6 +829,44 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       "dropped and returned flags have their own sounds",
       fl.heard2
     );
+    /* the motion tracker replaces the minimap while playing, and in either bottom corner team chat
+       never draws over it */
+    const trkLay = await A.evaluate(async () => {
+      const g = CTF.UI.game(),
+        out = {};
+      for (const pos of ["br", "bl"]) {
+        KA.SET.trackerPos = pos;
+        KA.applySettings();
+        for (let i = 0; i < 6; i++)
+          g.teams[g.human.team].brain.say(
+            g,
+            g.teams[g.human.team].agents[i % 4],
+            "t" + i,
+            "Pushing the left lane " + i
+          );
+        await new Promise(r => setTimeout(r, 300));
+        const t = document.getElementById("tracker").getBoundingClientRect(),
+          c = document.getElementById("cComms").getBoundingClientRect();
+        out[pos] = {
+          size: Math.round(t.width),
+          chat: Math.round(c.height),
+          clear: t.right < c.left || t.left > c.right || t.bottom < c.top || t.top > c.bottom,
+        };
+      }
+      KA.SET.trackerPos = "br";
+      KA.applySettings();
+      out.mini = getComputedStyle(document.getElementById("cMini")).display;
+      return out;
+    });
+    check(
+      trkLay.br.size >= 150 &&
+        trkLay.br.chat > 0 &&
+        trkLay.br.clear &&
+        trkLay.bl.clear &&
+        trkLay.mini === "none",
+      "the motion tracker takes the minimap's place, and team chat never covers it",
+      trkLay
+    );
     /* a friend's ping reaches the host, and the friend's AI teammates respond to it */
     await B.evaluate(() => {
       KA.me.pitch = -0.35;

@@ -423,6 +423,12 @@ function renderKeyHelp() {
 const hudHook = () => {
   document.documentElement.style.setProperty("--xh", SET.xhColor);
   $("xh").style.scale = String(SET.xhSize);
+  /* the motion tracker's corner and size (styles/base.css: body[data-trk], --trk) */
+  document.body.dataset.trk = SET.trackerPos;
+  document.documentElement.style.setProperty(
+    "--trk",
+    Math.round(170 * SET.trackerSize * SET.hudScale) + "px"
+  );
   for (const s of [".vitals", ".ammo", ".kit", "#medals", ".status", "#feed"])
     for (const e of /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(s)))
       e.style.zoom = String(SET.hudScale);

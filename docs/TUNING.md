@@ -82,6 +82,10 @@ Three settings moved skill share the same way in most of the 8 cells (2 maps × 
 
 Movement knobs stay where they are: nothing in movement repeated across seeds, and how movement *feels* (responsiveness, smoothness) is something simulated pilots cannot judge. The step-up and clamber fix in this pass (stairs never clamber) is a feel change the simulation does not measure.
 
+### After the fire-rate fix
+
+Automatic weapons used to lose the part of a frame (or a 30 Hz AI step) each shot came late by, so the AI fired its 0.1 s carbine at 7.0 rounds a second instead of 10. With that fixed (the AI now fires at 9.4, the rest being pauses to re-aim), the baselines moved a little: Legendary vs Normal skill share 0.857 on Twin Foundry and 0.79 on the arena (up about 0.005 to 0.01), Normal vs Normal time to kill 3.0 s and 2.07 s (down about 0.05 to 0.1 s). The carbine was re-swept (damage 8 and 8.5, fire interval 0.11 and 0.12, bloom 0.006; full matches and carbine-only, both maps, seed sets 100 and 700, 24 matches per kind, null controls): nothing moved skill share the same way on both seed sets except damage 8.5 on the carbine-only arena, which lowered it (−0.021, −0.017). **Kept:** the carbine numbers were tuned for players, who always fired at the real rate.
+
 ## All modes: team deathmatch on the arena as well as capture the flag
 
 The free-for-all arena's own AI (the practice drones) only fights you, so the arena is measured with the CTF AI playing **team deathmatch** there: 4 v 4 on Proving Grounds, no flags, kills score (`MAP=arena`; see "A map" in [EXTENDING.md](EXTENDING.md)). The arena is small and open around its core: fights there are faster (time to kill 2.1 s, 30 kills per minute) and closer than on Twin Foundry (3.1 s, 14.7 per minute). Simulated matches run the full 4 minutes (no score limit), and kills per minute now use the minutes actually played (capture the flag can end early).
