@@ -6,6 +6,17 @@ const fs = require("fs"),
 const { chromium } = require("playwright");
 const ROOT = path.join(__dirname, "..", "..");
 const GAME = "file://" + path.join(ROOT, "index.html");
+/* the trailer build (out/trailer.html: the game plus the cinematic trailer), rebuilt once per run */
+let trailerBuilt = false;
+function trailerPage() {
+  if (!trailerBuilt) {
+    require("child_process").execFileSync(process.execPath, [path.join(ROOT, "build.mjs"), "--trailer"], {
+      cwd: ROOT,
+    });
+    trailerBuilt = true;
+  }
+  return "file://" + path.join(ROOT, "out", "trailer.html");
+}
 async function launch(opts = {}) {
   const args = opts.gpu
     ? ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
@@ -31,10 +42,10 @@ async function serveRepo(ctx) {
   });
 }
 /* tests start with match intros off (they would hold input for a few seconds after every deploy);
-   pass intros: true to test them */
+   pass intros: true to test them. trailer: true opens the trailer build instead of the game */
 async function open(
   ctx,
-  { tag = "", init = [], realThree = false, hash = "", http = false, intros = false } = {}
+  { tag = "", init = [], realThree = false, hash = "", http = false, intros = false, trailer = false } = {}
 ) {
   if (http) await serveRepo(ctx);
   const p = await ctx.newPage();
@@ -65,7 +76,7 @@ async function open(
       : fs.readFileSync(path.join(__dirname, "..", "stubs", "three-browser.js"), "utf8");
   await p.route("**/three.min.js", r => r.fulfill({ contentType: "application/javascript", body: three }));
   await p.route("https://fonts.googleapis.com/**", r => r.fulfill({ contentType: "text/css", body: "" }));
-  await p.goto((http ? "http://ka.test/index.html" : GAME) + hash);
+  await p.goto((trailer ? trailerPage() : http ? "http://ka.test/index.html" : GAME) + hash);
   return p;
 }
 /** close a tab the way a browser does: pagehide first (the game says goodbye), then close */

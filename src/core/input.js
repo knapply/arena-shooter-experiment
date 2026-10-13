@@ -68,7 +68,7 @@ addEventListener("keydown", e => {
     $("pause").hidden = false;
     return;
   }
-  if (pressCode(e.code) && (playing || demo)) e.preventDefault();
+  if (pressCode(e.code) && playing) e.preventDefault();
 });
 addEventListener("keyup", e => codesDown.delete(e.code));
 canvas.addEventListener("mousedown", e => {

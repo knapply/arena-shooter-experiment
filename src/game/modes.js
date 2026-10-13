@@ -11,7 +11,7 @@
      scores(tbody)         fill the scoreboard;   switchTeam()   the team-switch key
      exit()                leaving the mode: clean up everything it made
    Free-for-all is the engine's own mode (the arena with drones and online players) and is
-   registered here; capture the flag, spectating, the tutorial and the trailer register themselves
+   registered here; capture the flag, spectating and (in the trailer build) the trailer register themselves
    from their modules. Settings come from data/modes.js. */
 /** @type {Map<string, { id: string, name: string, settings?: any, start: (opts?: any) => void }>} */
 const MODE_DEFS = new Map();

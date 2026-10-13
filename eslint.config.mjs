@@ -64,9 +64,9 @@ const engine = scope.map(({ path, names }) => {
     rules: RULES,
   };
 });
-const modes = manifest().modes.map(p => `src/${p}`);
+const modes = [...manifest().modes, ...manifest().trailer.modes].map(p => `src/${p}`);
 export default [
-  { ignores: ["index.html", "node_modules/**", "media/**", "docs/**"] },
+  { ignores: ["index.html", "node_modules/**", "media/**", "docs/**", "out/**", ".*/**"] }, // dot folders: local tooling and worktrees
   ...engine,
   {
     files: [...modes, "src/net/p2p-transport.js"],

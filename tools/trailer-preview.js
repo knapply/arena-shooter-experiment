@@ -18,7 +18,7 @@ const [mode = "check", ...args] = process.argv.slice(2);
   const draw = mode === "stills" || mode === "clip";
   const b = await launch({ gpu: draw });
   const ctx = await b.newContext({ viewport: { width: 640, height: 360 } });
-  const p = await open(ctx, { realThree: draw });
+  const p = await open(ctx, { realThree: draw, trailer: true });
   await p.waitForTimeout(1500);
   await p.evaluate(() => {
     KA.SET.dynRes = false;

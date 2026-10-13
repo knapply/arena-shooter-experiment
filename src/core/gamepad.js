@@ -202,11 +202,9 @@ function padMenu(dt) {
         ? $("pause")
         : !$("menu").hidden
           ? $("menu")
-          : demo
-            ? $("demoUI")
-            : EXT && EXT.full
-              ? $("ctfHud")
-              : null;
+          : EXT && EXT.full
+            ? $("ctfHud")
+            : null;
   if (!ov) return;
   const items = /** @type {El[]} */ ([...ov.querySelectorAll("button,select,input")]).filter(
     el => el.offsetParent !== null && !el.disabled
@@ -246,6 +244,6 @@ function padMenu(dt) {
     else if (ov.id === "ctfHud") {
       const x = $("cExit");
       if (x) x.click();
-    } else if (ov.id === "demoUI") $("dExit").click();
+    }
   }
 }
