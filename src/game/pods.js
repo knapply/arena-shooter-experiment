@@ -253,6 +253,11 @@ function updPods(dt) {
       /* the fireball at the head of the trail */
       ptAdd(PTS.glow, p.g.position, new V3(), 7 * heat, 0xffc070, 1, 0.05);
       ptAdd(PTS.glow, p.g.position, new V3(), 3 * heat, 0xfff0d0, 1, 0.05);
+      /* the burn lights the ground as it comes in, and the air shimmers around it */
+      if (h < 70) {
+        dynLight(p.g.position, 0xff9a50, 5 * heat * (1 - h / 70), 0.05, 26);
+        heatAt(p.g.position, 2.2 * heat, 1.2);
+      }
       if (k >= 1) {
         p.landed = true;
         p.vis.copy(p.at);

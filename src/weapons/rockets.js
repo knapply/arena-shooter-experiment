@@ -94,6 +94,8 @@ class RocketWorld {
         r.mesh.position.copy(r.pos);
         r.mesh.lookAt(_rk2.copy(r.pos).sub(r.vel));
         r.mesh.userData.flame.scale.setScalar(0.42 + Math.random() * 0.2);
+        /* the exhaust bends the air behind it (Ultra) */
+        if (typeof heatAt === "function") heatAt(_rk2.copy(r.pos).addScaledVector(_rk1, -0.5), 0.5, 1);
         r.smoke -= dt;
         if (r.smoke <= 0) {
           r.smoke = 0.03;

@@ -1270,6 +1270,8 @@ function makePilot(color, label) {
     if (S.deadT > 3.4) root.visible = false;
   }
   rig.setLabel(label);
+  /* materials only: rim light, panel lines, team pattern, visor, shield ripple (characters/look.js) */
+  styleRig(rig);
   return rig;
 }
 function bodyState(B, extra) {

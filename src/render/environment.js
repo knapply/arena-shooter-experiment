@@ -56,17 +56,38 @@ function buildEnv() {
 }
 let lastRefl = null,
   lastShadow = null;
+/* what was last applied, per group of settings, so a slider that changes nothing on the GPU (or the
+   same value again) costs nothing: [surface detail, map detail, filtering, render targets] */
+const GFX_DONE = { tex: "", detail: "", aniso: "", rt: "" };
+/* the environment capture (~250 ms) waits until the first frames are on screen */
+function deferEnv() {
+  if (GFX.envWait) return;
+  GFX.envWait = true;
+  const go = () => {
+    buildEnv();
+    GFX.envWait = false;
+    lastRefl = null;
+    applyGfx();
+  };
+  const idle = /** @type {any} */ (window).requestIdleCallback;
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => (idle ? idle(go, { timeout: 600 }) : setTimeout(go, 0)))
+  );
+}
 function applyGfx() {
   const refl = SET.reflections;
   if (refl !== lastRefl) {
     lastRefl = refl;
-    scene.environment = refl === "off" ? null : buildEnv();
+    if (refl !== "off" && !GFX.env) deferEnv();
+    scene.environment = refl === "off" ? null : GFX.env;
     scene.traverse(o => {
       const m = o.material;
       if (!m || !m.isMeshStandardMaterial) return;
-      m.envMapIntensity = (refl === "glossy" ? 1.4 : 1) * (m.userData.envK != null ? m.userData.envK : 1);
+      m.envMapIntensity =
+        (refl === "glossy" || refl === "ssr" ? 1.4 : 1) * (m.userData.envK != null ? m.userData.envK : 1);
       if (m.userData.rough != null)
-        m.roughness = refl === "glossy" ? Math.max(0.25, m.userData.rough - 0.3) : m.userData.rough;
+        m.roughness =
+          refl === "glossy" || refl === "ssr" ? Math.max(0.25, m.userData.rough - 0.3) : m.userData.rough;
       m.needsUpdate = true;
     });
   }
@@ -83,26 +104,51 @@ function applyGfx() {
         sun.shadow.map = null;
       }
     }
+    /* low shadows redraw every other frame (renderFrame) */
+    renderer.shadowMap.autoUpdate = q !== "low";
+    renderer.shadowMap.needsUpdate = true;
     const ty = q === "low" ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     if (renderer.shadowMap.type !== ty) {
       renderer.shadowMap.type = ty;
       recompileAll();
     }
   }
-  for (const m of DETAIL_MATS) applyDetail(m);
-  const an = Math.min(+SET.aniso, renderer.capabilities.getMaxAnisotropy());
-  for (const t of [DETAIL.map, DETAIL.nmap, MATS.floor.map])
-    if (t) {
-      t.anisotropy = an;
-      t.needsUpdate = true;
-    }
+  if (GFX_DONE.tex !== SET.textures) {
+    GFX_DONE.tex = SET.textures;
+    for (const m of SURF_MATS) applySurf(m);
+  }
+  /* Map detail: the props are their own merged meshes, hidden on Basic (maps built later read it too) */
+  const det = SET.mapDetail + MAP_GROUPS.length;
+  if (GFX_DONE.detail !== det) {
+    GFX_DONE.detail = det;
+    for (const { g } of MAP_GROUPS)
+      for (const o of g.children)
+        if (o.material && o.material.userData.detail) o.visible = SET.mapDetail === "high";
+  }
+  SKY_Q.value = SET.sky === "high" ? 1 : 0;
+  if (GFX_DONE.aniso !== SET.aniso) {
+    GFX_DONE.aniso = SET.aniso;
+    const an = Math.min(+SET.aniso, renderer.capabilities.getMaxAnisotropy());
+    for (const t of [MATS.floor.map])
+      if (t) {
+        t.anisotropy = an;
+        t.needsUpdate = true;
+      }
+  }
   scene.fog.near = SET.drawDist * 0.3;
   scene.fog.far = SET.drawDist * 0.85;
   camera.far = SET.drawDist + 60;
   camera.updateProjectionMatrix();
-  renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
-  GFX.lastKey = "";
-  resize();
+  /* render targets only change with these */
+  const rt = ["upscale", "renderScale", "aa", "bloom", "ao", "lightShafts", "reflections"]
+    .map(k => SET[k])
+    .join();
+  if (GFX_DONE.rt !== rt) {
+    GFX_DONE.rt = rt;
+    renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
+    GFX.lastKey = "";
+    resize();
+  }
   if (fpsEl) fpsEl.hidden = !SET.fpsCounter;
 }
 const pc = n => Math.round(n * SET.particles);

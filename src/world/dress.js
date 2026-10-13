@@ -63,7 +63,8 @@ function dressMap(doc, solids) {
     MAPG.add(m);
     return m;
   };
-  const aoQuads = [];
+  const aoQuads = [],
+    faceList = [];
   /* a flat strip on the floor along one edge, uv.y = 0 at the wall */
   const aoEdge = (ax, az, bx, bz, nx, nz, y, wid) => {
     const len = Math.hypot(bx - ax, bz - az);
@@ -114,6 +115,7 @@ function dressMap(doc, solids) {
       )
         continue;
       if (grounded) aoEdge(f.ax, f.az, f.bx, f.bz, f.nx, f.nz, b.y0, Math.min(1.1, 0.35 + h * 0.18));
+      faceList.push(Object.assign({ b, len, h }, f));
       const ux = (f.bx - f.ax) / len,
         uz = (f.bz - f.az) / len;
       const at = (s, out) => [f.ax + ux * s + f.nx * out, f.az + uz * s + f.nz * out];
@@ -168,6 +170,8 @@ function dressMap(doc, solids) {
         }
     }
   }
+  /* pipes, cables, fans, beacons and signs (world/props.js) */
+  dressProps(doc, solids, rnd01, zoneMat, faceList);
   if (aoQuads.length) {
     const m = new THREE.Mesh(mergeGeos(aoQuads), DRESS_MATS.ao);
     m.renderOrder = 1;

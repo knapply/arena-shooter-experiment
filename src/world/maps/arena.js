@@ -178,6 +178,18 @@ function mergeGeos(items) {
     vo += c;
   }
   const out = new THREE.BufferGeometry();
+  /* any other attribute every piece has (baked light) is copied as it is */
+  const g0 = items[0][0].attributes;
+  for (const k in g0) {
+    if (k === "position" || k === "normal" || k === "uv" || !items.every(([g]) => g.attributes[k])) continue;
+    const arr = new Float32Array(nv * g0[k].itemSize);
+    let o = 0;
+    for (const [g] of items) {
+      arr.set(g.attributes[k].array, o);
+      o += g.attributes[k].array.length;
+    }
+    out.setAttribute(k, new THREE.BufferAttribute(arr, g0[k].itemSize));
+  }
   out.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   out.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
   if (uvs) out.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
@@ -251,7 +263,10 @@ function buildMap(doc, group) {
   }
   /* the sci-fi dressing (world/dress.js; the simulation worker builds bare maps) */
   if (typeof dressMap === "function") dressMap(doc, SOLID);
+  /* light baked into the geometry (world/bake.js; engine only) */
+  if (typeof bakePrep === "function") bakePrep(group, SOLID, doc);
   mergeMapGroup(group);
+  if (typeof bakeLight === "function") bakeLight(group, SOLID);
   const solids = SOLID.splice(0);
   SOLID.push(...saved);
   MAPG = prev;

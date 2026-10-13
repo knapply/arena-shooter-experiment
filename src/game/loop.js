@@ -522,6 +522,7 @@ function frameBody(t) {
   });
   flashT = Math.max(0, flashT - dt);
   flash.intensity = flashT > 0 ? 2.2 : 0;
+  if (flashT > 0) camera.worldToLocal(flashSprite.getWorldPosition(flash.position));
   flashSprite.material.opacity = flashT > 0 ? 0.95 : 0;
   flashSprite.material.rotation = Math.random() * 6;
   updFX(dt);

@@ -45,7 +45,8 @@ resize();
 const hemi = new THREE.HemisphereLight(0xb4cbe0, 0x5a4a3c, 1.35);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffe2c0, 2.3);
-sun.position.set(30, 50, 18);
+/* a lower sun than overhead: longer shadows, and the sky shader draws it where the shadows say it is */
+sun.position.set(30, 30, 18);
 sun.castShadow = true;
 sun.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, near: 1, far: 130 });
@@ -56,10 +57,13 @@ const _skyP = new THREE.Vector3();
 const skyTint = new THREE.Vector3(1, 1, 1);
 /* the sky's clock (render/atmosphere.js advances it): the city's searchlights sweep with it */
 const SKY_TIME = { value: 0 };
+/* the sun's direction (follows sun.position) and the sky's detail level (Sky detail setting: 0 or 1) */
+const SKY_SUN = { value: new THREE.Vector3(0.6, 0.6, 0.36) },
+  SKY_Q = { value: 1 };
 {
   const g = new THREE.SphereGeometry(40, 32, 16);
   const m = new THREE.ShaderMaterial({
-    uniforms: { tint: { value: skyTint }, tm: SKY_TIME },
+    uniforms: { tint: { value: skyTint }, tm: SKY_TIME, sunD: SKY_SUN, sq: SKY_Q },
     side: THREE.BackSide,
     depthWrite: false,
     depthTest: false,
@@ -68,7 +72,7 @@ const SKY_TIME = { value: 0 };
       "varying vec3 v;void main(){v=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
     /* dusk gradient, a ringed planet, stars and a faint nebula overhead, and a distant megacity
        skyline with lit windows along the horizon (all procedural, one draw call) */
-    fragmentShader: `uniform vec3 tint;uniform float tm;varying vec3 v;
+    fragmentShader: `uniform vec3 tint;uniform float tm;uniform vec3 sunD;uniform float sq;varying vec3 v;
 float h1(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h1(i),h1(i+vec2(1,0)),f.x),mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x),f.y);}
 void main(){vec3 d=normalize(v);float h=d.y;
@@ -101,6 +105,28 @@ vec3 side=normalize(cross(vec3(0.,1.,0.),base));float sw=sin(tm*(.09+.035*fi)+fi
 vec3 dir=normalize(vec3(0.,1.,0.)+base*.25+side*sw);vec3 nrm=normalize(cross(base,dir));
 float wd=.004+.035*max(h,0.);float beam=smoothstep(wd,0.,abs(dot(d,nrm)))*step(0.,dot(d,base)+.35)*smoothstep(-.01,.08,h)*(1.-smoothstep(.2,.85,h));
 c+=beam*vec3(.42,.52,.68)*.16;}
+/* sky life (Sky detail): drifting cloud banks lit warm toward the sun, lanes of traffic streaming
+   between the towers, and every so often a ship crossing with its running lights */
+if(sq>.5){
+vec2 cp=d.xz/(h+.12);
+float cv=n2(cp*1.3+vec2(tm*.012,0.))*.6+n2(cp*2.9-vec2(0.,tm*.02))*.3+n2(cp*7.+tm*.01)*.1;
+cv=smoothstep(.5,.82,cv)*smoothstep(.03,.2,h)*(1.-smoothstep(.5,.9,h));
+float sl=pow(max(dot(d,sunD),0.),3.);
+c=mix(c,mix(vec3(.15,.12,.16),vec3(.66,.44,.33),.3+.7*sl),cv*.7);
+for(int i=0;i<3;i++){float fi=float(i);float lh=.04+fi*.024+.006*sin(az*3.+fi*2.);
+float dir=mod(fi,2.)*2.-1.;float sp=fract(az*(30.+fi*11.)+tm*dir*(.05+.02*fi)+h1(vec2(floor(az*(30.+fi*11.)),fi)));
+float car=smoothstep(.0,.03,sp)*smoothstep(.16,.05,sp)*smoothstep(.0028,0.,abs(h-lh));
+c+=car*mix(vec3(1.,.22,.12),vec3(1.,.93,.78),step(0.,dir))*1.4;}
+float sc=tm/45.;float ph=fract(sc);float sid=floor(sc);
+if(ph<.45){float a0=h1(vec2(sid,2.))*6.28;vec3 s0=normalize(vec3(cos(a0),.14+.16*h1(vec2(sid,4.)),sin(a0)));
+vec3 td=normalize(cross(vec3(0.,1.,0.),s0));float ang=(ph/.45-.5)*1.8;vec3 sdir=normalize(s0*cos(ang)+td*sin(ang));
+vec3 ly=normalize(cross(sdir,td));vec2 q=vec2(dot(d,td),dot(d,ly));
+if(dot(d,sdir)>.995){float body=smoothstep(1.,.75,length(q*vec2(55.,190.)))+smoothstep(1.,.7,length((q-vec2(-.004,.003))*vec2(110.,260.)));
+c=mix(c,vec3(.025,.03,.04),clamp(body,0.,1.));
+c+=vec3(.45,.75,1.)*smoothstep(.0035,0.,length(q-vec2(-.019,0.)))*3.;
+c+=vec3(1.,.2,.1)*step(.6,fract(tm*1.3))*smoothstep(.0018,0.,length(q-vec2(.012,.002)))*4.;
+c+=vec3(.6,1.,.6)*step(.6,fract(tm*1.3+.5))*smoothstep(.0018,0.,length(q-vec2(.004,-.004)))*4.;}}
+}
 /* the skyline: towers and spires against the horizon glow, with windows */
 float col=floor(az*38.);float th=.03+.045*pow(h1(vec2(col,1.)),2.)+.025*n2(vec2(az*6.,0.));
 if(h1(vec2(col,5.))>.93)th+=.05;
@@ -109,12 +135,17 @@ vec2 w=vec2(az*240.,h*190.);float win=step(.84,h1(floor(w)))*smoothstep(.2,.4,fr
 sk+=win*mix(vec3(1.,.7,.35),vec3(.4,.8,1.),h1(vec2(col,3.)))*.4;
 if(h>th-.004&&h1(vec2(col,9.))>.6)sk+=vec3(1.,.25,.2)*.9;
 c=sk;}
-gl_FragColor=vec4(pow(c,vec3(2.2))*1.5*tint,1.);}`,
+vec3 lin=pow(c,vec3(2.2))*1.5;
+/* the sun: a hot disc, a tight glow and a wide warm haze (alpha 0 marks sky for the light shafts) */
+float sd=max(dot(d,sunD),0.);
+lin+=vec3(1.,.84,.62)*(smoothstep(.99984,.99993,sd)*30.+pow(sd,900.)*3.+pow(sd,60.)*.16+pow(sd,8.)*.04)*step(th,h);
+gl_FragColor=vec4(lin*tint,0.);}`,
   }); /* the sky follows whichever camera renders it and draws behind everything, so it is never clipped by the far plane */
   const sky = new THREE.Mesh(g, m);
   sky.renderOrder = -10;
   sky.frustumCulled = false;
   sky.onBeforeRender = (r, sc, cam) => {
+    SKY_SUN.value.copy(sun.position).normalize();
     sky.position.copy(cam.getWorldPosition(_skyP));
     sky.updateMatrixWorld();
     sky.modelViewMatrix.multiplyMatrices(cam.matrixWorldInverse, sky.matrixWorld);
