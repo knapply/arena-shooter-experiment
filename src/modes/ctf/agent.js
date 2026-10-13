@@ -33,7 +33,12 @@
     _w = new V3(),
     _e = new V3(),
     _t = new V3(),
-    _eye = new V3();
+    _eye = new V3(),
+    /* think() only: its move direction, wish, eye and aim point (nothing else uses these) */
+    _thDir = new V3(),
+    _thWish = new V3(),
+    _thEye = new V3(),
+    _thAim = new V3();
   const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
   function arcVel(from, to, deg, g) {
     const dx = to.x - from.x,
@@ -646,14 +651,14 @@
       }
       if (this.fallback && (b.shield > 55 || !tgt)) this.fallback = false;
       let dir = this.navTo(dt, inp);
-      if (dir) dir = new V3().copy(dir);
-      const wish = new V3();
+      if (dir) dir = _thDir.copy(dir);
+      const wish = _thWish.set(0, 0, 0);
       if (dir) wish.copy(dir);
       let lookYaw = dir ? Math.atan2(-wish.x, -wish.z) : b.yaw,
         lookPitch = 0;
       if (tgt) {
-        const eye = this.eye(new V3()),
-          aim = this.aimPoint(tgt, new V3());
+        const eye = this.eye(_thEye),
+          aim = this.aimPoint(tgt, _thAim);
         const dx = aim.x - eye.x,
           dy = aim.y - eye.y,
           dz = aim.z - eye.z;
@@ -814,6 +819,7 @@
       }
       // fire
       this.fireCD -= dt;
+      this.stepDt = dt;
       if (this.reloadT > 0) {
         this.reloadT -= dt;
         if (this.reloadT <= 0) this.mag = this.gun().mag;
@@ -1107,10 +1113,12 @@
     }
     /** who a shot from this pilot can hit: enemies, plus teammates when friendly fire is on */
     hitList() {
-      const G = this.G;
-      return G.ff
-        ? G.agents.filter(a => a !== this && a.alive)
-        : G.teams[1 - this.team].agents.filter(a => a.alive);
+      const G = this.G,
+        out = this._hits || (this._hits = []);
+      out.length = 0;
+      /* (reused each call: callers read it straight away) */
+      for (const a of G.ff ? G.agents : G.teams[1 - this.team].agents) if (a !== this && a.alive) out.push(a);
+      return out;
     }
     /** with friendly fire on, hold fire while a teammate is in the line of fire */
     blocked(d, range) {
@@ -1145,11 +1153,16 @@
       }
       /* the gun in hand, with the player's numbers (data/weapons.js) */
       const W = pw ? K.WEAPON_DATA[pw.type] : this.gun();
+      /* a shot fired the step the gun became ready keeps the cadence exact: what it was late by
+         comes off the next interval, so the AI fires at the weapon's real rate at any step size
+         (resetting the cooldown made a 0.1 s carbine fire every 4th 30 Hz step: 7.5 rounds a
+         second instead of 10). A shot after a pause starts a fresh interval */
+      const late = this.fireCD > -(this.stepDt || 1 / 30) ? this.fireCD : 0;
       if (pw) {
         /* a power weapon's own magazine and reserve; it is gone with its last round */
         pw.n--;
         pw.mag--;
-        this.fireCD = W.rate + 0.12;
+        this.fireCD = late + W.rate + 0.12;
         if (pw.n <= 0) {
           this.pw = null;
           this.pwOut = false;
@@ -1159,12 +1172,12 @@
         }
       } else {
         this.mag--;
-        this.fireCD = W.rate + (this.magnum ? this.skill().magPace : 0);
+        this.fireCD = late + W.rate + (this.magnum ? this.skill().magPace : 0);
       }
       /* burst weapons: the rounds of a burst at its gap, the next burst at its rate */
       if (W.burst && !pw) {
         this.burstLeft = this.burstLeft > 0 ? this.burstLeft - 1 : W.burst - 1;
-        this.fireCD = this.burstLeft > 0 ? W.burstGap : W.rate - (W.burst - 1) * W.burstGap;
+        this.fireCD = late + (this.burstLeft > 0 ? W.burstGap : W.rate - (W.burst - 1) * W.burstGap);
       } else this.burstLeft = 0;
       this.firedT = G.t;
       this.shots++;

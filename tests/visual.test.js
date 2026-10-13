@@ -51,7 +51,7 @@ async function compare(p, a, b) {
   }
   const b = await launch({ gpu: true });
   const ctx = await b.newContext({ viewport: { width: 640, height: 360 } });
-  let p = await open(ctx, { tag: "v", realThree: true, hash: "#dev" });
+  let p = await open(ctx, { tag: "v", realThree: true, hash: "#dev", init: ["seeded-random.js"] });
   const shots = {};
   /* wait for three fresh frames (software rendering is slow, and new materials compile first) */
   const frames = () =>
@@ -135,9 +135,19 @@ async function compare(p, a, b) {
     /* a trailer frame from the trailer build, stepped deterministically */
     check(p.errors.length === 0, "no page errors in the game", p.errors.slice(0, 3));
     await p.close();
-    p = await open(ctx, { tag: "vt", realThree: true, trailer: true });
+    /* a fresh context: nothing the game page saved (settings) carries over */
+    const tctx = await b.newContext({ viewport: { width: 640, height: 360 } });
+    p = await open(tctx, { tag: "vt", realThree: true, trailer: true, init: ["seeded-random.js"] });
     await p.waitForTimeout(1500);
     await p.evaluate(() => {
+      /* fixed resolution, as the recorder captures it (dynamic resolution follows the machine's load) */
+      KA.SET.dynRes = false;
+      KA.SET.grain = 0;
+      KA.SET.renderScale = 1;
+      KA.SET.upscale = "native";
+      KA.applySettings();
+      window.__seedRandom(7);
+      KA.RNG.seed(7);
       KA.trailer.record();
       KA.trailer.seek(12.2);
       KA.trailer.step(1 / 30);

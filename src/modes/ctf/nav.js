@@ -107,9 +107,9 @@
       const c = q.pop();
       const ci = c % W,
         cj = (c / W) | 0;
-      for (const [di, dj] of D8) {
-        const i = ci + di,
-          j = cj + dj;
+      for (let d = 0; d < 8; d++) {
+        const i = ci + D8I[d],
+          j = cj + D8J[d];
         if (i < 0 || j < 0 || i >= W || j >= H) continue;
         const n = j * W + i;
         if (!ok[n] || seen[n] || edge(c, n) < 0) continue;
@@ -215,16 +215,10 @@
     stamp = new Int32Array(1),
     closed = new Int32Array(1);
   let gen = 0;
-  const D8 = [
-    [1, 0, 1],
-    [-1, 0, 1],
-    [0, 1, 1],
-    [0, -1, 1],
-    [1, 1, 1.414],
-    [1, -1, 1.414],
-    [-1, 1, 1.414],
-    [-1, -1, 1.414],
-  ];
+  /* the 8 neighbours as flat arrays (x step, z step, length): the search loop reads them by index */
+  const D8I = [1, -1, 0, 0, 1, 1, -1, -1],
+    D8J = [0, 0, 1, -1, 1, -1, 1, -1],
+    D8C = [1, 1, 1, 1, 1.414, 1.414, 1.414, 1.414];
   /* cost(c) returns extra cost per cell (danger, lane bias). Returns array of cells start..goal, or null */
   NAV.path = function (s, t, cost, maxExp) {
     if (s < 0 || t < 0) return null;
@@ -246,7 +240,10 @@
       if (++exp > maxExp) return null;
       const ci = c % W,
         cj = (c / W) | 0;
-      for (const [di, dj, dc] of D8) {
+      for (let d = 0; d < 8; d++) {
+        const di = D8I[d],
+          dj = D8J[d],
+          dc = D8C[d];
         const i = ci + di,
           j = cj + dj;
         if (i < 0 || j < 0 || i >= W || j >= H) continue;

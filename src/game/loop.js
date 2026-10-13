@@ -419,6 +419,7 @@ function frameBody(t) {
     if (prevPos.distanceTo(me.pos) > 3) prevPos.copy(me.pos);
     myFeel(dt);
     fireCD -= dt;
+    fireStep = dt;
     reloadT = Math.max(0, reloadT - dt);
     if (reloadT <= 0 && mag < W().mag && prevReload > 0) {
       const take = Math.min(W().mag - mag, reserve[wi]);

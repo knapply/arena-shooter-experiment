@@ -24,10 +24,22 @@ function openSettings(from) {
   const f = /** @type {HTMLElement} */ ($("settings").querySelector(".stab[aria-selected=true]"));
   if (f) f.focus();
 }
+/* dragging a slider changes a setting many times a second: save once it settles (closing the
+   panel or the page saves straight away) */
+let saveSoonT = 0;
+function saveSoon() {
+  clearTimeout(saveSoonT);
+  saveSoonT = setTimeout(saveSettings, 300);
+}
+function saveNow() {
+  clearTimeout(saveSoonT);
+  saveSettings();
+}
+addEventListener("pagehide", saveNow);
 function closeSettings() {
   rebindCapture = null;
   SUI.padCap = null;
-  saveSettings();
+  saveNow();
   $("settings").hidden = true;
   (SUI.from === "pause" ? $("pause") : $("menu")).hidden = false;
   renderKeyHelp();
@@ -39,7 +51,7 @@ function onSetChange(s) {
     if (ps) ps.value = "custom";
   }
   applySettings();
-  saveSettings();
+  saveSoon();
 }
 function renderSettings() {
   const tabs = $("setTabs");

@@ -145,4 +145,26 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     flags
   );
 }
+/* the AI fires at the weapon's real rate even though it thinks in 30 Hz steps (the carbine's 0.1 s
+   interval used to round up to 4 steps: 7.5 rounds a second) */
+{
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 3, map: "arena", scoreLimit: 1e9, lock: "carbine" });
+  const last = new Map(),
+    gaps = [];
+  G.onEvent = (t, d) => {
+    if (t !== "shot") return;
+    const p = last.get(d.by);
+    if (p != null && G.t - p < 0.15) gaps.push(G.t - p);
+    last.set(d.by, G.t);
+  };
+  G.start();
+  for (let i = 0; i < 30 * 30; i++) G.step(1 / 30);
+  const rate = gaps.length / gaps.reduce((a, b) => a + b, 0);
+  check(
+    gaps.length > 100 && rate > 9,
+    "AI carbine fire holds close to 10 rounds a second (pauses to re-aim aside)",
+    rate.toFixed(2)
+  );
+}
 finish("sim");

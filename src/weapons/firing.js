@@ -101,6 +101,8 @@ function perfectKill(id) {
 }
 /** rounds left in the burst in progress (burst weapons fire the rest without the trigger) */
 let burstLeft = 0;
+/** this frame's length (set by the loop): a shot is "on time" if the gun became ready this frame */
+let fireStep = 1 / 60;
 function fire(src) {
   if (reloadT > 0) return;
   if (mag <= 0) {
@@ -111,11 +113,16 @@ function fire(src) {
   mag--;
   ammo[wi] = mag;
   const Wd = W();
-  fireCD = Wd.rate;
+  /* a shot fired the frame the gun became ready keeps the cadence exact: the part of the frame
+     it was late by comes off the next interval, so a held trigger fires at the weapon's real rate
+     at any frame rate (resetting made a 0.1 s carbine fire 7.5 rounds a second at 30 fps and under
+     9 at 60). A shot after a pause starts a fresh interval, so pausing never banks time */
+  const late = fireCD > -fireStep ? fireCD : 0;
+  fireCD = late + Wd.rate;
   /* a burst: the rounds inside it come at its gap, and the next burst starts `rate` after this one */
   if (Wd.burst) {
     burstLeft = burstLeft > 0 ? burstLeft - 1 : Wd.burst - 1;
-    fireCD = burstLeft > 0 ? Wd.burstGap : Wd.rate - (Wd.burst - 1) * Wd.burstGap;
+    fireCD = late + (burstLeft > 0 ? Wd.burstGap : Wd.rate - (Wd.burst - 1) * Wd.burstGap);
   } else burstLeft = 0;
   lastFireT = now;
   /* firing ends spawn protection */
