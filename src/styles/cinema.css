@@ -92,6 +92,7 @@ body.cinematic #xh,
 body.replaying #hud,
 body.replaying #cBanner,
 body.replaying #dead,
+body.replaying #toast,
 body.replaying #xh {
   visibility: hidden;
 }
@@ -107,4 +108,8 @@ body.podding #xh {
 }
 body.podding #toast {
   visibility: visible;
+}
+/* a kill cam that runs into your pod's fall keeps its hint for when it ends */
+body.replaying.podding #toast {
+  visibility: hidden;
 }

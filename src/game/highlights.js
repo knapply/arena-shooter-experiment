@@ -61,6 +61,14 @@ function hlTick() {
       const clip = REC.clip(c.t - HL_BEFORE, c.t + HL_AFTER);
       if (clip.length < 20 || !clip.some(f => f.poses.has(c.pilot))) continue;
       c.clip = clip;
+      /* what was drawn and who went down, so the replay shows the shots, blasts and kills too */
+      c.fx = REC.fxRange(clip[0].t - 0.5, clip[clip.length - 1].t);
+      c.events = EVENTS.recent(400).filter(
+        e =>
+          (e.type === "kill" || e.type === "damage") &&
+          e.t >= clip[0].t - 3.2 &&
+          e.t <= clip[clip.length - 1].t
+      );
       c.meta = REC.metaOf(c.pilot);
       HL.top.push(c);
       HL.top.sort((a, b) => b.score - a.score);
@@ -75,6 +83,7 @@ function playOfTheGame(onEnd) {
     t1 = c.clip[c.clip.length - 1].t,
     orbitAt = t1 - 1.6;
   const near = t => c.kills.some(k => Math.abs(t - k) < 0.35);
+  const eyes = eyesShot(c.pilot);
   HL.playing = true;
   sfx("stinger", 0.9);
   CINE.card("Play of the game", c.name || "", c.feat, 2.6);
@@ -82,19 +91,19 @@ function playOfTheGame(onEnd) {
     t0,
     t1,
     frames: c.clip,
+    fx: c.fx,
+    events: c.events,
+    subject: c.pilot,
+    vmColor: c.meta && c.meta.color,
     caption: "Play of the game",
     /* hidden while we look through their eyes, shown when the camera circles them */
     hide: t => (t0 + t < orbitAt ? [c.pilot] : []),
     /* slow motion on the key kills */
     speed: t => (near(t0 + t) ? 0.4 : 1),
     shot: (t, sample) => {
+      if (t < orbitAt) return eyes(t, sample);
       const s = sample(c.pilot, t);
       if (!s) return null;
-      if (t < orbitAt) {
-        const fp = CINE.firstPerson(s);
-        fp.vm = s.st && s.st.wpn != null ? s.st.wpn : 0;
-        return fp;
-      }
       /* the last moments from outside, circling the player */
       return Object.assign(
         CINE.orbit(new V3(s.x, s.y + 1.1, s.z), 4.2, 1.4, s.yaw + 0.6, 0.55, 58)(t - orbitAt),

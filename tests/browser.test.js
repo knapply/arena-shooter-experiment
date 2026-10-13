@@ -176,7 +176,8 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       await new Promise(r => setTimeout(r, 400));
       const capEl = document.querySelector("#cine .cap");
       const during = { active: KA.REPLAY.active, cap: capEl ? capEl.textContent : "(no caption)" };
-      await new Promise(r => setTimeout(r, 4200));
+      /* it runs into the first part of the pod's fall at most (game time runs slower than the clock under load) */
+      for (let i = 0; i < 80 && KA.REPLAY.active; i++) await new Promise(r => setTimeout(r, 100));
       return { during, after: KA.REPLAY.active, recap: document.getElementById("deadBy").textContent };
     });
     check(
@@ -983,6 +984,107 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       (await visible(B, "#menu")) && !(await visible(B, "#cBanner")),
       "leaving the match returns to a clean menu"
     );
+    /* ---------- kill cams show the kill: a drone and a CTF agent shoot you for real ---------- */
+    {
+      /* in the page: note every shot, and the replay frame that reaches the kill (where the camera is,
+         how far from the killer's recorded eyes, and how straight it looks at you) */
+      const watch = () => {
+        window.__shots = [];
+        window.__kc = null;
+        KA.EVENTS.on("shot", e => window.__shots.push({ pilot: e.pilot, t: e.t }));
+        (function hook() {
+          const st = KA.REPLAY.state,
+            kc = KA.KILLCAM.last;
+          if (st && kc && KA.KILLCAM.on && !window.__kc && st.t >= kc.at) {
+            const me = KA.REC.sample("local", kc.at),
+              k = KA.REC.sample(kc.killer, kc.at);
+            const d = [st.l[0] - st.p[0], st.l[1] - st.p[1], st.l[2] - st.p[2]],
+              tm = [me.x - st.p[0], me.y + 1.5 - st.p[1], me.z - st.p[2]];
+            const shot = window.__shots.filter(e => e.pilot === kc.killer && e.t <= kc.at + 1e-6).pop();
+            window.__kc = {
+              kc,
+              eyeErr: k ? Math.hypot(st.p[0] - k.x, st.p[1] - (k.y + KA.H_STAND - 0.12), st.p[2] - k.z) : 99,
+              dot: (d[0] * tm[0] + d[1] * tm[1] + d[2] * tm[2]) / Math.hypot(...d) / Math.hypot(...tm),
+              shotT: shot ? shot.t : null,
+              shots: st.shots,
+            };
+          }
+          requestAnimationFrame(hook);
+        })();
+      };
+      const killCamOf = async (q, killer) => {
+        for (let i = 0; i < 400; i++) {
+          const r = await q.evaluate(re => {
+            const k = window.__kc;
+            if (k && new RegExp(re).test(k.kc.killer)) return k;
+            /* stay fragile so the next hit kills, without dying to anything else first */
+            if (!KA.me.dead) {
+              KA.me.spawnT = -99;
+              KA.me.shield = Math.min(KA.me.shield, 1);
+              KA.me.health = Math.min(KA.me.health, 4);
+            }
+            return null;
+          }, killer);
+          if (r) return r;
+          await q.waitForTimeout(100);
+        }
+        return null;
+      };
+      const ok = k =>
+        !!k &&
+        k.kc.eyes &&
+        k.eyeErr < 0.3 &&
+        k.dot > 0.85 &&
+        k.shotT != null &&
+        k.shotT >= k.kc.t0 &&
+        k.shotT <= k.kc.t1;
+      /* arena: a drone in front of you on open floor (whichever drone gets you) */
+      const D = await open(ctx, { tag: "killcam" });
+      pages.push(D);
+      await D.waitForTimeout(600);
+      await D.click("#deploy");
+      await D.waitForTimeout(2500);
+      await D.evaluate(watch);
+      await D.evaluate(() => {
+        KA.SET.killCam = true;
+        for (const o of KA.bots.slice(1)) o.body.pos.set(80, 0, 80);
+        KA.me.pos.set(0, 0.02, 6);
+        KA.bots[0].body.pos.set(0, 0.02, -8);
+      });
+      const dk = await killCamOf(D, "^bot:");
+      check(
+        ok(dk) && dk.shots >= 1,
+        "a drone's kill cam is through its eyes, looking at you as the killing shot (inside the window) lands",
+        dk
+      );
+      await closeTab(D);
+      pages.splice(pages.indexOf(D), 1);
+      /* CTF: stand next to an enemy agent */
+      const C = await open(ctx, { tag: "killcam-ctf" });
+      pages.push(C);
+      await C.waitForTimeout(600);
+      await C.click("#ctfPlay");
+      await C.waitForTimeout(3000);
+      await C.evaluate(watch);
+      let ck = null;
+      for (let tries = 0; tries < 3 && !ck; tries++) {
+        await C.evaluate(() => {
+          KA.SET.killCam = true;
+          const g = CTF.UI.game(),
+            mine = g.human.team;
+          const foe = g.agents.find(a => a.team !== mine && a.alive);
+          if (foe && !KA.me.dead) KA.me.pos.set(foe.body.pos.x + 8, foe.body.pos.y + 0.3, foe.body.pos.z);
+        });
+        ck = await killCamOf(C, "^ctf:");
+      }
+      check(
+        ok(ck),
+        "a CTF agent's kill cam is through its eyes, looking at you as the killing shot (inside the window) lands",
+        ck
+      );
+      await closeTab(C);
+      pages.splice(pages.indexOf(C), 1);
+    }
     /* ---------- sim and trailer start without errors ---------- */
     const S = await open(ctx, { tag: "S" });
     pages.push(S);
