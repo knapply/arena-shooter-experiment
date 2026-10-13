@@ -156,6 +156,33 @@ function sfx(kind, vol = 1) {
         tone(t, "square", 160, 45, 0.1, 0.09 * vol);
         nz(t, 0.2, "lowpass", 500, 0.12 * vol);
         break;
+      case "bshot":
+        /* one round of a burst: tight and punchy, no tail */
+        nz(t, 0.06, "bandpass", 1400, 0.24 * vol, 1.2);
+        tone(t, "square", 260, 70, 0.05, 0.07 * vol, 0.002);
+        break;
+      case "sgshot":
+        /* a heavy boom, then the pump racked back and forward */
+        nz(t, 0.3, "lowpass", 900, 0.6 * vol, 0.8);
+        tone(t, "sawtooth", 140, 34, 0.3, 0.2 * vol, 0.003);
+        nz(t, 0.1, "highpass", 2600, 0.2 * vol);
+        nz(t + 0.42, 0.05, "bandpass", 2000, 0.16 * vol, 3);
+        tone(t + 0.55, "square", 1000, 760, 0.03, 0.05 * vol);
+        break;
+      case "beam":
+        /* one tick of the arc beam (every 0.05 s while it fires): quiet, buzzy, no tail */
+        tone(t, "sawtooth", 120, 110, 0.045, 0.03 * vol, 0.004);
+        nz(t, 0.04, "bandpass", 5200, 0.03 * vol, 4);
+        break;
+      case "pulse": {
+        /* the pulse grenade: an electrical whump and a descending zap */
+        tone(t, "sine", 110, 40, 0.5, 0.5 * vol, 0.005);
+        nz(t, 0.4, "lowpass", 700, 0.4 * vol);
+        tone(t, "sawtooth", 2400, 160, 0.45, 0.09 * vol, 0.003);
+        const f = nz(t, 0.35, "bandpass", 4000, 0.16 * vol, 4);
+        f.frequency.exponentialRampToValueAtTime(500, t + 0.33);
+        break;
+      }
       case "thrust": {
         const f = nz(t, 0.4, "lowpass", 3000, 0.28 * vol, 1, 0.01);
         f.frequency.exponentialRampToValueAtTime(300, t + 0.38);

@@ -45,6 +45,27 @@ function floorParts(type) {
     b(0.05, 0.06, 0.24, PICKMAT, 0, 0, 0);
     b(0.04, 0.13, 0.06, PICKMAT, 0, -0.08, 0.08);
     b(0.052, 0.01, 0.1, PICKACC, 0, 0.032, -0.04);
+  } else if (WEAPONS[type].key === "burst") {
+    /* a bullpup: magazine behind the grip, a small optic on top */
+    b(0.08, 0.13, 0.62, PICKMAT, 0, 0, 0);
+    b(0.06, 0.06, 0.1, PICKACC, 0, 0.09, -0.05);
+    b(0.05, 0.14, 0.07, PICKMAT, 0, -0.12, 0.2);
+    b(0.05, 0.12, 0.07, PICKMAT, 0, -0.12, -0.06);
+    cyl(0.025, 0.14, PICKMAT, 0, 0.01, -0.38);
+  } else if (WEAPONS[type].key === "scatter") {
+    /* a pump shotgun: wide barrel over a tube, a fat pump grip */
+    cyl(0.045, 0.62, PICKMAT, 0, 0.03, -0.15);
+    cyl(0.03, 0.5, PICKMAT, 0, -0.04, -0.12);
+    b(0.08, 0.08, 0.16, PICKACC, 0, -0.04, -0.22);
+    b(0.08, 0.13, 0.32, PICKMAT, 0, -0.01, 0.3);
+    b(0.05, 0.13, 0.06, PICKMAT, 0, -0.11, 0.14);
+  } else if (WEAPONS[type].key === "beam") {
+    /* the arc beam: a slim body with glowing coil rings toward the muzzle */
+    b(0.08, 0.11, 0.6, PICKMAT, 0, 0, 0);
+    cyl(0.03, 0.3, PICKMAT, 0, 0.01, -0.42);
+    for (let i = 0; i < 3; i++) cyl(0.055, 0.025, PICKACC, 0, 0.01, -0.32 - i * 0.09);
+    b(0.05, 0.14, 0.07, PICKMAT, 0, -0.12, 0.16);
+    b(0.07, 0.14, 0.2, PICKMAT, 0, -0.02, 0.36);
   } else {
     const sn = WEAPONS[type].key === "sniper";
     b(0.08, 0.12, sn ? 1.1 : 0.62, PICKMAT, 0, 0, 0);
@@ -143,12 +164,15 @@ function pkVisual(p) {
 /* ---- power spawns (the map's), with rotation ---- */
 function powerSpawn(d, clock) {
   const rot = d.rotate ? POWER_ROTATION.map(k => WEAPON_DATA.findIndex(w => w.key === k)) : null;
+  const type = WEAPON_DATA.findIndex(w => w.key === d.weapon);
   const p = {
     id: d.id,
-    power: true,
+    /* lab rifles (docs/PROPOSALS.md) are ordinary pickups, shown only while their lab is on */
+    power: !!WEAPON_DATA[type].power,
+    lab: d.lab || null,
     rot,
     ri: rot ? Math.max(0, POWER_ROTATION.indexOf(d.weapon)) : 0,
-    type: WEAPON_DATA.findIndex(w => w.key === d.weapon),
+    type,
     pos: new V3(d.p[0], d.p[1], d.p[2]),
     respawn: d.respawn,
     availAt: 0,
@@ -162,6 +186,8 @@ function powerSpawn(d, clock) {
     consume() {
       this.availAt = clock() + this.respawn;
       if (this.rot) {
+        /* the rotation as it is now: live lab power weapons join it */
+        this.rot = powerRotation().map(k => WEAPON_DATA.findIndex(w => w.key === k));
         this.ri = (this.ri + 1) % this.rot.length;
         this.type = this.rot[this.ri];
       }
@@ -252,7 +278,7 @@ function myLoadoutDrop() {
 function pickupList() {
   if (EXT) return EXT.pickups ? EXT.pickups() : [];
   for (let i = ITEMS.length - 1; i >= 0; i--) if (!ITEMS[i].avail) ITEMS.splice(i, 1);
-  return ARENA_PICKS.concat(ITEMS);
+  return ARENA_PICKS.filter(p => !p.lab || labOn(p.lab)).concat(ITEMS);
 }
 /* ---- you and the items around you ---- */
 let pkHold = 0,

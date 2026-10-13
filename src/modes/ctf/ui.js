@@ -112,7 +112,7 @@
       K.posePilot(a, dt, {
         reload: a.reloadT > 0 ? 1 - a.reloadT / (a.gun ? a.gun().reload : K.RELOAD_TIME) : -1,
         fire: G.t - a.firedT < 0.1,
-        wpn: a.rocket > 0 ? 3 : a.sniper > 0 ? 2 : a.wpn,
+        wpn: a.remote ? a.wpn : a.held(),
         /* a carrier holds the flag in both hands */
         flag: !!fl,
         flagColor: fl ? CTF.TEAM_HEX[fl.team] : null,

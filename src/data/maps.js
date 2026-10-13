@@ -113,7 +113,14 @@ MAPS.arena = {
     ],
   },
   /* rotate: the centre power weapon cycles through POWER_ROTATION, one each time it spawns */
-  pickups: [{ id: "arena-power", weapon: "sniper", rotate: true, p: [0, 4.5, 0], respawn: 90 }],
+  pickups: [
+    { id: "arena-power", weapon: "sniper", rotate: true, p: [0, 4.5, 0], respawn: 90 },
+    /* lab pickups: only while their LABS flag is on (docs/PROPOSALS.md) */
+    { id: "burst-e", weapon: "burst", lab: "burst", p: [22, 0, 4], respawn: 30 },
+    { id: "burst-w", weapon: "burst", lab: "burst", p: [-22, 0, -4], respawn: 30 },
+    { id: "beam-ne", weapon: "beam", lab: "beam", p: [21, 2.6, 27], respawn: 45 },
+    { id: "beam-sw", weapon: "beam", lab: "beam", p: [-21, 2.6, -27], respawn: 45 },
+  ],
 };
 MAPS.ctf = {
   schema: 1,
@@ -253,7 +260,14 @@ MAPS.ctf = {
     [0, 2.4, 43],
   ],
   /* power weapon: sniper on the cover block atop the mid tower, grabbable from the tower roof */
-  pickups: [{ id: "ctf-power", weapon: "sniper", rotate: true, p: [0, 4.2, 0], respawn: 90 }],
+  pickups: [
+    { id: "ctf-power", weapon: "sniper", rotate: true, p: [0, 4.2, 0], respawn: 90 },
+    /* lab pickups (one of each per team, rotated like the map) */
+    { id: "burst-r", weapon: "burst", lab: "burst", p: [-13, 0, -28], respawn: 30 },
+    { id: "burst-b", weapon: "burst", lab: "burst", p: [13, 0, 28], respawn: 30 },
+    { id: "beam-r", weapon: "beam", lab: "beam", p: [-17, 0, -9], respawn: 45 },
+    { id: "beam-b", weapon: "beam", lab: "beam", p: [17, 0, 9], respawn: 45 },
+  ],
   /* lanes for the AI and callouts: x < -split is the left wing, x > split the right, mid between */
   lanes: { split: 9.5, x: [-18, 0, 18] },
 };
@@ -344,6 +358,8 @@ function validateMap(doc) {
       doc.pickups.forEach((p, i) => {
         if (!p || typeof p.id !== "string" || !/^[a-z0-9-]{1,24}$/.test(p.id)) bad(`pickup ${i}: bad id`);
         else if (!WEAPON_DATA.some(w => w.key === p.weapon)) bad(`pickup ${p.id}: unknown weapon`);
+        else if (p.lab !== undefined && (typeof p.lab !== "string" || !/^[a-z]{1,16}$/.test(p.lab)))
+          bad(`pickup ${p.id}: lab must be a lab name`);
         else if (p.rotate !== undefined && typeof p.rotate !== "boolean")
           bad(`pickup ${p.id}: rotate must be true or false`);
         else if (!vec(p.p, 3, -500, 500) || !num(p.respawn, 5, 600))
@@ -373,4 +389,123 @@ function mapPieces(doc) {
     out.push(t);
   }
   return out;
+}
+
+/* ---- map mods (lab): named changes to a map, each behind LABS.mods (docs/PROPOSALS.md) ----
+   A mod lists piece ids to remove, pieces to add (twin works as usual) and an optional pickups edit.
+   mapDoc(key, mods) returns the map with the mods that apply to it, as its own document (its own
+   id, so it gets its own built world and navigation grid). */
+/** the arena's high ring: bridges from each corner platform to the balconies beside it, and a span
+    between the two balconies on each wall, so the whole perimeter can be run up high */
+function ringPieces() {
+  const out = [];
+  /** @type {[number, number, string][]} */
+  const corners = [
+    [1, 1, "ne"],
+    [-1, 1, "nw"],
+    [-1, -1, "sw"],
+    [1, -1, "se"],
+  ];
+  for (const [sx, sz, c] of corners) {
+    const slab = (id, x0, x1, z0, z1) => {
+      const ax = Math.min(sx * x0, sx * x1),
+        bx = Math.max(sx * x0, sx * x1),
+        az = Math.min(sz * z0, sz * z1),
+        bz = Math.max(sz * z0, sz * z1);
+      out.push({
+        id: `ring-${c}${id}`,
+        type: "box",
+        mat: "base",
+        p: [(ax + bx) / 2, 2, (az + bz) / 2],
+        s: [bx - ax, 0.5, bz - az],
+      });
+    };
+    slab("a", 19, 23, 29, 36);
+    slab("b", 15, 19, 33, 36);
+    slab("c", 29, 36, 19, 23);
+    slab("d", 33, 36, 15, 19);
+  }
+  for (const [x, z, n] of [
+    [0, 34.5, "n"],
+    [0, -34.5, "s"],
+    [34.5, 0, "e"],
+    [-34.5, 0, "w"],
+  ])
+    out.push({
+      id: `ring-${n}`,
+      type: "box",
+      mat: "base",
+      p: [x, 1.9, z],
+      s: x ? [3, 0.5, 10] : [10, 0.5, 3],
+    });
+  return out;
+}
+const MAP_MODS = {
+  /* Twin Foundry: a doorway through each wing wall, so mid and the wings can rotate early */
+  doors: {
+    map: "ctf",
+    name: "Crossover doors",
+    remove: ["wall22", "wall23"],
+    add: [
+      { id: "wall22a", type: "box", mat: "wall", p: [-10, 0, -22.25], s: [1.2, 3.6, 5.5], twin: true },
+      { id: "wall22b", type: "box", mat: "wall", p: [-10, 0, -13.75], s: [1.2, 3.6, 5.5], twin: true },
+      { id: "wall23a", type: "box", mat: "wall", p: [10, 0, -22.25], s: [1.2, 3.6, 5.5], twin: true },
+      { id: "wall23b", type: "box", mat: "wall", p: [10, 0, -13.75], s: [1.2, 3.6, 5.5], twin: true },
+    ],
+  },
+  /* Twin Foundry: the sniper stays on the tower; the rockets move to the two wing platforms, one each
+     side, so there are three power positions to fight over instead of one */
+  split: {
+    map: "ctf",
+    name: "Split power",
+    pickups: list =>
+      list
+        .map(p => (p.id === "ctf-power" ? Object.assign({}, p, { rotate: false }) : p))
+        .concat([
+          { id: "wing-l", weapon: "rocket", p: [-24.5, 2.6, 0], respawn: 150 },
+          { id: "wing-r", weapon: "rocket", p: [24.5, 2.6, 0], respawn: 150 },
+        ]),
+  },
+  /* Twin Foundry: a scattergun on each wing platform (the tower keeps its rotation): a close-range
+     power position on each wing, away from the long lines */
+  pads: {
+    map: "ctf",
+    name: "Scattergun pads",
+    pickups: list =>
+      list.concat([
+        { id: "pad-l", weapon: "scatter", p: [-24.5, 2.6, 0], respawn: 60 },
+        { id: "pad-r", weapon: "scatter", p: [24.5, 2.6, 0], respawn: 60 },
+      ]),
+  },
+  /* the arena: a ring of high ground around the walls (see ringPieces) */
+  ring: { map: "arena", name: "High ring", add: ringPieces() },
+  /* the arena: four pillars off the core's corners that break its long lines to the corner lanes */
+  pillars: {
+    map: "arena",
+    name: "Core pillars",
+    add: [
+      { id: "pillar-ne", type: "box", mat: "wall", p: [8, 0, 8], s: [1.4, 4.6, 1.4] },
+      { id: "pillar-nw", type: "box", mat: "wall", p: [-8, 0, 8], s: [1.4, 4.6, 1.4] },
+      { id: "pillar-sw", type: "box", mat: "wall", p: [-8, 0, -8], s: [1.4, 4.6, 1.4] },
+      { id: "pillar-se", type: "box", mat: "wall", p: [8, 0, -8], s: [1.4, 4.6, 1.4] },
+    ],
+  },
+};
+const MOD_DOCS = new Map();
+/** the map document for a MAPS key with the named mods that apply to it (the plain map when none do) */
+function mapDoc(key, mods) {
+  const base = MAPS[key];
+  const on = (mods || []).filter(m => MAP_MODS[m] && MAP_MODS[m].map === key).sort();
+  if (!base || !on.length) return base;
+  const id = [base.id, ...on].join("-");
+  if (MOD_DOCS.has(id)) return MOD_DOCS.get(id);
+  const doc = Object.assign({}, base, { id, name: base.name, pieces: base.pieces.slice() });
+  for (const m of on) {
+    const M = MAP_MODS[m];
+    if (M.remove) doc.pieces = doc.pieces.filter(pc => !M.remove.includes(pc.id));
+    if (M.add) doc.pieces = doc.pieces.concat(M.add);
+    if (M.pickups) doc.pickups = M.pickups(doc.pickups || []);
+  }
+  MOD_DOCS.set(id, doc);
+  return doc;
 }

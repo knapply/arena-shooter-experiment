@@ -14,8 +14,9 @@
      the map the next match is built on: Twin Foundry (flags, team spawns, lanes) for capture the flag,
      or the arena (no flags: both teams use its free-for-all spawns, kept apart by spawn safety) for the
      team deathmatch simulations. Everything below reads CTF.MAP, so it follows the choice. */
-  CTF.useMap = function (id) {
-    const doc = K.MAPS[id];
+  CTF.useMap = function (id, mods) {
+    /* lab map mods (data/maps.js MAP_MODS) make their own document, with its own id */
+    const doc = K.mapDoc(id, mods);
     if (!doc) throw new Error("no map " + id);
     if (CTF.MAP === doc) return;
     if (CTF.MAP && CTF.MAP !== doc) CTF.exitMap();
@@ -31,6 +32,7 @@
       respawn: p.respawn,
       rotate: !!p.rotate,
       weapon: p.weapon,
+      lab: p.lab || null,
     }));
     CTF.BOUNDS = Object.assign({}, doc.bounds);
   };

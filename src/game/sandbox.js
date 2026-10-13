@@ -66,5 +66,13 @@ function applySandbox() {
   NADES.frag.fuse = v.sbNadeFuse;
   NADES.frag.r = v.sbNadeRadius;
 }
-SET_HOOKS.push(applySandbox);
+/** the Labs settings into LABS (data/weapons.js); they take effect from the next match or respawn */
+function applyLabs() {
+  LABS.mods = [];
+  for (const [k, , , lab] of LAB_DEFS)
+    if (lab in LABS) LABS[lab] = !!SET[k];
+    else if (SET[k]) LABS.mods.push(lab);
+}
+SET_HOOKS.push(applySandbox, applyLabs);
 applySandbox();
+applyLabs();

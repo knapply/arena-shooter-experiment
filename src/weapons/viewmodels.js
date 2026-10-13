@@ -315,6 +315,99 @@ VMW.push({
     low: { p: new V3(0.18, -0.36, -0.3), r: [-0.5, 0.3, 0.3] },
   },
 });
+/* ---- lab weapons (VMW 4-6): burst rifle, scattergun, arc beam. Rifle poses are the carbine's but for ADS ---- */
+const vmArc = new THREE.MeshStandardMaterial({
+  color: "#9fe8ff",
+  emissive: "#8a5cff",
+  emissiveIntensity: 0.9,
+  roughness: 0.3,
+  metalness: 0.3,
+});
+function vmCyl(p, r, l, m, x, y, z) {
+  const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, 12), m);
+  o.rotation.x = Math.PI / 2;
+  o.position.set(x, y, z);
+  p.add(o);
+  return o;
+}
+/* a small holo sight centred at (0, y, z); its red dot is the sight line */
+function vmSight(g, y, z) {
+  vmBox(g, 0.06, 0.012, 0.06, vmDark, 0, y - 0.036, z);
+  vmBox(g, 0.008, 0.044, 0.01, vmDark, -0.03, y - 0.01, z);
+  vmBox(g, 0.008, 0.044, 0.01, vmDark, 0.03, y - 0.01, z);
+  vmBox(g, 0.068, 0.008, 0.01, vmDark, 0, y + 0.016, z);
+  const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.052, 0.04), vmGlass);
+  gl.position.set(0, y, z);
+  g.add(gl);
+  dot(g, 0xff3b30, 0.0042, 0, y, z);
+  return y;
+}
+/** @param {any[]} mag box args (the magazine) @param {any[]} [keys] */
+function vmLab(build, mag, grip, fore, aim, keys = VM_RELOAD) {
+  const g = new THREE.Group();
+  vmRoot.add(g);
+  g.visible = false;
+  const y = build(g);
+  VMW.push({
+    g,
+    mag: vmBox(g, ...mag),
+    grip,
+    fore,
+    slot: new V3(mag[5], mag[6], mag[7]),
+    keys,
+    P: { ...VMW[0].P, aim: { p: new V3(0, -y, aim), r: [0, 0, 0] } },
+  });
+}
+// burst rifle: a bullpup, magazine behind the grip, a small holo on top
+vmLab(
+  g => {
+    vmBox(g, 0.08, 0.11, 0.56, vmDark, 0, 0, -0.08);
+    vmBox(g, 0.06, 0.02, 0.3, vmAcc, 0, -0.035, -0.22);
+    vmCyl(g, 0.02, 0.3, vmDark, 0, 0.012, -0.51);
+    vmBox(g, 0.05, 0.12, 0.06, vmDark, 0, -0.1, -0.02).rotation.x = 0.25;
+    return vmSight(g, 0.1, -0.12);
+  },
+  [0.05, 0.13, 0.07, vmSuit, 0, -0.11, 0.12],
+  new V3(0, -0.1, -0.02),
+  new V3(0, -0.07, -0.28),
+  -0.24,
+  VM_RELOAD.map(([t, p]) => [t, p === "F" ? p : [p[0], p[1], p[2] + 0.22]])
+);
+// scattergun: a wide barrel over the magazine tube, a chunky pump grip
+vmLab(
+  g => {
+    vmCyl(g, 0.034, 0.5, vmDark, 0, 0.02, -0.47);
+    vmCyl(g, 0.044, 0.05, vmPlate, 0, 0.02, -0.7);
+    vmCyl(g, 0.024, 0.42, vmDark, 0, -0.04, -0.42);
+    vmBox(g, 0.08, 0.075, 0.16, vmPlate, 0, -0.045, -0.37);
+    for (let i = 0; i < 3; i++) vmBox(g, 0.084, 0.008, 0.012, vmDark, 0, -0.045, -0.42 + i * 0.05);
+    vmBox(g, 0.085, 0.11, 0.3, vmDark, 0, -0.01, -0.07);
+    vmBox(g, 0.06, 0.016, 0.24, vmAcc, 0, 0.05, -0.08);
+    vmBox(g, 0.06, 0.1, 0.2, vmDark, 0, -0.02, 0.17);
+    vmBox(g, 0.05, 0.12, 0.06, vmDark, 0, -0.1, 0.06).rotation.x = 0.25;
+    return 0.085;
+  },
+  [0.03, 0.03, 0.07, vmAcc, 0, -0.07, -0.12],
+  new V3(0, -0.1, 0.06),
+  new V3(0, -0.08, -0.37),
+  -0.3
+);
+// arc beam: an emitter barrel wound with glowing coil rings, a power cell under the body
+vmLab(
+  g => {
+    vmBox(g, 0.075, 0.1, 0.5, vmDark, 0, 0, -0.08);
+    vmBox(g, 0.06, 0.11, 0.16, vmDark, 0, -0.01, 0.24);
+    vmBox(g, 0.077, 0.012, 0.3, vmArc, 0, 0.01, -0.12);
+    vmCyl(g, 0.02, 0.26, vmPlate, 0, 0.01, -0.45);
+    for (let i = 0; i < 3; i++) vmCyl(g, 0.045 - i * 0.005, 0.02, vmArc, 0, 0.01, -0.37 - i * 0.07);
+    vmBox(g, 0.05, 0.12, 0.06, vmDark, 0, -0.1, 0.08).rotation.x = 0.25;
+    return vmSight(g, 0.095, -0.06);
+  },
+  [0.05, 0.09, 0.1, vmArc, 0, -0.1, -0.14],
+  new V3(0, -0.1, 0.08),
+  new V3(0, -0.07, -0.26),
+  -0.24
+);
 /* carrying the flag in first person: the weapon goes away and the flag pole sits across your hands */
 const vmFlag = new THREE.Group();
 vmRoot.add(vmFlag);

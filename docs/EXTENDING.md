@@ -46,6 +46,10 @@ It appears in its tab, in the settings search, in export/import, and in the save
 3. If it is a power weapon, add it to `POWER_ROTATION` and teach the AI to use it (`modes/ctf/agent.js`: see `shootSniper` / `shootRocket`). Add a `LOCK` value in `tools/tune.js` so it can be tuned on its own.
 4. Network: the held weapon travels as two state bits (`NET.bitsOf`). A fifth weapon needs a third bit (the state word is a `u32`), and **`MSG.PROTOCOL` must go up**.
 
+### Prototypes (Labs)
+
+New content can ship off by default: give a weapon `lab: "<name>"` (it appears only on map pickups marked with the same `lab`, and power weapons join the rotation through `powerRotation()`), add the flag to `LABS` (`data/weapons.js`) and a row to `LAB_DEFS` (`core/settings.js`), and a knob in `tools/tune.js`. Map changes go in `MAP_MODS` (`data/maps.js`); `mapDoc(key, mods)` builds the modded document with its own id and navigation grid. Labs are off online (`LABS.on`). See [PROPOSALS.md](PROPOSALS.md).
+
 ## A map
 
 1. Write a map document in `data/maps.js` (schema 1). It needs:

@@ -188,6 +188,7 @@ Settings are saved in your browser automatically and can be exported to or impor
 - **Controller:** look and aim sensitivity, response curve, deadzones, turn acceleration, aim assist strength, invert Y, vibration, full button remapping
 - **Gameplay:** friendly fire, spawn style (drop pods or classic), motion tracker, kill cam, match intros, reticle color and size, HUD size, camera bob, screen shake, speed lines, hit sounds
 - **Sandbox:** movement, weapon and grenade tuning (see [docs/TUNING.md](docs/TUNING.md) for what each number does and how the defaults were picked). A host's sandbox applies to everyone in their room for as long as they're in it; your own saved values come back when you leave
+- **Labs:** prototype weapons (burst rifle, scattergun, arc beam, pulse grenade), a lighter melee rule and Twin Foundry layout changes, all off by default and offline only ([docs/PROPOSALS.md](docs/PROPOSALS.md) has what each does and what the simulations found)
 - **Audio:** master, effects and announcer volume, announcer pace
 - **Destruction:** off / explosives only / full, cover toughness, debris amount, rebuild timer
 
@@ -249,7 +250,7 @@ src/        engine, rendering, world, characters, weapons, UI, networking, maps 
 tests/      headless AI matches, scenarios, browser and network tests, render and visual checks
 tools/      dev server, verify script, trailer recorder and previewer, rig animation previews, sandbox tuning simulations, unused-code check
 docs/       ARCHITECTURE.md, EXECUTION.md (what runs when), EXTENDING.md (adding maps, modes, weapons, HUD), TUNING.md,
-            NEXT_STEPS.md (ideas), a generated module index and the sandbox kill-time table
+            NEXT_STEPS.md (ideas), PROPOSALS.md (prototyped weapons and map changes, with simulations), a generated module index and the sandbox kill-time table
 build.mjs   bundles src/ into index.html and sim-worker.js
 ```
 
@@ -301,7 +302,7 @@ Every push runs the full suite in GitHub Actions. See [docs/ARCHITECTURE.md](doc
 - Syncing maps and replays with a folder on your computer
 - More modes (Slayer teams, King of the Hill, Oddball) on the mode framework
 - A playable team deathmatch (Slayer) on the arena: the AI already plays it for the balance simulations
-- See [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) for a longer list of ideas across gameplay, graphics, sound and engineering
+- See [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) for a longer list of ideas across gameplay, graphics, sound and engineering, and [docs/PROPOSALS.md](docs/PROPOSALS.md) for prototyped weapons and map changes with simulation results
 - A WebGPU renderer
 - Desktop packaging
 

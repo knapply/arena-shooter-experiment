@@ -79,6 +79,13 @@ const KA_API = {
     menuT = v;
   },
   POWER_ROTATION,
+  LABS,
+  labOn,
+  powerRotation,
+  falloffAt,
+  pulseBody,
+  mapDoc,
+  MAP_MODS,
   NADES,
   NADE_TUNE,
   MAIN_NADES,
