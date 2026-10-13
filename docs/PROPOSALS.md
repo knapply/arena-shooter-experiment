@@ -8,22 +8,22 @@ Everything here is **off by default**. Turn prototypes on in **Settings → Labs
 
 | Idea | What it is | Headline sim result | Recommendation |
 |---|---|---|---|
-| **Scattergun pads** (map + weapon) | A scattergun on each Twin Foundry wing platform, 60 s respawn | 10% of kills; pilots in the mid lane 53% → 47% (37% at Legendary); kills 0.19 s faster; skill share −0.011 | **Ship as option** (Labs), playtest as a default candidate |
-| **Pulse grenade** | Strips shields in 5 m (thrower's too), jams thrust 2.5 s, no damage | Fights end 0.07 to 0.20 s sooner; grenade kills −2 points; skill share within noise | **Ship as option**, playtest |
-| **Lighter melee** (rule) | A melee blow takes at most 40 shield, not all of it | Melee's share of kills unchanged (47% arena); fights last +0.08 to +0.24 s, **+0.44 s for Recruits on CTF** | **Ship as option**, worth a default-tuning look for accessibility |
-| **Burst rifle** | 3-round precision bursts, four bursts kill (1.14 s) | Popular (15% of time held on CTF, 24% in duels); neutral on skill share in every mode | **Ship as option**; the AI cannot express its skill, so playtest |
-| **High ring** (arena) | Bridges and spans that link every high platform round the arena | Neutral (skill ±0.005, kills per minute unchanged) | **Ship as option** (movement playtest) |
-| **Arc beam** | Continuous tracking beam | Underpowered: 5.6 to 6 s median kill on CTF alone; skill share 0.76 alone (below the carbine) | **Rework** (5 damage per tick tested better) or drop |
-| **Scattergun in the power rotation** | A third weapon in the centre rotation | Invisible: 0.3% of time held, 1% of kills | **Rework** into the pads (above) |
+| **Scattergun pads** (map + weapon) | A scattergun on each Twin Foundry wing platform, 60 s respawn | 9 to 10% of kills; pilots in the mid lane 53% → 47% (on all six seed sets; 37% at Legendary); kills 0.16 to 0.19 s faster; skill share −0.002 to −0.011 (5 of 6 seed sets negative) | **Ship as option** (Labs), playtest as a default candidate |
+| **Pulse grenade** | Strips shields in 5 m (thrower's too), jams thrust 2.5 s, no damage | Fights end 0.06 to 0.24 s sooner; grenade kills −2 points; skill share within noise on CTF and in duels, a small consistent −0.006 on the arena | **Ship as option**, playtest |
+| **Lighter melee** (rule) | A melee blow takes at most 40 shield, not all of it | Melee's share of kills unchanged (48% arena); fights last +0.10 to +0.23 s, **+0.44 s for Recruits on CTF** | **Ship as option**, worth a default-tuning look for accessibility |
+| **Burst rifle** | 3-round precision bursts, four bursts kill (1.14 s) | Popular (15% of time held on CTF, 26% in duels); neutral on skill share in every mode | **Ship as option**; the AI cannot express its skill, so playtest |
+| **High ring** (arena) | Bridges and spans that link every high platform round the arena | Neutral (skill share mixed sign, kills per minute unchanged) | **Ship as option** (movement playtest) |
+| **Arc beam** | Continuous tracking beam | Underpowered: 5.6 to 6 s median kill on CTF alone; skill share 0.77 alone (below the carbine) | **Rework** (5 damage per tick tested better) or drop |
+| **Scattergun in the power rotation** | A third weapon in the centre rotation | Invisible: 0.2% of time held, 1% of kills | **Rework** into the pads (above) |
 | **Crossover doors** (Twin Foundry) | A doorway through each wing wall | No measurable effect (lanes, captures, skill share all within noise) | **Drop**, or rework as a back entrance (open question) |
-| **Split power** (Twin Foundry) | Rockets move to the wing platforms | Rocket kills ×2.7, teamkills +15%, fights 0.21 s faster, skill share −0.006 | **Drop** (the pads do the same job better) |
-| **Core pillars** (arena) | Four pillars off the core's corners | Skill share **−0.021** (clear of noise on all three seed sets and every skill pairing) | **Drop** |
+| **Split power** (Twin Foundry) | Rockets move to the wing platforms | Rocket kills ×3, teamkills +7 to +15%, fights 0.18 to 0.21 s faster, skill share mixed | **Drop** (the pads do the same job better) |
+| **Core pillars** (arena) | Four pillars off the core's corners | Skill share **−0.016 to −0.025** (clear of noise on all six seed sets and every skill pairing) | **Drop** |
 
 Existing behaviour found along the way (no change made; for the defaults-tuning pass):
 
 1. **The AI fires automatic weapons 25% slower than players.** The simulation steps at 30 Hz and an AI pilot's fire cooldown is reset, not carried over, so the carbine (0.1 s interval) fires every 4 steps: 7.5 rounds per second against a player's 10. Every simulated carbine number is from a weaker carbine than the one players hold. The fix is one line in `Agent.shoot` (add the interval to the cooldown instead of setting it), but it moves every baseline, so it belongs in the tuning pass.
-2. **Melee is the most common way to die on the arena at low skill:** 78% of kills at Recruit, 47% at Normal, 30% at Heroic, 14% at Legendary (CTF: 54%, 23%, 9%, 3%). It is mostly finishing blows (see Lighter melee), so the lever is how eagerly the AI closes to melee range, not melee damage.
-3. **Capture the flag stalls as skill rises:** captures per 4-minute match fall from 1.35 (Recruit) to 0.77 (Normal), 0.50 (Heroic) and 0.21 (Legendary). Defence wins at high skill on Twin Foundry. Neither the doors nor split power fixed it, so it is the main open map problem (see M7, the back entrance).
+2. **Melee is the most common way to die on the arena at low skill:** 78% of kills at Recruit, 47% to 48% at Normal, 30% at Heroic, 14% at Legendary (CTF: 54%, 23%, 9%, 3%; the per-difficulty figures are from the first run). It is mostly finishing blows (see Lighter melee), so the lever is how eagerly the AI closes to melee range, not melee damage.
+3. **Capture the flag stalls as skill rises:** captures per 4-minute match fall from 1.35 (Recruit) to 0.77 to 0.80 (Normal), 0.50 (Heroic) and 0.21 (Legendary). Defence wins at high skill on Twin Foundry. Neither the doors nor split power fixed it, so it is the main open map problem (see M7, the back entrance).
 4. **Spawn deaths jump at Legendary on the arena:** 5.8% of deaths within 3 s of spawning, against 1.0% at Normal and 0.2% on Twin Foundry.
 
 ## How to try them
@@ -49,26 +49,28 @@ LOCK=beam node tools/tune.js labBeamDmg                                  # a lab
 - **Null controls:** every run includes four run-speed nudges (±0.0001 m/s), so each variant's effect is measured against the mean of five null results. The noise band is the largest null deviation in that seed set. A result counts when it has the same sign on all three seed sets and clears the noise on most of them.
 - **Every difficulty:** even matches at Recruit, Heroic and Legendary (32 matches each), and skill pairs Heroic vs Normal and Normal vs Recruit, for the weapons and every map change.
 - **Single-weapon locks:** every pilot holds one weapon with endless ammo, no pickups, no grenades: carbine, magnum, burst rifle, scattergun, arc beam, on both maps, two seed sets, Legendary vs Normal and Normal vs Recruit.
-- **Defaults:** the simulations ran on the defaults before main's tuning pass three (frag fuse 2.2 s, not 2.6 s). Effects are measured against same-run baselines, so they hold as differences; absolute numbers (grenade share, time to kill) will shift a little. Re-run with `tools/tune.js` to refresh.
+- **Defaults, and a replication:** the full-match runs and the weapon locks were run twice. The first time was on the defaults before main's tuning pass three (frag fuse 2.2 s). The second time was on pass three (frag fuse 2.6 s, merged into this branch). The tables and the numbers per seed set below are from the **second run (2.6 s fuse)**, unless a line says otherwise. Where the first run disagreed, the text says so; "six seed sets" means both runs together. The difficulty sweep and the skill pairs (Recruit, Heroic, Legendary; Heroic vs Normal, Normal vs Recruit), the beam and burst damage tests, and the first lighter-melee and pads runs are from the first run only.
 - **Determinism:** with every lab off, a seeded match is identical to the code before this work (checked by replaying the same seed on both), and `tests/sim.test.js` still replays seeds exactly.
 
 ### Baselines (null mean over three seed sets)
 
 | | Skill share (L vs N) | Noise | Time to kill (quartiles) | Kills/min | Grenade kills | Spawn deaths | Other |
 |---|---|---|---|---|---|---|---|
-| CTF, Twin Foundry | 0.850 | ±0.006 to 0.008 | 1.73 / 3.2 / 5.0 s | 14.5 | 13.3% | 0.2% | 0.77 captures per match, 20 s from grab to capture; lanes 24 / 53 / 23% |
-| Team deathmatch, arena | 0.787 | ±0.005 to 0.007 | 1.0 / 2.1 / 3.3 s | 29.6 | 16% | 1.0% | melee 47% of kills |
-| Duel, arena | 0.778 | ±0.016 to 0.031 | 0.9 / 2.0 / 3.0 s | 4.7 | 14% | 1.5% | melee 47% of kills |
+| CTF, Twin Foundry | 0.851 | ±0.007 to 0.013 | 1.7 / 3.2 / 5.0 s | 14.4 | 12.9% | 0.2% | 0.80 captures per match, 19.5 s from grab to capture; lanes 23 / 53 / 24% |
+| Team deathmatch, arena | 0.793 | ±0.005 to 0.007 | 1.1 / 2.1 / 3.3 s | 29.5 | 15% | 0.9% | melee 48% of kills |
+| Duel, arena | 0.778 | ±0.014 to 0.028 | 0.9 / 1.9 / 3.0 s | 4.7 | 14% | 1.7% | melee 46% of kills |
 
 ### Single-weapon skill share (Legendary vs Normal; two seed sets)
 
+The Normal vs Recruit column is from the first run (2.2 s fuse); the first run's Legendary vs Normal numbers were within 0.02 of these.
+
 | Weapon | CTF | Arena | Normal vs Recruit (CTF / arena) | Median time to kill, Normal vs Normal (CTF) |
 |---|---|---|---|---|
-| Magnum | 0.909, 0.904 | 0.895, 0.899 | 0.750 / 0.821 | 2.7 s |
-| Burst rifle (lab) | 0.824, 0.821 | 0.806, 0.810 | 0.688 / 0.729 | 4.1 s |
-| Carbine | 0.804, 0.797 | 0.812, 0.804 | 0.688 / 0.733 | 4.2 s |
-| Arc beam (lab) | 0.761, 0.754 | 0.759, 0.769 | 0.662 / 0.717 | 5.6 to 6.0 s |
-| Scattergun (lab) | 0.666, 0.656 | 0.684, 0.680 | 0.618 / 0.654 | 2.3 s |
+| Magnum | 0.902, 0.916 | 0.911, 0.897 | 0.750 / 0.821 | 2.65 s |
+| Burst rifle (lab) | 0.820, 0.833 | 0.808, 0.807 | 0.688 / 0.729 | 4.1 s |
+| Carbine | 0.807, 0.803 | 0.794, 0.795 | 0.688 / 0.733 | 4.2 s |
+| Arc beam (lab) | 0.773, 0.763 | 0.775, 0.768 | 0.662 / 0.717 | 5.6 to 6.0 s |
+| Scattergun (lab) | 0.651, 0.651 | 0.668, 0.668 | 0.618 / 0.654 | 2.3 s |
 
 For reference (docs/TUNING.md): sniper 0.79, rockets 0.53, grenades only 0.55.
 
@@ -84,17 +86,18 @@ For reference (docs/TUNING.md): sniper 0.79, rockets 0.53, grenades only 0.55.
 
 | | Skill share effect (seeds 100 / 700 / 1300) | Kills | Time held | Other |
 |---|---|---|---|---|
-| CTF | +0.009, −0.003, +0.003 (noise ±0.007) | 11.2% | 15% | time to kill +0.04 s; teamkills −10% |
-| Arena | +0.002, +0.004, +0.000 | 2.9% | 3.7% | none |
-| Duel | +0.001, −0.018, −0.027 (noise ±0.03) | 12.1% | 24% | none |
+| CTF | −0.002, +0.007, +0.019 (noise ±0.007 to 0.013) | 10.5% | 14.5% | time to kill −0.05 s |
+| Arena | −0.004, −0.006, −0.003 (none clear) | 2.8% | 3.5% | teamkills −6% |
+| Duel | +0.015, −0.003, −0.027 (noise ±0.014 to 0.028) | 13.6% | 26% | none |
 
-- Alone: 0.82 skill share, between the carbine (0.80) and the magnum (0.91), with a carbine-like kill time.
-- Damage 7 or 9 instead of 8 made no consistent difference (−0.015 to +0.013 across maps and seeds).
+- The first run (2.2 s fuse) agreed: CTF +0.009, −0.003, +0.003; arena +0.002, +0.004, 0.000.
+- Alone: 0.82 to 0.83 skill share, between the carbine (0.80) and the magnum (0.91), with a carbine-like kill time.
+- Damage 7 or 9 instead of 8 made no consistent difference (−0.015 to +0.013 across maps and seeds; first run).
 - The AI picks it up eagerly when it passes one, so it is popular. It does not change how much skill decides a match.
 
 **Recommendation: ship as an option and playtest.** The simulation can't see the skill this weapon is built for. The AI's aim error is drawn fresh for every round, so a burst is three independent shots, not a track. Humans will separate on it more than the AI does.
 
-**Open questions:** Does it crowd out the magnum (both are precision weapons)? It took 5 points of held time from the magnum on CTF. Should it be a spawn loadout option instead of a pickup?
+**Open questions:** Does it crowd out the magnum (both are precision weapons)? It took 5 points of held time from the magnum on CTF (55% → 50%). Should it be a spawn loadout option instead of a pickup?
 
 ### W2. SG-12 scattergun (prototyped)
 
@@ -104,8 +107,8 @@ For reference (docs/TUNING.md): sniper 0.79, rockets 0.53, grenades only 0.55.
 
 **Results:**
 
-- **In the power rotation** (sniper, rocket, scattergun at the centre): invisible. 0.3% of time held, 1.1% of kills, no effect on anything. A third rotation slot only comes round once a match.
-- **Alone:** skill share 0.66 to 0.68. An equaliser, like the existing power weapons (sniper 0.79, rockets 0.53).
+- **In the power rotation** (sniper, rocket, scattergun at the centre): invisible. 0.2% of time held, 1.2% of kills, nothing outside the noise. A third rotation slot only comes round once a match.
+- **Alone:** skill share 0.65 to 0.67. An equaliser, like the existing power weapons (sniper 0.79, rockets 0.53).
 - **On the wing pads:** see M3. Its natural home.
 
 **Recommendation: rework** from the rotation into the pads (M3).
@@ -118,9 +121,9 @@ For reference (docs/TUNING.md): sniper 0.79, rockets 0.53, grenades only 0.55.
 
 **Results:** underpowered.
 
-- **Alone:** median time to kill 5.6 to 6.0 s on CTF (the carbine is 4.2), skill share 0.76.
-- **In full matches:** pilots hold it (11% of time in duels) but rarely kill with it (0.7%). Skill share −0.006 to −0.011 in duels and CTF (inside the noise).
-- **Rework tests (single weapon):** 5 per tick gives arena +0.019 and +0.025 and CTF +0.003 and +0.010, with time to kill 0.3 to 0.7 s shorter. 6 per tick is no better.
+- **Alone:** median time to kill 5.6 to 6.0 s on CTF (the carbine is 4.2), skill share 0.76 to 0.78.
+- **In full matches:** pilots hold it (11.5% of time in duels) but rarely kill with it (0.8%). Skill share on CTF −0.006, 0.000, −0.001; in duels +0.006, −0.012, −0.011 (inside the noise).
+- **Rework tests (single weapon, first run):** 5 per tick gives arena +0.019 and +0.025 and CTF +0.003 and +0.010, with time to kill 0.3 to 0.7 s shorter. 6 per tick is no better.
 - **AI caveat:** the AI handicap in finding 1 hits the beam too (15 ticks a second instead of 20).
 
 **Recommendation: rework or drop.** Before deciding:
@@ -141,13 +144,14 @@ If it still sits below the carbine, drop it.
 
 | | Skill share effect | Time to kill | Grenade kills | Other |
 |---|---|---|---|---|
-| CTF | −0.010, +0.006, +0.008 | −0.12 s | −2.4 points | captures +0.12 per match (noise ±0.3) |
-| Arena | −0.005, −0.006, −0.007 (one of three clear) | −0.07 s | −1.8 points | kills/min +0.3 |
-| Duel | +0.004, +0.011, +0.020 (noise ±0.03) | −0.20 s | −3.5 points | |
-| Pairs (CTF) | Heroic vs Normal +0.009; Normal vs Recruit −0.010 | | | |
+| CTF | +0.002, +0.005, −0.002 | −0.15 s | −2.5 points | captures −0.08 per match (noise ±0.3) |
+| Arena | −0.007, −0.005, −0.007 (two of three clear) | −0.06 s | −2.0 points | teamkills −7% |
+| Duel | −0.013, +0.006, −0.014 (noise ±0.014 to 0.028) | −0.24 s | −4.3 points | |
+| Pairs (CTF, first run) | Heroic vs Normal +0.009; Normal vs Recruit −0.010 | | | |
 
+- The first run gave the same picture: CTF −0.010, +0.006, +0.008; arena −0.005, −0.006, −0.007; duels +0.004, +0.011, +0.020.
 - Fewer grenade kills: pilots throw a pulse where they would have thrown a plasma.
-- A small arena-only negative, and positive in duels where one-on-one combos matter most.
+- The only consistent signal is a small arena negative (six of six seed sets, about −0.006, at the edge of the noise).
 
 **Recommendation: ship as an option and playtest.** Its value is in human combos the AI only half uses. The AI throws it, but doesn't time a magnum headshot to the strip.
 
@@ -161,10 +165,10 @@ If it still sits below the carbine, drop it.
 
 **Results:**
 
-- **Melee's share of kills doesn't move:** 47% to 47% on the arena, 22% to 23% on CTF. Melee kills are finishing blows on pilots the guns already opened.
-- **Fights last longer:** +0.08 s (CTF), +0.13 s (arena), +0.24 s (duels).
-- **The biggest gain is at Recruit level:** +0.44 s on CTF and +0.24 s on the arena. That is exactly where getting rushed is most common.
-- **Skill share:** within noise everywhere. Arena Heroic vs Normal was +0.015 (noise ±0.013).
+- **Melee's share of kills doesn't move:** 48% to 48% on the arena, 24% to 23% on CTF. Melee kills are finishing blows on pilots the guns already opened.
+- **Fights last longer:** +0.10 s (CTF), +0.14 s (arena), +0.23 s (duels). The first run agreed (+0.08, +0.13, +0.24).
+- **The biggest gain is at Recruit level (first run):** +0.44 s on CTF and +0.24 s on the arena. That is exactly where getting rushed is most common.
+- **Skill share:** mixed sign everywhere: CTF −0.001, +0.006, +0.004; arena −0.006, +0.007, −0.012; duels −0.004, +0.008, +0.017. Arena Heroic vs Normal was +0.015 (noise ±0.013; first run).
 
 **Recommendation: ship as an option, and look at it in the defaults pass** as an accessibility change: more time to react when rushed, at no measured cost. For melee's share itself, look at the AI's closing behaviour (`genes.charge`, the melee range check in `Agent.think`).
 
@@ -188,7 +192,7 @@ If it still sits below the carbine, drop it.
 
 **Why:** mid and the wings only meet at the ends of those walls. Earlier rotations should make flanks a read rather than a surprise.
 
-**Results:** nothing moved. Skill share −0.008, −0.006, −0.001 (one of three clear). Lane use 53.5% in mid against 53%. Captures +0.03 per match, time to capture −0.2 s, time to kill unchanged. At Legendary, time to capture fell 6 s on one seed set, but captures did not rise.
+**Results:** nothing moved. Skill share −0.005, +0.005, +0.006 (first run: −0.008, −0.006, −0.001). Lane use 53% in mid, unchanged. Captures −0.05 per match (first run +0.03), time to capture +0.9 s, time to kill unchanged. At Legendary (first run), time to capture fell 6 s on one seed set, but captures did not rise.
 
 **Recommendation: drop as built.** The real open problem is that capture the flag stalls at high skill (finding 3). Rework the idea as a flag-room back entrance (M7), which adds attack routes where defence is winning.
 
@@ -200,11 +204,11 @@ If it still sits below the carbine, drop it.
 
 **Results:**
 
-- Rocket kills rise from 2.4% to 6.6%, sniper kills from 2.9% to 4.2%.
-- Teamkills +21 per 48 matches (+15%).
-- Time to kill −0.21 s.
-- Skill share −0.007, −0.003, −0.009 (one of three clear, same sign).
-- Captures +0.10 per match (noise).
+- Rocket kills rise from 2.3% to 7.0%, sniper kills from 2.8% to 4.2%.
+- Teamkills +7% (first run +15%).
+- Time to kill −0.18 s (first run −0.21 s).
+- Skill share −0.004, −0.018, +0.008 (first run −0.007, −0.003, −0.009).
+- Captures +0.08 per match (noise).
 
 **Recommendation: drop.** More rockets means more equalising and more friendly fire. The scattergun pads (M3) do the same job of drawing fights to the wings, with fewer teamkills.
 
@@ -216,11 +220,11 @@ If it still sits below the carbine, drop it.
 
 **Results:**
 
-- **Kills:** the scattergun takes 9.8% of kills.
-- **Lane use:** mid falls from 53% to 47% (left and right wings go from 24/23% to 26/26%). At Heroic, mid is 50% to 41%; at Legendary, 45.5% to 37%.
-- **Speed and friendly fire:** fights are 0.19 s faster, and teamkills fall 15%.
-- **Captures:** +0.07 per match (noise); +0.31 at Heroic.
-- **Skill share:** −0.007, −0.012, −0.013 (two of three clear), as expected for a power weapon. Heroic vs Normal +0.011 and Normal vs Recruit +0.006 (both inside ±0.03).
+- **Kills:** the scattergun takes 9.4% of kills (first run 9.8%).
+- **Lane use:** mid falls from 53% to 47% on every seed set of both runs (47.6, 47.0, 46.3% against 53.5, 52.3, 52.8%); the wings go from 23/24% to 27/26%. At Heroic, mid is 50% to 41%; at Legendary, 45.5% to 37% (first run).
+- **Speed:** fights are 0.16 s faster (first run 0.19 s). Teamkills are unchanged (first run −15%).
+- **Captures:** +0.03 per match (noise); +0.31 at Heroic (first run).
+- **Skill share:** −0.009, −0.013, +0.017 (two of three clear, mixed sign); the first run gave −0.007, −0.012, −0.013. Five of six seed sets are negative, averaging about −0.006, as expected for a power weapon. Heroic vs Normal +0.011 and Normal vs Recruit +0.006 (both inside ±0.03; first run).
 
 **Recommendation: ship as an option, and playtest as the default.** It is the one change that measurably makes Twin Foundry more dynamic: fights spread across all three lanes, and more so as skill rises. The cost is the usual one for a power weapon, about a point of skill share.
 
@@ -232,7 +236,7 @@ If it still sits below the carbine, drop it.
 
 **Why:** movement routes and verticality. High ground you can rotate along instead of camp.
 
-**Results:** neutral. Skill share +0.001, 0.000, −0.005. Time to kill −0.03 s, kills per minute unchanged, teamkills +4%. Heroic vs Normal −0.010 and Normal vs Recruit −0.016 (noise ±0.013 and ±0.014).
+**Results:** neutral. Skill share −0.011, +0.003, +0.005 (first run +0.001, 0.000, −0.005). Time to kill unchanged, kills per minute unchanged, teamkills −2% (first run +4%). Heroic vs Normal −0.010 and Normal vs Recruit −0.016 (noise ±0.013 and ±0.014; first run).
 
 **Recommendation: ship as an option, for a movement playtest.** The AI doesn't value high ground or movement routes beyond pathing, so this is exactly the kind of change the simulation cannot judge (TUNING.md, "Limits of the method"). It needs the free-for-all arena to build from map documents with mods first.
 
@@ -244,9 +248,9 @@ If it still sits below the carbine, drop it.
 
 **Results:** consistently bad.
 
-- Skill share **−0.022, −0.015, −0.025**, clear of the noise on all three seed sets. Heroic vs Normal −0.016, Normal vs Recruit −0.014.
-- Duels −0.008, −0.021, −0.007.
-- Fights are 0.15 s faster (0.27 s in duels), and teamkills are up 8%.
+- Skill share **−0.016, −0.024, −0.017**, clear of the noise on all three seed sets (first run −0.022, −0.015, −0.025, also all clear). Heroic vs Normal −0.016, Normal vs Recruit −0.014 (first run).
+- Duels 0.000, −0.021, +0.006 (first run −0.008, −0.021, −0.007).
+- Fights are 0.15 s faster (0.24 s in duels), and teamkills are up 11%.
 - Close-corner ambushes favour whoever is already there, not who aims better.
 
 **Recommendation: drop.**
