@@ -10,10 +10,8 @@
    The Map detail setting hides the lot (prop materials are marked userData.detail and hidden on Basic). */
 const PROP_T = { value: 0 };
 const PROP_MATS = {
-  pipe: new THREE.MeshStandardMaterial({ color: "#5b6168", roughness: 0.38, metalness: 0.8 }),
-  pipe2: new THREE.MeshStandardMaterial({ color: "#7a5a3a", roughness: 0.45, metalness: 0.7 }),
-  cable: new THREE.MeshStandardMaterial({ color: "#121518", roughness: 0.7, metalness: 0.1 }),
-  fan: new THREE.MeshStandardMaterial({ color: "#6a737b", roughness: 0.5, metalness: 0.6 }),
+  /* pipes, cables and fan blades share one material (colored per vertex), so one draw call */
+  metal: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.75 }),
   beacon: new THREE.MeshBasicMaterial({ color: "#ff3b2a" }),
   holo: new THREE.ShaderMaterial({
     uniforms: { map: { value: null }, t: PROP_T },
@@ -35,7 +33,7 @@ gl_FragColor=vec4(c.rgb*tint*3.6*scan*flick*band,c.a*.9);}`,
 for (const k in PROP_MATS) PROP_MATS[k].userData.detail = true;
 PROP_MATS.beacon.color.multiplyScalar(3);
 /* fan blades spin about their own centre: center.xyz + speed in `spin`, axis in `axis` */
-PROP_MATS.fan.onBeforeCompile = sh => {
+PROP_MATS.metal.onBeforeCompile = sh => {
   sh.uniforms.dT = PROP_T;
   sh.vertexShader = sh.vertexShader
     .replace(
@@ -51,7 +49,7 @@ PROP_MATS.fan.onBeforeCompile = sh => {
       "#include <begin_vertex>\nif(spin.w!=0.)transformed=spin.xyz+rotA(transformed-spin.xyz,axis,sa);"
     );
 };
-/** @type {any} */ (PROP_MATS.fan).defaultAttributeValues = { spin: [0, 0, 0, 0], axis: [0, 1, 0] };
+/** @type {any} */ (PROP_MATS.metal).defaultAttributeValues = { spin: [0, 0, 0, 0], axis: [0, 1, 0] };
 /* beacons blink on their own phase */
 PROP_MATS.beacon.onBeforeCompile = sh => {
   sh.uniforms.dT = PROP_T;
@@ -188,6 +186,16 @@ function dressProps(doc, solids, rnd01, zoneMat, faceList) {
     m.userData.noBake = true;
     MAPG.add(m);
   };
+  /* everything on the shared metal material carries a color and the fan attributes (still for all but blades) */
+  const metal = (g, hex, blade) => {
+    const c = new THREE.Color(hex);
+    withAttr(g, "color", [c.r, c.g, c.b]);
+    if (!blade) {
+      withAttr(g, "spin", [0, 0, 0, 0]);
+      withAttr(g, "axis", [0, 1, 0]);
+    }
+    put(PROP_MATS.metal, g);
+  };
   const cyl = (r, ax, ay, az, bx, by, bz, mat) => {
     const len = Math.hypot(bx - ax, by - ay, bz - az);
     const g = new THREE.CylinderGeometry(r, r, len, 6, 1, true);
@@ -203,7 +211,7 @@ function dressProps(doc, solids, rnd01, zoneMat, faceList) {
         new THREE.Vector3(1, 1, 1)
       )
     );
-    put(mat, g);
+    metal(g, mat);
   };
   /* boxes are placed by position, the way the bake (world/bake.js) expects them */
   const boxAt = (mat, x, y, z, w, h, d) => {
@@ -222,7 +230,7 @@ function dressProps(doc, solids, rnd01, zoneMat, faceList) {
     if (h >= 2.8 && len >= 4 && rnd01() < 0.7) {
       const n = 1 + Math.floor(rnd01() * 3);
       const y = b.y1 - 0.42 - rnd01() * 0.3;
-      const mat = rnd01() < 0.3 ? PROP_MATS.pipe2 : PROP_MATS.pipe;
+      const mat = rnd01() < 0.3 ? "#7a5a3a" : "#5b6168";
       for (let k = 0; k < n; k++) {
         const r = 0.05 + rnd01() * 0.06,
           off = 0.2 + k * 0.17,
@@ -265,7 +273,7 @@ function dressProps(doc, solids, rnd01, zoneMat, faceList) {
         }
         const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 6, 0.025, 3, false);
         g.deleteAttribute("uv");
-        put(PROP_MATS.cable, g);
+        metal(g, "#121518");
       }
     }
     /* a wall fan in a housing */
@@ -311,7 +319,7 @@ function dressProps(doc, solids, rnd01, zoneMat, faceList) {
         g.translate(cx, y, cz);
         withAttr(g, "spin", [cx, y, cz, speed]);
         withAttr(g, "axis", [nx, 0, nz]);
-        put(PROP_MATS.fan, g);
+        metal(g, "#6a737b", true);
       }
     }
     /* holographic signs over a projector strip, high on long faces */

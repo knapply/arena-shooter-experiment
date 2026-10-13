@@ -26,6 +26,7 @@ const VIEWS = [
   ["arena-corner", "arena", 30, 0, -30, 2.4, 0.02],
   ["arena-up", "arena", 0, 0, -26, 3.1, 0.35],
   ["arena-wall", "arena", 6, 0, -27, 0.5, 0.18],
+  ["arena-fan", "arena", -24, 0, -32, 0.15, 0.1],
   ["arena-sky", "arena", 0, 0, 20, 3.3, 0.12],
   ["arena-sun", "arena", -20, 0, -20, "sun", 0],
   ["arena-sunwall", "arena", -30, 0, -30, "sun", 0],

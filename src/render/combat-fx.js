@@ -46,52 +46,75 @@ function heatAt(p, r, k = 1, life = 0) {
   if (SET.fxDetail === "ultra" && CFX.heat.length < 12)
     CFX.heat.push({ p: p.clone(), r, k, life, max: life });
 }
-/* ---- shell casings ---- */
-const CAS_N = 48;
-const casings = (() => {
-  const g = new THREE.CylinderGeometry(0.007, 0.007, 0.03, 6);
-  g.rotateX(Math.PI / 2);
-  const m = new THREE.InstancedMesh(
-    g,
-    new THREE.MeshStandardMaterial({ color: "#c8933c", roughness: 0.3, metalness: 0.9 }),
-    CAS_N
-  );
+/* ---- shell casings and explosion debris: small things that tumble, bounce and settle, each kind
+   one instanced mesh (one draw call however many are flying) ---- */
+function tumblers(geo, mat, n, rest, sound) {
+  const m = new THREE.InstancedMesh(geo, mat, n);
   m.frustumCulled = false;
   m.count = 0;
   m.castShadow = false;
   scene.add(m);
-  return { mesh: m, list: [] };
+  return { mesh: m, list: [], n, rest, sound };
+}
+const casings = (() => {
+  const g = new THREE.CylinderGeometry(0.007, 0.007, 0.03, 6);
+  g.rotateX(Math.PI / 2);
+  return tumblers(
+    g,
+    new THREE.MeshStandardMaterial({ color: "#c8933c", roughness: 0.3, metalness: 0.9 }),
+    48,
+    0.007,
+    true
+  );
 })();
-function ejectCasing(p, dir) {
-  if (casings.list.length >= CAS_N) casings.list.shift();
-  _cs.set(dir.z, 0, -dir.x).normalize();
-  casings.list.push({
+const chunks = tumblers(
+  new THREE.BoxGeometry(0.09, 0.06, 0.12),
+  new THREE.MeshStandardMaterial({ color: "#23282c", roughness: 0.7, metalness: 0.4 }),
+  40,
+  0.03,
+  false
+);
+function toss(T, p, v, spin, life, scale = 1, g = 9.8) {
+  if (T.list.length >= T.n) T.list.shift();
+  T.list.push({
     p: p.clone(),
-    v: _cs
+    v,
+    r: new THREE.Euler(rnd(0, 6), rnd(0, 6), 0),
+    w: spin,
+    life,
+    s: scale,
+    g,
+    rest: false,
+  });
+}
+function ejectCasing(p, dir) {
+  _cs.set(dir.z, 0, -dir.x).normalize();
+  toss(
+    casings,
+    p,
+    _cs
       .clone()
       .multiplyScalar(rnd(1.6, 2.6))
       .add(new THREE.Vector3(0, rnd(1.4, 2.4), 0))
       .addScaledVector(dir, -0.6),
-    r: new THREE.Euler(rnd(0, 6), rnd(0, 6), 0),
-    w: new THREE.Vector3(rnd(-25, 25), rnd(-25, 25), rnd(-10, 10)),
-    life: 3,
-    rest: false,
-  });
+    new THREE.Vector3(rnd(-25, 25), rnd(-25, 25), rnd(-10, 10)),
+    3
+  );
 }
-function updCasings(dt) {
-  const L = casings.list;
+function updTumblers(T, dt) {
+  const L = T.list;
   let n = 0;
   for (let i = 0; i < L.length; i++) {
     const c = L[i];
     c.life -= dt;
     if (c.life <= 0) continue;
     if (!c.rest) {
-      c.v.y -= 9.8 * dt;
+      c.v.y -= c.g * dt;
       c.p.addScaledVector(c.v, dt);
       c.r.x += c.w.x * dt;
       c.r.y += c.w.y * dt;
       c.r.z += c.w.z * dt;
-      const fl = groundBelow(c.p.x, c.p.z, c.p.y + 0.05, 0.01) + 0.007;
+      const fl = groundBelow(c.p.x, c.p.z, c.p.y + 0.05, 0.01) + T.rest * c.s;
       if (c.p.y < fl) {
         c.p.y = fl;
         if (c.v.y < -1) {
@@ -99,24 +122,24 @@ function updCasings(dt) {
           c.v.x *= 0.5;
           c.v.z *= 0.5;
           c.w.multiplyScalar(0.5);
-          if (Math.random() < 0.4) sfxAt("clink", c.p, 10, 0.5);
+          if (T.sound && Math.random() < 0.4) sfxAt("clink", c.p, 10, 0.5);
         } else {
           c.rest = true;
-          c.r.x = Math.PI / 2;
+          c.r.x = T.sound ? Math.PI / 2 : 0;
           c.r.z = 0;
         }
       }
     }
     L[n++] = c;
     _cq.setFromEuler(c.r);
-    _cs.setScalar(c.life < 0.4 ? c.life / 0.4 : 1);
+    _cs.setScalar(c.s * (c.life < 0.4 ? c.life / 0.4 : 1));
     _cm.compose(c.p, _cq, _cs);
-    casings.mesh.setMatrixAt(n - 1, _cm);
+    T.mesh.setMatrixAt(n - 1, _cm);
   }
   L.length = n;
-  casings.mesh.count = n;
-  casings.mesh.visible = n > 0;
-  if (n) casings.mesh.instanceMatrix.needsUpdate = true;
+  T.mesh.count = n;
+  T.mesh.visible = n > 0;
+  if (n) T.mesh.instanceMatrix.needsUpdate = true;
 }
 /* ---- decals ---- */
 const DEC_N = 96;
@@ -160,6 +183,7 @@ gl_FragColor=vec4(gc*glow*2.+vec3(.012,.01,.009)*m,m);}`,
   m.frustumCulled = false;
   m.count = 0;
   m.renderOrder = 1;
+  m.visible = false;
   scene.add(m);
   return { mesh: m, dd, next: 0, n: 0 };
 })();
@@ -174,6 +198,7 @@ function decal(p, n, kind, size) {
   decals.mesh.setMatrixAt(i, _cm);
   decals.dd.setXYZW(i, CFX.t, kind, Math.random(), 0);
   decals.mesh.count = decals.n;
+  decals.mesh.visible = true;
   decals.mesh.instanceMatrix.needsUpdate = true;
   decals.dd.needsUpdate = true;
 }
@@ -236,13 +261,6 @@ function onShotFx(a, b) {
     }
   );
 }
-const chunkGeo = new THREE.BoxGeometry(0.09, 0.06, 0.12),
-  chunkMat = new THREE.MeshStandardMaterial({
-    color: "#23282c",
-    roughness: 0.7,
-    metalness: 0.4,
-    transparent: true,
-  });
 function blastFx(p, color, r) {
   if (SET.dynLights) dynLight(p, 0xff9a48, 7, 0.5, r * 4);
   heatAt(p, r * 0.8, 1.2, 0.6);
@@ -285,27 +303,16 @@ function blastFx(p, color, r) {
       { grow: 0.7, drag: 0.9 }
     );
   /* debris tumbling out and bouncing */
-  for (let i = 0, n = Math.round(pc(6)); i < n; i++) {
-    const m = fxGet("cd", () => {
-      const o = new THREE.Mesh(chunkGeo, chunkMat.clone());
-      o.castShadow = true;
-      return o;
-    });
-    m.position.copy(p);
-    m.scale.setScalar(rnd(0.6, 1.4));
-    m.material.opacity = 1;
-    fxPush({
-      m,
-      key: "cd",
-      life: rnd(1.4, 2.2),
-      max: 2.2,
-      fadeTail: 0.4,
-      vel: new THREE.Vector3(rnd(-7, 7), rnd(3, 9), rnd(-7, 7)),
-      g: 14,
-      spin: new THREE.Vector3(rnd(-12, 12), rnd(-12, 12), rnd(-12, 12)),
-      floor: groundBelow(p.x, p.z, p.y + 0.3, 0.05) + 0.04,
-    });
-  }
+  for (let i = 0, n = Math.round(pc(6)); i < n; i++)
+    toss(
+      chunks,
+      p,
+      new THREE.Vector3(rnd(-7, 7), rnd(3, 9), rnd(-7, 7)),
+      new THREE.Vector3(rnd(-12, 12), rnd(-12, 12), rnd(-12, 12)),
+      rnd(1.4, 2.4),
+      rnd(0.6, 1.4),
+      14
+    );
   /* scorch on the ground under it, or on the wall beside it */
   const gy = groundBelow(p.x, p.z, p.y + 0.4, 0.05);
   if (p.y - gy < 1.4) decal(_cf.set(p.x, gy, p.z), _cn.set(0, 1, 0), 1, r * 1.3);
@@ -337,7 +344,8 @@ function updCombatFx(dt) {
     u.life -= dt;
     l.intensity = u.i * Math.max(0, u.life / u.max) ** 1.5;
   }
-  updCasings(dt);
+  updTumblers(casings, dt);
+  updTumblers(chunks, dt);
   for (let i = CFX.heat.length - 1; i >= 0; i--) {
     const h = CFX.heat[i];
     if (h.max && (h.life -= dt) <= 0) CFX.heat.splice(i, 1);

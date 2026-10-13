@@ -129,7 +129,7 @@ function bakePrep(group, solids, doc) {
       });
       continue;
     }
-    if (!mat.isMeshStandardMaterial || destr.has(m)) continue;
+    if (!mat.isMeshStandardMaterial || destr.has(m) || mat.userData.detail) continue;
     m.updateMatrix();
     const isFloor = mat === MATS.floor;
     /* bottoms resting on a floor are never seen */

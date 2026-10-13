@@ -100,7 +100,7 @@ ao+=max(0.,dot(v,N)/max(L,1e-4)-.08)*(1.-smoothstep(rad*.6,rad*1.6,L));}
 ao=clamp(1.-ao*k/10.,0.,1.);
 gl_FragColor=vec4(vec3(ao*ao),1.);}`,
 });
-/* edge-aware blur of the occlusion: neighbours at a different depth don't bleed across */
+/* edge-aware blur of the occlusion in one pass (5x5 taps): neighbours at a different depth don't bleed across */
 const aoBlurMat = new THREE.ShaderMaterial({
   uniforms: {
     t: { value: null },
@@ -113,9 +113,9 @@ const aoBlurMat = new THREE.ShaderMaterial({
   depthTest: false,
   depthWrite: false,
   fragmentShader: `uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;${VIEWPOS}
-void main(){float z0=lz(vUv);float s=texture2D(t,vUv).r,w=1.;
-for(int i=-3;i<=3;i++){if(i==0)continue;vec2 uv=vUv+dir*float(i);
-float wi=exp(-abs(lz(uv)-z0)/(z0*.04+.02))*(1.-abs(float(i))*.2);s+=texture2D(t,uv).r*wi;w+=wi;}
+void main(){float z0=lz(vUv);float s=0.,w=0.;
+for(int i=-2;i<=2;i++)for(int j=-2;j<=2;j++){vec2 uv=vUv+dir*vec2(float(i),float(j))*1.5;
+float wi=exp(-abs(lz(uv)-z0)/(z0*.04+.02))*(1.-.1*float(i*i+j*j));s+=texture2D(t,uv).r*wi;w+=wi;}
 gl_FragColor=vec4(vec3(s/w),1.);}`,
 });
 /* light shafts: march from each pixel toward the sun through the sky (alpha 0 in the scene target),
@@ -374,12 +374,9 @@ function renderFrame() {
       ssaoMat.uniforms.texel.value.set(1 / GFX.ao1.width, 1 / GFX.ao1.height);
       fsPass(ssaoMat, GFX.ao1);
       aoBlurMat.uniforms.t.value = GFX.ao1.texture;
-      aoBlurMat.uniforms.dir.value.set(1 / GFX.ao1.width, 0);
+      aoBlurMat.uniforms.dir.value.set(1 / GFX.ao1.width, 1 / GFX.ao1.height);
       fsPass(aoBlurMat, GFX.ao2);
-      aoBlurMat.uniforms.t.value = GFX.ao2.texture;
-      aoBlurMat.uniforms.dir.value.set(0, 1 / GFX.ao1.height);
-      fsPass(aoBlurMat, GFX.ao1);
-      U.tA.value = GFX.ao1.texture;
+      U.tA.value = GFX.ao2.texture;
       U.aoK.value = 0.85;
       if (GPUQ) GPUQ.end();
     }
