@@ -65,6 +65,23 @@ Single-weapon baselines (Legendary vs Normal, every pilot with one weapon): **ma
 
 No default changed in that pass.
 
+## Pass three: both maps, the skill ceiling and picking the game up
+
+The goal for this pass: smooth and responsive, easy to pick up, and a very high skill ceiling. Two pairings per map now: **Legendary vs Normal** (the skill ceiling: how much the better side wins) and **Normal vs Recruit** (picking it up: how a new player's fights go, with Recruit vs Recruit as the even matches, so time to kill is the beginner's). Strafe reversal, thrust cooldown and slide boost joined the swept knobs.
+
+**Sweep:** every knob on both maps (team deathmatch on the arena, capture the flag on Twin Foundry), both pairings, seed sets 100 and 700, 24 matches of each kind per variant (4 minutes), 4 null controls per run. Null noise was ±0.004 to ±0.016 on skill share. Baselines: Legendary takes 78% of the kills against Normal on the arena and 85% on Twin Foundry; Normal takes 67 to 68% against Recruit on the arena and 70% on Twin Foundry. Recruit vs Recruit time to kill is 1.4 s on the arena and 2.5 s on Twin Foundry (Normal vs Normal 2.1 s and 3.1 s).
+
+Three settings moved skill share the same way in most of the 8 cells (2 maps × 2 pairings × 2 seed sets): air control 24 (6 of 8), frag fuse 2.6 (7 of 8) and strafe reversal 120 (6 of 8). They were re-run on new seed sets (1300 and 1900, 32 matches per kind) with neighbouring values, plus grenades-only runs for the fuse:
+
+| Setting | Confirmation (8 cells, new seeds) | Other effects | Decision |
+|---|---|---|---|
+| **Frag fuse 2.6** (was 2.2) | skill share +0.003, −0.001 / 0, +0.018 / +0.002, +0.007 / +0.013, +0.010: 14 of 16 cells positive over both rounds, about +0.007 on average (small, about one null spread) | **arena teamkills down in all 8 cells** (−7 to −31 per run), self-kills slightly down; grenades-only: arena +0.026, +0.022, Twin Foundry mixed (−0.025, +0.006) | **Changed to 2.6.** It nudges the skill ceiling up and makes frags fairer to play around: more time to get out of a grenade's way (and to punish someone who doesn't) without making them weaker at the centre. 2.4 behaved alike on skill share but not on teamkills; 2.8 was mixed. |
+| Air control 24 | −0.003, −0.007 / −0.006, 0 / +0.001, +0.004 / −0.013, +0.037 | 21 and 27 no better | Kept at 18: the first round's effect did not repeat. |
+| Strafe reversal 120 | +0.002, +0.004 / +0.004, +0.007 / −0.006, +0.001 / −0.003, −0.003 | none | Kept at 95: within noise. |
+| Everything else (first round) | mixed signs | frag radius 5.8 nearly doubles teamkills on the arena | Kept. |
+
+Movement knobs stay where they are: nothing in movement repeated across seeds, and how movement *feels* (responsiveness, smoothness) is something simulated pilots cannot judge. The step-up and clamber fix in this pass (stairs never clamber) is a feel change the simulation does not measure.
+
 ## All modes: team deathmatch on the arena as well as capture the flag
 
 The free-for-all arena's own AI (the practice drones) only fights you, so the arena is measured with the CTF AI playing **team deathmatch** there: 4 v 4 on Proving Grounds, no flags, kills score (`MAP=arena`; see "A map" in [EXTENDING.md](EXTENDING.md)). The arena is small and open around its core: fights there are faster (time to kill 2.1 s, 30 kills per minute) and closer than on Twin Foundry (3.1 s, 14.7 per minute). Simulated matches run the full 4 minutes (no score limit), and kills per minute now use the minutes actually played (capture the flag can end early).

@@ -797,6 +797,8 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
         heard.push(k);
         return sfx0(k, v);
       };
+      /* live bots could kill the carrier while we look: keep them alive for the check */
+      e.onHit = () => ({ died: false, sh: true });
       const f = g.flags[ht];
       f.state = "carried";
       f.carrier = e;
@@ -813,6 +815,7 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       g.emit("flagReturn", { flag: f, by: g.human });
       out.heard2 = heard.slice();
       KA.sfx = sfx0;
+      delete e.onHit;
       return out;
     });
     check(

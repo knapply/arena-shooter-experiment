@@ -233,7 +233,7 @@ const SANDBOX_DEFS = [
     "",
     "Share of speed a frag keeps when it bounces off the floor.",
   ],
-  ["sbNadeFuse", "Frag fuse", 2.2, 1.2, 3.4, 0.1, " s", "Time from throw to explosion for frags."],
+  ["sbNadeFuse", "Frag fuse", 2.6, 1.2, 3.4, 0.1, " s", "Time from throw to explosion for frags."],
   ["sbNadeRadius", "Frag blast radius", 4.2, 3, 7, 0.1, " m", "How far a frag's blast reaches."],
 ];
 /** @type {SettingDef[]} */
