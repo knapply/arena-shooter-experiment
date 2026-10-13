@@ -46,6 +46,7 @@ const KA_API = {
   rocketDmg,
   remoteProjectile,
   dropPod,
+  matchDrop,
   podSeat,
   podsOn,
   PODS,
@@ -182,6 +183,8 @@ const KA_API = {
   MSG,
   dealDamage,
   fire,
+  /** the free-for-all match state (clock start t0, over) */
+  FFA,
   get bots() {
     return bots;
   },

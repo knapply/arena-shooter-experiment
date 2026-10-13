@@ -41,11 +41,21 @@ async function serveRepo(ctx) {
     r.fulfill({ contentType: type, body: fs.readFileSync(f) });
   });
 }
-/* tests start with match intros off (they would hold input for a few seconds after every deploy);
-   pass intros: true to test them. trailer: true opens the trailer build instead of the game */
+/* tests start with match intros and the opening pod drop off (they would hold input for a few
+   seconds after every deploy); pass intros: true or drops: true to test them. trailer: true opens
+   the trailer build instead of the game */
 async function open(
   ctx,
-  { tag = "", init = [], realThree = false, hash = "", http = false, intros = false, trailer = false } = {}
+  {
+    tag = "",
+    init = [],
+    realThree = false,
+    hash = "",
+    http = false,
+    intros = false,
+    drops = false,
+    trailer = false,
+  } = {}
 ) {
   if (http) await serveRepo(ctx);
   const p = await ctx.newPage();
@@ -55,21 +65,24 @@ async function open(
     if (m.type() === "error") p.errors.push(tag + " console: " + m.text());
   });
   for (const f of init) await p.addInitScript({ path: path.join(__dirname, "..", "stubs", f) });
-  if (!intros)
-    await p.addInitScript(() => {
-      try {
-        if (!localStorage.getItem("ka-doc-settings"))
-          localStorage.setItem(
-            "ka-doc-settings",
-            JSON.stringify({
-              app: "kinetic-arena",
-              doc: "settings",
-              version: 2,
-              data: { settings: { intros: false }, keys: {}, pad: {} },
-            })
-          );
-      } catch (e) {}
-    });
+  if (!intros || !drops)
+    await p.addInitScript(
+      o => {
+        try {
+          if (!localStorage.getItem("ka-doc-settings"))
+            localStorage.setItem(
+              "ka-doc-settings",
+              JSON.stringify({
+                app: "kinetic-arena",
+                doc: "settings",
+                version: 2,
+                data: { settings: o, keys: {}, pad: {} },
+              })
+            );
+        } catch (e) {}
+      },
+      { intros, dropIn: drops }
+    );
   const three =
     realThree && process.env.THREE_PATH
       ? fs.readFileSync(process.env.THREE_PATH, "utf8")

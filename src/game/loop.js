@@ -212,6 +212,42 @@ function respawnMe(at) {
   reloadT = 0;
   refill();
 }
+/* ---- the match start: with drop pods (and Drop in at match start on), a match opens with everyone
+   dropping in. Your first spawn is a pod, as after a death (no death counted, no "Down" screen);
+   the arena drones' too; CTF's agents start out the same way (G.start(true)). While the intro
+   plays the drop waits, then everyone launches together and the clock starts as they land ---- */
+let dropHold = false;
+const dropsOn = () => podsOn() && SET.dropIn;
+/**
+ * open a match with a drop: you (and the arena drones, with bots) are out until your pods land.
+ * Returns how long from launch to landing (0 when matches start on the ground).
+ */
+function matchDrop(withBots = false) {
+  if (!dropsOn()) return 0;
+  me.dead = true;
+  me.vel.set(0, 0, 0);
+  respawnAt = now + POD_EARLY;
+  dropHold = true;
+  $("dead").hidden = true;
+  /* everyone comes down on a spot of their own: yours the safest, the drones' the others */
+  let mine = null;
+  if (!EXT) {
+    mine = spawnPoint(me);
+    spawnPick = { for: respawnAt, at: new V3(mine[0], mine[1] + 0.02, mine[2]) };
+  } else spawnPick = null;
+  if (withBots) {
+    const free = SPAWNS.filter(s => s !== mine).sort(() => Math.random() - 0.5);
+    bots.forEach((b, i) => {
+      const s = free[i % free.length],
+        at = new V3(s[0], s[1] + 0.01, s[2]);
+      b.body.dead = true;
+      b.respawn = now + POD_EARLY;
+      b.pick = { for: b.respawn, at, sky: skyClear(at) };
+      b.rig.root.visible = false;
+    });
+  }
+  return POD_TIME;
+}
 /** a pod landing on someone takes them out */
 function podCrush(at) {
   for (const t of targets())
@@ -313,6 +349,18 @@ function frameBody(t) {
   }
   /* a pod cleared from under you (leaving the match) is no longer yours */
   if (myPod && !PODS.includes(myPod)) myPod = null;
+  /* the opening drop waits for the intro, then everyone launches together */
+  if (dropHold) {
+    if (INTRO.active) {
+      respawnAt = now + POD_EARLY;
+      if (spawnPick) spawnPick.for = respawnAt;
+      for (const b of bots)
+        if (b.body.dead) {
+          b.respawn = now + POD_EARLY;
+          if (b.pick) b.pick.for = b.respawn;
+        }
+    } else dropHold = false;
+  }
   if (me.dead) {
     if (myPod) {
       /* riding the drop pod down; Jump, Fire or Melee skips the pod camera */

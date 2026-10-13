@@ -151,8 +151,9 @@
     host.wrap();
     K.extPlay(hostExt(host), { color: CTF.TEAM_HEX[myTeam] });
     G.human.name = K.myName;
-    G.start();
+    G.start(K.SET.dropIn);
     ctfIntro();
+    K.matchDrop();
     UI.line(
       "sys",
       `You're on ${TN[myTeam]}. Bring the enemy flag to your stand while yours is home. J or D-pad up switches teams.`
@@ -514,8 +515,9 @@
     };
     K.extPlay(ext, { color: CTF.TEAM_HEX[myTeam] });
     G.human.name = K.myName;
-    /* joining as the match begins: the same intro the host is watching */
+    /* joining as the match begins: the same intro the host is watching; you drop in either way */
     if (G.t < 2) ctfIntro();
+    K.matchDrop();
     UI.line("sys", `Joined ${h.name}'s match on ${TN[myTeam]}. J or D-pad up switches teams.`);
     K.say("Capture the flag", true);
   }
@@ -543,7 +545,7 @@
     focus = null;
     focusT = 0;
     snap = true;
-    G.start();
+    G.start(K.SET.dropIn);
     UI.line(
       "sys",
       `Match ${G.teams[0].brain.model.games + 1}. Both teams load what they learned from earlier matches.`

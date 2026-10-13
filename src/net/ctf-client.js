@@ -258,7 +258,14 @@
     M.spawnPoint = function (t) {
       /* the same spawn safety as the host (world/spawns.js), from what this client sees */
       const foes = [...M.map.values()].filter(a => a.team !== t && a.alive).map(a => a.body);
-      return K.pickSpawn(CTF.SPAWNS[t], foes, [], M.t || 0, Math.random);
+      let pts = CTF.SPAWNS[t];
+      /* joining as the match opens: the host's AI are dropping onto their own spots (CTF.dropSpots) */
+      if ((M.t || 0) < K.POD_TIME + 1) {
+        const held = CTF.dropSpots(t, [...M.map.values()].filter(a => a.team === t && !a.human).length);
+        const free = pts.filter(p => !held.includes(p));
+        if (free.length) pts = free;
+      }
+      return K.pickSpawn(pts, foes, [], M.t || 0, Math.random);
     };
     function mirrorBits(a, st) {
       NET.applyBits(a.body, st);

@@ -249,8 +249,9 @@ const _podV = new V3(),
   _podW = new V3();
 /* the re-entry burn: red, orange and ember-yellow flame shed from the nose */
 const BURN_COLS = [0xff3a14, 0xff6a1c, 0xff9a30, 0xffc45a];
-/** the re-entry trail between where the pod was last frame and where it is now (heat: 0..1) */
-function podTrail(p, heat) {
+/** the re-entry trail between where the pod was last frame and where it is now (heat: 0..1; near
+    shrinks the flame of a pod right beside the one you ride) */
+function podTrail(p, heat, near = 1) {
   const a = p.prev,
     b = p.g.position;
   const n = Math.min(10, pc(Math.ceil(a.distanceTo(b) / 1.6)));
@@ -264,7 +265,7 @@ function podTrail(p, heat) {
         PTS.glow,
         _podV,
         new V3(rnd(-1, 1), rnd(2, 6), rnd(-1, 1)),
-        rnd(2.6, 4.4) * (0.5 + heat * 0.6),
+        rnd(2.6, 4.4) * (0.5 + heat * 0.6) * near,
         BURN_COLS[(Math.random() * BURN_COLS.length) | 0],
         0.9 * heat,
         rnd(0.6, 1.4),
@@ -516,6 +517,8 @@ function podBlow(p) {
   sfx("podbolts", distVol(p.at, 50));
 }
 function updPods(dt) {
+  /* pods falling right beside the one you ride burn smaller, so your window is not all flame */
+  const ride = PODS.find(q => q.rider && !q.landed && !q.skip);
   for (let i = PODS.length - 1; i >= 0; i--) {
     const p = PODS[i];
     if (!p.landed) {
@@ -541,11 +544,19 @@ function updPods(dt) {
       const heat = k < 0.8 ? 1 : Math.max(0.25, 1 - (k - 0.8) * 3.5);
       p.heat = heat;
       p.burn.emissiveIntensity = 1.4 + heat * 2.6;
-      podTrail(p, heat);
+      const near =
+        ride && ride !== p
+          ? clamp(
+              (Math.hypot(p.g.position.x - ride.g.position.x, p.g.position.z - ride.g.position.z) - 2) / 10,
+              0.3,
+              1
+            )
+          : 1;
+      podTrail(p, heat, near);
       /* the fireball at the head of the trail */
       if (!p.rider) {
-        ptAdd(PTS.glow, p.g.position, new V3(), 7 * heat, 0xffc070, 1, 0.05);
-        ptAdd(PTS.glow, p.g.position, new V3(), 3 * heat, 0xfff0d0, 1, 0.05);
+        ptAdd(PTS.glow, p.g.position, new V3(), 7 * heat * near, 0xffc070, near, 0.05);
+        ptAdd(PTS.glow, p.g.position, new V3(), 3 * heat * near, 0xfff0d0, 1, 0.05);
       }
       /* the burn lights the ground as it comes in, and the air shimmers around it */
       if (h < 70) {

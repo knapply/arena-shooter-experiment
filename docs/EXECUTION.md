@@ -82,7 +82,7 @@ frame(t)
 
 ## 4. Starting and ending a match
 
-- **Deploy** (`game/deploy.js`): reads the menu (name, drones, bot skill), makes the drones, emits `matchStart` (stats, highlights and the recorder reset on it), plays the intro, spawns you and sets `playing`.
+- **Deploy** (`game/deploy.js`): reads the menu (name, drones, bot skill), makes the drones, emits `matchStart` (stats, highlights and the recorder reset on it), spawns you, starts the opening drop (`matchDrop`: you and the drones wait in orbit through the intro, then drop in together; the clock starts as the pods land), plays the intro and sets `playing`. CTF does the same for a rendered match (`G.start(true)` and `matchDrop` for each player).
 - **A mode** (`startMode(id)` or its menu button): the mode builds its world (CTF swaps the arena map for Twin Foundry with `CTF.enterMap`), creates its rules object and hands the engine a hooks object with `extPlay(hooks)`: `tick`, `targets`, `respawn`, `spawnPoint`, `podZone`, `roster`, `powerHolders`, `scores`, `exit`, and so on. From then on `EXT` is that object and the loop calls it.
 - **The end:** the mode emits `matchEnd`, plays Play of the Game (`playOfTheGame`), then shows the results screen (`showPost`) with Play again / Change mode / Leave. `leaveGame()` clears `EXT` (calling its `exit`) and shows the menu.
 

@@ -303,7 +303,8 @@
       const s = G.flags[t].state;
       el.className = s === "home" ? "" : s === "dropped" ? "alert dropped" : "alert taken";
     }
-    const left = Math.max(0, G.timeLimit - G.t);
+    /* (an opening drop adds its fall to the limit: the clock reads full until the pods land) */
+    const left = Math.max(0, G.timeLimit - Math.max(G.t, G.dropT || 0));
     $("cClock").textContent = `${(left / 60) | 0}:${String((left % 60) | 0).padStart(2, "0")}`;
     if (mode === "sim")
       for (let t = 0; t < 2; t++) {
