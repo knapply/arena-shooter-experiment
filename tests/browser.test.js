@@ -7,6 +7,19 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
   axes,
   buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: !!btns[i], value: btns[i] ? 1 : 0 })),
 });
+/* (in the page) where a drop pod comes to rest at each of a map's spawn points with open sky above */
+const podSeats = map => {
+  const V = KA.THREE.Vector3;
+  const spots = map === "arena" ? KA.MAPS.arena.spawns.ffa : KA.MAPS.ctf.spawns.teams.flat();
+  return spots
+    .map(([x, y, z]) => {
+      const at = new V(x, y + 0.02, z);
+      const sky = KA.rayWorld(new V(x, at.y + 2.2, z), new V(0, 1, 0), 60) >= 59;
+      const s = KA.podSeat(at);
+      return { at: [x, y, z], sky, ok: s.ok, off: Math.hypot(s.x, s.z), bury: s.bury };
+    })
+    .filter(s => s.sky);
+};
 (async () => {
   const b = await launch();
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
@@ -233,11 +246,12 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       await wait(200);
       const high = KA.camera.position.y - KA.myPod.at.y;
       const vis = id => getComputedStyle(document.getElementById(id)).visibility;
-      return { high, at: KA.myPod.at.toArray(), hud: vis("hud"), xh: vis("xh") };
+      const cockpit = !document.getElementById("podView").hidden;
+      return { high, at: KA.myPod.at.toArray(), hud: vis("hud"), xh: vis("xh"), cockpit };
     });
     check(
-      skip.hud === "hidden" && skip.xh === "hidden",
-      "the HUD and reticle are hidden while the pod falls",
+      skip.hud === "hidden" && skip.xh === "hidden" && skip.cockpit,
+      "the HUD and reticle are hidden while the pod falls, and you ride it down from inside its cockpit",
       skip
     );
     await p.keyboard.press("Space");
@@ -250,7 +264,8 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       const hudVis = () => getComputedStyle(document.getElementById("hud")).visibility;
       for (let i = 0; i < 20 && hudVis() !== "visible"; i++) await new Promise(r => setTimeout(r, 50));
       const hud = hudVis();
-      return { skip: !!(pod && pod.skip), low: c.y - at[1], d, alive: !KA.me.dead, hud };
+      const cockpit = !document.getElementById("podView").hidden;
+      return { skip: !!(pod && pod.skip), low: c.y - at[1], d, alive: !KA.me.dead, hud, cockpit };
     }, skip.at);
     check(
       skip.high > 20 &&
@@ -258,6 +273,7 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
         skipped.low < 3 &&
         skipped.d < 1 &&
         skipped.alive &&
+        !skipped.cockpit &&
         skipped.hud === "visible",
       "Jump skips the pod camera to the landing spot, and the HUD returns on landing",
       { ...skip, ...skipped }
@@ -277,12 +293,33 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       const moved = Math.hypot(pod.at.x - pod.base.x, pod.at.z - pod.base.z);
       const at = pod.at.clone();
       for (let i = 0; i < 100 && KA.me.dead; i++) await new Promise(r => setTimeout(r, 50));
-      return { pod: true, moved, r: pod.steer.r, landed: Math.hypot(KA.me.pos.x - at.x, KA.me.pos.z - at.z) };
+      const landed = Math.hypot(KA.me.pos.x - at.x, KA.me.pos.z - at.z);
+      /* it punched into the ground; you step up out of it to your eye height and the HUD comes back */
+      const bury = at.y - pod.g.position.y;
+      await new Promise(r => setTimeout(r, 1000));
+      const eye = KA.camera.position.y - KA.me.pos.y;
+      const hud = getComputedStyle(document.getElementById("hud")).visibility;
+      const cockpit = !document.getElementById("podView").hidden;
+      return { pod: true, moved, r: pod.steer.r, landed, bury, eye, hud, cockpit };
     });
     check(
       steer.pod && steer.moved > 1.5 && steer.moved <= steer.r + 0.01 && steer.landed < 0.5,
       "you can steer your drop pod a little, and it lands where you steered it",
       steer
+    );
+    check(
+      steer.bury > 0.5 && Math.abs(steer.eye - 1.62) < 0.1 && steer.hud === "visible" && !steer.cockpit,
+      "a pod buries itself on impact, and you step up out of it into the fight",
+      steer
+    );
+    /* a landed pod buries itself to the collar: at every spawn with open sky it fits without touching
+       a wall, an overhang or the air past a ledge, sitting at most 45 cm off the spot (the pilot is
+       always on it) */
+    const arenaSeats = await p.evaluate(podSeats, "arena");
+    check(
+      arenaSeats.length >= 6 && arenaSeats.every(s => s.ok && s.off <= 0.45 && s.bury > 0.5),
+      "a drop pod fits and buries itself at every arena spawn it can land on",
+      arenaSeats.filter(s => !(s.ok && s.off <= 0.45 && s.bury > 0.5))
     );
     const items = await p.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -751,6 +788,12 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       /Sniper|Rocket/.test((await text(A, "#powerT")) || ""),
       "the HUD shows the power spawn's weapon and timer",
       await text(A, "#powerT")
+    );
+    const ctfSeats = await A.evaluate(podSeats, "ctf");
+    check(
+      ctfSeats.length >= 6 && ctfSeats.every(s => s.ok && s.off <= 0.45 && s.bury > 0.5),
+      "a drop pod fits and buries itself at every capture the flag spawn it can land on",
+      ctfSeats.filter(s => !(s.ok && s.off <= 0.45 && s.bury > 0.5))
     );
     /* live bots may take power weapons too, so look for this holder among the callout events */
     const listen = q =>

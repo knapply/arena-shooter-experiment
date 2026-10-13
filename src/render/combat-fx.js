@@ -3,7 +3,7 @@
    - dynamic lights: three pooled point lights (only in the scene while the setting is on, so Low pays
      nothing) for muzzle flashes, explosions and pods; each flash takes the dimmest one;
    - shell casings: one instanced mesh, simple bounces, gone after a few seconds;
-   - decals: one instanced mesh of 96 quads in a ring, bullet holes and scorch marks drawn in the
+   - decals: one instanced mesh of 96 quads in a ring, bullet holes, scorch marks and pod craters drawn in the
      shader, glowing hot for a moment and fading out over half a minute;
    - impacts: sparks thrown off the surface's normal and a puff of dust;
    - explosions: fireball, embers, a smoke column, tumbling debris, a scorch, a flash of light;
@@ -156,7 +156,7 @@ void main(){vUv=uv;vD=dd;vec4 p=vec4(position,1.);
 p=instanceMatrix*p;
 #endif
 gl_Position=projectionMatrix*modelViewMatrix*p;}`,
-    /* dd: birth time, kind (0 bullet hole, 1 scorch), seed, - */
+    /* dd: birth time, kind (0 bullet hole, 1 scorch, 2 pod crater), seed, - */
     fragmentShader: `uniform float uT;varying vec2 vUv;varying vec4 vD;
 float h(float x){return fract(sin(x)*43758.5453);}
 void main(){vec2 q=vUv-.5;float r=length(q)*2.;float a=atan(q.y,q.x);float age=uT-vD.x;
@@ -165,6 +165,12 @@ float m,glow;vec3 gc;
 if(vD.y<.5){m=smoothstep(.36,.2,r)+.55*smoothstep(1.,.45,r+jag*.25)*smoothstep(.2,.4,r);
 glow=smoothstep(.35,0.,r)*exp(-age*7.);gc=vec3(1.,.55,.2);
 m*=1.-smoothstep(16.,22.,age);}
+else if(vD.y>1.5){float s=a*1.4324+vD.z*7.;float d=abs(fract(s+.12*sin(r*11.+vD.z*30.))-.5);
+float len=.55+.45*h(floor(s+.5)+vD.z);float ck=smoothstep(.045,.0,d*r)*smoothstep(len,len-.15,r)*step(.3,r);
+float bowl=smoothstep(.5,.22,r);float ring=smoothstep(.95,.5,r+jag*.18);
+m=max(max(bowl*.92,ring*.62),ck*.95);
+glow=(ck*smoothstep(.75,.3,r)+bowl*.6)*exp(-age*.9)*1.6;gc=vec3(1.,.45,.14);
+m*=1.-smoothstep(18.,26.,age);}
 else{m=smoothstep(1.,.25,r+jag*.3)*(.75+.25*h(floor(a*9.)+vD.z));
 glow=smoothstep(.75,0.,r+jag*.2)*exp(-age*1.4)*1.5;gc=vec3(1.,.42,.12);
 m*=1.-smoothstep(26.,32.,age);}

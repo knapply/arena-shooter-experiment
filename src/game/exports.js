@@ -46,6 +46,7 @@ const KA_API = {
   rocketDmg,
   remoteProjectile,
   dropPod,
+  podSeat,
   podsOn,
   PODS,
   clearPods,

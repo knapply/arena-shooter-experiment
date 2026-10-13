@@ -135,6 +135,19 @@ function sfx(kind, vol = 1) {
         tone(t + 0.35, "square", 600, 400, 0.05, 0.05 * vol);
         nz(t + 0.36, 0.3, "bandpass", 1800, 0.15 * vol, 2);
         break;
+      case "podcrack":
+        /* the ground giving way under a landing pod: a crunch and a rattle of rubble */
+        nz(t, 0.5, "lowpass", 300, 0.5 * vol, 1, 0.005);
+        nz(t + 0.03, 0.6, "bandpass", 1100, 0.22 * vol, 0.8);
+        nz(t + 0.25, 0.5, "bandpass", 2600, 0.08 * vol, 2, 0.05);
+        break;
+      case "podbolts":
+        /* the shell's explosive bolts, then the hiss of venting air */
+        nz(t, 0.09, "highpass", 1800, 0.35 * vol);
+        tone(t, "square", 160, 50, 0.12, 0.12 * vol, 0.002);
+        nz(t + 0.04, 0.12, "highpass", 2200, 0.25 * vol);
+        nz(t + 0.1, 0.9, "highpass", 4000, 0.07 * vol, 1, 0.08);
+        break;
       case "pickup":
         tone(t, "triangle", 620, 930, 0.12, 0.08 * vol);
         tone(t + 0.08, "triangle", 930, 1240, 0.14, 0.07 * vol);

@@ -108,3 +108,273 @@ body.podding #xh {
 body.podding #toast {
   visibility: visible;
 }
+/* the toast (steer / skip hint) stays above the pod's cockpit */
+body.podding #hud {
+  z-index: 2;
+}
+
+/* ---- inside your drop pod (game/pod-view.js): a window in a frame of two blast doors, re-entry
+   plasma at the window's edges, a red interior lamp, readouts, brackets on the landing point ---- */
+#podView {
+  --heat: 1;
+  --retro: 0;
+  --lamp: 0.6;
+  --lamp-c: #ff2a14;
+  --hud-c: #ff6a3a;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: var(--f-mono);
+}
+#podView[hidden] {
+  display: none;
+}
+#podView > div {
+  position: absolute;
+  inset: 0;
+}
+/* the plasma sheath glowing in the window's edges, and the flames streaming past */
+#podView .pv-plasma {
+  opacity: var(--heat);
+  background:
+    radial-gradient(ellipse 46% 50% at 50% 50%, transparent 62%, #ff5a1a88 84%, #ffb05aee 100%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, #ff3a1499, transparent 70%);
+}
+#podView .pv-streaks {
+  inset: -30%;
+  opacity: calc(var(--heat) * 0.75);
+  background: repeating-conic-gradient(
+    from 3deg at 50% 50%,
+    transparent 0deg 5deg,
+    #ffb86a55 5deg 5.6deg,
+    transparent 5.6deg 11deg,
+    #ff7a3044 11deg 11.4deg
+  );
+  -webkit-mask-image: radial-gradient(circle at center, transparent 24%, #000 52%);
+  mask-image: radial-gradient(circle at center, transparent 24%, #000 52%);
+  animation: pvRush 0.22s linear infinite;
+}
+@keyframes pvRush {
+  from {
+    transform: scale(1) rotate(0deg);
+  }
+  to {
+    transform: scale(1.18) rotate(4deg);
+  }
+}
+/* the retros lighting the ground below in the last moments */
+#podView .pv-retro {
+  opacity: var(--retro);
+  background: radial-gradient(ellipse 34% 30% at 50% 58%, #fff2c855, #ffb34722 55%, transparent 75%);
+}
+/* the frame: two doors meeting in the middle, lit by the lamp */
+#podView .pv-door svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+#podView .pv-door {
+  transition:
+    transform 0.42s cubic-bezier(0.3, 0.6, 0.4, 1),
+    opacity 0.42s ease-in;
+}
+#podView .st {
+  fill: #11161a;
+}
+#podView .sh {
+  fill: none;
+  stroke: #ffffff14;
+  stroke-width: 2;
+}
+#podView .sm {
+  fill: none;
+  stroke: #00000080;
+  stroke-width: 3;
+}
+#podView .rv circle {
+  fill: #3c464e;
+  stroke: #0b0e10;
+  stroke-width: 1;
+}
+#podView .edge {
+  fill: #0d1114;
+}
+#podView .hz {
+  opacity: 0.7;
+}
+#podView .lamp0 {
+  stop-color: var(--lamp-c);
+  stop-opacity: var(--lamp);
+}
+#podView .lamp1 {
+  stop-color: var(--lamp-c);
+  stop-opacity: 0.08;
+}
+#podView .bz {
+  fill: none;
+  stroke: #0a0d0f;
+  stroke-linejoin: round;
+}
+#podView .rim {
+  fill: none;
+  stroke: #ff8a3a;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  opacity: calc(0.25 + var(--heat) * 0.75);
+}
+#podView .led {
+  fill: var(--hud-c);
+  animation: pvBlink 0.6s steps(2) infinite;
+}
+#podView .led.b {
+  animation-delay: 0.3s;
+}
+@keyframes pvBlink {
+  50% {
+    opacity: 0.2;
+  }
+}
+/* readouts on the side panels: glowing segments, tilted a little toward the window */
+#podView .pv-read {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2vmin;
+  color: var(--hud-c);
+  text-shadow:
+    0 0 6px var(--hud-c),
+    0 0 18px #ff3a1477;
+  letter-spacing: 0.14em;
+  transform: perspective(600px) rotateY(16deg);
+  transform-origin: right center;
+}
+#podView .pv-read.r {
+  align-items: flex-end;
+  transform: perspective(600px) rotateY(-16deg);
+  transform-origin: left center;
+}
+#podView .pv-read small {
+  font-size: max(10px, 1.5vmin);
+  opacity: 0.75;
+}
+#podView .pv-read small.gap {
+  margin-top: 3vmin;
+}
+#podView .pv-read b {
+  font-size: max(22px, 6vmin);
+  line-height: 1;
+  font-weight: 500;
+}
+#podView .pv-read span {
+  font-size: max(15px, 3.2vmin);
+  line-height: 1;
+}
+#podView .pv-read.r b {
+  font-size: max(16px, 3.6vmin);
+}
+#podView .pv-bar {
+  width: 1vmin;
+  min-width: 6px;
+  height: 14vmin;
+  margin: 1.2vmin 0;
+  background: #ff6a3a22;
+  display: flex;
+  align-items: flex-end;
+}
+#podView .pv-bar i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--hud-c);
+  box-shadow: 0 0 8px var(--hud-c);
+  transform-origin: bottom;
+}
+#podView.locked {
+  --hud-c: #ff3a2a;
+}
+#podView.locked .pv-read.r b {
+  animation: pvBlink 0.4s steps(2) infinite;
+}
+/* brackets on the landing point */
+#podView .pv-tgt {
+  inset: auto;
+  left: 0;
+  top: 0;
+  width: 60px;
+  height: 60px;
+  opacity: 0;
+}
+#podView .pv-tgt i {
+  position: absolute;
+  width: 26%;
+  height: 26%;
+  border: 2px solid #ffb347;
+  filter: drop-shadow(0 0 4px #ffb347);
+}
+#podView.locked .pv-tgt i {
+  border-color: #ff4a3a;
+  filter: drop-shadow(0 0 4px #ff4a3a);
+}
+#podView .pv-tgt i:nth-child(1) {
+  left: 0;
+  top: 0;
+  border-width: 2px 0 0 2px;
+}
+#podView .pv-tgt i:nth-child(2) {
+  right: 0;
+  top: 0;
+  border-width: 2px 2px 0 0;
+}
+#podView .pv-tgt i:nth-child(3) {
+  left: 0;
+  bottom: 0;
+  border-width: 0 0 2px 2px;
+}
+#podView .pv-tgt i:nth-child(4) {
+  right: 0;
+  bottom: 0;
+  border-width: 0 2px 2px 0;
+}
+/* impact: a white-out, the lamp white, then the doors blow outward and the burn is gone */
+#podView .pv-flash {
+  background: #fff8ee;
+  opacity: 0;
+}
+#podView.impact {
+  --lamp-c: #fff4e0;
+  --heat: 0;
+  --retro: 0;
+}
+#podView.impact .pv-flash {
+  animation: pvFlash 0.5s ease-out forwards;
+}
+#podView.impact .pv-streaks,
+#podView.impact .pv-tgt {
+  display: none;
+}
+@keyframes pvFlash {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+#podView.blown .pv-door.l {
+  transform: translate(-62%, 10%) rotate(-11deg);
+  opacity: 0;
+}
+#podView.blown .pv-door.r {
+  transform: translate(62%, 10%) rotate(11deg);
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  #podView .pv-streaks {
+    animation: none;
+  }
+  #podView.blown .pv-door {
+    transition-duration: 0.2s;
+  }
+}
