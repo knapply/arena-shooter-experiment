@@ -900,14 +900,34 @@ input[type="text"]:focus-visible {
   outline: none;
 }
 
-/* motion tracker (ui/tracker.js) */
+/* motion tracker (ui/tracker.js): its corner is a setting (body[data-trk]: br, bl, tr, tl) and
+   its size is --trk. Whatever shares its corner (medals, team chat) moves above or below it. */
+:root {
+  --trk: 170px;
+}
 #tracker {
   position: absolute;
-  left: 24px;
-  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
-  width: 110px;
-  height: 110px;
+  right: 22px;
+  bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  width: var(--trk);
+  height: var(--trk);
   pointer-events: none;
+}
+body[data-trk="bl"] #tracker {
+  right: auto;
+  left: 22px;
+}
+body[data-trk="tr"] #tracker,
+body[data-trk="tl"] #tracker {
+  bottom: auto;
+  top: calc(150px + env(safe-area-inset-top, 0px));
+}
+body[data-trk="tl"] #tracker {
+  right: auto;
+  left: 22px;
+}
+body[data-trk="bl"] #medals {
+  bottom: calc(118px + var(--trk) + env(safe-area-inset-bottom, 0px));
 }
 
 /* pings (ui/pings.js) */
@@ -1266,5 +1286,22 @@ table.stats tr.total td {
 @media (prefers-reduced-motion: reduce) {
   #mswipe.on {
     animation: none;
+  }
+}
+
+/* motion tracker on small and touch screens: never wider than a third of the screen, and the
+   bottom-right corner belongs to the touch buttons, so it moves up there */
+#tracker {
+  max-width: 34vw;
+  max-height: 34vw;
+}
+@media (pointer: coarse) {
+  body[data-trk="br"] #tracker,
+  body[data-trk="bl"] #tracker {
+    bottom: auto;
+    top: calc(150px + env(safe-area-inset-top, 0px));
+  }
+  body[data-trk="bl"] #medals {
+    bottom: calc(118px + env(safe-area-inset-bottom, 0px));
   }
 }

@@ -161,13 +161,17 @@
   background: #0b1216c8;
   border: 1px solid var(--line);
 }
+/* playing, the motion tracker takes the minimap's place (spectators keep the minimap) */
 #ctfHud.play #cMini {
-  top: auto;
-  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  display: none;
 }
 #ctfHud.play #cComms {
   top: auto;
   bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+}
+/* team chat shares the bottom-left corner: it sits above the tracker there */
+body[data-trk="bl"] #ctfHud.play #cComms {
+  bottom: calc(112px + var(--trk) + env(safe-area-inset-bottom, 0px));
 }
 .cmark {
   position: absolute;
