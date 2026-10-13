@@ -12,7 +12,7 @@ src/
   core/                prelude helpers, settings, input, gamepad, audio, announcer
   render/              renderer, post-processing pipeline, environment and materials, pooled FX
   world/               physics and collision, destruction, maps and their sci-fi dressing
-  characters/          procedural pilot rig and animation
+  characters/          pilot rig: motion-captured locomotion (anim.js) under procedural layers (rig.js)
   player/              aim assist, ground-pound marker
   weapons/             arsenal data, firing, viewmodels and their animation, grenades, rockets, pickups and floor items
   ui/                  HUD, reticle, settings screen

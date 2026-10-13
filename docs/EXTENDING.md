@@ -83,14 +83,22 @@ The flagless rules in `modes/ctf/rules.js` (team deathmatch on the arena, used b
 
 ## Character animation
 
-`characters/rig.js` is a procedural rig: two-bone IK limbs on a 32-bone skeleton, posed every frame from the body's state (`bodyState`).
-- The gait (duty factor, stride, swing), air poses, aim, melee and reload poses live in `rig.update`.
-- Reload timing (`RELOAD_T`) is shared with the first-person viewmodel.
-- Preview any change with:
-  ```bash
-  THREE_PATH=three.min.js node tools/rig-preview.js gait    # run, sprint, jump
-  THREE_PATH=three.min.js node tools/rig-preview.js poses   # idle, ADS, melee, reload
-  ```
+The pilot is a 32-bone rig (`characters/rig.js`) posed every frame from the body's state (`bodyState`), in two layers:
+- **Locomotion from motion capture** (`characters/anim.js`): pelvis, spine, legs and the free arm's swing. A blend space over speed and move direction (relative to facing) mixes the clips on one phase (0 is the left foot's strike), with stride, cadence and stance length warped to the game's speeds and the hips turned toward the travel. A small state machine (idle/move, crouch, air, land) cross-fades between states. Planted feet lock in the world, follow the ground and step when turning on the spot; the rig's leg IK puts them there.
+- **Procedural layers** in `rig.update`: the weapon pose and hand IK, aiming down sights, reloads (`RELOAD_T`, shared with the first-person viewmodel), melee, recoil, flinch, head look-at, breathing, lean springs, the special moves (slide, ground pound, clamber, jetpack, stabilizer) and deaths.
+
+The clips are generated data (`data/anim-clips.js`). To change them, download the CMU takes the converter lists (`CLIPS` in `tools/mocap/convert.js`; B. Hahne's BVH conversion, one `<take>.bvh` per take) and run:
+```bash
+node tools/mocap/convert.js <folder with the BVH files>
+```
+A new gait is a new entry in `CLIPS` (take, cycle length range, travel direction) and a place in a blend-space tier in `anim.js` (`T_STAND`, `T_CROUCH`). `tests/anim.test.js` checks every loop closes without a pop and that planted feet drift under 3 cm a stride at every speed and direction, and times the animation per pilot.
+
+Preview any change with:
+```bash
+THREE_PATH=three.min.js node tools/rig-preview.js gait    # run, sprint, jump
+THREE_PATH=three.min.js node tools/rig-preview.js loco    # walk, strafe, backpedal, crouched run
+THREE_PATH=three.min.js node tools/rig-preview.js poses   # idle, ADS, melee, reload
+```
 
 ## Sounds
 
