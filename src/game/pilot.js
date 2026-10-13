@@ -1,13 +1,13 @@
 /* ============ PILOTS ============
-   Every player-shaped thing is a Pilot: you, practice drones, online players, CTF agents,
-   tutorial targets and trailer actors. A pilot is a stable id, a Body (movement and health),
+   Every player-shaped thing is a Pilot: you, practice drones, online players, CTF agents
+   and trailer actors. A pilot is a stable id, a Body (movement and health),
    an optional rig (the animated model) and a controller kind that says who decides its input:
      "local"  your keyboard, mouse or pad
      "ai"     a bot brain (arena drones, CTF agents)
      "net"    snapshots from another player
-     "script" the tutorial and the trailer
+     "script" the trailer
    Stable ids are what events, recordings and a future career-stats file key on:
-     "local", "bot:<n>", "peer:<peerId>", "dummy:<n>", "actor:<n>", and CTF agent ids ("a<n>", "h:<peerId>").
+     "local", "bot:<n>", "peer:<peerId>", "actor:<n>", and CTF agent ids ("a<n>", "h:<peerId>").
    Features that only need a body and a rig (posing, hit effects, kill cams) are written once
    against this shape. CTF agents carry the same fields without registering here, because the
    match owns their lifetime. */

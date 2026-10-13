@@ -156,7 +156,7 @@ function perf(raw) {
 /* each animation frame: measured for the performance overlay */
 /** add your own pose to this frame's recording (you have no third-person rig to record from) */
 function recLocal() {
-  if (!REC.sampling || !playing || demo) return;
+  if (!REC.sampling || !playing) return;
   if (!REC.hasMeta("local")) REC.setMeta("local", { color: myArmor, name: myName });
   REC.put(
     "local",
@@ -178,7 +178,9 @@ function frame(t) {
   perfEnd();
 }
 /* ---- respawning (in place, or out of a drop pod) ---- */
-let myPod = null,
+/* podding: the HUD is hidden (body.podding) while your pod falls */
+let podding = false,
+  myPod = null,
   /** when your pod's steering last changed its landing point (0: sent) */
   podSteerSent = 0;
 /** where this respawn will happen, picked once when it starts (a pod needs open sky above it) */
@@ -259,15 +261,8 @@ function frameBody(t) {
     }
     if (sr) renderScores();
   }
-  if (
-    pad.on &&
-    (!$("menu").hidden || !$("settings").hidden || paused || demo || POST.open || (EXT && EXT.full))
-  )
+  if (pad.on && (!$("menu").hidden || !$("settings").hidden || paused || POST.open || (EXT && EXT.full)))
     padMenu(dt);
-  if (demo) {
-    demoFrame(dt);
-    return;
-  }
   if (EXT && EXT.full) {
     runFrameHooks(FRAME_HOOKS.full, dt);
     EXT.full(dt);
@@ -507,6 +502,7 @@ function frameBody(t) {
   camera.updateProjectionMatrix();
   if (myPod && !myPod.skip) podCamera(myPod, dt);
   podMarker(myPod);
+  if (!!myPod !== podding) document.body.classList.toggle("podding", (podding = !!myPod));
   updVM(dt, {
     aim: aiming,
     sprint: me.sprint && me.ground,

@@ -41,10 +41,10 @@ The browser parses the HTML (menu, HUD, overlays are plain markup), loads three.
 | 14 | `net/*` | Wire message codecs, remote playback buffers, arena presence sync. |
 | 15 | `ui/*`, `game/replay.js`, `highlights.js`, `intro.js`, `pods.js`, `stats.js` | HUD, network panel, motion tracker, console, kill cam and Play of the Game, match intros, drop pods, match stats. |
 | 16 | `game/loop.js` | The frame function (`frame`) and everything it calls per frame. Nothing runs yet. |
-| 17 | `modes/tech-demo.js`, `ui/settings-ui.js` (sets `gfxReady`), `weapons/pickups.js`, `ui/power.js`, `damage-dir.js`, `stats-ui.js`, `player/assists.js`, `ui/reticle.js` | Remaining UI, pickups and their visuals. |
+| 17 | `ui/settings-ui.js` (sets `gfxReady`), `weapons/pickups.js`, `ui/power.js`, `damage-dir.js`, `stats-ui.js`, `player/assists.js`, `ui/reticle.js` | Remaining UI, pickups and their visuals. |
 | 18 | `game/exports.js` | Builds `window.KA` and **starts the loop**: `requestAnimationFrame(frame)`. |
 
-Then the mode modules run, each registering itself: `modes/ctf/map.js` … `modes/ctf/modes.js` set up `window.CTF` (map, nav, brain, agent, rules, UI, host and client netcode) and register the CTF and AI-vs-AI modes with `defineMode`; `modes/trailer-score.js` and `modes/trailer.js` register the trailer. None of them builds a match until asked.
+Then the mode modules run, each registering itself: `modes/ctf/map.js` … `modes/ctf/modes.js` set up `window.CTF` (map, nav, brain, agent, rules, UI, host and client netcode) and register the CTF and AI-vs-AI modes with `defineMode`; In the trailer build only (`node build.mjs --trailer`), `modes/trailer-score.js` and `modes/trailer.js` register the trailer. None of them builds a match until asked.
 
 ## 3. Every frame
 
@@ -64,7 +64,7 @@ frame(t)
 1. **Time.** `dt` = frame time clamped to 50 ms, scaled by the console time scale and cinematic slow motion (`CINE.timeK`); `now` advances; the recorder ticks.
 2. **Housekeeping.** Destruction rebuild timers (`destrTick`), gamepad polling and menu navigation, roster toggling.
 3. **Who owns the frame.**
-   - The tech demo or a full-screen mode (`EXT.full`: the trailer, AI-vs-AI spectating) takes over and returns.
+   - A full-screen mode (`EXT.full`: AI-vs-AI spectating, the trailer in the trailer build) takes over and returns.
    - At the menu (`!playing`): an orbiting camera over the arena, drones wander, then render and return.
 4. **You.**
    - Dead: the respawn countdown; then a drop pod (steerable, see `steerPod`) or an in-place spawn.

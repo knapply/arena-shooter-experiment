@@ -1,7 +1,7 @@
-/* ============ grenades: frag (bounces, 2.2s fuse) and plasma (sticks to surfaces and pilots) ============ */
+/* ============ grenades: frag (bounces, 2.6 s fuse) and plasma (sticks to surfaces and pilots) ============ */
 const NADES = {
   frag: {
-    fuse: 2.2,
+    fuse: 2.6,
     r: 4.2,
     dmg: 105,
     color: 0xffa040,

@@ -58,11 +58,14 @@ const W = key => K.WEAPON_DATA.find(w => w.key === key);
 const KNOBS = {
   sbRun: { set: v => (K.TUNE.run = v), def: 6.4, try: [5.8, 7] },
   sbSprint: { set: v => (K.TUNE.sprint = v), def: 9, try: [8.2, 9.8] },
-  sbAccel: { set: v => (K.TUNE.accel = v), def: 70, try: [50, 90] },
+  sbAccel: { set: v => (K.TUNE.accel = v), def: 80, try: [60, 100] },
   sbAir: { set: v => (K.TUNE.airAccel = v), def: 18, try: [12, 24] },
   sbJump: { set: v => (K.TUNE.jump = v), def: 7.4, try: [6.8, 8] },
   sbGrav: { set: v => (K.TUNE.grav = v), def: 24, try: [20, 28] },
   sbThrust: { set: v => (K.TUNE.thrust = v), def: 17, try: [14, 20] },
+  sbReverse: { set: v => (K.TUNE.reverse = v), def: 95, try: [70, 120] },
+  sbThrustCD: { set: v => (K.TUNE.thrustCD = v), def: 2.2, try: [1.8, 2.6] },
+  sbSlide: { set: v => (K.TUNE.slideBoost = v), def: 3.2, try: [2.4, 4] },
   sbCarbDmg: {
     set: v => Object.assign(W("carbine"), { body: v, head: Math.round(v * (11 / 9)) }),
     def: 9,
@@ -87,8 +90,8 @@ const KNOBS = {
   sbRocketRadius: { set: v => (W("rocket").radius = v), def: 4.2, try: [3.4, 5] },
   sbNadeThrow: { set: v => (K.NADE_TUNE.throw = v), def: 19, try: [16, 22] },
   sbNadeBounce: { set: v => (K.NADE_TUNE.bounce = v), def: 0.38, try: [0.25, 0.5] },
-  sbNadeFuse: { set: v => (K.NADES.frag.fuse = v), def: 2.2, try: [1.8, 2.6] },
-  sbNadeRadius: { set: v => (K.NADES.frag.r = v), def: 5, try: [4.2, 5.8] },
+  sbNadeFuse: { set: v => (K.NADES.frag.fuse = v), def: 2.6, try: [2.2, 3] },
+  sbNadeRadius: { set: v => (K.NADES.frag.r = v), def: 4.2, try: [3.6, 4.8] },
   labBurst: { set: lab("burst"), def: 0, try: [1] },
   labScatter: { set: lab("scatter"), def: 0, try: [1] },
   labBeam: { set: lab("beam"), def: 0, try: [1] },
@@ -135,6 +138,9 @@ for (const [k, f] of [
   ["sbJump", "jump"],
   ["sbGrav", "grav"],
   ["sbThrust", "thrust"],
+  ["sbReverse", "reverse"],
+  ["sbThrustCD", "thrustCD"],
+  ["sbSlide", "slideBoost"],
 ])
   KNOBS[k].def = K.TUNE_DEF[f];
 KNOBS.sbNadeThrow.def = K.NADE_TUNE.throw;

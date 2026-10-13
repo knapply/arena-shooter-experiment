@@ -14,7 +14,7 @@ const FPS = 30,
 (async () => {
   const b = await launch({ gpu: true });
   const ctx = await b.newContext({ viewport: { width: W, height: H } });
-  const p = await open(ctx, { realThree: true });
+  const p = await open(ctx, { realThree: true, trailer: true });
   await p.waitForTimeout(2000);
   /* 1. picture: step the timeline at a fixed rate and capture each frame, overlays included */
   await p.evaluate(() => {

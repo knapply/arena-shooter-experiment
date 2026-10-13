@@ -24,7 +24,7 @@ EVENTS.on("matchStart", () => {
   HL.sprees.clear();
 });
 EVENTS.on("kill", e => {
-  if (e.mode && /spectate|trailer|tutorial/.test(e.mode)) return;
+  if (e.mode && /spectate|trailer/.test(e.mode)) return;
   HL.sprees.set(e.victim, 0);
   if (!e.killer || e.killer === "world" || e.killer === e.victim) return;
   const ch = (HL.chains.get(e.killer) || []).filter(t => e.t - t < 4.5);

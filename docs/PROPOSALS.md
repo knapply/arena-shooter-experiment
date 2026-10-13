@@ -49,6 +49,7 @@ LOCK=beam node tools/tune.js labBeamDmg                                  # a lab
 - **Null controls:** every run includes four run-speed nudges (±0.0001 m/s), so each variant's effect is measured against the mean of five null results. The noise band is the largest null deviation in that seed set. A result counts when it has the same sign on all three seed sets and clears the noise on most of them.
 - **Every difficulty:** even matches at Recruit, Heroic and Legendary (32 matches each), and skill pairs Heroic vs Normal and Normal vs Recruit, for the weapons and every map change.
 - **Single-weapon locks:** every pilot holds one weapon with endless ammo, no pickups, no grenades: carbine, magnum, burst rifle, scattergun, arc beam, on both maps, two seed sets, Legendary vs Normal and Normal vs Recruit.
+- **Defaults:** the simulations ran on the defaults before main's tuning pass three (frag fuse 2.2 s, not 2.6 s). Effects are measured against same-run baselines, so they hold as differences; absolute numbers (grenade share, time to kill) will shift a little. Re-run with `tools/tune.js` to refresh.
 - **Determinism:** with every lab off, a seeded match is identical to the code before this work (checked by replaying the same seed on both), and `tests/sim.test.js` still replays seeds exactly.
 
 ### Baselines (null mean over three seed sets)
@@ -270,7 +271,7 @@ If it still sits below the carbine, drop it.
   - The scattergun's viewmodel sits a little low in frame.
   - The beam is drawn as rapid tracers; a real beam mesh would read better.
   - The pulse grenade has no distinct HUD icon beyond its name in the grenade line.
-- **Size:** the prototypes add about 14 KB to the build (476 to 490 KB of the 600 KB budget).
+- **Size:** the prototypes add about 14 KB to the build (440 KB of the 600 KB budget after merging main).
 
 ## Files
 

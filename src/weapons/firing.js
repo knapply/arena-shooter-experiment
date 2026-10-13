@@ -2,11 +2,6 @@
 function targets() {
   if (EXT && EXT.targets) return EXT.targets();
   const t = [];
-  if (demo) {
-    for (const d of dummies)
-      if (d.active && !d.body.dead) t.push({ kind: "bot", ref: d, pos: d.body.pos, h: d.body.h });
-    return t;
-  }
   for (const b of bots) if (!b.body.dead) t.push({ kind: "bot", ref: b, pos: b.body.pos, h: b.body.h });
   for (const [peer, r] of remotes)
     if (r.has && !r.dead && r.rig)

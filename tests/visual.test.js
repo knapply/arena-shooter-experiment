@@ -51,7 +51,7 @@ async function compare(p, a, b) {
   }
   const b = await launch({ gpu: true });
   const ctx = await b.newContext({ viewport: { width: 640, height: 360 } });
-  const p = await open(ctx, { tag: "v", realThree: true, hash: "#dev" });
+  let p = await open(ctx, { tag: "v", realThree: true, hash: "#dev" });
   const shots = {};
   /* wait for three fresh frames (software rendering is slow, and new materials compile first) */
   const frames = () =>
@@ -132,9 +132,12 @@ async function compare(p, a, b) {
       KA.CON.run("timescale 1");
       KA.extStop && KA.extStop();
     });
-    /* a trailer frame, stepped deterministically */
+    /* a trailer frame from the trailer build, stepped deterministically */
+    check(p.errors.length === 0, "no page errors in the game", p.errors.slice(0, 3));
+    await p.close();
+    p = await open(ctx, { tag: "vt", realThree: true, trailer: true });
+    await p.waitForTimeout(1500);
     await p.evaluate(() => {
-      KA.leaveGame && KA.leaveGame();
       KA.trailer.record();
       KA.trailer.seek(12.2);
       KA.trailer.step(1 / 30);

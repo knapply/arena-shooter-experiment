@@ -232,8 +232,14 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       for (let i = 0; i < 200 && !KA.myPod; i++) await wait(50);
       await wait(200);
       const high = KA.camera.position.y - KA.myPod.at.y;
-      return { high, at: KA.myPod.at.toArray() };
+      const vis = id => getComputedStyle(document.getElementById(id)).visibility;
+      return { high, at: KA.myPod.at.toArray(), hud: vis("hud"), xh: vis("xh") };
     });
+    check(
+      skip.hud === "hidden" && skip.xh === "hidden",
+      "the HUD and reticle are hidden while the pod falls",
+      skip
+    );
     await p.keyboard.press("Space");
     const skipped = await p.evaluate(async at => {
       await new Promise(r => setTimeout(r, 250));
@@ -241,11 +247,19 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       const c = KA.camera.position;
       const d = Math.hypot(c.x - at[0], c.z - at[2]);
       for (let i = 0; i < 100 && KA.me.dead; i++) await new Promise(r => setTimeout(r, 50));
-      return { skip: !!(pod && pod.skip), low: c.y - at[1], d, alive: !KA.me.dead };
+      const hudVis = () => getComputedStyle(document.getElementById("hud")).visibility;
+      for (let i = 0; i < 20 && hudVis() !== "visible"; i++) await new Promise(r => setTimeout(r, 50));
+      const hud = hudVis();
+      return { skip: !!(pod && pod.skip), low: c.y - at[1], d, alive: !KA.me.dead, hud };
     }, skip.at);
     check(
-      skip.high > 20 && skipped.skip && skipped.low < 3 && skipped.d < 1 && skipped.alive,
-      "Jump skips the pod camera to the landing spot",
+      skip.high > 20 &&
+        skipped.skip &&
+        skipped.low < 3 &&
+        skipped.d < 1 &&
+        skipped.alive &&
+        skipped.hud === "visible",
+      "Jump skips the pod camera to the landing spot, and the HUD returns on landing",
       { ...skip, ...skipped }
     );
     /* steering: holding a direction moves where your pod lands (within its radius), and it lands there */
@@ -413,7 +427,7 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       ffa.post
     );
     check(
-      /ffa/.test(ffa.modes) && /ctf/.test(ffa.modes) && /tutorial/.test(ffa.modes),
+      /ffa/.test(ffa.modes) && /ctf/.test(ffa.modes),
       "modes register with the mode framework",
       ffa.modes
     );
@@ -783,6 +797,8 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
         heard.push(k);
         return sfx0(k, v);
       };
+      /* live bots could kill the carrier while we look: keep them alive for the check */
+      e.onHit = () => ({ died: false, sh: true });
       const f = g.flags[ht];
       f.state = "carried";
       f.carrier = e;
@@ -799,6 +815,7 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       g.emit("flagReturn", { flag: f, by: g.human });
       out.heard2 = heard.slice();
       KA.sfx = sfx0;
+      delete e.onHit;
       return out;
     });
     check(
@@ -966,7 +983,7 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       (await visible(B, "#menu")) && !(await visible(B, "#cBanner")),
       "leaving the match returns to a clean menu"
     );
-    /* ---------- sim + trailer start without errors ---------- */
+    /* ---------- sim and trailer start without errors ---------- */
     const S = await open(ctx, { tag: "S" });
     pages.push(S);
     await S.waitForTimeout(600);
@@ -1004,28 +1021,41 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     );
     await S.click("#cExit");
     await S.waitForTimeout(300);
-    await S.click("#watch");
-    await S.waitForTimeout(2000);
-    check(await visible(S, "#demoUI"), "movement tutorial starts");
-    await S.click("#dExit");
-    await S.waitForTimeout(300);
-    /* trailer: starts, shows a title card on schedule, survives the jump to the CTF montage, and exits cleanly */
-    await S.click("#trailerBtn");
-    await S.waitForTimeout(2300);
+    /* the menu's trailer button plays the recorded video; the trailer itself is not in the game */
+    const vid = await S.evaluate(() => {
+      const got = [];
+      const o = window.open;
+      window.open = u => (got.push(String(u)), null);
+      document.getElementById("trailerBtn").click();
+      window.open = o;
+      return { got, inGame: !!KA.trailer || !!document.getElementById("trailer") };
+    });
     check(
-      await S.evaluate(() => KA.trailer.active && !document.getElementById("trailer").hidden),
+      vid.got.length === 1 && /media\/trailer\.mp4$/.test(vid.got[0]) && !vid.inGame,
+      "Watch trailer opens the trailer video, and the game ships without the trailer",
+      vid
+    );
+    /* the trailer build (out/trailer.html) */
+    const T = await open(ctx, { tag: "T", trailer: true });
+    pages.push(T);
+    await T.waitForTimeout(600);
+    /* trailer: starts, shows a title card on schedule, survives the jump to the CTF montage, and exits cleanly */
+    await T.evaluate(() => KA.startMode("trailer"));
+    await T.waitForTimeout(2300);
+    check(
+      await T.evaluate(() => KA.trailer.active && !document.getElementById("trailer").hidden),
       "trailer starts"
     );
     check(
-      await S.evaluate(() => +getComputedStyle(document.getElementById("trCard")).opacity > 0.5),
+      await T.evaluate(() => +getComputedStyle(document.getElementById("trCard")).opacity > 0.5),
       "trailer shows its opening title card"
     );
-    await S.evaluate(() => KA.trailer.seek(41.5));
-    check(await S.evaluate(() => !!CTF.UI.game()), "trailer cuts to the live CTF montage");
-    await S.keyboard.press("Escape");
-    await S.waitForTimeout(300);
+    await T.evaluate(() => KA.trailer.seek(41.5));
+    check(await T.evaluate(() => !!CTF.UI.game()), "trailer cuts to the live CTF montage");
+    await T.keyboard.press("Escape");
+    await T.waitForTimeout(300);
     check(
-      await S.evaluate(
+      await T.evaluate(
         () =>
           !KA.trailer.active &&
           document.getElementById("trailer").hidden &&
@@ -1036,7 +1066,7 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
     );
     /* the whole cut, simulated without drawing: scripted pilots stay on their routes (no running
        into walls), the camera never ends up inside the level, and the big moments happen */
-    const cut = await S.evaluate(() => {
+    const cut = await T.evaluate(() => {
       const TR = KA.trailer;
       TR.record();
       while (TR.t < TR.END) TR.step(1 / 30, false);

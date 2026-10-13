@@ -96,9 +96,18 @@ const T_GFX = "Graphics",
 /* [key, label, default, min, max, step, unit, description] */
 /** @type {[string, string, number, number, number, number, string, string?][]} */
 const SANDBOX_DEFS = [
-  ["sbRun", "Run speed", 6.4, 5, 8, 0.1, " m/s"],
-  ["sbSprint", "Sprint speed", 9, 7, 11, 0.1, " m/s"],
-  ["sbAccel", "Ground acceleration", 80, 30, 140, 5, " m/s²", "How fast you reach full speed."],
+  ["sbRun", "Run speed", 6.4, 5, 8, 0.1, " m/s", "Walking and running speed without sprinting."],
+  ["sbSprint", "Sprint speed", 9, 7, 11, 0.1, " m/s", "Top speed while sprinting."],
+  [
+    "sbAccel",
+    "Ground acceleration",
+    80,
+    30,
+    140,
+    5,
+    " m/s²",
+    "How fast you reach full speed from a standstill.",
+  ],
   [
     "sbReverse",
     "Strafe reversal",
@@ -107,24 +116,114 @@ const SANDBOX_DEFS = [
     180,
     5,
     " m/s²",
-    "How hard a change of direction bites. Higher makes strafing a sharper skill.",
+    "How hard a change of direction bites. Higher makes strafe dodging sharper and more of a skill.",
   ],
-  ["sbAir", "Air control", 18, 4, 36, 1, " m/s²"],
-  ["sbJump", "Jump strength", 7.4, 6, 9, 0.1, " m/s"],
-  ["sbGrav", "Gravity", 24, 16, 32, 0.5, " m/s²"],
-  ["sbThrust", "Thrust speed", 17, 11, 23, 0.5, " m/s"],
-  ["sbThrustCD", "Thrust cooldown", 2.2, 0.8, 4, 0.1, " s"],
-  ["sbSlide", "Slide boost", 3.2, 0, 6, 0.1, " m/s"],
-  ["sbCarbDmg", "Carbine damage", 9, 6, 13, 0.5, ""],
-  ["sbCarbRate", "Carbine fire interval", 0.1, 0.06, 0.16, 0.005, " s"],
-  ["sbCarbSpread", "Carbine hip spread", 0.012, 0, 0.03, 0.001, ""],
-  ["sbCarbBloom", "Carbine bloom per shot", 0.004, 0, 0.012, 0.0005, ""],
-  ["sbMagDmg", "Magnum damage", 20, 14, 28, 1, ""],
-  ["sbMagRate", "Magnum fire interval", 0.26, 0.16, 0.45, 0.01, " s"],
-  ["sbSnipeRate", "Sniper fire interval", 0.62, 0.4, 1.2, 0.02, " s"],
-  ["sbRocketSpeed", "Rocket speed", 32, 18, 60, 1, " m/s"],
-  ["sbRocketRadius", "Rocket blast radius", 4.2, 2.5, 6.5, 0.1, " m"],
-  ["sbNadeThrow", "Grenade throw speed", 19, 12, 27, 0.5, " m/s", "How far grenades fly."],
+  ["sbAir", "Air control", 18, 4, 36, 1, " m/s²", "How much you can steer while in the air."],
+  [
+    "sbJump",
+    "Jump strength",
+    7.4,
+    6,
+    9,
+    0.1,
+    " m/s",
+    "How high you jump. Changes which ledges are reachable.",
+  ],
+  ["sbGrav", "Gravity", 24, 16, 32, 0.5, " m/s²", "How fast you fall. Lower makes jumps floatier."],
+  ["sbThrust", "Thrust speed", 17, 11, 23, 0.5, " m/s", "Speed of the thruster dash."],
+  ["sbThrustCD", "Thrust cooldown", 2.2, 0.8, 4, 0.1, " s", "Time before the thruster can be used again."],
+  ["sbSlide", "Slide boost", 3.2, 0, 6, 0.1, " m/s", "Extra speed a slide adds on top of sprint speed."],
+  [
+    "sbCarbDmg",
+    "Carbine damage",
+    9,
+    6,
+    13,
+    0.5,
+    "",
+    "Damage per carbine bullet. Changes how many shots a kill takes.",
+  ],
+  [
+    "sbCarbRate",
+    "Carbine fire interval",
+    0.1,
+    0.06,
+    0.16,
+    0.005,
+    " s",
+    "Time between carbine shots. Lower fires faster.",
+  ],
+  [
+    "sbCarbSpread",
+    "Carbine hip spread",
+    0.012,
+    0,
+    0.03,
+    0.001,
+    "",
+    "How far carbine shots stray when firing from the hip.",
+  ],
+  [
+    "sbCarbBloom",
+    "Carbine bloom per shot",
+    0.004,
+    0,
+    0.012,
+    0.0005,
+    "",
+    "Extra spread each carbine shot adds while you hold the trigger. Rewards firing in bursts.",
+  ],
+  [
+    "sbMagDmg",
+    "Magnum damage",
+    20,
+    14,
+    28,
+    1,
+    "",
+    "Damage per magnum shot. Changes how many shots a kill takes.",
+  ],
+  [
+    "sbMagRate",
+    "Magnum fire interval",
+    0.26,
+    0.16,
+    0.45,
+    0.01,
+    " s",
+    "Time between magnum shots. Lower fires faster.",
+  ],
+  [
+    "sbSnipeRate",
+    "Sniper fire interval",
+    0.62,
+    0.4,
+    1.2,
+    0.02,
+    " s",
+    "Time between sniper shots. Lower fires faster.",
+  ],
+  [
+    "sbRocketSpeed",
+    "Rocket speed",
+    32,
+    18,
+    60,
+    1,
+    " m/s",
+    "How fast rockets fly. Slower rockets are easier to dodge.",
+  ],
+  ["sbRocketRadius", "Rocket blast radius", 4.2, 2.5, 6.5, 0.1, " m", "How far a rocket's blast reaches."],
+  [
+    "sbNadeThrow",
+    "Grenade throw speed",
+    19,
+    12,
+    27,
+    0.5,
+    " m/s",
+    "How hard grenades are thrown, and so how far they fly.",
+  ],
   [
     "sbNadeBounce",
     "Frag bounciness",
@@ -133,10 +232,10 @@ const SANDBOX_DEFS = [
     0.8,
     0.02,
     "",
-    "Share of speed kept when a frag hits the floor.",
+    "Share of speed a frag keeps when it bounces off the floor.",
   ],
-  ["sbNadeFuse", "Frag fuse", 2.2, 1.2, 3.4, 0.1, " s"],
-  ["sbNadeRadius", "Frag blast radius", 4.2, 3, 7, 0.1, " m"],
+  ["sbNadeFuse", "Frag fuse", 2.6, 1.2, 3.4, 0.1, " s", "Time from throw to explosion for frags."],
+  ["sbNadeRadius", "Frag blast radius", 4.2, 3, 7, 0.1, " m", "How far a frag's blast reaches."],
 ];
 /* [key, label, description, what it turns on: a LABS entry (data/weapons.js) or a map mod (data/maps.js)] */
 /** @type {[string, string, string, string][]} */
@@ -205,7 +304,7 @@ const SCHEMA = [
       ["ultra", "Ultra"],
       ["custom", "Custom"],
     ],
-    desc: "Sets everything below at once. Changing any graphics option switches to Custom.",
+    desc: "Sets every graphics option below in one go, from Low (built for laptops with integrated graphics) to Ultra (a modern graphics card). Changing any single option switches this to Custom.",
   },
   {
     k: "upscale",
@@ -220,7 +319,7 @@ const SCHEMA = [
       ["performance", "Performance · 50%"],
       ["ultraperf", "Ultra performance · 33%"],
     ],
-    desc: "Renders fewer pixels and rebuilds a sharp full-size image, the way FSR works. Browsers cannot run DLSS.",
+    desc: "Renders fewer pixels, then rebuilds a sharp full-size image from them, the way FSR works. Try Quality first if the frame rate dips: it costs little sharpness. (Browsers cannot run DLSS.)",
   },
   {
     k: "renderScale",
@@ -232,7 +331,7 @@ const SCHEMA = [
     max: 1.5,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
-    desc: "Above 100% supersamples for a cleaner image.",
+    desc: "The share of your screen's pixels the game draws. Below 100% is faster but softer; above 100% supersamples for a cleaner, less shimmery image at a real cost in speed.",
   },
   {
     k: "dynRes",
@@ -240,7 +339,7 @@ const SCHEMA = [
     label: "Dynamic resolution",
     type: "toggle",
     def: true,
-    desc: "Lowers resolution briefly when the frame rate dips below target.",
+    desc: "When a busy moment drops the frame rate below your target, the resolution lowers for a moment and comes back as soon as there is headroom. Keeps aiming smooth in big fights.",
   },
   {
     k: "targetFps",
@@ -255,6 +354,7 @@ const SCHEMA = [
       ["120", "120"],
       ["144", "144"],
     ],
+    desc: "The frame rate dynamic resolution works to hold. Match it to your monitor's refresh rate (60, 120, 144 Hz) for the smoothest picture.",
   },
   {
     k: "aa",
@@ -267,6 +367,7 @@ const SCHEMA = [
       ["fxaa", "FXAA"],
       ["msaa", "MSAA 4×"],
     ],
+    desc: "Smooths jagged edges. FXAA is nearly free and a little soft; MSAA 4× gives the cleanest edges but costs more on integrated graphics. Off is sharpest and fastest.",
   },
   {
     k: "sharpen",
@@ -278,6 +379,7 @@ const SCHEMA = [
     max: 1,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "Crisps up the final image, which helps most with upscaling or FXAA on. Too high adds bright fringes along edges.",
   },
   {
     k: "reflections",
@@ -290,7 +392,7 @@ const SCHEMA = [
       ["env", "Environment lighting"],
       ["glossy", "Environment + glossy surfaces"],
     ],
-    desc: "Image-based lighting and reflections, the closest browsers get to ray tracing.",
+    desc: "Environment lighting lights everything from the sky and the arena around it; glossy surfaces add sharper reflections on floors and armor. The closest a browser gets to ray tracing.",
   },
   {
     k: "shadows",
@@ -305,6 +407,7 @@ const SCHEMA = [
       ["high", "High"],
       ["ultra", "Ultra"],
     ],
+    desc: "Shadow sharpness and range. Shadows show where players and cover are, so keep at least Low; High and Ultra cost the most on a laptop.",
   },
   {
     k: "bloom",
@@ -316,6 +419,7 @@ const SCHEMA = [
     max: 1.5,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "The glow around bright lights, light strips, muzzle flashes and explosions. 0 turns it off.",
   },
   {
     k: "textures",
@@ -327,6 +431,7 @@ const SCHEMA = [
       ["low", "Flat"],
       ["high", "Detailed panels"],
     ],
+    desc: "Detailed panels add procedural panel lines, wear and grime to every surface. Flat uses plain colors: faster on very old hardware and easier to read at a glance.",
   },
   {
     k: "aniso",
@@ -340,6 +445,7 @@ const SCHEMA = [
       ["8", "8×"],
       ["16", "16×"],
     ],
+    desc: "Keeps floors and walls sharp at shallow angles instead of blurring into the distance. 8× and above costs almost nothing on most graphics cards.",
   },
   {
     k: "particles",
@@ -351,6 +457,7 @@ const SCHEMA = [
     max: 1.5,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "How many sparks, smoke puffs, dust and debris chunks effects spawn. Lower it if explosions make the frame rate dip.",
   },
   {
     k: "drawDist",
@@ -362,6 +469,7 @@ const SCHEMA = [
     max: 220,
     step: 10,
     fmt: v => v + " m",
+    desc: "How far away the world is drawn before it fades into the haze. Shorter is faster on integrated graphics.",
   },
   {
     k: "exposure",
@@ -373,6 +481,7 @@ const SCHEMA = [
     max: 1.6,
     step: 0.05,
     fmt: v => v.toFixed(2),
+    desc: "Overall brightness of the picture. Raise it if dark corners are hard to read on your screen.",
   },
   {
     k: "saturation",
@@ -384,6 +493,7 @@ const SCHEMA = [
     max: 1.5,
     step: 0.05,
     fmt: v => v.toFixed(2),
+    desc: "Color strength. Above 1 is more vivid; below 1 is more muted.",
   },
   {
     k: "vignette",
@@ -395,6 +505,7 @@ const SCHEMA = [
     max: 1,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "Darkens the corners of the screen to frame the action. 0 turns it off.",
   },
   {
     k: "grain",
@@ -406,6 +517,7 @@ const SCHEMA = [
     max: 0.3,
     step: 0.01,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "A faint film-grain texture over the image. 0 turns it off.",
   },
   {
     k: "fov",
@@ -417,6 +529,7 @@ const SCHEMA = [
     max: 110,
     step: 1,
     fmt: v => v + "°",
+    desc: "How wide your view is, in degrees (horizontal). Wider shows more of the arena at once but makes distant targets smaller. Aiming down sights zooms in from this.",
   },
   { k: "fpsCounter", tab: T_GFX, label: "FPS counter", type: "toggle", def: true },
   {
@@ -425,7 +538,7 @@ const SCHEMA = [
     label: "Performance overlay",
     type: "toggle",
     def: false,
-    desc: "Frame time split into game logic, rendering and post-processing, plus draw calls, memory and network. Also toggled with F3.",
+    desc: "Shows frame time split into game logic, rendering and post-processing, plus draw calls, memory and network use. Also toggled with F3.",
   },
   {
     k: "netOverlay",
@@ -433,7 +546,7 @@ const SCHEMA = [
     label: "Network panel",
     type: "toggle",
     def: false,
-    desc: "Ping, jitter, packet loss, update age and bandwidth for each connection. Also toggled with F4.",
+    desc: "Shows ping, jitter, packet loss, how old the latest update is and bandwidth for each connection. Also toggled with F4.",
   },
   {
     k: "sens",
@@ -445,6 +558,7 @@ const SCHEMA = [
     max: 3,
     step: 0.05,
     fmt: v => v.toFixed(2),
+    desc: "How far the view turns per inch of mouse movement. Most players settle where a full swipe across the mouse pad turns about 180°.",
   },
   {
     k: "adsSens",
@@ -456,6 +570,7 @@ const SCHEMA = [
     max: 1.5,
     step: 0.05,
     fmt: v => v.toFixed(2) + "×",
+    desc: "Turn speed while aiming down sights or scoped, as a share of your normal sensitivity. Lower is steadier for long shots.",
   },
   { k: "invertY", tab: T_CTL, label: "Invert mouse Y", type: "toggle", def: false },
   {
@@ -468,6 +583,7 @@ const SCHEMA = [
     max: 0.9,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "Averages mouse movement over a few frames. Smoother but slightly delayed; 0 is the most responsive and what most players want.",
   },
   {
     k: "rawInput",
@@ -475,7 +591,7 @@ const SCHEMA = [
     label: "Raw mouse input",
     type: "toggle",
     def: true,
-    desc: "Skips operating-system acceleration where the browser allows it.",
+    desc: "Reads the mouse directly, skipping the operating system's pointer acceleration, so the same movement always turns the same amount. Used where the browser allows it.",
   },
   {
     k: "sprintMode",
@@ -488,6 +604,7 @@ const SCHEMA = [
       ["toggle", "Toggle"],
       ["auto", "Always sprint"],
     ],
+    desc: "Hold: sprint while the key is held. Toggle: press once to sprint, again to stop. Always sprint: run at full speed whenever you move forward.",
   },
   {
     k: "crouchMode",
@@ -499,6 +616,7 @@ const SCHEMA = [
       ["hold", "Hold"],
       ["toggle", "Toggle"],
     ],
+    desc: "Hold: crouch while the key is held. Toggle: press once to crouch, again to stand.",
   },
   {
     k: "aimMode",
@@ -510,6 +628,7 @@ const SCHEMA = [
       ["hold", "Hold"],
       ["toggle", "Toggle"],
     ],
+    desc: "Hold: aim down sights while the button is held. Toggle: press once to aim, again to stop.",
   },
   {
     k: "padSens",
@@ -521,6 +640,7 @@ const SCHEMA = [
     max: 2.5,
     step: 0.05,
     fmt: v => v.toFixed(2),
+    desc: "How fast the right stick turns the view at full tilt.",
   },
   {
     k: "padAdsSens",
@@ -532,6 +652,7 @@ const SCHEMA = [
     max: 1.2,
     step: 0.05,
     fmt: v => v.toFixed(2) + "×",
+    desc: "Right-stick turn speed while aiming down sights or scoped, as a share of your normal look speed.",
   },
   {
     k: "padCurve",
@@ -543,7 +664,7 @@ const SCHEMA = [
     max: 3,
     step: 0.1,
     fmt: v => v.toFixed(1),
-    desc: "1 is linear. Higher gives finer control near center.",
+    desc: "How the stick maps to turn speed. 1 is linear; higher values make small stick movements finer for precise aim, with full speed still at full tilt.",
   },
   {
     k: "padDeadzone",
@@ -555,6 +676,7 @@ const SCHEMA = [
     max: 0.3,
     step: 0.01,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "How far the right stick must move before the view turns. Raise it if the view drifts on its own; lower it for finer, quicker aim.",
   },
   {
     k: "padMoveDeadzone",
@@ -566,6 +688,7 @@ const SCHEMA = [
     max: 0.35,
     step: 0.01,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "How far the left stick must move before you walk. Raise it if you creep forward without touching the stick.",
   },
   {
     k: "padAccel",
@@ -577,6 +700,7 @@ const SCHEMA = [
     max: 2,
     step: 0.1,
     fmt: v => v.toFixed(1),
+    desc: "Holding the stick at full tilt ramps the turn speed up over a moment, for quick 180s without making fine aim twitchy. 0 turns it off.",
   },
   {
     k: "aimAssist",
@@ -588,6 +712,7 @@ const SCHEMA = [
     max: 1,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "Controller only: the reticle slows down over targets and follows them a little as they move. 0 turns it off. It never helps mouse aim.",
   },
   { k: "padInvertY", tab: T_PAD, label: "Invert look Y", type: "toggle", def: false },
   {
@@ -600,6 +725,7 @@ const SCHEMA = [
     max: 1,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "Controller vibration strength. 0 turns it off.",
   },
   {
     k: "padSprint",
@@ -611,6 +737,7 @@ const SCHEMA = [
       ["toggle", "Toggle"],
       ["hold", "Hold"],
     ],
+    desc: "Toggle: click the left stick to start sprinting. Hold: sprint only while the stick is pressed in.",
   },
   {
     k: "xhColor",
@@ -625,6 +752,7 @@ const SCHEMA = [
       ["#5ad2ff", "Cyan"],
       ["#ff6fd8", "Magenta"],
     ],
+    desc: "The reticle's color. Pick one that stands out against the arena's lighting for you.",
   },
   {
     k: "xhSize",
@@ -636,6 +764,7 @@ const SCHEMA = [
     max: 2,
     step: 0.1,
     fmt: v => v.toFixed(1) + "×",
+    desc: "The reticle's size, relative to the default.",
   },
   {
     k: "hudScale",
@@ -647,6 +776,7 @@ const SCHEMA = [
     max: 1.4,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "Size of the health and shield bars, ammo, kill feed and other on-screen information.",
   },
   {
     k: "bob",
@@ -658,6 +788,7 @@ const SCHEMA = [
     max: 1.5,
     step: 0.1,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "How much the camera and weapon sway as you walk, run and land. 0 keeps the view perfectly level.",
   },
   {
     k: "shake",
@@ -669,6 +800,7 @@ const SCHEMA = [
     max: 1.5,
     step: 0.1,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "How much explosions, hits and ground pounds shake the camera. Lower it if motion makes you uncomfortable; 0 turns it off.",
   },
   { k: "speedLines", tab: T_GAME, label: "Speed lines", type: "toggle", def: true },
   {
@@ -677,7 +809,7 @@ const SCHEMA = [
     label: "Motion tracker",
     type: "toggle",
     def: true,
-    desc: "Radar showing enemies within 25 m who run, jump or shoot (not crouch-walkers). Off for a no-radar competitive game.",
+    desc: "The radar in the corner shows enemies within 25 m who run, jump or shoot. Crouch-walkers stay hidden. Turn it off for a no-radar competitive game.",
   },
   {
     k: "intros",
@@ -693,7 +825,7 @@ const SCHEMA = [
     label: "Kill cam",
     type: "toggle",
     def: true,
-    desc: "After you die, replay the last seconds through your killer's eyes. Jump skips it.",
+    desc: "After you die, replays the last few seconds from your killer's view, so you can see where the shot came from. Jump skips it.",
   },
   { k: "hitSounds", tab: T_GAME, label: "Hit marker sounds", type: "toggle", def: true },
   {
@@ -702,7 +834,7 @@ const SCHEMA = [
     label: "Friendly fire",
     type: "toggle",
     def: true,
-    desc: "Team modes: your shots, grenades and rockets hurt teammates too (and theirs hurt you). The host's setting applies online.",
+    desc: "Team modes: your shots, grenades and rockets hurt teammates too, and theirs hurt you. Online, the host's setting applies to everyone.",
   },
   {
     k: "spawnStyle",
@@ -714,7 +846,7 @@ const SCHEMA = [
       ["pods", "Drop pods"],
       ["classic", "Classic (appear in place)"],
     ],
-    desc: "Drop pods: pilots fall from orbit in a pod that crashes in and blows its doors. A pod that lands on an enemy takes them out.",
+    desc: "Drop pods: you fall from orbit in a pod you can steer a little (in capture the flag, only around your own base); it crashes in and blows its doors, and a pod that lands on an enemy takes them out. Classic: you appear in place at a safe spawn point.",
   },
   {
     k: "master",
@@ -726,6 +858,7 @@ const SCHEMA = [
     max: 1,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "Overall volume of everything the game plays.",
   },
   {
     k: "sfx",
@@ -737,6 +870,7 @@ const SCHEMA = [
     max: 1,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "Volume of weapons, footsteps, explosions and other effects.",
   },
   {
     k: "voVol",
@@ -748,6 +882,7 @@ const SCHEMA = [
     max: 1,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "Volume of the announcer calling out medals, scores and flag events.",
   },
   {
     k: "voRate",
@@ -759,6 +894,7 @@ const SCHEMA = [
     max: 1.3,
     step: 0.02,
     fmt: v => v.toFixed(2) + "×",
+    desc: "How fast the announcer speaks. Lower is slower and clearer.",
   },
   {
     k: "destruct",
@@ -771,6 +907,7 @@ const SCHEMA = [
       ["explosives", "Explosives only"],
       ["full", "Explosives and gunfire"],
     ],
+    desc: "What can break cover. Explosives only: grenades and rockets. Explosives and gunfire: bullets chip it too. Off: cover is indestructible.",
   },
   {
     k: "destructStrength",
@@ -782,7 +919,7 @@ const SCHEMA = [
     max: 4,
     step: 0.25,
     fmt: v => v.toFixed(2) + "×",
-    desc: "Higher means cover takes more damage before it breaks.",
+    desc: "How much damage cover takes before it breaks. Higher makes cover last longer; lower opens the map up faster.",
   },
   {
     k: "debris",
@@ -794,6 +931,7 @@ const SCHEMA = [
     max: 2,
     step: 0.1,
     fmt: v => Math.round(v * 100) + "%",
+    desc: "How many chunks fly off when cover chips or breaks. Purely visual; lower it if big blasts slow the game down.",
   },
   {
     k: "regen",
@@ -808,6 +946,7 @@ const SCHEMA = [
       ["45", "45 s"],
       ["90", "90 s"],
     ],
+    desc: "How long broken cover takes to rebuild itself, or Never to keep the damage for the whole match.",
   },
   /* ----- Labs: prototype weapons and map changes (docs/PROPOSALS.md), all off by default. Offline
      matches only: online rooms always play the shipped game. ----- */
