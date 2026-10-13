@@ -7,6 +7,19 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
   axes,
   buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: !!btns[i], value: btns[i] ? 1 : 0 })),
 });
+/* (in the page) where a drop pod comes to rest at each of a map's spawn points with open sky above */
+const podSeats = map => {
+  const V = KA.THREE.Vector3;
+  const spots = map === "arena" ? KA.MAPS.arena.spawns.ffa : KA.MAPS.ctf.spawns.teams.flat();
+  return spots
+    .map(([x, y, z]) => {
+      const at = new V(x, y + 0.02, z);
+      const sky = KA.rayWorld(new V(x, at.y + 2.2, z), new V(0, 1, 0), 60) >= 59;
+      const s = KA.podSeat(at);
+      return { at: [x, y, z], sky, ok: s.ok, off: Math.hypot(s.x, s.z), bury: s.bury };
+    })
+    .filter(s => s.sky);
+};
 (async () => {
   const b = await launch();
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
@@ -311,11 +324,12 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       await wait(200);
       const high = KA.camera.position.y - KA.myPod.at.y;
       const vis = id => getComputedStyle(document.getElementById(id)).visibility;
-      return { high, at: KA.myPod.at.toArray(), hud: vis("hud"), xh: vis("xh") };
+      const cockpit = !document.getElementById("podView").hidden;
+      return { high, at: KA.myPod.at.toArray(), hud: vis("hud"), xh: vis("xh"), cockpit };
     });
     check(
-      skip.hud === "hidden" && skip.xh === "hidden",
-      "the HUD and reticle are hidden while the pod falls",
+      skip.hud === "hidden" && skip.xh === "hidden" && skip.cockpit,
+      "the HUD and reticle are hidden while the pod falls, and you ride it down from inside its cockpit",
       skip
     );
     await p.keyboard.press("Space");
@@ -328,7 +342,8 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       const hudVis = () => getComputedStyle(document.getElementById("hud")).visibility;
       for (let i = 0; i < 20 && hudVis() !== "visible"; i++) await new Promise(r => setTimeout(r, 50));
       const hud = hudVis();
-      return { skip: !!(pod && pod.skip), low: c.y - at[1], d, alive: !KA.me.dead, hud };
+      const cockpit = !document.getElementById("podView").hidden;
+      return { skip: !!(pod && pod.skip), low: c.y - at[1], d, alive: !KA.me.dead, hud, cockpit };
     }, skip.at);
     check(
       skip.high > 20 &&
@@ -336,6 +351,7 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
         skipped.low < 3 &&
         skipped.d < 1 &&
         skipped.alive &&
+        !skipped.cockpit &&
         skipped.hud === "visible",
       "Jump skips the pod camera to the landing spot, and the HUD returns on landing",
       { ...skip, ...skipped }
@@ -355,12 +371,33 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       const moved = Math.hypot(pod.at.x - pod.base.x, pod.at.z - pod.base.z);
       const at = pod.at.clone();
       for (let i = 0; i < 100 && KA.me.dead; i++) await new Promise(r => setTimeout(r, 50));
-      return { pod: true, moved, r: pod.steer.r, landed: Math.hypot(KA.me.pos.x - at.x, KA.me.pos.z - at.z) };
+      const landed = Math.hypot(KA.me.pos.x - at.x, KA.me.pos.z - at.z);
+      /* it punched into the ground; you step up out of it to your eye height and the HUD comes back */
+      const bury = at.y - pod.g.position.y;
+      await new Promise(r => setTimeout(r, 1000));
+      const eye = KA.camera.position.y - KA.me.pos.y;
+      const hud = getComputedStyle(document.getElementById("hud")).visibility;
+      const cockpit = !document.getElementById("podView").hidden;
+      return { pod: true, moved, r: pod.steer.r, landed, bury, eye, hud, cockpit };
     });
     check(
       steer.pod && steer.moved > 1.5 && steer.moved <= steer.r + 0.01 && steer.landed < 0.5,
       "you can steer your drop pod a little, and it lands where you steered it",
       steer
+    );
+    check(
+      steer.bury > 0.5 && Math.abs(steer.eye - 1.62) < 0.1 && steer.hud === "visible" && !steer.cockpit,
+      "a pod buries itself on impact, and you step up out of it into the fight",
+      steer
+    );
+    /* a landed pod buries itself to the collar: at every spawn with open sky it fits without touching
+       a wall, an overhang or the air past a ledge, sitting at most 45 cm off the spot (the pilot is
+       always on it) */
+    const arenaSeats = await p.evaluate(podSeats, "arena");
+    check(
+      arenaSeats.length >= 6 && arenaSeats.every(s => s.ok && s.off <= 0.45 && s.bury > 0.5),
+      "a drop pod fits and buries itself at every arena spawn it can land on",
+      arenaSeats.filter(s => !(s.ok && s.off <= 0.45 && s.bury > 0.5))
     );
     const items = await p.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -829,6 +866,12 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       /Sniper|Rocket/.test((await text(A, "#powerT")) || ""),
       "the HUD shows the power spawn's weapon and timer",
       await text(A, "#powerT")
+    );
+    const ctfSeats = await A.evaluate(podSeats, "ctf");
+    check(
+      ctfSeats.length >= 6 && ctfSeats.every(s => s.ok && s.off <= 0.45 && s.bury > 0.5),
+      "a drop pod fits and buries itself at every capture the flag spawn it can land on",
+      ctfSeats.filter(s => !(s.ok && s.off <= 0.45 && s.bury > 0.5))
     );
     /* live bots may take power weapons too, so look for this holder among the callout events */
     const listen = q =>
@@ -1388,6 +1431,126 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       { intro, after }
     );
     await I.evaluate(() => KA.extStop && KA.leaveGame && KA.leaveGame());
+    /* ---------- the opening drop: matches start with everyone dropping in by pod ---------- */
+    /* arena, with the intro: everyone waits in orbit through it, then launches together; the clock
+       starts as the pods land, nobody can act before, and dropping in is not a death */
+    const O = await open(ctx, { tag: "O", intros: true, drops: true });
+    pages.push(O);
+    await O.waitForTimeout(600);
+    /* (the settings saved by earlier tabs are shared) */
+    await O.evaluate(() => Object.assign(KA.SET, { intros: true, dropIn: true }));
+    await O.click("#deploy");
+    await O.waitForTimeout(400);
+    const orbit = await O.evaluate(() => ({
+      intro: KA.INTRO.active,
+      dead: KA.me.dead,
+      pod: !!KA.myPod,
+      bots: KA.bots.length,
+      botsOut: KA.bots.every(b => b.body.dead && !b.rig.root.visible),
+    }));
+    await O.evaluate(async () => {
+      for (let i = 0; i < 200 && KA.INTRO.active; i++) await new Promise(r => setTimeout(r, 50));
+    });
+    await O.waitForTimeout(400);
+    const falling = await O.evaluate(() => ({
+      pod: !!KA.myPod,
+      pods: KA.PODS.length,
+      cockpit: !document.getElementById("podView").hidden,
+      clock: KA.FFA.t0 - KA.now,
+    }));
+    await O.evaluate(async () => {
+      for (let i = 0; i < 100 && (KA.me.dead || KA.bots.some(b => b.body.dead)); i++)
+        await new Promise(r => setTimeout(r, 50));
+    });
+    const down = await O.evaluate(async () => ({
+      since: KA.now - KA.FFA.t0,
+      /* (the HUD comes back as you finish stepping out of the pod) */
+      hud: await (async () => {
+        const v = () => getComputedStyle(document.getElementById("hud")).visibility;
+        for (let i = 0; i < 30 && v() !== "visible"; i++) await new Promise(r => setTimeout(r, 50));
+        return v();
+      })(),
+      alive: !KA.me.dead,
+      bots: KA.bots.every(b => !b.body.dead && b.rig.root.visible),
+      /* nobody came down on anyone else */
+      gap: (ps =>
+        Math.min(...ps.flatMap((a, i) => ps.slice(i + 1).map(b => Math.hypot(a.x - b.x, a.z - b.z)))))([
+        KA.me.pos,
+        ...KA.bots.map(b => b.body.pos),
+      ]),
+      deaths: KA.deaths,
+    }));
+    check(
+      orbit.intro && orbit.dead && !orbit.pod && orbit.bots > 0 && orbit.botsOut,
+      "with drop pods, a match starts with everyone in orbit while the intro plays",
+      orbit
+    );
+    check(
+      falling.pod && falling.pods >= 1 + orbit.bots && falling.cockpit && falling.clock > 1.5,
+      "after the intro you and the drones drop in together, before the clock starts",
+      falling
+    );
+    check(
+      down.alive &&
+        down.bots &&
+        down.gap > 1.5 &&
+        down.deaths === 0 &&
+        down.since >= 0 &&
+        down.since < 1 &&
+        down.hud === "visible",
+      "everyone lands on a spot of their own, the clock starts, and the drop is not counted as a death",
+      down
+    );
+    /* capture the flag: every AI drops in near its own base, the clock reads its full limit until
+       they land, and so do you */
+    await O.evaluate(() => KA.leaveGame && KA.leaveGame());
+    const C2 = await open(ctx, { tag: "C2", drops: true });
+    pages.push(C2);
+    await C2.waitForTimeout(600);
+    await C2.evaluate(() => Object.assign(KA.SET, { intros: false, dropIn: true }));
+    await C2.click("#ctfPlay");
+    await C2.waitForTimeout(500);
+    const ctfDrop = await C2.evaluate(() => {
+      const g = CTF.UI.game();
+      const ai = g.agents.filter(a => !a.human);
+      return {
+        out: ai.every(a => a.dead),
+        me: KA.me.dead,
+        pods: KA.PODS.length,
+        ai: ai.length,
+        left: g.timeLimit - Math.max(g.t, g.dropT || 0),
+        /* every pod (yours too) is aimed at a spot of its own */
+        gap: (ps =>
+          Math.min(...ps.flatMap((a, i) => ps.slice(i + 1).map(b => Math.hypot(a.x - b.x, a.z - b.z)))))(
+          KA.PODS.map(p => p.at)
+        ),
+        limit: KA.MODE_DATA.ctf.timeLimit,
+      };
+    });
+    await C2.waitForTimeout(3200);
+    const ctfDown = await C2.evaluate(() => {
+      const g = CTF.UI.game();
+      const ai = g.agents.filter(a => !a.human);
+      return {
+        alive: ai.every(a => a.alive) && !KA.me.dead,
+        home: g.agents.every(a => Math.sign(a.body.pos.z) === Math.sign(CTF.FLAG_HOME[a.team].z)),
+        deaths: KA.deaths,
+      };
+    });
+    check(
+      ctfDrop.out &&
+        ctfDrop.me &&
+        ctfDrop.pods > ctfDrop.ai &&
+        ctfDrop.gap > 2 &&
+        Math.abs(ctfDrop.left - ctfDrop.limit) < 0.01,
+      "a capture the flag match opens with every pilot dropping in on a spot of their own, the clock held at its limit",
+      ctfDrop
+    );
+    check(
+      ctfDown.alive && ctfDown.home && ctfDown.deaths === 0,
+      "every pilot lands on their own half and the match is on",
+      ctfDown
+    );
     /* ---------- developer console (?dev) ---------- */
     const D = await open(ctx, { tag: "dev", hash: "#dev" });
     pages.push(D);

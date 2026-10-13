@@ -16,18 +16,22 @@ $("deploy").onclick = () => {
   EVENTS.setContext({ map: "arena", mode: "ffa" });
   ffaStart();
   EVENTS.emit("matchStart", {});
-  if (SET.intros)
-    playIntro(
-      MAPS.arena,
-      { mode: MODE_DATA.ffa.name, limit: `First to ${MODE_DATA.ffa.scoreLimit}` },
-      () => (FFA.t0 = now)
-    );
   audio();
   myArmor = myColor;
   vmArmor.color.set(myColor).multiplyScalar(0.55);
   if (document.activeElement) /** @type {HTMLElement} */ (document.activeElement).blur();
   spawn(me);
-  EVENTS.emit("spawn", { pilot: "local" });
+  /* everyone drops in (game/loop.js matchDrop), or starts on the ground; the clock starts as the
+     pods land, after the intro if there is one */
+  const fall = matchDrop(true);
+  if (!fall) EVENTS.emit("spawn", { pilot: "local" });
+  FFA.t0 = now + fall;
+  if (SET.intros)
+    playIntro(
+      MAPS.arena,
+      { mode: MODE_DATA.ffa.name, limit: `First to ${MODE_DATA.ffa.scoreLimit}` },
+      () => (FFA.t0 = now + fall)
+    );
   playing = true;
   reloadT = 0;
   refill();

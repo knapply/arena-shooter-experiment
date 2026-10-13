@@ -101,6 +101,8 @@ function ffaRestart() {
   if (!me.dead) spawn(me);
   refill();
   ffaStart();
+  /* the next match drops in too */
+  FFA.t0 = now + matchDrop(true);
   EVENTS.emit("matchStart", {});
   say("Arena online", true);
 }

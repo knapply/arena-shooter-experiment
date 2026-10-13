@@ -39,7 +39,7 @@ The browser parses the HTML (menu, HUD, overlays are plain markup), loads three.
 | 12 | `weapons/firing.js`, `core/input.js`, `gamepad.js` | Outgoing damage, input listeners (keyboard, mouse, touch, pointer lock), gamepad polling. |
 | 13 | `game/deploy.js`, `game/modes.js` | The Deploy button handler, free-for-all rules, the mode registry (`defineMode`). |
 | 14 | `net/*` | Wire message codecs, remote playback buffers, arena presence sync. |
-| 15 | `ui/*`, `game/replay.js`, `highlights.js`, `intro.js`, `pods.js`, `stats.js` | HUD, network panel, motion tracker, console, kill cam and Play of the Game, match intros, drop pods, match stats. |
+| 15 | `ui/*`, `game/replay.js`, `highlights.js`, `intro.js`, `pods.js`, `pod-view.js`, `stats.js` | HUD, network panel, motion tracker, console, kill cam and Play of the Game, match intros, drop pods and their cockpit, match stats. |
 | 16 | `game/loop.js` | The frame function (`frame`) and everything it calls per frame. Nothing runs yet. |
 | 17 | `ui/settings-ui.js` (sets `gfxReady`), `weapons/pickups.js`, `ui/power.js`, `damage-dir.js`, `stats-ui.js`, `player/assists.js`, `ui/reticle.js` | Remaining UI, pickups and their visuals. |
 | 18 | `game/exports.js` | Builds `window.KA` and **starts the loop**: `requestAnimationFrame(frame)`. |
@@ -70,7 +70,7 @@ frame(t)
    - Dead: the respawn countdown; then a drop pod (steerable, see `steerPod`) or an in-place spawn.
    - Alive: input becomes an input record (`inp`), and your `Body` steps at a **fixed 120 Hz** (up to 8 steps a frame, with one-shot inputs buffered between steps) so movement feels the same at any frame rate. Then weapon timers, reloads and firing (`fire`, `throwNade`, melee).
 5. **The world.** Drones think and move (`botStep`). In a mode, `EXT.tick(dt)` runs it: in CTF that is the rules and AI stepping (`G.step`), host or client netcode, and the CTF UI (rigs, flags, waypoints).
-6. **Camera.** Interpolated eye position (between physics steps), landing dip, bob, roll, FOV (sprint, slide, zoom); the pod camera replaces it while you ride a pod.
+6. **Camera.** Interpolated eye position (between physics steps), landing dip, bob, roll, FOV (sprint, slide, zoom); the pod cockpit (`podCockpit`) replaces it while you ride a pod, and eases you up out of the landed pod after (`podCockpitIdle`).
 7. **Presentation.**
    - Viewmodel animation (`updVM`) and particle and debris effects (`updFX`).
    - Player grenades and rockets, rig posing for remote players and drones (`updRigs`, which calls `rig.update` and plays rig events: steps, swings, reload sounds).
@@ -82,7 +82,7 @@ frame(t)
 
 ## 4. Starting and ending a match
 
-- **Deploy** (`game/deploy.js`): reads the menu (name, drones, bot skill), makes the drones, emits `matchStart` (stats, highlights and the recorder reset on it), plays the intro, spawns you and sets `playing`.
+- **Deploy** (`game/deploy.js`): reads the menu (name, drones, bot skill), makes the drones, emits `matchStart` (stats, highlights and the recorder reset on it), spawns you, starts the opening drop (`matchDrop`: you and the drones wait in orbit through the intro, then drop in together; the clock starts as the pods land), plays the intro and sets `playing`. CTF does the same for a rendered match (`G.start(true)` and `matchDrop` for each player).
 - **A mode** (`startMode(id)` or its menu button): the mode builds its world (CTF swaps the arena map for Twin Foundry with `CTF.enterMap`), creates its rules object and hands the engine a hooks object with `extPlay(hooks)`: `tick`, `targets`, `respawn`, `spawnPoint`, `podZone`, `roster`, `powerHolders`, `scores`, `exit`, and so on. From then on `EXT` is that object and the loop calls it.
 - **The end:** the mode emits `matchEnd`, plays Play of the Game (`playOfTheGame`), then shows the results screen (`showPost`) with Play again / Change mode / Leave. `leaveGame()` clears `EXT` (calling its `exit`) and shows the menu.
 

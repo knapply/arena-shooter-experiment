@@ -2,7 +2,9 @@
    Built from the map document, so a new map gets an intro for free: map name over a flyover,
    each team's base with its pilots standing at their spawns, the objective, the power weapons with
    their respawn times, and the mode card. The match clock is held while it plays (no play time
-   lost), everyone online sees it at match start, and jump skips it. */
+   lost), everyone online sees it at match start, and jump skips it. When the match opens with a
+   drop (game/loop.js matchDrop), everyone waits in orbit through it (the bases are empty) and the
+   pods launch as it ends. */
 const INTRO = { active: false, t: 0, shots: [], i: -1, onEnd: null };
 const _ic = new V3();
 const centroid = pts => {

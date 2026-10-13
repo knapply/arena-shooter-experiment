@@ -335,14 +335,42 @@
         (world/spawns.js) */
     G.spawnPoint = function (team) {
       const foes = G.teams[1 - team].agents.filter(e => e.alive).map(e => e.body);
-      return K.pickSpawn(CTF.SPAWNS[team], foes, G.fights, G.t, K.rand);
+      let pts = CTF.SPAWNS[team];
+      /* during an opening drop the players stay off the AI's spots (G.start) */
+      if (G.t < (G.dropT || 0)) {
+        const held = CTF.dropSpots(team, G.teams[team].agents.filter(a => !a.human).length);
+        const free = pts.filter(p => !held.includes(p));
+        if (free.length) pts = free;
+      }
+      return K.pickSpawn(pts, foes, G.fights, G.t, K.rand);
     };
-    G.start = function () {
+    /** drop: a rendered match opens with every AI dropping in by pod (the respawn below, launching
+        at once and landing together); the time limit gets the fall back. Headless matches never do */
+    G.start = function (drop) {
       for (const p of G.pickups) p.availAt = 0;
       K.resetDestruction();
       if (G.render) K.DESTR.bodies = () => G.agents.map(a => a.body);
-      for (const a of G.agents) {
-        if (!a.human) a.spawn(G.spawnPoint(a.team));
+      const fall = !!drop && G.pods;
+      for (const a of G.agents) if (!a.human && !fall) a.spawn(G.spawnPoint(a.team));
+      /* each AI pilot drops onto a spot of its own (CTF.dropSpots) */
+      if (fall)
+        for (const tm of G.teams) {
+          const ai = tm.agents.filter(a => !a.human),
+            spots = CTF.dropSpots(tm.team, ai.length);
+          ai.forEach((a, k) => {
+            const pt = spots[k % spots.length];
+            a.dead = true;
+            a.respawnAt = G.t + K.POD_EARLY;
+            a.podPt = pt;
+            a.podFor = a.respawnAt;
+            a.podOpen =
+              K.rayWorld(new K.THREE.Vector3(pt[0], pt[1] + 2.2, pt[2]), new K.THREE.Vector3(0, 1, 0), 60) >=
+              59;
+          });
+        }
+      if (fall) {
+        G.dropT = K.POD_TIME;
+        G.timeLimit += K.POD_TIME;
       }
       for (const tm of G.teams) {
         tm.brain.chooseStrategy(G);

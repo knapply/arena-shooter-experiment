@@ -25,6 +25,13 @@
     CTF.SPAWNS = doc.spawns.teams
       ? doc.spawns.teams.map(t => t.map(p => p.slice()))
       : [0, 1].map(() => doc.spawns.ffa.map(p => p.slice()));
+    /* the opening drop's spots for a team's n AI pilots (the last of its spawns; on a map without team
+       spawns the two teams take alternate ones), so no two pods come down on one spot; the players
+       pick from the rest */
+    CTF.dropSpots = (team, n) => {
+      const pts = doc.spawns.teams ? CTF.SPAWNS[team] : CTF.SPAWNS[team].filter((p, i) => i % 2 === team);
+      return pts.slice(Math.max(0, pts.length - n));
+    };
     CTF.PICKUP_DEFS = (doc.pickups || []).map(p => ({
       id: p.id,
       type: K.WEAPON_DATA.findIndex(w => w.key === p.weapon),

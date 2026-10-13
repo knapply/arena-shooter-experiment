@@ -920,6 +920,14 @@ const SCHEMA = [
     desc: "A five-second flyover of the map, the teams and the objectives before each match. Jump skips it.",
   },
   {
+    k: "dropIn",
+    tab: T_GAME,
+    label: "Drop in at match start",
+    type: "toggle",
+    def: true,
+    desc: "With drop pod spawns, every match starts with everyone dropping in from orbit: you ride your pod down and the clock starts as the pods land. Off: everyone starts on the ground.",
+  },
+  {
     k: "killCam",
     tab: T_GAME,
     label: "Kill cam",

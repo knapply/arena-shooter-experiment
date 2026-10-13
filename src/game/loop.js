@@ -222,6 +222,42 @@ function respawnMe(at) {
   reloadT = 0;
   refill();
 }
+/* ---- the match start: with drop pods (and Drop in at match start on), a match opens with everyone
+   dropping in. Your first spawn is a pod, as after a death (no death counted, no "Down" screen);
+   the arena drones' too; CTF's agents start out the same way (G.start(true)). While the intro
+   plays the drop waits, then everyone launches together and the clock starts as they land ---- */
+let dropHold = false;
+const dropsOn = () => podsOn() && SET.dropIn;
+/**
+ * open a match with a drop: you (and the arena drones, with bots) are out until your pods land.
+ * Returns how long from launch to landing (0 when matches start on the ground).
+ */
+function matchDrop(withBots = false) {
+  if (!dropsOn()) return 0;
+  me.dead = true;
+  me.vel.set(0, 0, 0);
+  respawnAt = now + POD_EARLY;
+  dropHold = true;
+  $("dead").hidden = true;
+  /* everyone comes down on a spot of their own: yours the safest, the drones' the others */
+  let mine = null;
+  if (!EXT) {
+    mine = spawnPoint(me);
+    spawnPick = { for: respawnAt, at: new V3(mine[0], mine[1] + 0.02, mine[2]) };
+  } else spawnPick = null;
+  if (withBots) {
+    const free = SPAWNS.filter(s => s !== mine).sort(() => Math.random() - 0.5);
+    bots.forEach((b, i) => {
+      const s = free[i % free.length],
+        at = new V3(s[0], s[1] + 0.01, s[2]);
+      b.body.dead = true;
+      b.respawn = now + POD_EARLY;
+      b.pick = { for: b.respawn, at, sky: skyClear(at) };
+      b.rig.root.visible = false;
+    });
+  }
+  return POD_TIME;
+}
 /** a pod landing on someone takes them out */
 function podCrush(at) {
   for (const t of targets())
@@ -229,16 +265,6 @@ function podCrush(at) {
       dealDamage(t, 999, "pod", false);
       toast("Pod kill!");
     }
-}
-/** the camera rides behind and above your pod (turned by where you look), looking down at where it will land */
-function podCamera(p, dt) {
-  podView(p);
-  const g = p.g.position;
-  camera.position.set(g.x + Math.sin(me.yaw) * 7.5, g.y + 7, g.z + Math.cos(me.yaw) * 7.5);
-  camera.lookAt(p.at.x, Math.min(g.y, p.at.y + 30) - 2, p.at.z);
-  camera.fov = 70;
-  camera.updateProjectionMatrix();
-  void dt;
 }
 function frameBody(t) {
   const raw = Math.max(1e-4, (t - last) / 1000);
@@ -331,6 +357,20 @@ function frameBody(t) {
     if (Math.abs(mdx) < 1e-5) mdx = 0;
     if (Math.abs(mdy) < 1e-5) mdy = 0;
   }
+  /* a pod cleared from under you (leaving the match) is no longer yours */
+  if (myPod && !PODS.includes(myPod)) myPod = null;
+  /* the opening drop waits for the intro, then everyone launches together */
+  if (dropHold) {
+    if (INTRO.active) {
+      respawnAt = now + POD_EARLY;
+      if (spawnPick) spawnPick.for = respawnAt;
+      for (const b of bots)
+        if (b.body.dead) {
+          b.respawn = now + POD_EARLY;
+          if (b.pick) b.pick.for = b.respawn;
+        }
+    } else dropHold = false;
+  }
   if (me.dead) {
     if (myPod) {
       /* riding the drop pod down; Jump, Fire or Melee skips the pod camera */
@@ -365,13 +405,20 @@ function frameBody(t) {
         spawnPick = null;
         $("dead").hidden = true;
         const zone = EXT && EXT.podZone ? EXT.podZone() : null;
+        /* you ride it down facing the way you will come out (the mouse turns it) */
+        me.yaw = Math.atan2(at.x, at.z);
+        me.pitch = 0;
         myPod = dropPod(at, myColor, {
+          rider: true,
           steer: { r: zone ? zone.r : 14, ok: zone ? zone.ok : null },
           onLand(p) {
-            const look = myPod && myPod.skip ? [me.yaw, me.pitch] : null;
+            const pod = myPod;
+            /* you step out facing where you looked on the way down */
+            const look = [me.yaw, pod && pod.skip ? me.pitch : 0];
             myPod = null;
             respawnMe(p);
-            if (look) [me.yaw, me.pitch] = look;
+            [me.yaw, me.pitch] = look;
+            if (pod && !pod.skip) podCockpitLand(pod);
             podCrush(p);
           },
         });
@@ -511,9 +558,12 @@ function frameBody(t) {
   camera.fov += (tf - camera.fov) * Math.min(1, dt * (zf > 3 ? 30 : 12));
   if (!(camera.fov > 1 && camera.fov < 170)) camera.fov = fb;
   camera.updateProjectionMatrix();
-  if (myPod && !myPod.skip) podCamera(myPod, dt);
+  /* riding your pod down, from inside (game/pod-view.js); then stepping out of it */
+  if (myPod && !myPod.skip) podCockpit(myPod, dt);
+  else podCockpitIdle(dt);
   podMarker(myPod);
-  if (!!myPod !== podding) document.body.classList.toggle("podding", (podding = !!myPod));
+  const pd = !!myPod || PV.exit >= 0;
+  if (pd !== podding) document.body.classList.toggle("podding", (podding = pd));
   updVM(dt, {
     aim: aiming,
     sprint: me.sprint && me.ground,
