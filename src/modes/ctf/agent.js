@@ -1291,6 +1291,7 @@
         this.body.spawnT = -1e9; /* attacking ends spawn protection */
         const r = type === "charge" ? 1.8 : 2.3;
         const f = this.body.fwd();
+        let landed = false;
         for (const e of G.teams[1 - this.team].agents) {
           if (!e.alive) continue;
           const dx = e.body.pos.x - this.pos.x,
@@ -1311,13 +1312,31 @@
                     e.body.shield,
                     K.meleeBehind(this.pos.x, this.pos.z, e.body.pos.x, e.body.pos.z, e.body.yaw)
                   );
+            const sh = e.body.shield;
             if (e.human) G.hurtHuman(e, dmg, { name: this.name, agent: this, w: type });
             else e.onHit(dmg, type, false, this);
-            if (G.render) K.sfx("land", K.distVol(this.pos, 30));
+            /* the impact, heard by everyone near (K.meleeFx sends it to the room) */
+            if (G.render) {
+              const M = K.MFX;
+              const fl =
+                (type === "charge" ? M.CHARGE : 0) |
+                (sh > 0 && dmg >= sh ? M.CRACK : 0) |
+                (type === "melee" && dmg >= 999 ? M.HEAVY : 0);
+              K.meleeFx(K.meleeContact(this.pos, e.body.pos, new V3()), f, fl);
+            }
+            landed = true;
             break;
           }
         }
         if (G.render && type === "charge") K.sfx("charge", K.distVol(this.pos, 30) * 0.6);
+        /* a blow that meets a wall or the floor clanks off it (a charge clanks when it bumps) */
+        if (G.render && !landed && type === "melee") {
+          const at = new V3(),
+            dir = new V3();
+          if (K.meleeWorldHit(this.body, 2, at, dir)) K.meleeFx(at, dir, K.MFX.WORLD);
+        }
+      } else if (type === "bump") {
+        if (G.render) K.chargeWallFx(this.body, d);
       } else if (G.render) {
         if (type === "thrust") {
           K.thrustPuff(this.pos, d.dir);

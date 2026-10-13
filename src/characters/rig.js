@@ -756,6 +756,9 @@ function makePilot(color, label) {
     dead: false,
     S,
     color,
+    /* sprint assist (0..1, from rig.update) and the two exhaust sprites, for the effects in rigEvents */
+    jet: 0,
+    jets: glows,
     setLabel(t, sub) {
       x.clearRect(0, 0, 256, 64);
       x.font = "600 28px Chakra Petch, Arial Narrow, sans-serif";
@@ -1226,6 +1229,10 @@ function makePilot(color, label) {
         0,
         spring(S.spAntR, clamp(S.turn * 0.06, -0.5, 0.5), dt, 2, 0.2)
       );
+      /* sprinting, the pack's thrusters assist: a low flickering burn, brighter with speed */
+      const hs = Math.hypot(st.vx, st.vz),
+        slow = TUNE.run * 0.7;
+      rig.jet = st.sprint && !air ? clamp((hs - slow) / Math.max(0.1, TUNE.sprint - slow), 0.2, 1) : 0;
       const gl = st.thrust
         ? 1
         : st.stab
@@ -1234,7 +1241,7 @@ function makePilot(color, label) {
             ? 0.4 + Math.random() * 0.4
             : st.pound === 2
               ? 0.8
-              : 0;
+              : rig.jet * (0.38 + Math.random() * 0.24);
       for (const g of glows) {
         g.material.opacity += (gl - g.material.opacity) * kf;
         g.scale.y = 0.25 + g.material.opacity * 0.35;
@@ -1291,6 +1298,7 @@ function makePilot(color, label) {
       A.tip.rotation.set(0, 0, -A.side * A.grip);
     }
     for (const g of glows) g.material.opacity = 0;
+    rig.jet = 0;
     if (S.deadT > 3.4) root.visible = false;
   }
   rig.setLabel(label);

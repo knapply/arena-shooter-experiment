@@ -316,6 +316,84 @@ function sfx(kind, vol = 1) {
         f.frequency.exponentialRampToValueAtTime(1800, t + 0.15);
         break;
       }
+      /* melee impacts (meleeImpact in render/fx.js): a blow on a pilot is a meaty thud with an armor
+         clank; on the world, a hard ringing clank with grit falling after it. The charge's pair is
+         heavier and leads in with a short rush of air. */
+      case "mhit":
+        tone(t, "sine", 150, 55, 0.2, 0.5 * vol, 0.002);
+        nz(t, 0.13, "lowpass", 650, 0.5 * vol, 1, 0.002);
+        tone(t, "triangle", 420, 300, 0.08, 0.09 * vol, 0.002);
+        nz(t, 0.05, "bandpass", 1300, 0.14 * vol, 2);
+        break;
+      case "mkill":
+        /* the blow from behind: deeper, longer, a crunch on top */
+        tone(t, "sine", 120, 32, 0.42, 0.7 * vol, 0.002);
+        nz(t, 0.3, "lowpass", 420, 0.6 * vol, 1, 0.002);
+        nz(t, 0.12, "bandpass", 900, 0.3 * vol, 1.5);
+        tone(t, "square", 260, 170, 0.09, 0.07 * vol, 0.002);
+        break;
+      case "mcrack":
+        /* the shield giving way under the blow: a glassy crack and two splinters */
+        nz(t, 0.2, "highpass", 3800, 0.2 * vol);
+        tone(t, "sawtooth", 2300, 520, 0.18, 0.06 * vol, 0.002);
+        tone(t + 0.025, "triangle", 3100, 2900, 0.04, 0.05 * vol, 0.002);
+        tone(t + 0.06, "triangle", 2600, 2450, 0.04, 0.04 * vol, 0.002);
+        break;
+      case "mwall":
+        tone(t, "triangle", 1150, 960, 0.14, 0.14 * vol, 0.001);
+        tone(t, "square", 2350, 2150, 0.05, 0.035 * vol, 0.001);
+        nz(t, 0.06, "highpass", 3000, 0.22 * vol);
+        nz(t, 0.1, "lowpass", 520, 0.35 * vol, 1, 0.002);
+        for (let i = 0; i < 3; i++)
+          nz(
+            t + 0.05 + i * 0.04 + Math.random() * 0.02,
+            0.025,
+            "bandpass",
+            2400 + Math.random() * 2200,
+            0.07 * vol,
+            4
+          );
+        break;
+      case "chit": {
+        const f = nz(t, 0.07, "bandpass", 600, 0.16 * vol, 1.5, 0.04);
+        f.frequency.exponentialRampToValueAtTime(2600, t + 0.06);
+        tone(t + 0.04, "sine", 120, 34, 0.38, 0.75 * vol, 0.002);
+        nz(t + 0.04, 0.26, "lowpass", 700, 0.6 * vol, 1, 0.002);
+        tone(t + 0.04, "triangle", 330, 210, 0.11, 0.11 * vol, 0.002);
+        nz(t + 0.04, 0.06, "bandpass", 1500, 0.18 * vol, 2);
+        break;
+      }
+      case "cwall": {
+        const f = nz(t, 0.07, "bandpass", 600, 0.16 * vol, 1.5, 0.04);
+        f.frequency.exponentialRampToValueAtTime(2600, t + 0.06);
+        tone(t + 0.04, "sine", 95, 30, 0.42, 0.6 * vol, 0.002);
+        tone(t + 0.04, "triangle", 900, 700, 0.2, 0.13 * vol, 0.001);
+        tone(t + 0.04, "square", 1900, 1750, 0.06, 0.04 * vol, 0.001);
+        nz(t + 0.04, 0.3, "lowpass", 450, 0.5 * vol, 1, 0.002);
+        nz(t + 0.04, 0.08, "highpass", 2800, 0.24 * vol);
+        for (let i = 0; i < 5; i++)
+          nz(
+            t + 0.09 + i * 0.045 + Math.random() * 0.025,
+            0.025,
+            "bandpass",
+            2000 + Math.random() * 2500,
+            0.06 * vol,
+            4
+          );
+        break;
+      }
+      /* sprint thrusters: a soft breath of jet on sprint start, then quiet pulses while it lasts */
+      case "jetstart": {
+        const f = nz(t, 0.32, "bandpass", 500, 0.2 * vol, 1.2, 0.04);
+        f.frequency.exponentialRampToValueAtTime(1500, t + 0.28);
+        nz(t, 0.18, "highpass", 4200, 0.04 * vol, 1, 0.03);
+        break;
+      }
+      case "jet": {
+        const f = nz(t, 0.3, "bandpass", 800, 0.09 * vol, 0.9, 0.1);
+        f.frequency.exponentialRampToValueAtTime(1150, t + 0.28);
+        break;
+      }
     }
   } catch (e) {}
 }

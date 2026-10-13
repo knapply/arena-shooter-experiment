@@ -242,8 +242,8 @@
       }
     };
     M.onFx = function (k, a, b, g) {
-      if (k !== "nade") return;
-      M.fx.push([++M.fxS, "n", ...a, ...b, g | 0]);
+      if (k !== "nade" && k !== "mhit") return;
+      M.fx.push([++M.fxS, k === "nade" ? "n" : "m", ...a, ...b, g | 0]);
       if (M.fx.length > 4) M.fx.shift();
     };
     M.died = function (src) {
@@ -538,7 +538,9 @@
             if (n > 0) K.hurtMe(n, { name: shooter ? shooter.name : "?", by, w, hd: !!h[4] });
           }
         M.seenHs.set(p.peer, seen);
-        if (p.peer !== M.hostPeer) {
+        /* other players' grenades; melee impacts from everyone, the host's AI included */
+        {
+          const fromHost = p.peer === M.hostPeer;
           const fx = Array.isArray(pr.fx) ? pr.fx.slice(-4) : [];
           let sf = M.seenFx.get(p.peer);
           if (sf == null) {
@@ -550,10 +552,14 @@
               const s = num(f[0], 0, 1e9);
               if (s <= sf) continue;
               sf = s;
-              if (f[1] === "n") {
+              if (f[1] === "n" && !fromHost) {
                 const q = K.vec(f.slice(2, 5), new V3()),
                   v = K.vec(f.slice(5, 8), new V3());
                 if (q && v) K.remoteProjectile(f[8] | 0, q, v);
+              } else if (f[1] === "m") {
+                const q = K.vec(f.slice(2, 5), new V3()),
+                  v = K.vec(f.slice(5, 8), new V3());
+                if (q && v) K.meleeImpact(q, v, (f[8] | 0) & 15);
               }
             }
           M.seenFx.set(p.peer, sf);

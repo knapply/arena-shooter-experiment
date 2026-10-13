@@ -164,6 +164,83 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       "the motion tracker shows runners but not crouch-walkers",
       trk
     );
+    /* melee impacts: a blow on a pilot thuds (a crack when it breaks the shield, heavier from behind),
+       one on a wall clanks, the charge has its own pair, and a whiff only swings */
+    const mi = await p.evaluate(() => {
+      const heard = [];
+      KA.sfxTap(k => heard.push(k));
+      const me = KA.me,
+        b = KA.bots[1],
+        V = KA.THREE.Vector3;
+      for (const o of KA.bots) o.body.pos.set(60, 0, 60);
+      const at = (x, z, yaw) => {
+        me.pos.set(x, 0, z);
+        me.yaw = yaw;
+        me.pitch = 0;
+        KA.camera.position.set(x, 1.6, z);
+      };
+      const take = fn => {
+        heard.length = 0;
+        fn();
+        return heard.slice();
+      };
+      /* a wall: the side of a tall box, standing a metre off it and facing it */
+      const w = KA.SOLID.find(s => s.y0 <= 0.1 && s.y1 - s.y0 > 2.5 && s.z1 - s.z0 > 2);
+      const open = (x, z) => {
+        for (let k = 0; k < 8; k++) {
+          const y = (k * Math.PI) / 4;
+          at(x, z, y);
+          if (!KA.meleeWorldHit(me, 2.2, new V())) return y;
+        }
+        return null;
+      };
+      const out = {};
+      at(w.x1 + 1, (w.z0 + w.z1) / 2, Math.PI / 2);
+      out.wall = take(() => KA.meleeHit(2.3, 70, "melee"));
+      me.chargeT = 0.3;
+      out.chargeWall = take(() => KA.chargeWallFx(me, { ax: "x", box: w }));
+      me.chargeT = 0;
+      const y = open(-30, 30);
+      out.whiff = y == null ? null : take(() => KA.meleeHit(2.3, 70, "melee"));
+      /* a pilot in front, facing you with a full shield; then the same pilot with their back turned */
+      const front = (yaw, sh) => {
+        b.body.dead = false;
+        b.body.spawnT = -99;
+        b.body.shield = sh;
+        b.body.yaw = yaw;
+        b.body.pos.set(me.pos.x - Math.sin(me.yaw) * 1.4, 0, me.pos.z - Math.cos(me.yaw) * 1.4);
+      };
+      if (y != null) {
+        front(me.yaw + Math.PI, 70);
+        out.pilot = take(() => KA.meleeHit(2.3, 70, "melee"));
+        front(me.yaw, 70);
+        out.back = take(() => KA.meleeHit(2.3, 70, "melee"));
+        front(me.yaw + Math.PI, 70);
+        out.charge = take(() => KA.meleeHit(1.6, 85, "charge"));
+      }
+      KA.sfxTap(null);
+      return out;
+    });
+    const impacts = ["mhit", "mkill", "mcrack", "mwall", "chit", "cwall"];
+    check(
+      mi.wall.includes("mwall") &&
+        !mi.wall.includes("mhit") &&
+        mi.chargeWall.includes("cwall") &&
+        mi.whiff &&
+        !mi.whiff.some(k => impacts.includes(k)),
+      "a melee blow on a wall clanks, a charge into one has its own clank, a whiff makes no impact",
+      mi
+    );
+    check(
+      mi.pilot &&
+        mi.pilot.includes("mhit") &&
+        mi.pilot.includes("mcrack") &&
+        mi.back.includes("mkill") &&
+        mi.charge.includes("chit") &&
+        !mi.pilot.includes("mwall"),
+      "a blow on a pilot thuds and cracks their shield, heavier from behind; a charge has its own hit",
+      mi
+    );
     /* kill cam: dying replays the last seconds from the killer's eyes, then shows the recap */
     const kc = await p.evaluate(async () => {
       const b = KA.bots[0];
@@ -922,6 +999,37 @@ const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
       s0,
       await B.evaluate(() => KA.me.shield),
     ]);
+    /* melee impacts reach the room: the host's (and its AI's) are heard by the friend and the other way */
+    const tapHeard = q =>
+      q.evaluate(() => {
+        window.__mh = [];
+        KA.sfxTap(k => window.__mh.push(k));
+        return [KA.me.pos.x, KA.me.pos.y + 1.2, KA.me.pos.z];
+      });
+    const posB = await tapHeard(B),
+      posA = await tapHeard(A);
+    await A.evaluate(
+      q => KA.meleeFx(new KA.THREE.Vector3(...q), new KA.THREE.Vector3(0, 0, -1), KA.MFX.CRACK),
+      posB
+    );
+    await B.evaluate(
+      q =>
+        KA.meleeFx(new KA.THREE.Vector3(...q), new KA.THREE.Vector3(0, 0, -1), KA.MFX.WORLD | KA.MFX.CHARGE),
+      posA
+    );
+    await A.waitForTimeout(900);
+    const untap = q =>
+      q.evaluate(() => {
+        KA.sfxTap(null);
+        return window.__mh;
+      });
+    const mhB = await untap(B),
+      mhA = await untap(A);
+    check(
+      mhB.includes("mhit") && mhB.includes("mcrack") && mhA.includes("cwall"),
+      "melee impacts are heard online: the host's by the friend, the friend's by the host",
+      { friend: mhB, host: mhA }
+    );
     await alive(B);
     await B.bringToFront();
     await B.mouse.click(640, 400);

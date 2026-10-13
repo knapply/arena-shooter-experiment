@@ -258,9 +258,10 @@
         if (H.ev.length > 8) H.ev.shift();
       }
     };
+    /* grenades, and melee impacts (yours and the AI's) so clients hear where a blow landed */
     H.onFx = function (k, a, b, g) {
-      if (k !== "nade") return;
-      H.fx.push([++H.fxS, "n", ...a, ...b, g | 0]);
+      if (k !== "nade" && k !== "mhit") return;
+      H.fx.push([++H.fxS, k === "nade" ? "n" : "m", ...a, ...b, g | 0]);
       if (H.fx.length > 4) H.fx.shift();
     };
     /** @returns {HostSnapshot} */
@@ -594,6 +595,10 @@
           const p = K.vec(f.slice(2, 5), new V3()),
             v = K.vec(f.slice(5, 8), new V3());
           if (p && v) K.remoteProjectile(f[8] | 0, p, v);
+        } else if (f[1] === "m") {
+          const p = K.vec(f.slice(2, 5), new V3()),
+            v = K.vec(f.slice(5, 8), new V3());
+          if (p && v) K.meleeImpact(p, v, (f[8] | 0) & 15);
         }
       }
       if (dth) {

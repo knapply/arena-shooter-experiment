@@ -246,11 +246,19 @@ function meleeHit(range, dmg, type) {
     }
     dealDamage(best, n, type, false);
     shakeT = Math.max(shakeT, 0.15);
-    sfx("land", 0.8);
+    /* the impact: a thud on armor, a crack if the shield broke, heavier for the kill from behind */
+    let fl = type === "charge" ? MFX.CHARGE : 0;
+    if (tsh > 0 && n >= tsh) fl |= MFX.CRACK;
+    if (type === "melee" && n >= MELEE_KILL) fl |= MFX.HEAVY;
+    meleeFx(meleeContact(me.pos, best.pos, _mlp), f, fl);
     return true;
   }
+  /* nobody in reach: a swing that meets a wall, cover or the floor clanks off it */
+  if (type === "melee" && meleeWorldHit(me, 2, _mlp, _mld)) meleeFx(_mlp, _mld, MFX.WORLD);
   return false;
 }
+const _mlp = new V3(),
+  _mld = new V3();
 function slamDamage(p) {
   for (const t of targets()) {
     const dd = t.pos.distanceTo(p);
