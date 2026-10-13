@@ -174,6 +174,9 @@ class Body {
     this.thrustBuf = 0;
     this.tuck = false;
     this.coyote = 0;
+    /** seconds since last on the ground, and whether this time in the air began with a jump or thrust */
+    this.airT = 0;
+    this.launched = false;
   }
   fwd() {
     return new V3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
@@ -215,6 +218,8 @@ class Body {
     this.crouchBuf -= dt;
     this.thrustBuf -= dt;
     this.coyote = this.ground ? 0.1 : this.coyote - dt;
+    this.airT = this.ground ? 0 : this.airT + dt;
+    if (this.ground) this.launched = false;
     const wish = this._w.set(0, 0, 0).addScaledVector(f, inp.f).addScaledVector(rt, inp.s);
     if (wish.lengthSq() > 1) wish.normalize();
     const canSprint = inp.sprint && inp.f > 0.3 && this.ground && this.slideT <= 0 && !inp.aim;
@@ -232,6 +237,7 @@ class Body {
       v.z = dir.z * TUNE.thrust;
       if (!this.ground) v.y = Math.max(v.y, 0);
       this.thrustT = 0.24;
+      this.launched = true;
       this.thrustCD = TUNE.thrustCD;
       this.sprint = false;
       this.sprintT = 0;
@@ -293,6 +299,7 @@ class Body {
       this.coyote = 0;
       v.y = TUNE.jump;
       this.ground = false;
+      this.launched = true;
       const slid = this.slideT > 0;
       this.slideT = 0;
       ev("jump", { slid });
@@ -375,7 +382,11 @@ class Body {
       (inp.f > 0.3 || (this.thrustT > 0 && wish.lengthSq() > 0.1)) &&
       this.pound === 0 &&
       !this.clamber &&
-      v.y < 6
+      v.y < 6 &&
+      /* walking off a step or down a flight of stairs leaves you in the air for a moment: that is not
+         a reason to clamber (the probe would see the step after next as a ledge). Clambering needs a
+         jump or thrust, or a real fall */
+      (this.launched || this.airT > 0.25)
     ) {
       const base = Math.atan2(
         -(wish.lengthSq() > 0.01 ? wish.x : f.x),
@@ -432,7 +443,7 @@ class Body {
         if (
           rise > 0 &&
           rise <= 0.46 &&
-          (this.ground || wasGround) &&
+          (this.ground || wasGround || (this.coyote > 0 && v.y <= 0)) &&
           freeAt(p.x, b.y1 + 0.001, p.z, this.h)
         ) {
           p.y = b.y1 + 0.001;

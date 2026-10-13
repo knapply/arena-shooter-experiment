@@ -331,7 +331,7 @@ function updPickups(dt) {
         v.label.userData.draw(txt, av ? "#9fe1ff" : "#7f939c");
       }
       const st = pkAnn.get(p.id) || { a: av, w: av };
-      if (playing && !demo) {
+      if (playing) {
         if (av && !st.a) {
           say(`${nm} has spawned`, true);
           sfx("stinger", 0.4);

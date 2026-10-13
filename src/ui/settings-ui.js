@@ -359,6 +359,15 @@ $("setSearch").addEventListener("input", () => {
   renderSettings();
 });
 $("openSet").onclick = () => openSettings("menu");
+/* the trailer is a recorded video (tools/record-trailer.js), not part of the game: served pages
+   play the copy next to index.html, a file opened from disk plays the published one */
+$("trailerBtn").onclick = () =>
+  window.open(
+    (location.protocol === "file:" ? "https://knapply.github.io/arena-shooter-experiment/" : "") +
+      "media/trailer.mp4",
+    "_blank",
+    "noopener"
+  );
 $("pauseSet").onclick = () => openSettings("pause");
 addEventListener("keydown", e => {
   if (e.code === "Escape" && !$("settings").hidden && !rebindCapture) {

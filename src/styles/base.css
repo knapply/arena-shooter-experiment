@@ -691,87 +691,6 @@ input[type="text"]:focus-visible {
   padding: 6px 10px;
 }
 
-/* tech demo */
-#demoUI {
-  position: fixed;
-  left: 16px;
-  right: 16px;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  display: flex;
-  pointer-events: none;
-}
-.dcap {
-  pointer-events: auto;
-  background: var(--slab);
-  max-width: 560px;
-  width: 100%;
-  padding: 14px 18px;
-  display: grid;
-  gap: 9px;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
-}
-.dprog {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 4px;
-}
-.dprog i {
-  height: 3px;
-  background: var(--line);
-  position: relative;
-  overflow: hidden;
-}
-.dprog i b {
-  position: absolute;
-  inset: 0;
-  background: var(--thrust);
-  transform-origin: left;
-  transform: scaleX(0);
-}
-.dhead {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-#dTitle {
-  margin: 0;
-  font-size: clamp(22px, 4vw, 30px);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  line-height: 1;
-  text-wrap: balance;
-}
-#dText {
-  margin: 0;
-  font-family: var(--f-mono);
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: var(--dim);
-  max-width: 60ch;
-}
-.dkeys {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-  font-family: var(--f-mono);
-  font-size: 11px;
-  color: var(--dim);
-}
-.dkeys kbd {
-  font-family: var(--f-mono);
-  color: var(--ink);
-  font-size: 11px;
-  background: #0007;
-  border: 1px solid var(--line);
-  padding: 1px 6px;
-}
-.dnav {
-  display: flex;
-  gap: 8px;
-}
 .dbtn {
   font: 600 11px var(--f-mono);
   letter-spacing: 0.12em;
@@ -787,28 +706,6 @@ input[type="text"]:focus-visible {
 }
 .dbtn:focus-visible {
   outline: 2px solid var(--thrust);
-}
-#hud.demo #xh,
-#hud.demo .vitals,
-#hud.demo .ammo,
-#hud.demo .status,
-#hud.demo #feed,
-#hud.demo #hitm {
-  display: none;
-}
-#hud.demo .kit {
-  display: flex;
-  top: calc(16px + env(safe-area-inset-top, 0px));
-  bottom: auto;
-  flex-wrap: wrap;
-  justify-content: center;
-  width: max-content;
-  max-width: calc(100% - 32px);
-}
-#hud.demo #medals {
-  bottom: auto;
-  top: calc(64px + env(safe-area-inset-top, 0px));
-  left: 16px;
 }
 #dfade {
   position: fixed;
@@ -1011,9 +908,6 @@ input[type="text"]:focus-visible {
   width: 110px;
   height: 110px;
   pointer-events: none;
-}
-#hud.demo #tracker {
-  display: none;
 }
 
 /* pings (ui/pings.js) */

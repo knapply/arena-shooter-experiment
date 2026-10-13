@@ -95,3 +95,16 @@ body.replaying #dead,
 body.replaying #xh {
   visibility: hidden;
 }
+
+/* riding a drop pod down: no HUD at all (reticle included), just the hint to steer or skip */
+body.podding #hud,
+body.podding #ctfHud,
+body.podding #cMarks,
+body.podding #pings,
+body.podding #tracker,
+body.podding #xh {
+  visibility: hidden;
+}
+body.podding #toast {
+  visibility: visible;
+}
