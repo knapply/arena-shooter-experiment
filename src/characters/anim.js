@@ -109,7 +109,7 @@ const ANIM = (() => {
     return o;
   }
   function qnorm(q, o) {
-    const l = Math.hypot(q[o], q[o + 1], q[o + 2], q[o + 3]) || 1;
+    const l = Math.sqrt(q[o] * q[o] + q[o + 1] * q[o + 1] + q[o + 2] * q[o + 2] + q[o + 3] * q[o + 3]) || 1;
     q[o] /= l;
     q[o + 1] /= l;
     q[o + 2] /= l;
@@ -141,6 +141,11 @@ const ANIM = (() => {
     0.5 * (2 * p1 + (p2 - p0) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u2 + (3 * p1 - p0 - 3 * p2 + p3) * u3);
   const _s = new Float32Array(4);
   /** add clip c at x (a phase 0..1 for loops, seconds for one-shots) with weight w into acc */
+  /* (helpers outside the hot loop, so posing allocates nothing) */
+  const keyOf = (j, n, loop) => (loop ? ((j % n) + n) % n : clamp(j, 0, n - 1)) * ST;
+  const side = (d, a, b) =>
+    d[a] * d[b] + d[a + 1] * d[b + 1] + d[a + 2] * d[b + 2] + d[a + 3] * d[b + 3] < 0 ? -1 : 1;
+  /* (no Math.hypot in here: it allocates its arguments) */
   function sample(c, x, w, acc, loop) {
     const n = c.k,
       d = c.d;
@@ -151,29 +156,20 @@ const ANIM = (() => {
       u = f - i,
       u2 = u * u,
       u3 = u2 * u;
-    const key = j => (loop ? ((j % n) + n) % n : clamp(j, 0, n - 1)) * ST;
-    const k0 = key(i - 1),
-      k1 = key(i),
-      k2 = key(i + 1),
-      k3 = key(i + 2);
+    const k0 = keyOf(i - 1, n, loop),
+      k1 = keyOf(i, n, loop),
+      k2 = keyOf(i + 1, n, loop),
+      k3 = keyOf(i + 2, n, loop);
     for (let b = 0; b < NB; b++) {
       const o = b * 4;
       /* the loop's seam may cross hemispheres: align the neighbours to the middle key */
       const q1 = k1 + o;
-      const sg = kk =>
-        d[kk + o] * d[q1] +
-          d[kk + o + 1] * d[q1 + 1] +
-          d[kk + o + 2] * d[q1 + 2] +
-          d[kk + o + 3] * d[q1 + 3] <
-        0
-          ? -1
-          : 1;
-      const s0 = sg(k0),
-        s2 = sg(k2),
-        s3 = sg(k3);
+      const s0 = side(d, k0 + o, q1),
+        s2 = side(d, k2 + o, q1),
+        s3 = side(d, k3 + o, q1);
       for (let j = 0; j < 4; j++)
         _s[j] = cr(d[k0 + o + j] * s0, d[q1 + j], d[k2 + o + j] * s2, d[k3 + o + j] * s3, u, u2, u3);
-      const l = Math.hypot(_s[0], _s[1], _s[2], _s[3]) || 1;
+      const l = Math.sqrt(_s[0] * _s[0] + _s[1] * _s[1] + _s[2] * _s[2] + _s[3] * _s[3]) || 1;
       const sw =
         acc[o] * _s[0] + acc[o + 1] * _s[1] + acc[o + 2] * _s[2] + acc[o + 3] * _s[3] < 0 ? -w / l : w / l;
       for (let j = 0; j < 4; j++) acc[o + j] += _s[j] * sw;
@@ -206,7 +202,9 @@ const ANIM = (() => {
   function warp(c, u, d) {
     const W = c.w;
     if (!W || d >= 0.999) return u;
-    const [offL, onR, offR] = W;
+    const offL = W[0],
+      onR = W[1],
+      offR = W[2];
     const ex = (offL + offR - onR) * (1 - d) * 0.5;
     const a1 = offL * d,
       a2 = a1 + onR - offL + ex,
@@ -278,41 +276,41 @@ const ANIM = (() => {
   const speedOf = t => (typeof t.v === "string" ? TUNE[t.v] : t.v);
   /** the active clips for speed s, direction a (radians) and sprint weight, into B (clips, weights,
       reversed; B.n of them) */
+  function put(B, n, w, rev) {
+    B.c[B.n] = CL[n];
+    B.w[B.n] = w;
+    B.r[B.n++] = rev | 0;
+  }
+  function addTier(B, tier, w, a) {
+    if (w < 0.01) return;
+    const set = tier.set;
+    if (set.length === 1) return put(B, set[0][1], w, 0);
+    if (set.length === 2) {
+      const back = smooth(1.83, 2.27, Math.abs(a));
+      if (1 - back > 0.01) put(B, set[0][1], w * (1 - back), set[0][2]);
+      if (back > 0.01) put(B, set[1][1], w * back, set[1][2]);
+      return;
+    }
+    for (let i = 0; i < set.length; i++) {
+      const ww = Math.max(0, 1 - Math.abs(wrap(a - (set[i][0] * Math.PI) / 180)) / (Math.PI / 2));
+      if (ww > 0.01) put(B, set[i][1], w * ww, set[i][2]);
+    }
+  }
   function weights(tiers, s, a, sprint, B) {
     B.n = 0;
-    const put = (n, w, rev) => {
-      B.c[B.n] = CL[n];
-      B.w[B.n] = w;
-      B.r[B.n++] = rev | 0;
-    };
-    const add = (tier, w) => {
-      if (w < 0.01) return;
-      const set = tier.set;
-      if (set.length === 1) return put(set[0][1], w, 0);
-      if (set.length === 2) {
-        const back = smooth(1.83, 2.27, Math.abs(a));
-        if (1 - back > 0.01) put(set[0][1], w * (1 - back), set[0][2]);
-        if (back > 0.01) put(set[1][1], w * back, set[1][2]);
-        return;
-      }
-      for (const [deg, n, rev] of set) {
-        const ww = Math.max(0, 1 - Math.abs(wrap(a - (deg * Math.PI) / 180)) / (Math.PI / 2));
-        if (ww > 0.01) put(n, w * ww, rev);
-      }
-    };
-    if (sprint > 0.01) add(T_SPRINT, sprint);
+    if (sprint > 0.01) addTier(B, T_SPRINT, sprint, a);
     const rest = 1 - sprint;
     let ti = 0;
     while (ti < tiers.length - 1 && s > speedOf(tiers[ti])) ti++;
     const v0 = speedOf(tiers[0]);
     /* below the first tier it blends from the idle (which the caller adds) */
-    if (s <= v0) add(tiers[0], rest * smooth(0.05, v0 * 0.7, s));
+    if (s <= v0) addTier(B, tiers[0], rest * smooth(0.05, v0 * 0.7, s), a);
     else {
       const lo = speedOf(tiers[ti - 1]),
         hi = speedOf(tiers[ti]);
       const k = clamp((s - lo) / (hi - lo), 0, 1);
-      add(tiers[ti - 1], rest * (1 - k));
-      add(tiers[ti], rest * k);
+      addTier(B, tiers[ti - 1], rest * (1 - k), a);
+      addTier(B, tiers[ti], rest * k, a);
     }
     return B;
   }
@@ -535,7 +533,9 @@ const ANIM = (() => {
     const dx = Math.sin(natA + L.hipYaw),
       dz = -Math.cos(natA + L.hipYaw);
     for (let s = 0; s < 2; s++) {
-      const [h, k, an] = LEG[s];
+      const h = LEG[s][0],
+        k = LEG[s][1],
+        an = LEG[s][2];
       const hp = _hip,
         o = s * 3;
       qrot(L.pelQ, 0, REST_HIP, o, hp, o);
@@ -605,7 +605,7 @@ const ANIM = (() => {
           /* how far the pose has moved away from the planted foot */
           const ex = F.lx - wx,
             ez = F.lz - wz,
-            dev = Math.hypot(ex, ez),
+            dev = Math.sqrt(ex * ex + ez * ez),
             twist = Math.abs(wrap(I.yaw - F.lyaw));
           const other = L.feet[1 - s];
           if (L.moving < 0.2 && (dev > 0.14 || twist > 0.6) && other.step < 0 && F.lw > 0.9) {
@@ -644,9 +644,9 @@ const ANIM = (() => {
       const ddx = _ank[o] - _hip[o],
         ddy = _ank[o + 1] - _hip[o + 1],
         ddz = _ank[o + 2] - _hip[o + 2];
-      const d = Math.hypot(ddx, ddy, ddz);
+      const d = Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz);
       if (d > REACH && mode === 0) {
-        const hz = Math.hypot(ddx, ddz);
+        const hz = Math.sqrt(ddx * ddx + ddz * ddz);
         /* how far down the hip must go for the foot to be in reach */
         const v = Math.sqrt(Math.max(0, REACH * REACH - hz * hz));
         need = Math.min(need, -(-ddy - v) * Math.min(1, L.contact[s] + 0.3));
@@ -710,7 +710,8 @@ const ANIM = (() => {
     qmul(_v, 0, _q, 12, SPQ, 8);
     /* ---- the arms' swing (hands in the chest's frame), for an arm that holds nothing ---- */
     for (let s = 0; s < 2; s++) {
-      const [sh, el] = ARM[s],
+      const sh = ARM[s][0],
+        el = ARM[s][1],
         o = s * 3,
         sd = s ? 1 : -1;
       qrot(P, sh * 4, DOWN_UA, 0, _v, 0);

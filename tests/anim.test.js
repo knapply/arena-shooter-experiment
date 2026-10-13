@@ -5,22 +5,21 @@
    clips of different cadences meet), so a lock never bends a leg far. Also times
    the animation cost per pilot. */
 const fs = require("fs"),
-  path = require("path"),
-  vm = require("vm");
+  path = require("path");
 const { check, finish } = require("./lib/check.js");
 const SRC = path.join(__dirname, "..", "src");
 const read = p => fs.readFileSync(path.join(SRC, p), "utf8");
 const tune = read("world/physics.js").match(/const TUNE_DEF = (\{[\s\S]*?\});/)[1];
-const ctx = vm.createContext({ atob, Math, Float32Array, Int16Array, Uint8Array, Array, Object });
-vm.runInContext(
-  "const clamp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst TUNE = " +
-    tune +
-    ";\n" +
-    read("data/anim-clips.js") +
-    "\n" +
-    read("characters/anim.js") +
-    "\nthis.ANIM = ANIM; this.TUNE = TUNE; this.ANIM_CLIPS = ANIM_CLIPS;",
-  ctx
+/* loaded the way the game runs it: one strict closure over the engine's shared scope */
+const ctx = (0, eval)(
+  [
+    "(() => { 'use strict';",
+    "const clamp = (v, a, b) => Math.max(a, Math.min(b, v));",
+    "const TUNE = " + tune + ";",
+    read("data/anim-clips.js"),
+    read("characters/anim.js"),
+    "return { ANIM, TUNE, ANIM_CLIPS }; })()",
+  ].join("\n")
 );
 const { ANIM, TUNE, ANIM_CLIPS } = ctx;
 const deg = r => (r * 180) / Math.PI;
@@ -216,6 +215,6 @@ for (const c of cases) {
     ANIM.update(L, I);
   }
   const us = Number(process.hrtime.bigint() - t0) / 1000 / N;
-  check(us < 50, "animation costs under 50 us per pilot per frame", `${fix(us, 2)} us`);
+  check(us < 20, "animation costs under 20 us per pilot per frame", `${fix(us, 2)} us`);
 }
 finish("anim");

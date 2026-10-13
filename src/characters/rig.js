@@ -468,14 +468,19 @@ function weaponMeshes(i, mats) {
       [...by].map(([role, list]) => [role, mergeGeos(list)])
     );
   }
+  /* one mesh per material; only the weapon's main body casts a shadow (the small parts' shadows
+     are lost inside the pilot's, and each would cost a shadow-pass draw per pilot) */
   const g = new THREE.Group();
-  for (const [role, gg] of WGEO.get(i)) {
+  WGEO.get(i).forEach(([role, gg], k) => {
     const m = new THREE.Mesh(gg, mats[role]);
-    m.castShadow = role !== GLOW;
+    m.castShadow = k === 0 && role !== GLOW;
+    m.userData.role = role;
     g.add(m);
-  }
+  });
   return g;
 }
+/* the carbine's grip with its magazine seated, merged: the loose magazine is only drawn mid-reload */
+let GRIP_MAG = null;
 function flagCloth(color) {
   const g = new THREE.PlaneGeometry(0.62, 0.4, 8, 3);
   g.translate(0.31, 0, 0);
@@ -605,7 +610,16 @@ function makePilot(color, label) {
     wmats[SUIT]
   );
   mag.position.copy(MAGSLOT);
+  mag.visible = false;
   wpnG[0].add(mag);
+  const grip = wpnG[0].children.find(m => m.userData.role === SUIT),
+    gripBase = grip.geometry;
+  if (!GRIP_MAG)
+    GRIP_MAG = mergeGeos([
+      [gripBase, new THREE.Matrix4()],
+      [mag.geometry, new THREE.Matrix4().makeTranslation(MAGSLOT.x, MAGSLOT.y, MAGSLOT.z)],
+    ]);
+  grip.geometry = GRIP_MAG;
   const flagG = weaponMeshes(4, wmats);
   flagG.visible = false;
   chest.add(flagG);
@@ -1158,6 +1172,7 @@ function makePilot(color, label) {
       }
       S.lastRS = rl >= 0 ? rl : -1;
       if (rl >= 0 && wp === 0) {
+        grip.geometry = gripBase;
         const inHand = magInHand(rl);
         mag.visible = !(rl >= RELOAD_T.out && rl < RELOAD_T.pouch);
         if (inHand) {
@@ -1176,7 +1191,8 @@ function makePilot(color, label) {
           ev = Object.assign(ev || {}, { magIn: true });
         S.lastR = rl;
       } else {
-        mag.visible = true;
+        grip.geometry = GRIP_MAG;
+        mag.visible = false;
         mag.position.copy(MAGSLOT);
         S.lastR = -1;
       }
