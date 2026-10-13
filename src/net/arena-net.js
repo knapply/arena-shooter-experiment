@@ -285,7 +285,8 @@ function applyPeer(pe) {
     } else if (f.k === "thrust" && a && b) {
       thrustPuff(a, b);
       sfxAt("thrust", a, 45, 0.8);
-    } else if (f.k === "pk" && ARENA_PICKS[f.g | 0]) ARENA_PICKS[f.g | 0].consume();
+    } else if (f.k === "mhit" && a && b) meleeImpact(a, b, (f.g | 0) & 15);
+    else if (f.k === "pk" && ARENA_PICKS[f.g | 0]) ARENA_PICKS[f.g | 0].consume();
     else if (f.k === "pod" && a && a.distanceTo(me.pos) < 300) r.pod = dropPod(a, color);
     /* they steered it: it lands somewhere else now */ else if (
       f.k === "podto" &&

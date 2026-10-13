@@ -19,7 +19,9 @@ let last = performance.now(),
   prevReload = 0,
   stepAcc = 0,
   camRoll = 0,
-  slideDustT = 0;
+  slideDustT = 0,
+  jetOn = false,
+  jetPuff = 0;
 function meEvent(type, d) {
   if (type === "thrust") {
     sfx("thrust");
@@ -73,14 +75,11 @@ function meEvent(type, d) {
   } else if (type === "clamber") {
     landDip = 0.12;
     sfx("clamber");
-  }
+  } else if (type === "bump") chargeWallFx(me, d);
 }
 function chargeCheck() {
   if (me.chargeT > 0) {
-    if (meleeHit(1.6, 85, "charge")) {
-      me.chargeT = 0;
-      sfx("slam", 0.5);
-    }
+    if (meleeHit(1.6, 85, "charge")) me.chargeT = 0;
   }
 }
 function myFeel(dt) {
@@ -94,6 +93,17 @@ function myFeel(dt) {
       if (me.sprint) dust(me.pos, 2, 0.6, 0.2, 0.25);
     }
   }
+  /* the suit's thrusters assist a sprint: a soft whoosh as it starts, quiet pulses while it lasts */
+  if (me.sprint && me.ground && !me.dead) {
+    if (!jetOn) {
+      jetOn = true;
+      jetPuff = 0.3;
+      sfx("jetstart", 0.45);
+    } else if ((jetPuff -= dt) <= 0) {
+      jetPuff = 0.34;
+      sfx("jet", 0.3);
+    }
+  } else jetOn = false;
   if (me.slideT > 0) {
     slideDustT -= dt;
     if (slideDustT <= 0) {
@@ -648,6 +658,7 @@ function meleeArc(rig) {
   }
 }
 function rigEvents(rig, ev) {
+  if (rig.jet > 0 || (rig.jetS && rig.jetS.on)) sprintJets(rig);
   if (!ev) return;
   const p = rig.root.position;
   if (ev.pop) {

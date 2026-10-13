@@ -180,6 +180,7 @@ const KA_API = {
   STORE,
   MSG,
   dealDamage,
+  meleeHit,
   fire,
   get bots() {
     return bots;
@@ -195,6 +196,13 @@ const KA_API = {
   tracer,
   spark,
   thrustPuff,
+  MFX,
+  meleeFx,
+  meleeImpact,
+  meleeSound,
+  meleeWorldHit,
+  meleeContact,
+  chargeWallFx,
   dust,
   shock,
   shieldPop,

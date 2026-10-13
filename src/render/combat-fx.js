@@ -43,8 +43,19 @@ function dynLight(p, color, intensity, life, range = 9) {
 /* ---- heat haze: sources for this frame, read by the composite pass ---- */
 /** a heat source: for one frame (life 0), or fading over life seconds */
 function heatAt(p, r, k = 1, life = 0) {
-  if (SET.fxDetail === "ultra" && CFX.heat.length < 12)
-    CFX.heat.push({ p: p.clone(), r, k, life, max: life });
+  if (SET.fxDetail !== "ultra" || CFX.heat.length >= 12) return;
+  const h = HEAT_POOL.pop() || { p: new THREE.Vector3(), r, k, life, max: life };
+  h.p.copy(p);
+  h.r = r;
+  h.k = k;
+  h.life = h.max = life;
+  CFX.heat.push(h);
+}
+/** used sources, reused so one-frame sources (sprint exhaust) allocate nothing */
+const HEAT_POOL = [];
+function heatDone(i) {
+  HEAT_POOL.push(CFX.heat[i]);
+  CFX.heat.splice(i, 1);
 }
 /* ---- shell casings and explosion debris: small things that tumble, bounce and settle, each kind
    one instanced mesh (one draw call however many are flying) ---- */
@@ -332,6 +343,138 @@ function blastFx(p, color, r) {
     }
   }
 }
+/* ---- melee impacts: what a blow or a charge sounds and looks like where it lands ----
+   Whoever's game decides the blow (you, or the AI on the machine running it) calls meleeFx with the
+   contact point, the swing direction and MFX flags; it plays here and goes to the room as an "mhit"
+   fx, so everyone nearby hears it from where it landed. A whiff keeps the swing sound alone. */
+const MFX = { WORLD: 1, CHARGE: 2, CRACK: 4, HEAVY: 8 };
+/** the sound kind for a set of MFX flags */
+function meleeSound(f) {
+  if (f & MFX.WORLD) return f & MFX.CHARGE ? "cwall" : "mwall";
+  return f & MFX.CHARGE ? "chit" : f & MFX.HEAVY ? "mkill" : "mhit";
+}
+function meleeImpact(p, dir, f) {
+  const charge = f & MFX.CHARGE;
+  sfxAt(meleeSound(f), p, charge ? 48 : 40, 1);
+  if (f & MFX.CRACK && !(f & MFX.WORLD)) sfxAt("mcrack", p, 40, 0.9);
+  if (!(f & MFX.WORLD)) return;
+  /* sparks glance off the surface, with a puff of grit (Combat effects) */
+  const n = surfNormal(p, _cn) || _cn.copy(dir).multiplyScalar(-1),
+    dn = 2 * dir.dot(n);
+  for (let i = 0, k = pc(charge ? 9 : 6); i < k; i++) {
+    _cf.copy(dir).addScaledVector(n, -dn).multiplyScalar(rnd(2, 5));
+    _cf.x += rnd(-2, 2);
+    _cf.y += rnd(-0.5, 2.5);
+    _cf.z += rnd(-2, 2);
+    ptAdd(PTS.glow, p, _cf, rnd(0.04, 0.09), 0xffd08a, 1, rnd(0.12, 0.3), { g: 9 });
+  }
+  if (!fxOn()) return;
+  for (let i = 0, k = pc(charge ? 4 : 2); i < k; i++) {
+    _cf2.copy(n).multiplyScalar(rnd(0.4, 1.2));
+    _cf2.x += rnd(-0.4, 0.4);
+    _cf2.y += rnd(-0.6, 0.2);
+    _cf2.z += rnd(-0.4, 0.4);
+    ptAdd(
+      PTS.soft,
+      _cf.copy(p).addScaledVector(n, 0.08),
+      _cf2,
+      rnd(0.18, 0.3),
+      0x8a8178,
+      0.45,
+      rnd(0.5, 0.8),
+      {
+        grow: 1.8,
+        drag: 2.5,
+        g: 1.5,
+      }
+    );
+  }
+  /* a charge knocks a chip loose (toss keeps the vectors it is given) */
+  if (charge)
+    toss(chunks, p, new THREE.Vector3(n.x * 3, 2.5, n.z * 3), new THREE.Vector3(9, 6, -7), 1.2, 0.35, 14);
+}
+/** play a melee impact here and send it to the room */
+function meleeFx(p, dir, f) {
+  meleeImpact(p, dir, f);
+  emitFx("mhit", v3a(p), [r2(dir.x), r2(dir.y), r2(dir.z)], f);
+}
+const _mo = new THREE.Vector3(),
+  _md = new THREE.Vector3();
+/**
+ * where a blow from this body meets the world within reach, or null: a ray from the chest along the
+ * swing (looking down reaches the floor). Writes the point into out and the swing into dirOut.
+ */
+function meleeWorldHit(body, reach, out, dirOut) {
+  const pitch = clamp(body.pitch, -1.1, 0.6),
+    cp = Math.cos(pitch);
+  _md.set(-Math.sin(body.yaw) * cp, Math.sin(pitch), -Math.cos(body.yaw) * cp).normalize();
+  _mo.copy(body.pos);
+  _mo.y += body.h * 0.72;
+  const t = rayWorld(_mo, _md, reach);
+  if (dirOut) dirOut.copy(_md);
+  return t < reach ? out.copy(_mo).addScaledVector(_md, t) : null;
+}
+const _mc = new THREE.Vector3(),
+  _mcd = new THREE.Vector3();
+/** a body's physics bump (e: {ax, box}) while it charges: the shoulder meets the wall, heard and sent */
+function chargeWallFx(body, e) {
+  if (body.chargeT <= 0 || !e || !e.box) return;
+  const s = e.box[e.ax + "0"] > body.pos[e.ax] ? 1 : -1;
+  _mc.copy(body.pos);
+  _mc.y += body.h * 0.6;
+  _mc[e.ax] += s * R;
+  _mcd.set(0, 0, 0)[e.ax] = s;
+  meleeFx(_mc, _mcd, MFX.WORLD | MFX.CHARGE);
+}
+/** the point a blow lands on a pilot standing at `at`, struck from `from`: their chest, on your side */
+function meleeContact(from, at, out) {
+  out.set(from.x - at.x, 0, from.z - at.z);
+  const l = out.length();
+  if (l > 0.01) out.multiplyScalar(0.3 / l);
+  out.x += at.x;
+  out.z += at.z;
+  out.y = at.y + 1.2;
+  return out;
+}
+/* ---- sprint thrusters: a sprinting pilot's pack assists with a low burn (rig.jet, the glow is the
+   rig's own); here, exhaust sparks streaming back from the nozzles (Combat effects, within 60 m), a
+   breath of heat haze (Ultra) and a soft whoosh, louder as the sprint starts ---- */
+const _jw = new THREE.Vector3(),
+  _jv = new THREE.Vector3();
+function sprintJets(rig) {
+  const J = rig.jetS || (rig.jetS = { on: false, t: now, puff: 0, acc: 0, side: 0 });
+  const dt = clamp(now - J.t, 0, 0.1),
+    k = rig.jet;
+  J.t = now;
+  if (k <= 0) {
+    J.on = false;
+    return;
+  }
+  const p = rig.root.position;
+  if (!J.on) {
+    J.on = true;
+    J.puff = 0.3;
+    sfxAt("jetstart", p, 30, 0.3 + 0.4 * k);
+  } else if ((J.puff -= dt) <= 0) {
+    J.puff = 0.34;
+    sfxAt("jet", p, 22, 0.5 + 0.3 * k);
+  }
+  const d2 = p.distanceToSquared(camera.position);
+  if (d2 > 3600 || !fxOn()) return;
+  J.acc = Math.min(J.acc + dt * 36 * k * SET.particles, 4);
+  const yaw = rig.root.rotation.y,
+    bx = Math.sin(yaw),
+    bz = Math.cos(yaw);
+  while (J.acc >= 1) {
+    J.acc--;
+    rig.jets[(J.side ^= 1)].getWorldPosition(_jw);
+    _jv.set(bx * rnd(1.5, 3) + rnd(-0.3, 0.3), rnd(-2.2, -1), bz * rnd(1.5, 3) + rnd(-0.3, 0.3));
+    ptAdd(PTS.glow, _jw, _jv, rnd(0.07, 0.14), 0xa8dcff, 0.85, rnd(0.1, 0.2), { drag: 3, grow: -0.3 });
+  }
+  /* a faint shimmer behind the pack, never crowding out explosions' haze */
+  if (d2 < 900 && CFX.heat.length < 3)
+    heatAt(_jw.set(p.x + bx * 0.45, p.y + 1, p.z + bz * 0.45), 0.35, 0.3 * k);
+}
 function updCombatFx(dt) {
   CFX.t += dt;
   decals.mesh.material.uniforms.uT.value = CFX.t;
@@ -348,7 +491,7 @@ function updCombatFx(dt) {
   updTumblers(chunks, dt);
   for (let i = CFX.heat.length - 1; i >= 0; i--) {
     const h = CFX.heat[i];
-    if (h.max && (h.life -= dt) <= 0) CFX.heat.splice(i, 1);
+    if (h.max && (h.life -= dt) <= 0) heatDone(i);
   }
 }
 onFrame(updCombatFx, { menu: true, full: true });
@@ -368,7 +511,7 @@ function heatUniforms() {
         HEAT_U[n++].set(_cf.x * 0.5 + 0.5, _cf.y * 0.5 + 0.5, (h.r / (d * tanY)) * 0.5, h.k * k);
       }
     }
-    if (!h.max) CFX.heat.splice(i, 1);
+    if (!h.max) heatDone(i);
   }
   for (let i = n; i < 6; i++) HEAT_U[i].set(0, 0, 0, 0);
   return n;
