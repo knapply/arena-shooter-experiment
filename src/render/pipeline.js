@@ -15,7 +15,8 @@ const GFX = {
   lastKey: "",
   b3: null,
   b4: null,
-  /* half-resolution occlusion (ao1, ao2), quarter-resolution light shafts (sh) */
+  /* half-resolution occlusion (ao1, ao2) and wet-floor reflections (ssr), quarter-resolution light shafts (sh) */
+  ssr: null,
   ao1: null,
   ao2: null,
   sh: null,
@@ -126,8 +127,35 @@ const shaftMat = new THREE.ShaderMaterial({
   depthWrite: false,
   fragmentShader: `uniform sampler2D t;uniform vec2 sunUv;uniform float vis;varying vec2 vUv;
 void main(){vec2 st=(sunUv-vUv)/36.;vec2 uv=vUv;vec3 acc=vec3(0.);float dec=1.;
-for(int i=0;i<36;i++){vec4 s=texture2D(t,uv);acc+=min(max(s.rgb-.3,0.),vec3(6.))*(1.-clamp(s.a,0.,1.))*dec;dec*=.97;uv+=st;}
+for(int i=0;i<36;i++){vec4 s=texture2D(t,uv);acc+=min(max(s.rgb-.3,0.),vec3(6.))*(1.-smoothstep(0.,.2,s.a))*dec;dec*=.97;uv+=st;}
 gl_FragColor=vec4(acc*vis/36.,1.);}`,
+});
+/* screen-space reflections on wet floor (Ultra): the floor shader leaves its wetness in the scene's
+   alpha; each wet pixel marches its reflected view ray through the depth buffer and takes the color it
+   hits, fading at the screen's edges */
+const ssrMat = new THREE.ShaderMaterial({
+  uniforms: {
+    tS: { value: null },
+    tD: { value: null },
+    clip: { value: new THREE.Vector2(0.1, 500) },
+    proj: { value: new THREE.Vector2(1, 1) },
+    pm: { value: new THREE.Matrix4() },
+    upV: { value: new THREE.Vector3() },
+  },
+  vertexShader: FSV,
+  depthTest: false,
+  depthWrite: false,
+  fragmentShader: `uniform sampler2D tS;uniform mat4 pm;uniform vec3 upV;varying vec2 vUv;${VIEWPOS}
+void main(){float a=texture2D(tS,vUv).a;float w=clamp((1.-a)*2.,0.,1.);
+if(a<.25||w<.05){gl_FragColor=vec4(0.);return;}
+vec3 P=vp(vUv);vec3 V=normalize(P);vec3 R=reflect(V,upV);
+float fres=.06+.94*pow(1.-max(dot(-V,upV),0.),5.);
+float st=.18-P.z*.015;vec3 Q=P+R*st*fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));vec3 hit=vec3(0.);float found=0.;
+for(int i=0;i<32;i++){Q+=R*st;st*=1.1;vec4 c=pm*vec4(Q,1.);vec2 uv=c.xy/c.w*.5+.5;
+if(uv.x<0.||uv.x>1.||uv.y<0.||uv.y>1.||Q.z>-.05)break;
+float dz=-Q.z-lz(uv);
+if(dz>0.&&dz<st*2.5+.15){hit=texture2D(tS,uv).rgb;vec2 e=abs(uv-.5)*2.;found=(1.-smoothstep(.8,1.,max(e.x,e.y)))*(1.-float(i)/32.);break;}}
+gl_FragColor=vec4(min(hit,vec3(8.))*found*w*fres,1.);}`,
 });
 /* each map's own color mood, applied after tone mapping: shadow tint (lift), highlight tint (gain),
    vibrance. Picked by whichever map group is showing (MAP_GROUPS, world/bake.js). */
@@ -163,6 +191,8 @@ const compMat = new THREE.ShaderMaterial({
     /* ambient occlusion, light shafts and the map's grade */
     tA: { value: null },
     aoK: { value: 0 },
+    tR: { value: null },
+    ssrK: { value: 0 },
     tSh: { value: null },
     shaftK: { value: 0 },
     gOn: { value: 0 },
@@ -173,7 +203,7 @@ const compMat = new THREE.ShaderMaterial({
   fragmentShader: [
     "uniform sampler2D tS;uniform sampler2D tB;uniform vec2 texel;uniform float fx;uniform float sharp;uniform float bloom;uniform float expo;uniform float sat;uniform float vig;uniform float grain;uniform float time;varying vec2 vUv;",
     "uniform float cine;uniform sampler2D tF;uniform float grade;uniform float ca;uniform float streak;",
-    "uniform sampler2D tA;uniform float aoK;uniform sampler2D tSh;uniform float shaftK;uniform float gOn;uniform vec3 gLift;uniform vec3 gGain;uniform float gVib;",
+    "uniform sampler2D tR;uniform float ssrK;uniform sampler2D tA;uniform float aoK;uniform sampler2D tSh;uniform float shaftK;uniform float gOn;uniform vec3 gLift;uniform vec3 gGain;uniform float gVib;",
     DOF_COC,
     "vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}",
     "float luma(vec3 c){return dot(c,vec3(.299,.587,.114));}",
@@ -196,6 +226,7 @@ const compMat = new THREE.ShaderMaterial({
     " }",
     /* occlusion darkens everything but what glows */
     " if(aoK>0.){float a=texture2D(tA,uv).r;c*=mix(1.,a,aoK*(1.-smoothstep(.75,1.,luma(c))));}",
+    " if(ssrK>0.)c+=aces(texture2D(tR,uv).rgb*expo)*ssrK;",
     " if(shaftK>0.)c+=aces(texture2D(tSh,uv).rgb*expo)*vec3(1.,.86,.66)*shaftK;",
     " c+=aces(texture2D(tB,uv).rgb*expo)*bloom;",
     " float l=luma(c);c=max(mix(vec3(l),c,sat),0.);",
@@ -224,9 +255,10 @@ function gfxResize() {
   const msaa = SET.aa === "msaa" && GFX.webgl2 && THREE.WebGLMultisampleRenderTarget;
   const wantDof = !!(GFX.look && GFX.look.dof > 0) && GFX.webgl2;
   const wantAo = SET.ao === "ssao" && GFX.webgl2,
-    wantSh = !!SET.lightShafts;
+    wantSh = !!SET.lightShafts,
+    wantSsr = SET.reflections === "ssr" && GFX.webgl2;
   /* the scene's depth as a texture (depth of field, occlusion); WebGL2 resolves it from MSAA too */
-  const wantDepth = wantDof || wantAo;
+  const wantDepth = wantDof || wantAo || wantSsr;
   const key =
     w +
     "x" +
@@ -235,10 +267,11 @@ function gfxResize() {
     (SET.bloom > 0 ? "b" : "") +
     (wantDof ? "d" : "") +
     (wantAo ? "a" : "") +
-    (wantSh ? "s" : "");
+    (wantSh ? "s" : "") +
+    (wantSsr ? "r" : "");
   if (key === GFX.lastKey && GFX.rt) return;
   GFX.lastKey = key;
-  for (const k of ["rt", "b1", "b2", "b3", "b4", "ao1", "ao2", "sh"])
+  for (const k of ["rt", "b1", "b2", "b3", "b4", "ao1", "ao2", "sh", "ssr"])
     if (GFX[k]) {
       GFX[k].dispose();
       GFX[k] = null;
@@ -271,6 +304,7 @@ function gfxResize() {
       GFX.ao2 = new THREE.WebGLRenderTarget(Math.max(1, w >> 1), Math.max(1, h >> 1), ao);
     }
     if (wantSh) GFX.sh = new THREE.WebGLRenderTarget(bw, bh, bo);
+    if (wantSsr) GFX.ssr = new THREE.WebGLRenderTarget(Math.max(1, w >> 1), Math.max(1, h >> 1), bo);
     if (wantDof) {
       const fw = Math.max(1, w >> 1),
         fh = Math.max(1, h >> 1);
@@ -340,6 +374,22 @@ function renderFrame() {
       U.aoK.value = 0.85;
       if (GPUQ) GPUQ.end();
     }
+    U.ssrK.value = 0;
+    if (GFX.ssr && GFX.rt.depthTexture) {
+      if (GPUQ) GPUQ.begin("ssr");
+      const tanY = Math.tan((camera.fov * Math.PI) / 360),
+        M = ssrMat.uniforms;
+      M.tS.value = GFX.rt.texture;
+      M.tD.value = GFX.rt.depthTexture;
+      M.clip.value.set(camera.near, camera.far);
+      M.proj.value.set(tanY * camera.aspect, tanY);
+      M.pm.value.copy(camera.projectionMatrix);
+      M.upV.value.set(0, 1, 0).transformDirection(camera.matrixWorldInverse);
+      fsPass(ssrMat, GFX.ssr);
+      U.tR.value = GFX.ssr.texture;
+      U.ssrK.value = 0.9;
+      if (GPUQ) GPUQ.end();
+    }
     /* light shafts: only while the sun is in front of the camera */
     U.shaftK.value = 0;
     if (GFX.sh) {
@@ -362,9 +412,13 @@ function renderFrame() {
         }
       }
     }
-    /* the showing map's grade */
-    const mg = SET.grade && !GFX.look && MAP_GROUPS.find(m => m.g.visible && m.g.parent),
-      gr = mg && MAP_GRADE[mg.id];
+    /* the showing map: its markings and its grade */
+    const cur = MAP_GROUPS.find(m => m.g.visible && m.g.parent);
+    if (cur && cur.mark) {
+      SURF_U.surfMark.value = cur.mark.tex;
+      SURF_U.surfMarkB.value.copy(cur.mark.b);
+    }
+    const gr = SET.grade && !GFX.look && cur && MAP_GRADE[cur.id];
     U.gOn.value = gr ? 1 : 0;
     if (gr) {
       U.gLift.value.fromArray(gr.lift);
@@ -622,7 +676,8 @@ function detailMat(m) {
   applyDetail(m);
 }
 function applyDetail(m) {
-  const on = SET.textures === "high";
+  /* map materials draw their panels procedurally (render/surfaces.js) */
+  const on = SET.textures === "high" && !m.userData.surf;
   m.map = on ? DETAIL.map : null;
   m.normalMap = on ? DETAIL.nmap : null;
   m.normalScale && m.normalScale.set(0.6, 0.6);

@@ -101,7 +101,7 @@ function bakeBoxGeo(m, cell, keepBottom) {
 }
 /** before merging: world-space gridded faces for static boxes, and the strips that light them */
 function bakePrep(group, solids, doc) {
-  MAP_GROUPS.push({ g: group, id: doc.id });
+  MAP_GROUPS.push({ g: group, id: doc.id, mark: bakeMarkings(doc, solids) });
   const destr = new Set(DESTR.all.map(b => b.mesh));
   const floorTop = new Set(solids.filter(b => b.mat === "floor").map(b => Math.round(b.y1 * 20)));
   BAKE.lights = [];
@@ -143,7 +143,14 @@ function bakePrep(group, solids, doc) {
     m.scale.set(1, 1, 1);
     m.updateMatrix();
   }
-  for (const m of group.children) if (m.isMesh && m.material.isMeshStandardMaterial) surfMat(m.material);
+  for (const m of group.children)
+    if (
+      m.isMesh &&
+      m.material.isMeshStandardMaterial &&
+      m.material !== MATS.cover &&
+      !m.material.userData.detail
+    )
+      surfMat(m.material);
 }
 /** a broad-phase grid over boxes, 4 m cells, each box listed in every cell within `pad` of it */
 function boxGrid(boxes, pad) {
@@ -247,9 +254,11 @@ function bakeLight(group, solids) {
         g += l.c[1] * f;
         bl += l.c[2] * f;
       }
-      out[i * 4] = r * 0.6;
-      out[i * 4 + 1] = g * 0.6;
-      out[i * 4 + 2] = bl * 0.6;
+      /* bright enough to tint, never enough to look lit from inside */
+      const s = 0.6 * Math.min(1, 0.7 / Math.max(0.001, Math.max(r, g, bl) * 0.6));
+      out[i * 4] = r * s;
+      out[i * 4 + 1] = g * s;
+      out[i * 4 + 2] = bl * s;
       out[i * 4 + 3] = ao;
     }
     m.geometry.setAttribute("bake", new THREE.BufferAttribute(out, 4));
