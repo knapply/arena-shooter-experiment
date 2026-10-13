@@ -12,6 +12,7 @@ function fxGet(key, make) {
   const o = p.length ? p.pop() : make();
   o.visible = true;
   scene.add(o);
+  REC.proj(o, key);
   return o;
 }
 function fxKill(i) {
@@ -200,6 +201,11 @@ function tracer(a, b, color, life) {
   m.scale.set(1, 1, _fx.length());
   m.lookAt(b);
   fxPush({ m, key: "tr", life, max: life, fade: true });
+  /* recorded for replays; while one plays, live shots elsewhere stay out of the picture */
+  if (!REC.muted) {
+    REC.fx(REC.TRACER, a, b, color);
+    if (REPLAY.active) m.visible = false;
+  }
   /* muzzle light, casing, the hole and the sparks off the wall (render/combat-fx.js) */
   onShotFx(a, b);
 }
@@ -266,6 +272,7 @@ function ring(p, color, size) {
   fxPush({ m, key: "rg", life: 0.5, max: 0.5, fade: true, ring: size || 6 });
 }
 function shock(p) {
+  REC.fx(REC.SHOCK, p);
   ring(p, 0xffb347, 6);
   spark(
     _fx
@@ -283,6 +290,7 @@ const flashMat = new THREE.SpriteMaterial({
   depthWrite: false,
 });
 function blast(p, color, r) {
+  REC.fx(REC.BLAST, p, _fx.set(r, 0, 0), color);
   const s = fxGet("fl", () => new THREE.Sprite(flashMat.clone()));
   s.material.color.setHex(color);
   s.position.copy(p);

@@ -1,5 +1,7 @@
 /* ============ viewmodel animation ============ */
 function updVM(dt, c) {
+  /* while a replay plays, it poses the viewmodel from the recording (game/replay.js) */
+  if (REPLAY.active && !c.replay) return;
   const k = 1 - Math.exp(-16 * dt),
     kf = 1 - Math.exp(-24 * dt);
   const V = VMW[wi],

@@ -334,7 +334,7 @@ function frameBody(t) {
   if (me.dead) {
     if (myPod) {
       /* riding the drop pod down; Jump, Fire or Melee skips the pod camera */
-      if (!myPod.skip && (P("jump") || P("fire") || P("melee"))) skipPodCam(myPod);
+      if (!myPod.skip && !REPLAY.active && (P("jump") || P("fire") || P("melee"))) skipPodCam(myPod);
       /* move (keys or stick) steers where it lands, relative to where you look */
       const fw = clamp(
           (A("forward") ? 1 : 0) - (A("back") ? 1 : 0) + touch.f - (pad.on ? GP.ax[1] : 0),

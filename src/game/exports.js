@@ -152,6 +152,7 @@ const KA_API = {
   HL,
   playOfTheGame,
   REPLAY,
+  KILLCAM,
   CINE,
   MODE_DATA,
   AI_SKILL,
