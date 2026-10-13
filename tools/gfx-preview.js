@@ -4,6 +4,7 @@
    --hw     use the machine's GPU instead of software WebGL (also reports GPU time per pass when the
             browser exposes timer queries)
    --fx     fire a burst and set off an explosion in front of the camera before each shot
+   --pilot  put a pilot 3.5 m in front of the camera, its shield just hit
    --cmd=c  run a developer console command first (e.g. --cmd="bake on")
    --only=v only the views whose name contains v
    Writes <outDir>/<preset>-<view>.png (default tools/out/) and prints draw calls per view. */
@@ -102,7 +103,30 @@ const VIEWS = [
             0xffd28a
           );
       });
-    if (flags.has("--fx")) await p.waitForTimeout(hw ? 120 : 400);
+    if (flags.has("--pilot"))
+      await p.evaluate(() => {
+        const K = KA;
+        let q = K.pilotById("actor:look");
+        if (!q) {
+          q = K.addPilot(new K.Pilot({ id: "actor:look", name: "", color: "#ff6a5c", ctl: "script" }));
+          q.rig.showTag(false);
+        }
+        const c = K.camera.getWorldPosition(new K.THREE.Vector3()),
+          d = K.camera.getWorldDirection(new K.THREE.Vector3());
+        d.y = 0;
+        d.normalize();
+        q.body.pos.set(
+          c.x + d.x * 2.2,
+          K.groundBelow(c.x + d.x * 2.2, c.z + d.z * 2.2, c.y),
+          c.z + d.z * 2.2
+        );
+        q.body.yaw = Math.atan2(d.x, d.z) + 0.5;
+        for (let i = 0; i < 60; i++) q.pose(1 / 60, { wpn: 1 });
+        q.rig.flashHit(c, "body");
+        for (let i = 0; i < 6; i++) q.pose(1 / 60, { wpn: 1 });
+        K.CON.run("timescale 0");
+      });
+    if (flags.has("--fx") || flags.has("--pilot")) await p.waitForTimeout(hw ? 120 : 400);
     const file = path.join(OUT, `${preset}-${name}.png`);
     await p.screenshot({ path: file });
     const info = await p.evaluate(() => ({

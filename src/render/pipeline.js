@@ -163,6 +163,8 @@ const MAP_GRADE = {
   arena: { lift: [-0.012, 0.008, 0.03], gain: [1.05, 1.0, 0.94], vib: 0.18 },
   "twin-foundry": { lift: [0.018, -0.004, 0.04], gain: [1.06, 0.98, 0.9], vib: 0.22 },
 };
+/* heat haze sources for the composite pass, filled by heatUniforms (render/combat-fx.js) */
+const HEAT_U = Array.from({ length: 6 }, () => new THREE.Vector4());
 const compMat = new THREE.ShaderMaterial({
   depthTest: false,
   depthWrite: false,
@@ -199,11 +201,16 @@ const compMat = new THREE.ShaderMaterial({
     gLift: { value: new THREE.Vector3() },
     gGain: { value: new THREE.Vector3(1, 1, 1) },
     gVib: { value: 0 },
+    /* heat haze: up to six sources (screen uv, radius, strength), see render/combat-fx.js */
+    heat: { value: HEAT_U },
+    heatN: { value: 0 },
+    hT: { value: 0 },
+    aspect: { value: 1 },
   },
   fragmentShader: [
     "uniform sampler2D tS;uniform sampler2D tB;uniform vec2 texel;uniform float fx;uniform float sharp;uniform float bloom;uniform float expo;uniform float sat;uniform float vig;uniform float grain;uniform float time;varying vec2 vUv;",
     "uniform float cine;uniform sampler2D tF;uniform float grade;uniform float ca;uniform float streak;",
-    "uniform sampler2D tR;uniform float ssrK;uniform sampler2D tA;uniform float aoK;uniform sampler2D tSh;uniform float shaftK;uniform float gOn;uniform vec3 gLift;uniform vec3 gGain;uniform float gVib;",
+    "uniform vec4 heat[6];uniform float heatN;uniform float hT;uniform float aspect;uniform sampler2D tR;uniform float ssrK;uniform sampler2D tA;uniform float aoK;uniform sampler2D tSh;uniform float shaftK;uniform float gOn;uniform vec3 gLift;uniform vec3 gGain;uniform float gVib;",
     DOF_COC,
     "vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}",
     "float luma(vec3 c){return dot(c,vec3(.299,.587,.114));}",
@@ -213,7 +220,9 @@ const compMat = new THREE.ShaderMaterial({
     " vec2 d=vec2(-((lnw+lne)-(lsw+lse)),(lnw+lsw)-(lne+lse));float red=max((lnw+lne+lsw+lse)*.03125,.0078125);float rcp=1./(min(abs(d.x),abs(d.y))+red);",
     " d=clamp(d*rcp,vec2(-8.),vec2(8.))*texel;vec3 a=.5*(S(uv+d*(-1./6.))+S(uv+d*(1./6.)));vec3 b=a*.5+.25*(S(uv-d*.5)+S(uv+d*.5));float lb=luma(b);",
     " if(lb<lmin||lb>lmax)return a;return b;}",
-    "void main(){vec2 uv=vUv;vec3 c=fx>.5?fxaa(uv):S(uv);",
+    "void main(){vec2 uv=vUv;",
+    " if(heatN>0.)for(int i=0;i<6;i++){vec4 h=heat[i];if(h.w<=0.)continue;vec2 d=(uv-h.xy)*vec2(aspect,1.);float f=h.w*(1.-smoothstep(0.,h.z,length(d)));uv+=f*.004*vec2(sin(uv.y*140.+hT*31.+float(i)),cos(uv.x*120.-hT*27.));}",
+    " vec3 c=fx>.5?fxaa(uv):S(uv);",
     " if(sharp>.001){vec3 n=S(uv-vec2(0.,texel.y)),s=S(uv+vec2(0.,texel.y)),e=S(uv+vec2(texel.x,0.)),w=S(uv-vec2(texel.x,0.));vec3 mn=min(c,min(min(n,s),min(e,w))),mx=max(c,max(max(n,s),max(e,w)));c=clamp(c+(4.*c-n-s-e-w)*sharp*.3,mn,mx);}",
     " vec2 q=uv-.5;",
     " if(cine>.5){",
@@ -480,6 +489,9 @@ function renderFrame() {
     const up = gfxScale() < 0.97;
     U.sharp.value = SET.sharpen * (up ? 1.3 : 1);
     U.time.value = (U.time.value + 0.0173) % 1;
+    U.heatN.value = SET.fxDetail === "ultra" && !L ? heatUniforms() : (CFX.heat.length = 0);
+    U.hT.value = CFX.t;
+    U.aspect.value = GFX.w / GFX.h;
     fsPass(compMat, null);
     if (GPUQ) GPUQ.end();
     PERF.postCpu += performance.now() - tp;

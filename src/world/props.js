@@ -13,7 +13,7 @@ const PROP_MATS = {
   pipe: new THREE.MeshStandardMaterial({ color: "#5b6168", roughness: 0.38, metalness: 0.8 }),
   pipe2: new THREE.MeshStandardMaterial({ color: "#7a5a3a", roughness: 0.45, metalness: 0.7 }),
   cable: new THREE.MeshStandardMaterial({ color: "#121518", roughness: 0.7, metalness: 0.1 }),
-  fan: new THREE.MeshStandardMaterial({ color: "#2a3036", roughness: 0.5, metalness: 0.6 }),
+  fan: new THREE.MeshStandardMaterial({ color: "#6a737b", roughness: 0.5, metalness: 0.6 }),
   beacon: new THREE.MeshBasicMaterial({ color: "#ff3b2a" }),
   holo: new THREE.ShaderMaterial({
     uniforms: { map: { value: null }, t: PROP_T },
@@ -300,7 +300,7 @@ function dressProps(doc, solids, rnd01, zoneMat, faceList) {
       boxAt(DRESS_MATS.vent, cx - nx * 0.04, y, cz - nz * 0.04, nx ? 0.04 : R * 2, R * 2, nx ? R * 2 : 0.04);
       const speed = (rnd01() < 0.5 ? -1 : 1) * (4 + rnd01() * 5);
       for (let k = 0; k < 5; k++) {
-        const g = new THREE.BoxGeometry(0.06, R * 1.8, 0.012);
+        const g = new THREE.BoxGeometry(0.16, R * 1.8, 0.012);
         g.deleteAttribute("uv");
         /* each blade a little twisted, around the fan's axis */
         g.applyMatrix4(new THREE.Matrix4().makeRotationY(0.5));

@@ -156,6 +156,8 @@ function tracer(a, b, color, life) {
   m.scale.set(1, 1, _fx.length());
   m.lookAt(b);
   fxPush({ m, key: "tr", life, max: life, fade: true });
+  /* muzzle light, casing, the hole and the sparks off the wall (render/combat-fx.js) */
+  onShotFx(a, b);
 }
 function spark(p, n = 1, color) {
   n = pc(n);
@@ -245,6 +247,8 @@ function blast(p, color, r) {
   ring(p, color, r * 1.2);
   spark(p, 12, color);
   dust(p, 10, 5, 2, 0.7);
+  /* fireball, smoke, debris, scorch, light and heat (render/combat-fx.js) */
+  blastFx(p, color, r);
 }
 const magGeo = new THREE.BoxGeometry(0.045, 0.14, 0.07),
   magMat = new THREE.MeshStandardMaterial({
