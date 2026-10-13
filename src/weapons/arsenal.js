@@ -21,9 +21,6 @@ const zoomK = () => {
 function showVM() {
   VMW.forEach((v, i) => (v.g.visible = i === wi));
   const V = VMW[wi];
-  if (flash.parent) flash.parent.remove(flash);
-  V.g.add(flash);
-  flash.position.copy(W().muzzle);
   if (flashSprite.parent) flashSprite.parent.remove(flashSprite);
   V.g.add(flashSprite);
   flashSprite.position.copy(W().muzzle);

@@ -8,7 +8,7 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 
 [![Kinetic Arena trailer](media/trailer-preview.gif)](https://knapply.github.io/arena-shooter-experiment/media/trailer.mp4)
 
-**🔊 [Watch the full trailer with sound](https://knapply.github.io/arena-shooter-experiment/media/trailer.mp4)** · every frame captured straight from the game engine, with an original soundtrack synthesized in the browser. Or press **Watch trailer** in the game menu to play it live.
+**🔊 [Watch the full trailer with sound](https://knapply.github.io/arena-shooter-experiment/media/trailer.mp4)** · every frame captured straight from the game engine, with an original soundtrack synthesized in the browser. The game menu's **Watch trailer** button plays the same video.
 
 ---
 
@@ -37,7 +37,7 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - **Shields and health:** recharging shields that flash on impact, with headshot rules that reward finishing cracked opponents
 - **Four weapons with fixed kill times:** a precision magnum (5-shot perfect kill in about a second), an automatic pulse carbine, and two power weapons, a sniper rifle and a rocket launcher, that take turns at the map's central power spawn. Precision weapons have no random spread
 - **Grenades:** bouncing frags and sticky plasmas
-- **Drop pods:** you respawn by falling 200 m out of the sky in a pod: its nose glows white-hot and it trails a re-entry burn of flame, embers and smoke that the whole map can see, then it slams into the ground, blows its doors off and lets you out (land on someone and they're done). The longer fall costs no extra time: the pod launches earlier, so you're back exactly as soon as before. Steer it a little on the way down to pick your landing spot (in CTF, only around your own base), or press Jump to skip the pod camera. Classic in-place spawns are one setting away
+- **Drop pods:** you respawn by falling 200 m out of the sky in a pod: its nose glows white-hot and it trails a re-entry burn of flame, embers and smoke that the whole map can see, then it slams into the ground, blows its doors off and lets you out (land on someone and they're done). The longer fall costs no extra time: the pod launches earlier, so you're back exactly as soon as before. Steer it a little on the way down to pick your landing spot (in CTF, only around your own base), or press Jump to skip the pod camera. The HUD and reticle stay out of the way until you land. Classic in-place spawns are one setting away
 - **Safe spawns:** every spawn point is scored against enemy sight lines, nearby enemies and fights in the last few seconds, so you don't appear in someone's crosshair. Spawn protection ends as soon as you fire
 - **Loot what falls:** the dead drop their weapon and grenades. Grenades and ammo for guns you already carry are picked up by walking over them; anything else is a manual pickup, so you choose what to carry
 - **Friendly fire, on by default:** teammates' rounds, rockets and grenades hurt you too, and a teamkill costs a point. Switch it off in the settings
@@ -67,10 +67,9 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - **Online play:** peer-to-peer rooms with a 5-character code or invite link, up to 8 players, with direct player-to-player links, smooth remote movement under real-world lag, and host migration
 - **Controller support:** Xbox-style controllers with remapping, aim assist, response curves and vibration
 - **Deep settings:** graphics presets plus 50+ individual options, full keyboard and controller rebinding, and export/import of settings as a file
-- **Cinematic trailer:** a 72-second in-engine trailer, built shot by shot: anamorphic letterbox, depth of field with rack focus, a split-tone grade, dusk and daylight lighting moods, speed ramps into slow motion and a frozen-time finale, all scored to an original synthesized soundtrack. Playable live from the menu
+- **Cinematic trailer:** a 72-second in-engine trailer, built shot by shot: anamorphic letterbox, depth of field with rack focus, a split-tone grade, dusk and daylight lighting moods, speed ramps into slow motion and a frozen-time finale, all scored to an original synthesized soundtrack. It is recorded from a separate trailer build, so none of it adds to the game's download
 - **Animation:** articulated 32-bone pilots (two-segment spine, clavicles, two-joint fingers and thumbs, toes, hip armor and a sprung antenna) with distance-synced strides, heel strike and toe-off, hip-led strafing and backpedaling, hands that close around whatever they hold, breathing and weight shifts at rest, feet that plant on stairs and ledges, spring-driven lean, landing compression, hit flinches, recoil and momentum-based death falls. Runs and sprints have a real flight phase (both feet off the ground), knee drive, heel kick and shoulders that counter-rotate against the hips. Jumps push off, tuck and reach for the ground. Other players visibly raise their guns to aim down sights, and reloads show the magazine out and in, a palm slap and the charging handle or slide racked
 - **Sci-fi maps with color-coded zones:** structural ribs, metal trims, vents, light bands and floor guide lights on every wall, contact shadows where walls meet the floor, composite crates and plated floors, under a ringed planet, a nebula and a lit megacity skyline. Each arena quadrant glows its own color, and team maps wear their team's color on each half, so you always know where you are. Dust drifts in the light, searchlights sweep the sky over the city, and the light strips breathe
-- **Movement tutorial:** a narrated, self-playing walkthrough of every movement and combat mechanic
 - **Procedural audio and announcer:** synthesized weapon and movement sounds, with spoken callouts using your browser's speech engine
 
 ## Game modes
@@ -81,7 +80,6 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 | **Capture the Flag** | 1–8 humans, 8 total | 4v4 on Twin Foundry. Bring the enemy flag to your stand while yours is home. First to 3 captures wins, with an 8-minute time limit. Humans take a bot's slot on their team. |
 | **AI vs AI** | Spectator | Two learning AI teams play CTF. Speed controls (1×/2×/4×), a director camera that varies its shots and slows down for captures and multikills, follow cameras, and a tactical camera you can turn and zoom (drag, wheel, pinch or controller). The intel panel shows each team's strategy odds and evolved play style. "Train 10 matches" runs headless matches in the background. |
 | **Trailer** | Spectator | A 72-second cinematic cut of the game: the squad burns in from orbit in drop pods, three rules of the arena, an action montage with the rocket launcher, a live AI capture-the-flag match and a frozen-time finale, synced to an original score. |
-| **Movement tutorial** | Spectator | A scripted walkthrough of every movement and combat mechanic, with the keys for each. |
 
 ## Playing with friends
 1. Open the game and click **Host a room**. You'll get a 5-character code.
@@ -182,7 +180,7 @@ CTF bots are built to be competitive, not scripted:
 - **Navigation:** grid A* pathfinding, built from the map and updated when cover is destroyed.
 
 ## Settings
-Settings are saved in your browser automatically and can be exported to or imported from a JSON file. The search box at the top finds any setting (or key binding) across every tab.
+Settings are saved in your browser automatically and can be exported to or imported from a JSON file. The search box at the top finds any setting (or key binding) across every tab, and every setting explains what it does and what it costs.
 
 - **Graphics:** quality presets (Low → Ultra), render scale, upscaling, dynamic resolution, frame rate target, anti-aliasing (FXAA / MSAA), sharpening, reflections, shadows, bloom, surface detail, texture filtering, particles, draw distance, brightness, saturation, vignette, film grain, field of view, FPS counter, performance overlay, network panel
 - **Mouse:** sensitivity, aiming sensitivity, invert Y, smoothing, raw input, hold/toggle for sprint, crouch and aim
@@ -237,7 +235,6 @@ External resources loaded at runtime:
 - Play of the Game is chosen on each player's machine from what it saw, so two players can occasionally see different picks.
 - After a CTF host migration, the AI continues with the new host's own learned data.
 - Background AI training needs the page served over http(s). From a file on disk it runs on the main thread between matches instead.
-- Opened from a file on disk, the trailer plays live rather than from the recorded video.
 - It's tuned for a small group. The maximum room size is 8.
 
 ## Development
@@ -281,7 +278,7 @@ THREE_PATH=three.min.js node tools/rig-preview.js gait    # contact sheet: a run
 THREE_PATH=three.min.js node tools/rig-preview.js poses   # idle, aiming down sights, melee, reload
 ```
 
-Working on the trailer:
+Working on the trailer (it lives in a separate build, `node build.mjs --trailer` → `out/trailer.html`, which these tools make for you):
 
 ```bash
 node tools/trailer-preview.js check                       # simulate the whole cut: wall bumps, camera clipping, event log

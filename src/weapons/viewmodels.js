@@ -192,9 +192,12 @@ function vmHand(side) {
 }
 const vmR = vmHand(1),
   vmL = vmHand(-1);
+/* the muzzle light rides on the camera, not the viewmodel: hiding the viewmodel (menu, death, scope)
+   would change the scene's light count, and every lit shader would recompile; it follows the flash
+   sprite each frame (game/loop.js) */
 const flash = new THREE.PointLight(0xffb347, 0, 6);
-flash.position.set(0, 0.01, -0.7);
-vmGun.add(flash);
+flash.position.set(0.2, -0.2, -0.9);
+camera.add(flash);
 const flashSprite = new THREE.Sprite(
   new THREE.SpriteMaterial({
     color: 0xffd28a,
@@ -333,4 +336,21 @@ function vmCarry(on) {
   vmFlag.visible = on;
   if (on) VMW.forEach(v => (v.g.visible = false));
   else showVM();
+}
+/* draw-call budget: each weapon's static parts merge into one mesh per material (about 30 calls
+   saved). The magazine stays its own mesh (the reload moves it); hands, sights and lenses are separate. */
+for (const V of VMW) {
+  const by = new Map();
+  for (const o of V.g.children) {
+    if (!o.isMesh || o === V.mag || !o.material.isMeshStandardMaterial) continue;
+    o.updateMatrix();
+    if (!by.has(o.material)) by.set(o.material, []);
+    by.get(o.material).push(o);
+  }
+  for (const [m, list] of by) {
+    if (list.length < 2) continue;
+    for (const o of list) V.g.remove(o);
+    V.g.add(new THREE.Mesh(mergeGeos(list.map(o => [o.geometry, o.matrix])), m));
+    for (const o of list) o.geometry.dispose();
+  }
 }

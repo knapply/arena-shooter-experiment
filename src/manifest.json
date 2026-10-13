@@ -1,12 +1,6 @@
 {
   "_comment": "Load order. Engine modules share one scope (concatenated inside a single strict-mode closure, in this order). Mode modules are self-contained closures that talk to the engine through window.KA.",
-  "styles": [
-    "styles/base.css",
-    "styles/ctf.css",
-    "styles/p2p.css",
-    "styles/trailer.css",
-    "styles/cinema.css"
-  ],
+  "styles": ["styles/base.css", "styles/ctf.css", "styles/p2p.css", "styles/cinema.css"],
   "engine": [
     "core/store.js",
     "core/rng.js",
@@ -65,7 +59,6 @@
     "game/pods.js",
     "ui/pings.js",
     "game/loop.js",
-    "modes/tech-demo.js",
     "ui/settings-ui.js",
     "weapons/pickups.js",
     "ui/power.js",
@@ -73,6 +66,7 @@
     "ui/stats-ui.js",
     "player/assists.js",
     "ui/reticle.js",
+    "render/prewarm.js",
     "game/exports.js"
   ],
   "modes": [
@@ -84,10 +78,14 @@
     "modes/ctf/ui.js",
     "net/ctf-host.js",
     "net/ctf-client.js",
-    "modes/ctf/modes.js",
-    "modes/trailer-score.js",
-    "modes/trailer.js"
+    "modes/ctf/modes.js"
   ],
+  "trailer": {
+    "_comment": "The cinematic trailer is not part of the game: `node build.mjs --trailer` writes out/trailer.html (the game plus these files), which tools/record-trailer.js captures to media/trailer.mp4.",
+    "styles": ["styles/trailer.css"],
+    "html": "html/trailer.html",
+    "modes": ["modes/trailer-score.js", "modes/trailer.js"]
+  },
   "worker": {
     "_comment": "Background simulation worker (sim-worker.js): the simulation modules with rendering stubbed out. tests/lib/headless.js loads the same list.",
     "env": ["worker/sim-env.js", "worker/three-lite.js"],

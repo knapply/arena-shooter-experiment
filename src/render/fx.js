@@ -27,7 +27,8 @@ function fxPush(f) {
 }
 /* ---- batched particles: dust, puffs and sparks are points in two shared buffers (one draw call
    each, however many are alive), instead of a sprite per particle ---- */
-const PT_N = 1200;
+const PT_N = 1200,
+  PT_K = 16;
 const _ptC = new THREE.Color(),
   _ptV2 = new THREE.Vector2();
 function makePts(additive) {
@@ -43,7 +44,10 @@ function makePts(additive) {
     col: at("pcol", 3),
     size: at("psize", 1),
     alpha: at("palpha", 1),
-    list: [],
+    /* PT_K floats per particle: position, velocity, color, size, opacity, life, max life, grow, drag, gravity */
+    d: new Float32Array(PT_N * PT_K),
+    n: 0,
+    next: 0,
     geo,
     mesh: null,
   };
@@ -93,51 +97,91 @@ gl_FragColor=vec4(vC*t.rgb,vA*t.a);
 }
 const PTS = { soft: makePts(false), glow: makePts(true) };
 /**
- * one particle. size: world diameter (m); grow: size growth per second; op: starting opacity
+ * one particle. size: world diameter (m); grow: size growth per second; op: starting opacity. When the
+ * buffer is full the oldest slots are written over in turn; nothing is allocated per particle.
  * @param {any} P PTS.soft or PTS.glow
  */
 function ptAdd(P, pos, vel, size, hex, op, life, o = {}) {
-  if (P.list.length >= PT_N) P.list.shift();
+  let i;
+  if (P.n < PT_N) i = P.n++;
+  else {
+    i = P.next;
+    P.next = (P.next + 1) % PT_N;
+  }
   _ptC.setHex(hex);
-  P.list.push({
-    p: pos.clone(),
-    v: vel,
-    s: size,
-    r: _ptC.r,
-    g: _ptC.g,
-    b: _ptC.b,
-    op,
-    life,
-    max: o.max || life,
-    grow: o.grow || 0,
-    drag: o.drag || 0,
-    grav: o.g || 0,
-  });
+  const d = P.d,
+    b = i * PT_K;
+  d[b] = pos.x;
+  d[b + 1] = pos.y;
+  d[b + 2] = pos.z;
+  d[b + 3] = vel.x;
+  d[b + 4] = vel.y;
+  d[b + 5] = vel.z;
+  d[b + 6] = _ptC.r;
+  d[b + 7] = _ptC.g;
+  d[b + 8] = _ptC.b;
+  d[b + 9] = size;
+  d[b + 10] = op;
+  d[b + 11] = life;
+  d[b + 12] = o.max || life;
+  d[b + 13] = o.grow || 0;
+  d[b + 14] = o.drag || 0;
+  d[b + 15] = o.g || 0;
 }
 function updPts(dt) {
   for (const P of [PTS.soft, PTS.glow]) {
-    const L = P.list;
-    let n = 0;
-    for (let i = 0; i < L.length; i++) {
-      const q = L[i];
-      q.life -= dt;
-      if (q.life <= 0) continue;
-      if (q.drag) q.v.multiplyScalar(Math.exp(-q.drag * dt));
-      if (q.grav) q.v.y -= q.grav * dt;
-      q.p.addScaledVector(q.v, dt);
-      if (q.grow) q.s *= 1 + q.grow * dt;
-      L[n++] = q;
-      const j = n - 1;
-      P.pos.setXYZ(j, q.p.x, q.p.y, q.p.z);
-      P.col.setXYZ(j, q.r, q.g, q.b);
-      P.size.setX(j, q.s);
-      P.alpha.setX(j, (q.op * q.life) / q.max);
+    const d = P.d,
+      pos = P.pos.array,
+      col = P.col.array,
+      size = P.size.array,
+      alpha = P.alpha.array;
+    let n = P.n;
+    for (let i = 0; i < n; ) {
+      const b = i * PT_K;
+      d[b + 11] -= dt;
+      if (d[b + 11] <= 0) {
+        /* the last particle takes the dead one's slot */
+        n--;
+        if (i < n) d.copyWithin(b, n * PT_K, n * PT_K + PT_K);
+        continue;
+      }
+      if (d[b + 14]) {
+        const k = Math.exp(-d[b + 14] * dt);
+        d[b + 3] *= k;
+        d[b + 4] *= k;
+        d[b + 5] *= k;
+      }
+      d[b + 4] -= d[b + 15] * dt;
+      d[b] += d[b + 3] * dt;
+      d[b + 1] += d[b + 4] * dt;
+      d[b + 2] += d[b + 5] * dt;
+      if (d[b + 13]) d[b + 9] *= 1 + d[b + 13] * dt;
+      pos[i * 3] = d[b];
+      pos[i * 3 + 1] = d[b + 1];
+      pos[i * 3 + 2] = d[b + 2];
+      col[i * 3] = d[b + 6];
+      col[i * 3 + 1] = d[b + 7];
+      col[i * 3 + 2] = d[b + 8];
+      size[i] = d[b + 9];
+      alpha[i] = (d[b + 10] * d[b + 11]) / d[b + 12];
+      i++;
     }
-    L.length = n;
+    P.n = n;
+    if (P.next >= n) P.next = 0;
     P.geo.setDrawRange(0, n);
     P.mesh.visible = n > 0;
-    if (n) for (const a of [P.pos, P.col, P.size, P.alpha]) a.needsUpdate = true;
+    if (n)
+      for (const a of [P.pos, P.col, P.size, P.alpha]) {
+        a.updateRange.offset = 0;
+        a.updateRange.count = n * a.itemSize;
+        a.needsUpdate = true;
+      }
   }
+}
+/** hide particles that were spawned below the given height (render/prewarm.js clears its samples) */
+function ptClearBelow(y) {
+  for (const P of [PTS.soft, PTS.glow])
+    for (let i = 0; i < P.n; i++) if (P.d[i * PT_K + 1] < y) P.d[i * PT_K + 11] = 0;
 }
 const tracerGeo = new THREE.BoxGeometry(0.035, 0.035, 1);
 function tracer(a, b, color, life) {

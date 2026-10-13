@@ -179,6 +179,31 @@ const fix = v => +v.toFixed(2);
     "the skill-route ledge is reachable from the floor",
     fix(ledge.P.a.pos.y)
   );
+  /* stairs are walked, never clambered: walking or sprinting up every flight on both maps (center
+     and both sides) steps up each riser and reaches the top */
+  const stairBad = [];
+  for (const map of ["arena", "ctf"])
+    for (const pc of K.mapPieces(K.MAPS[map]).filter(p => p.type === "stairs")) {
+      const [dx, dz] = pc.dir,
+        run = pc.steps * 0.72 + 1.2;
+      for (const lat of [-1.2, 0, 1.2])
+        for (const sprint of [false, true]) {
+          const x = pc.p[0] + dx * run - dz * lat,
+            z = pc.p[1] + dz * run + dx * lat;
+          const r = scenario({
+            map,
+            pilots: { a: { pos: [x, 0, z], yaw: Math.atan2(dx, dz) } },
+            seconds: (run + 1) / (sprint ? 7 : 4),
+            input: () => ({ a: { f: 1, sprint } }),
+          });
+          /* (a start already up at the top is on some other piece: skip it) */
+          if (r.trace.a[0][2] > pc.top - 0.5) continue;
+          const top = r.P.a.pos.y > pc.top - 0.5;
+          if (r.events.some(e => e.type === "clamber") || !top)
+            stairBad.push({ map, id: pc.id, lat, sprint, y: fix(r.P.a.pos.y) });
+        }
+    }
+  check(stairBad.length === 0, "walking up stairs steps up them without clambering", stairBad.slice(0, 4));
   /* stabilize: aiming in the air holds your height */
   let y0 = null,
     drift = 0;

@@ -57,7 +57,7 @@ function bakeBoxGeo(m, cell, keepBottom) {
       oy = c.y + ny * h - by * lb,
       oz = c.z + nz * h - az * la - bz * lb;
     const sa = Math.max(1, Math.min(40, Math.ceil((la * 2) / cell))),
-      sb = Math.max(1, Math.min(40, Math.ceil((lb * 2) / (ny ? cell : 6))));
+      sb = Math.max(1, Math.min(40, Math.ceil((lb * 2) / (ny ? cell : 7))));
     /* the face's extent in the shader's frame: u = x (floors) or dot(p, (-nz, 0, nx)); v = z or y */
     const U = (x, z) => (ny ? x : -nz * x + nx * z),
       V = (y, z) => (ny ? z : y);
@@ -135,7 +135,7 @@ function bakePrep(group, solids, doc) {
     /* bottoms resting on a floor are never seen */
     const y0 = m.position.y - (m.geometry.parameters ? (m.geometry.parameters.height * m.scale.y) / 2 : 0);
     const keepBottom = !isFloor && !floorTop.has(Math.round(y0 * 20)) && y0 > 0.05;
-    const g = bakeBoxGeo(m, isFloor ? 3 : 5.5, keepBottom);
+    const g = bakeBoxGeo(m, isFloor ? 3.5 : 8, keepBottom);
     if (!g) continue;
     m.geometry.dispose();
     m.geometry = g;

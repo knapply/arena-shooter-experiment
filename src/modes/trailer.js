@@ -1809,7 +1809,6 @@
     CINE.look(Object.assign({}, LOOK0, shot && shot.look ? shot.look(T - shot.t) : null));
   };
   K.defineMode({ id: "trailer", name: "Trailer", start: () => TR.start() });
-  $("trailerBtn").onclick = () => K.startMode("trailer");
   $("trExit").onclick = stop;
   $("trSound").onclick = () => {
     const ac = K.AC;

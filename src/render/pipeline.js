@@ -22,6 +22,9 @@ const GFX = {
   sh: null,
   /* cinematic look (trailer and cutscenes): see CINE.look */
   look: null,
+  /* the environment capture is waiting for the first frames (render/environment.js) */
+  envWait: false,
+  frame: 0,
 };
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.outputEncoding = THREE.LinearEncoding;
@@ -166,6 +169,8 @@ const MAP_GRADE = {
 /* heat haze sources for the composite pass, filled by heatUniforms (render/combat-fx.js) */
 const HEAT_U = Array.from({ length: 6 }, () => new THREE.Vector4());
 const compMat = new THREE.ShaderMaterial({
+  /** @type {Record<string, string>} */
+  defines: {},
   depthTest: false,
   depthWrite: false,
   vertexShader: FSV,
@@ -182,7 +187,6 @@ const compMat = new THREE.ShaderMaterial({
     grain: { value: 0.04 },
     time: { value: 0 },
     /* cinematic look: depth of field (needs tD and tF), split-tone grade, lens fringing, anamorphic streaks */
-    cine: { value: 0 },
     tD: { value: null },
     tF: { value: null },
     dof: { value: new THREE.Vector4(0, 10, 6, 0) },
@@ -209,9 +213,12 @@ const compMat = new THREE.ShaderMaterial({
   },
   fragmentShader: [
     "uniform sampler2D tS;uniform sampler2D tB;uniform vec2 texel;uniform float fx;uniform float sharp;uniform float bloom;uniform float expo;uniform float sat;uniform float vig;uniform float grain;uniform float time;varying vec2 vUv;",
-    "uniform float cine;uniform sampler2D tF;uniform float grade;uniform float ca;uniform float streak;",
+    /* the cinematic look (trailer, kill cams) is compiled in only while one is on (CINE) */
     "uniform vec4 heat[6];uniform float heatN;uniform float hT;uniform float aspect;uniform sampler2D tR;uniform float ssrK;uniform sampler2D tA;uniform float aoK;uniform sampler2D tSh;uniform float shaftK;uniform float gOn;uniform vec3 gLift;uniform vec3 gGain;uniform float gVib;",
+    "#ifdef CINE",
+    "uniform sampler2D tF;uniform float grade;uniform float ca;uniform float streak;",
     DOF_COC,
+    "#endif",
     "vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}",
     "float luma(vec3 c){return dot(c,vec3(.299,.587,.114));}",
     "vec3 S(vec2 uv){return aces(texture2D(tS,uv).rgb*expo);}",
@@ -225,14 +232,14 @@ const compMat = new THREE.ShaderMaterial({
     " vec3 c=fx>.5?fxaa(uv):S(uv);",
     " if(sharp>.001){vec3 n=S(uv-vec2(0.,texel.y)),s=S(uv+vec2(0.,texel.y)),e=S(uv+vec2(texel.x,0.)),w=S(uv-vec2(texel.x,0.));vec3 mn=min(c,min(min(n,s),min(e,w))),mx=max(c,max(max(n,s),max(e,w)));c=clamp(c+(4.*c-n-s-e-w)*sharp*.3,mn,mx);}",
     " vec2 q=uv-.5;",
-    " if(cine>.5){",
+    "#ifdef CINE",
     /* lens fringing: red and blue sampled apart toward the frame edges */
     "  if(ca>0.){vec2 o2=q*dot(q,q)*ca;c.r=S(uv+o2).r;c.b=S(uv-o2).b;}",
     /* depth of field: blend toward a blurred copy by circle of confusion (dof = amount, focus m, range m, near blur) */
     "  if(dof.x>0.){vec4 F=texture2D(tF,uv);float k=coc(uv)*dof.x*smoothstep(0.,.25,F.a);c=mix(c,aces(F.rgb/max(F.a,.001)*expo),k);}",
     /* anamorphic streaks: bloom smeared sideways, tinted cool */
     "  if(streak>0.){vec3 s2=vec3(0.);for(int i=1;i<7;i++){float f=float(i)*.022;s2+=(texture2D(tB,uv+vec2(f,0.)).rgb+texture2D(tB,uv-vec2(f,0.)).rgb)*(1.-float(i)/7.);}c+=aces(s2*expo*.18)*vec3(.55,.8,1.)*streak;}",
-    " }",
+    "#endif",
     /* occlusion darkens everything but what glows */
     " if(aoK>0.){float a=texture2D(tA,uv).r;c*=mix(1.,a,aoK*(1.-smoothstep(.75,1.,luma(c))));}",
     " if(ssrK>0.)c+=aces(texture2D(tR,uv).rgb*expo)*ssrK;",
@@ -242,7 +249,9 @@ const compMat = new THREE.ShaderMaterial({
     " c*=1.-vig*smoothstep(.3,.95,length(q)*1.25);",
     " float g=fract(sin(dot(uv+fract(time),vec2(12.9898,78.233)))*43758.5453);vec3 o=pow(clamp(c,0.,1.),vec3(1./2.2));",
     /* split-tone grade: cool shadows, warm highlights, a gentle S-curve */
-    " if(cine>.5&&grade>0.){float L=luma(o);o+=grade*((1.-L)*(1.-L)*vec3(-.035,.012,.05)+L*L*vec3(.05,.012,-.045));o=mix(o,o*o*(3.-2.*o),grade*.35);}",
+    "#ifdef CINE",
+    " if(grade>0.){float L=luma(o);o+=grade*((1.-L)*(1.-L)*vec3(-.035,.012,.05)+L*L*vec3(.05,.012,-.045));o=mix(o,o*o*(3.-2.*o),grade*.35);}",
+    "#endif",
     " if(gOn>.5){o=o*gGain+gLift*(1.-o);float L=luma(o),mx=max(o.r,max(o.g,o.b)),mn=min(o.r,min(o.g,o.b));o=mix(vec3(L),o,1.+gVib*(1.-(mx-mn)));}",
     " gl_FragColor=vec4(o+(g-.5)*grain*.6,1.);}" /* grain after gamma so dark areas are not swamped by noise */,
   ].join("\n"),
@@ -338,6 +347,8 @@ function fsPass(mat, target) {
 let gfxChecked = false;
 function renderFrame() {
   const tr = performance.now();
+  /* low shadows redraw every other frame */
+  if (!renderer.shadowMap.autoUpdate) renderer.shadowMap.needsUpdate = (++GFX.frame & 1) === 0;
   if (!GFX.on || !GFX.rt) {
     renderer.setRenderTarget(null);
     if (GPUQ) GPUQ.begin("scene");
@@ -446,7 +457,11 @@ function renderFrame() {
     }
     if (GPUQ) GPUQ.end();
     const L = GFX.look;
-    U.cine.value = L ? 1 : 0;
+    if (!!L !== Object.prototype.hasOwnProperty.call(compMat.defines, "CINE")) {
+      if (L) compMat.defines.CINE = "";
+      else delete compMat.defines.CINE;
+      compMat.needsUpdate = true;
+    }
     if (L) {
       const dofOn = L.dof > 0 && !!GFX.b3 && !!GFX.rt.depthTexture;
       if (dofOn) {
@@ -512,14 +527,44 @@ function renderFrame() {
 /* safety net: if the center of the screen is pure white after rendering starts, back off the effects */
 let gfxFrames = 0;
 const pxBuf = new Uint8Array(256);
+/* WebGL2 reads the pixels into a buffer and picks them up once the GPU is done (a fence), so the
+   check never stalls a frame; WebGL1 reads them directly */
+const pxRead = { buf: null, sync: null };
 function exposureCheck() {
   gfxFrames++;
+  const gl = /** @type {any} */ (renderer.getContext());
+  if (pxRead.sync) {
+    const st = gl.clientWaitSync(pxRead.sync, 0, 0);
+    if (st !== gl.ALREADY_SIGNALED && st !== gl.CONDITION_SATISFIED) return;
+    gl.deleteSync(pxRead.sync);
+    pxRead.sync = null;
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pxRead.buf);
+    gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, pxBuf);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    exposureVerdict();
+    return;
+  }
   if (gfxFrames !== 90 && gfxFrames !== 240) return;
   try {
-    const gl = renderer.getContext(),
-      w = gl.drawingBufferWidth,
+    const w = gl.drawingBufferWidth,
       h = gl.drawingBufferHeight;
+    if (GFX.webgl2) {
+      if (!pxRead.buf) {
+        pxRead.buf = gl.createBuffer();
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pxRead.buf);
+        gl.bufferData(gl.PIXEL_PACK_BUFFER, 256, gl.STREAM_READ);
+      } else gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pxRead.buf);
+      gl.readPixels((w >> 1) - 4, (h >> 1) - 4, 8, 8, gl.RGBA, gl.UNSIGNED_BYTE, 0);
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+      pxRead.sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+      return;
+    }
     gl.readPixels((w >> 1) - 4, (h >> 1) - 4, 8, 8, gl.RGBA, gl.UNSIGNED_BYTE, pxBuf);
+    exposureVerdict();
+  } catch (e) {}
+}
+function exposureVerdict() {
+  try {
     let sum = 0;
     for (let i = 0; i < 256; i += 4) sum += pxBuf[i] + pxBuf[i + 1] + pxBuf[i + 2];
     const avg = sum / 192;
@@ -593,103 +638,9 @@ const STAR = (() => {
   x.fillRect(-14, -14, 28, 28);
   return new THREE.CanvasTexture(c);
 })();
-/* procedural panel surfaces: color + normal map generated from a height field */
-function panelMaps() {
-  const N = 256,
-    c = document.createElement("canvas");
-  c.width = c.height = N;
-  const x = c.getContext("2d");
-  x.fillStyle = "#808080";
-  x.fillRect(0, 0, N, N);
-  const R = (a, b) => a + Math.random() * (b - a);
-  x.fillStyle = "#9a9a9a";
-  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) x.fillRect(i * 128 + 6, j * 128 + 6, 116, 116);
-  x.fillStyle = "#707070";
-  x.fillRect(0, 124, N, 8);
-  x.fillRect(124, 0, 8, N);
-  for (let k = 0; k < 5; k++) {
-    x.fillStyle = Math.random() < 0.5 ? "#b0b0b0" : "#6a6a6a";
-    x.fillRect((R(0, 3) | 0) * 64 + 14, (R(0, 3) | 0) * 64 + 14, R(18, 46), R(10, 30));
-  }
-  x.fillStyle = "#c8c8c8";
-  for (const [i, j] of [
-    [12, 12],
-    [116, 12],
-    [12, 116],
-    [116, 116],
-    [140, 12],
-    [244, 12],
-    [140, 116],
-    [244, 116],
-    [12, 140],
-    [116, 140],
-    [12, 244],
-    [116, 244],
-    [140, 140],
-    [244, 140],
-    [140, 244],
-    [244, 244],
-  ]) {
-    x.beginPath();
-    x.arc(i, j, 3, 0, 7);
-    x.fill();
-  }
-  const h = x.getImageData(0, 0, N, N),
-    hd = h.data;
-  for (let i = 0; i < hd.length; i += 4) {
-    const n = (Math.random() - 0.5) * 14;
-    hd[i] = hd[i + 1] = hd[i + 2] = Math.max(0, Math.min(255, hd[i] + n));
-  }
-  const nc = document.createElement("canvas");
-  nc.width = nc.height = N;
-  const nx = nc.getContext("2d");
-  const nd = nx.createImageData(N, N);
-  const H = (i, j) => hd[(((j + N) % N) * N + ((i + N) % N)) * 4] / 255;
-  for (let j = 0; j < N; j++)
-    for (let i = 0; i < N; i++) {
-      const dx = (H(i + 1, j) - H(i - 1, j)) * 3.5,
-        dy = (H(i, j + 1) - H(i, j - 1)) * 3.5;
-      const l = Math.hypot(dx, dy, 1);
-      const o = (j * N + i) * 4;
-      nd.data[o] = ((-dx / l) * 0.5 + 0.5) * 255;
-      nd.data[o + 1] = ((dy / l) * 0.5 + 0.5) * 255;
-      nd.data[o + 2] = ((1 / l) * 0.5 + 0.5) * 255;
-      nd.data[o + 3] = 255;
-    }
-  nx.putImageData(nd, 0, 0);
-  const cc = document.createElement("canvas");
-  cc.width = cc.height = N;
-  const cx = cc.getContext("2d");
-  const cd = cx.createImageData(N, N);
-  for (let i = 0; i < hd.length; i += 4) {
-    const v = 180 + (hd[i] - 128) * 0.45 + (Math.random() - 0.5) * 10;
-    cd.data[i] = cd.data[i + 1] = cd.data[i + 2] = Math.max(0, Math.min(255, v));
-    cd.data[i + 3] = 255;
-  }
-  cx.putImageData(cd, 0, 0);
-  const map = new THREE.CanvasTexture(cc),
-    nmap = new THREE.CanvasTexture(nc);
-  for (const t of [map, nmap]) {
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  }
-  map.encoding = THREE.sRGBEncoding;
-  return { map, nmap };
-}
-const DETAIL = panelMaps();
-const DETAIL_MATS = [];
+/* map materials whose roughness the glossy reflections option lowers (their panels are drawn in the
+   shader by render/surfaces.js; the canvas panel textures that used to cost ~300 ms at load are gone) */
 function detailMat(m) {
-  if (!DETAIL_MATS.includes(m)) {
-    DETAIL_MATS.push(m);
-    m.userData.rough = m.roughness;
-  }
-  applyDetail(m);
-}
-function applyDetail(m) {
-  /* map materials draw their panels procedurally (render/surfaces.js) */
-  const on = SET.textures === "high" && !m.userData.surf;
-  m.map = on ? DETAIL.map : null;
-  m.normalMap = on ? DETAIL.nmap : null;
-  m.normalScale && m.normalScale.set(0.6, 0.6);
-  m.needsUpdate = true;
+  m.userData.rough = m.roughness;
 }
 /* environment lighting: a prefiltered capture of the sky plus the arena's light strips */
