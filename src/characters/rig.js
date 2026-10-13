@@ -144,6 +144,9 @@ const WPN_RIG = [
   { grip: new V3(0, -0.08, 0.09), fore: new V3(-0.03, -0.11, 0.1), kick: 6, every: 0.26 },
   { grip: new V3(0, -0.08, 0.14), fore: new V3(0, -0.06, -0.32), kick: 9, every: 0.62 },
   { grip: new V3(0, -0.15, 0.08), fore: new V3(0, -0.14, -0.3), kick: 12, every: 0.9 },
+  { grip: new V3(0, -0.08, 0.06), fore: new V3(0, -0.06, -0.22), kick: 3, every: 0.36 },
+  { grip: new V3(0, -0.08, 0.12), fore: new V3(0, -0.07, -0.24), kick: 10, every: 0.8 },
+  { grip: new V3(0, -0.08, 0.1), fore: new V3(0, -0.06, -0.2), kick: 1, every: 0.05 },
 ];
 const MAGSLOT = new V3(0, -0.11, -0.08);
 /* one reload, shared by the first-person viewmodel and every rig (fractions of the reload time):
@@ -442,8 +445,29 @@ function weaponParts(i) {
     W(bx("rgrip2", 0.04, 0.1, 0.05), SUIT, 0, -0.13, -0.3);
     W(bx("rscope", 0.05, 0.07, 0.16), TRIM, -0.1, 0.06, -0.1);
     W(bx("rscopeLt", 0.03, 0.03, 0.004), GLOW, -0.1, 0.065, -0.182);
+  } else if (i === 4) {
+    W(bx("bbody", 0.07, 0.11, 0.55), TRIM, 0, 0, -0.05);
+    W(bx("bopt", 0.04, 0.05, 0.08), ARM, 0, 0.08, -0.1);
+    W(bx("boptLt", 0.02, 0.014, 0.004), GLOW, 0, 0.09, -0.142);
+    W(cy("bbar", 0.02, 0.02, 0.14, 8), TRIM, 0, 0.01, -0.38, X);
+    W(bx("bgrip", 0.04, 0.11, 0.05), SUIT, 0, -0.09, 0.06);
+    W(bx("bmag", 0.045, 0.11, 0.06), ARM2, 0, -0.09, 0.18);
+  } else if (i === 5) {
+    W(cy("gbarrel", 0.04, 0.04, 0.6, 10), TRIM, 0, 0.02, -0.2, X);
+    W(cy("gtube", 0.028, 0.028, 0.46, 8), TRIM, 0, -0.04, -0.16, X);
+    W(bx("gpump", 0.075, 0.075, 0.15), ARM2, 0, -0.04, -0.24);
+    W(bx("grecv", 0.07, 0.11, 0.24), TRIM, 0, -0.01, 0.1);
+    W(bx("ggrip2", 0.04, 0.11, 0.05), SUIT, 0, -0.09, 0.14);
+    W(bx("gstock2", 0.05, 0.1, 0.18), ARM, 0, -0.02, 0.32);
+    W(bx("glt", 0.072, 0.01, 0.12), GLOW, 0, 0.045, 0.1);
+  } else if (i === 6) {
+    W(bx("abody", 0.07, 0.1, 0.5), TRIM, 0, 0, -0.02);
+    W(cy("abar", 0.025, 0.025, 0.28, 8), TRIM, 0, 0.01, -0.38, X);
+    for (let k = 0; k < 3; k++) W(cy("acoil", 0.05, 0.05, 0.02, 12), GLOW, 0, 0.01, -0.3 - k * 0.08, X);
+    W(bx("agrip", 0.04, 0.11, 0.05), SUIT, 0, -0.09, 0.1);
+    W(bx("astock", 0.05, 0.1, 0.16), ARM2, 0, -0.02, 0.3);
   } else {
-    /* the flag: a pole held across the body (the cloth is added per pilot) */
+    /* the flag (i = -1): a pole held across the body (the cloth is added per pilot) */
     W(cy("fpole", 0.02, 0.02, 1.9, 8), TRIM, 0, 0, 0);
     W(sph0("ftip"), GLOW, 0, 0.96, 0);
   }
@@ -593,7 +617,7 @@ function makePilot(color, label) {
   const gun = new THREE.Group();
   chest.add(gun);
   gun.position.copy(POSE.aim.p);
-  const wpnG = [0, 1, 2, 3].map(i => {
+  const wpnG = WPN_RIG.map((_, i) => {
     const g = weaponMeshes(i, wmats);
     g.visible = i === 0;
     gun.add(g);
@@ -605,7 +629,7 @@ function makePilot(color, label) {
   );
   mag.position.copy(MAGSLOT);
   wpnG[0].add(mag);
-  const flagG = weaponMeshes(4, wmats);
+  const flagG = weaponMeshes(-1, wmats);
   flagG.visible = false;
   chest.add(flagG);
   let cloth = null;

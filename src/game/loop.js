@@ -448,9 +448,10 @@ function frameBody(t) {
     }
     const trig = A("fire") || touch.fire;
     if (!trig) semiLatch = false;
+    /* a burst already started finishes without the trigger (weapons/firing.js) */
+    if (switchT > 0 || carrying) burstLeft = 0;
     if (
-      trig &&
-      (W().auto || !semiLatch) &&
+      ((trig && (W().auto || !semiLatch)) || burstLeft > 0) &&
       fireCD <= 0 &&
       switchT <= 0 &&
       !me.sprint &&

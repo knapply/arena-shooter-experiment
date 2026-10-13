@@ -18,7 +18,9 @@
   /* opts.map picks the map (default Twin Foundry); a map without flags plays team deathmatch: the AI
      hunts, and a kill on the other team scores a point */
   CTF.Game = function (opts) {
-    CTF.useMap(opts.map || "ctf");
+    /* lab content (docs/PROPOSALS.md): offline matches and simulations only, never online */
+    const labs = opts.labs !== false && K.LABS.on;
+    CTF.useMap(opts.map || "ctf", labs ? K.LABS.mods : null);
     /* the AI's walkable grid is built once per map (and patched as cover breaks) */
     if (CTF.NAV.mapId !== CTF.MAP.id) CTF.NAV.build(CTF.buildMap().solids);
     CTF.enterMap();
@@ -56,6 +58,7 @@
       /** simulations only (tools/tune.js): every AI pilot uses one weapon, "carbine", "magnum", "sniper",
           "rocket" or "nades" (grenades only); power spawns, death drops and other grenades are off */
       lock: opts.lock || null,
+      labs,
     };
     const models = CTF.loadModels();
     G.teams = [0, 1].map(t => ({ team: t, score: 0, agents: [], brain: new CTF.TeamBrain(t, models[t]) }));
@@ -67,8 +70,9 @@
       dropT: 0,
       pulls: 0,
     }));
+    /* opts.perTeam: pilots per team (simulated duels on the arena use 1) */
     for (let t = 0; t < 2; t++)
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < (opts.perTeam || 4); i++) {
         G.teams[t].agents.push(new CTF.Agent(G, t, i, NAMES[t][i], false));
       }
     G.agents = [...G.teams[0].agents, ...G.teams[1].agents];
@@ -168,14 +172,18 @@
     G.nades = new K.NadeWorld(G.render);
     G.rockets = new K.RocketWorld(G.render);
     G.claims = [null, null];
-    const ROT = K.POWER_ROTATION.map(k => K.WEAPON_DATA.findIndex(w => w.key === k));
-    G.pickups = CTF.PICKUP_DEFS.map(d => {
+    const ROTK = labs ? K.powerRotation() : K.POWER_ROTATION,
+      ROT = ROTK.map(k => K.WEAPON_DATA.findIndex(w => w.key === k));
+    /* lab pickups only while their lab is on */
+    G.pickups = CTF.PICKUP_DEFS.filter(d => !d.lab || (labs && K.labOn(d.lab))).map(d => {
       const p = {
         id: d.id,
         type: d.type,
-        power: true,
+        /* a power spawn (the AI breaks off for it); lab rifles are ordinary pickups */
+        power: !!K.WEAPON_DATA[d.type].power,
+        lab: d.lab || null,
         rot: d.rotate ? ROT : null,
-        ri: d.rotate ? Math.max(0, K.POWER_ROTATION.indexOf(d.weapon)) : 0,
+        ri: d.rotate ? Math.max(0, ROTK.indexOf(d.weapon)) : 0,
         pos: d.pos.clone(),
         respawn: d.respawn,
         availAt: 0,
@@ -205,11 +213,21 @@
     G.arm = function (a, type, ammo) {
       const W = K.WEAPON_DATA[type],
         n = ammo ? ammo[0] + ammo[1] : W.mag + W.reserve;
+      if (!W.power) {
+        /* a lab rifle takes slot 1, full */
+        a.prim = type;
+        a.ammo[0] = W.mag;
+        if (a.wpn === 0) a.switchT = K.SWITCH_TIME;
+        return;
+      }
       a.sniper = a.sniperMag = a.rocket = 0;
+      a.pw = null;
+      a.pwOut = false;
       if (W.key === "sniper") {
         a.sniper = n;
         a.sniperMag = Math.min(W.mag, n);
       } else if (W.key === "rocket") a.rocket = n;
+      else a.pw = { type, n, mag: Math.min(W.mag, ammo ? ammo[0] : W.mag) };
     };
     G.takePickup = function (p, a) {
       if (!p.avail || !a || !a.alive) return false;
@@ -217,10 +235,11 @@
         key = keyOf(type);
       p.consume();
       if (!a.human) G.arm(a, type);
-      G.claims[a.team] = null;
       G.emit("pickup", { by: a, id: p.id });
+      if (!p.power) return true;
+      G.claims[a.team] = null;
       const br = G.teams[a.team].brain;
-      const nm = key === "rocket" ? "rockets" : "the sniper";
+      const nm = key === "rocket" ? "rockets" : key === "sniper" ? "the sniper" : "the scattergun";
       br.say(G, a.human ? br.leader(G) : a, "snp", a.human ? `${a.name} has ${nm}` : `I've got ${nm}`, true);
       const ob = G.teams[1 - a.team].brain,
         l = ob.leader(G);
@@ -229,7 +248,11 @@
           G,
           l,
           "snpL",
-          key === "rocket" ? "They have rockets, spread out" : "They took the sniper, watch the long lines",
+          key === "rocket"
+            ? "They have rockets, spread out"
+            : key === "sniper"
+              ? "They took the sniper, watch the long lines"
+              : "They have the scattergun, keep your distance",
           true
         );
       return true;
@@ -273,10 +296,12 @@
       } else if (a.sniper > 0) {
         const t = K.WEAPON_DATA.findIndex(w => w.key === "sniper");
         out.push({ type: t, ammo: [Math.min(4, a.sniper), Math.max(0, a.sniper - 4)] });
-      } else {
-        /* the gun in hand (carbine or magnum), with what was left in it */
-        const t = a.wpn === 1 ? 1 : 0;
-        out.push({ type: t, ammo: [a.remote || !a.ammo ? K.WEAPON_DATA[t].mag : a.ammo[t], Infinity] });
+      } else if (a.pw) out.push({ type: a.pw.type, ammo: [a.pw.mag, Math.max(0, a.pw.n - a.pw.mag)] });
+      else {
+        /* the gun in hand (carbine or magnum, or a lab rifle), with what was left in it */
+        const s = a.wpn === 1 ? 1 : 0,
+          t = s ? 1 : a.prim || 0;
+        out.push({ type: t, ammo: [a.remote || !a.ammo ? K.WEAPON_DATA[t].mag : a.ammo[s], Infinity] });
       }
       const nf = a.nadeInv ? a.nadeInv.frag : 0,
         np = a.nadeInv ? a.nadeInv.plasma : 0;
@@ -293,9 +318,12 @@
         if (!it.take()) return;
         a.nadeInv.frag += f;
         a.nadeInv.plasma += pl;
-      } else if (K.WEAPON_DATA[it.type].power && !(a.sniper > 0) && !(a.rocket > 0) && !a.carrying) {
+      } else if (K.WEAPON_DATA[it.type].power && !a.armed && !a.carrying) {
         if (!it.take()) return;
         G.arm(a, it.type, it.ammo && it.ammo[1] !== Infinity ? it.ammo : null);
+      } else if (K.WEAPON_DATA[it.type].lab && !a.prim && !a.carrying) {
+        if (!it.take()) return;
+        G.arm(a, it.type);
       }
     }
     G.sniperFor = function (team) {
@@ -345,6 +373,8 @@
       /* weapons and grenades fall where they died (you report your own drop) */
       if (!victim.local && !G.lock) G.addItems(G.loadoutOf(victim), p);
       victim.sniper = victim.sniperMag = victim.rocket = 0;
+      victim.pw = null;
+      victim.pwOut = false;
       if (victim.carrying) {
         const f = victim.carrying;
         f.state = "dropped";
@@ -520,6 +550,7 @@
           if (
             p.avail &&
             !(a.sniper > 0) &&
+            (p.power ? !(p.lab && a.armed) : !a.prim && !a.carrying) &&
             Math.hypot(a.pos.x - p.pos.x, a.pos.z - p.pos.z) < 1.6 &&
             Math.abs(a.pos.y - p.pos.y) < 1.6
           )

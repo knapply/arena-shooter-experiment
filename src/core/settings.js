@@ -1,6 +1,6 @@
 /* ============ settings: schema, presets, bindings, validated save / export / import ============ */
 const ACTIONS = [
-  ["forward", "Move forward"],
+  ["forward", "Move forward", "burst", "scatter", "beam", "pulse", "doors", "split"],
   ["back", "Move back"],
   ["left", "Strafe left"],
   ["right", "Strafe right"],
@@ -91,7 +91,8 @@ const T_GFX = "Graphics",
   T_GAME = "Gameplay",
   T_AUD = "Audio",
   T_DES = "Destruction",
-  T_SBX = "Sandbox";
+  T_SBX = "Sandbox",
+  T_LAB = "Labs";
 /* [key, label, default, min, max, step, unit, description] */
 /** @type {[string, string, number, number, number, number, string, string?][]} */
 const SANDBOX_DEFS = [
@@ -136,6 +137,46 @@ const SANDBOX_DEFS = [
   ],
   ["sbNadeFuse", "Frag fuse", 2.2, 1.2, 3.4, 0.1, " s"],
   ["sbNadeRadius", "Frag blast radius", 4.2, 3, 7, 0.1, " m"],
+];
+/* [key, label, description, what it turns on: a LABS entry (data/weapons.js) or a map mod (data/maps.js)] */
+/** @type {[string, string, string, string][]} */
+const LAB_DEFS = [
+  [
+    "labBurst",
+    "Burst rifle",
+    "Three-round burst rifle pickups near each base and on the arena's sides. Four bursts kill; track through the burst.",
+    "burst",
+  ],
+  [
+    "labScatter",
+    "Scattergun",
+    "A pump shotgun joins the power weapon rotation: one shot up close, two at mid range, a slow pump between.",
+    "scatter",
+  ],
+  [
+    "labBeam",
+    "Arc beam",
+    "A continuous beam rifle on the wings: no spread, no headshots, damage only while you stay on target.",
+    "beam",
+  ],
+  [
+    "labPulse",
+    "Pulse grenade",
+    "A third grenade: strips every shield in range (yours too) and jams thrust for 2.5 s. No damage of its own.",
+    "pulse",
+  ],
+  [
+    "labDoors",
+    "Twin Foundry: crossover doors",
+    "A doorway through each wing wall, so mid and the wings can rotate early.",
+    "doors",
+  ],
+  [
+    "labSplit",
+    "Twin Foundry: split power",
+    "The sniper stays on the tower; the rockets move to the two wing platforms.",
+    "split",
+  ],
 ];
 /** @type {SettingDef[]} */
 const SCHEMA = [
@@ -756,6 +797,16 @@ const SCHEMA = [
       ["90", "90 s"],
     ],
   },
+  /* ----- Labs: prototype weapons and map changes (docs/PROPOSALS.md), all off by default. Offline
+     matches only: online rooms always play the shipped game. ----- */
+  ...LAB_DEFS.map(([k, label, desc]) => ({
+    k,
+    tab: T_LAB,
+    label,
+    type: /** @type {"toggle"} */ ("toggle"),
+    def: false,
+    desc,
+  })),
   /* ----- Sandbox: movement, weapons and grenades. Defaults chosen by simulation (docs/TUNING.md).
      Online, the host's sandbox applies to everyone in the match. ----- */
   ...SANDBOX_DEFS.map(([k, label, def, min, max, step, unit, desc]) => ({

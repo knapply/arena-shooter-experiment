@@ -13,7 +13,7 @@ function targets() {
       t.push({ kind: "peer", ref: r, peer, pos: r.rig.root.position, h: r.crouch ? H_CROUCH : H_STAND });
   return t;
 }
-const HEAVY = new Set(["sniper", "charge", "frag", "stick", "pound"]);
+const HEAVY = new Set(["sniper", "scatter", "charge", "frag", "stick", "pound"]);
 const hitPower = w => (HEAVY.has(w) ? 2 : 1);
 function dealDamage(t, n, type, head) {
   if (t.kind === "ext") {
@@ -104,43 +104,56 @@ function perfectKill(id) {
   const w = WEAPONS[r.w];
   return !!w.precision && !w.headAlways && r.hits === killStats(w).best.shots;
 }
+/** rounds left in the burst in progress (burst weapons fire the rest without the trigger) */
+let burstLeft = 0;
 function fire(src) {
   if (reloadT > 0) return;
   if (mag <= 0) {
+    burstLeft = 0;
     startReload();
     return;
   }
   mag--;
   ammo[wi] = mag;
-  fireCD = W().rate;
+  const Wd = W();
+  fireCD = Wd.rate;
+  /* a burst: the rounds inside it come at its gap, and the next burst starts `rate` after this one */
+  if (Wd.burst) {
+    burstLeft = burstLeft > 0 ? burstLeft - 1 : Wd.burst - 1;
+    fireCD = burstLeft > 0 ? Wd.burstGap : Wd.rate - (Wd.burst - 1) * Wd.burstGap;
+  } else burstLeft = 0;
   lastFireT = now;
   /* firing ends spawn protection */
   if (!src) {
     me.spawnT = -1e9;
-    EVENTS.emit("shot", { pilot: "local", weapon: W().dmg });
+    EVENTS.emit("shot", { pilot: "local", weapon: Wd.dmg });
   }
   semiLatch = true;
   const o = src ? src.o : camera.getWorldPosition(new V3());
   const d = new V3();
   if (src) d.copy(src.d);
   else camera.getWorldDirection(d);
-  /* precision weapons go exactly where the reticle is; automatics keep spread and bloom */
-  if (!W().precision) {
+  /* precision weapons go exactly where the reticle is; automatics keep spread and bloom; pellet
+     weapons spread every pellet over their cone */
+  let spread = 0;
+  if (!Wd.precision) {
     const moving = Math.hypot(me.vel.x, me.vel.z) > 1;
-    let spread = (aiming ? W().adsSpread : W().spread) + (moving ? 0.006 : 0) + (me.ground ? 0 : 0.008);
+    spread = (aiming ? Wd.adsSpread : Wd.spread) + (moving ? 0.006 : 0) + (me.ground ? 0 : 0.008);
     spread += bloom;
-    bloom = Math.min(0.03, bloom + W().bloom);
-    d.x += rnd(-spread, spread);
-    d.y += rnd(-spread, spread);
-    d.z += rnd(-spread, spread);
+    bloom = Math.min(0.03, bloom + Wd.bloom);
+    if (!Wd.pellets) {
+      d.x += rnd(-spread, spread);
+      d.y += rnd(-spread, spread);
+      d.z += rnd(-spread, spread);
+    }
   }
   d.normalize();
   /* projectile weapons (the rocket launcher) launch from the muzzle toward the reticle */
-  if (W().projectile) {
-    fireRocket(o, d, src ? src.muzzle : VMW[wi].g.localToWorld(W().muzzle.clone()));
-    sfx(W().snd);
-    rumble(W().rum[0], W().rum[1], W().rum[2]);
-    recoil += W().recoil;
+  if (Wd.projectile) {
+    fireRocket(o, d, src ? src.muzzle : VMW[wi].g.localToWorld(Wd.muzzle.clone()));
+    sfx(Wd.snd);
+    rumble(Wd.rum[0], Wd.rum[1], Wd.rum[2]);
+    recoil += Wd.recoil;
     flashT = 0.08;
     vmS.kick = 1;
     shakeT = Math.max(shakeT, 0.12);
@@ -151,30 +164,50 @@ function fire(src) {
   SHOT.o.copy(o);
   SHOT.d.copy(d);
   SHOT.t = now;
-  const wh = rayWorldHit(o, d, 120),
-    wt = wh.t;
-  let best = null;
-  for (const t of targets()) {
-    const h = rayTarget(o, d, t.pos, t.h, wt);
-    if (h && (!best || h.t < best.h.t)) best = { t, h };
+  const R = Wd.range || 120,
+    muzzle = src ? src.muzzle : VMW[wi].g.localToWorld(Wd.muzzle.clone()),
+    col = wi === 2 ? 0x9fd8ff : Wd.key === "beam" ? 0xb98aff : 0xffd28a,
+    /** damage per target over every pellet of this shot (one hit marker each) */
+    dealt = new Map();
+  let anyHit = null;
+  for (let p = 0; p < (Wd.pellets || 1); p++) {
+    const pd = Wd.pellets ? d.clone() : d;
+    if (Wd.pellets) {
+      pd.x += rnd(-spread, spread);
+      pd.y += rnd(-spread, spread);
+      pd.z += rnd(-spread, spread);
+      pd.normalize();
+    }
+    const wh = rayWorldHit(o, pd, R),
+      wt = wh.t;
+    let best = null;
+    for (const t of targets()) {
+      const h = rayTarget(o, pd, t.pos, t.h, wt);
+      if (h && (!best || h.t < best.h.t)) best = { t, h };
+    }
+    const end = o.clone().addScaledVector(pd, best ? best.h.t : Math.min(wt, R));
+    if (p < 5) tracer(muzzle, end, col, wi === 2 ? 0.6 : 0.1);
+    if (best) {
+      const shielded = best.t.ref.body ? best.t.ref.body.shield > 0 : best.t.ref.sh > 0;
+      const hd = best.h.head && (Wd.headAlways || !shielded);
+      const n = (hd ? Wd.head : Wd.body) * falloffAt(Wd, best.h.t);
+      const e = dealt.get(best.t) || { n: 0, hd: false };
+      e.n += n;
+      e.hd = e.hd || hd;
+      dealt.set(best.t, e);
+      anyHit = best.t;
+      spark(end, 2, shielded ? 0xffd36b : 0xff7a6a);
+    } else if (wt < R) {
+      spark(end);
+      if (wh.b) damageBox(wh.b, Math.min(Wd.body, 40) * 0.6, end, "bullet", true);
+    }
+    if (p === 0) emitFx("shot", v3a(muzzle), v3a(end));
   }
-  const end = o.clone().addScaledVector(d, best ? best.h.t : Math.min(wt, 120));
-  const muzzle = src ? src.muzzle : VMW[wi].g.localToWorld(W().muzzle.clone());
-  tracer(muzzle, end, wi === 2 ? 0x9fd8ff : 0xffd28a, wi === 2 ? 0.6 : 0.1);
-  engageShot(best ? targetId(best.t) : null);
-  if (best) {
-    const shielded = best.t.ref.body ? best.t.ref.body.shield > 0 : best.t.ref.sh > 0;
-    const hd = best.h.head && (W().headAlways || !shielded);
-    dealDamage(best.t, hd ? W().head : W().body, W().dmg, hd);
-    spark(end, 2, shielded ? 0xffd36b : 0xff7a6a);
-  } else if (wt < 120) {
-    spark(end);
-    if (wh.b) damageBox(wh.b, Math.min(W().body, 40) * 0.6, end, "bullet", true);
-  }
-  emitFx("shot", v3a(muzzle), v3a(end));
-  sfx(W().snd);
-  rumble(W().rum[0], W().rum[1], W().rum[2]);
-  recoil += W().recoil;
+  engageShot(anyHit ? targetId(anyHit) : null);
+  for (const [t, e] of dealt) dealDamage(t, Math.max(1, Math.round(e.n)), Wd.dmg, e.hd);
+  sfx(Wd.snd);
+  rumble(Wd.rum[0], Wd.rum[1], Wd.rum[2]);
+  recoil += Wd.recoil;
   flashT = 0.05;
   vmS.kick = 1;
   if (mag === 0) startReload();

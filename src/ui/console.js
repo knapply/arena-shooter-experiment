@@ -148,7 +148,7 @@ const CON = (() => {
   }
 
   /* ---- commands ---- */
-  const WEAPON_NAMES = { carbine: 0, pistol: 1, sniper: 2 };
+  const WEAPON_NAMES = { carbine: 0, pistol: 1, sniper: 2, burst: 4, scatter: 5, beam: 6 };
   /** @type {Record<string, [string, (a: string[]) => any]>} */
   const CMDS = {
     help: [

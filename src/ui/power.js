@@ -4,7 +4,7 @@
    through walls. Modes supply their holders with EXT.powerHolders() ({ id, name, pos, h, key, enemy });
    the arena's are online players. A callout fires when a new holder appears, so it works the same
    offline, hosting and as an online client. */
-const PW_KEYS = ["sniper", "rocket"];
+const PW_KEYS = ["sniper", "rocket", "scatter"];
 const pwKey = type => (WEAPON_DATA[type] ? WEAPON_DATA[type].key : "");
 /* one canvas texture per weapon and side, shared by every mark */
 const PW_TEX = new Map();
@@ -33,7 +33,7 @@ function pwTex(key, enemy) {
   x.font = "700 52px Chakra Petch, sans-serif";
   x.textAlign = "center";
   x.textBaseline = "middle";
-  x.fillText(key === "rocket" ? "R" : "S", 64, 58);
+  x.fillText(key === "rocket" ? "R" : key === "scatter" ? "G" : "S", 64, 58);
   x.beginPath();
   x.moveTo(52, 112);
   x.lineTo(76, 112);

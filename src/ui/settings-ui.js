@@ -1,6 +1,6 @@
 /* ============ settings screen ============ */
 const T_KEYS = "Keys";
-const STABS = [T_GFX, T_CTL, T_KEYS, T_PAD, T_GAME, T_SBX, T_AUD, T_DES];
+const STABS = [T_GFX, T_CTL, T_KEYS, T_PAD, T_GAME, T_SBX, T_LAB, T_AUD, T_DES];
 /** q: the search box (empty shows the current tab) */
 const SUI = { tab: T_GFX, from: "menu", padCap: null, q: "" };
 const el = (tag, cls, txt) => {

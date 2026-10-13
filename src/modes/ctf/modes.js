@@ -218,17 +218,19 @@
     const me = G && G.human;
     if (!me) return [];
     const out = [];
-    for (const a of list)
-      if (a.alive && a !== me && (a.sniper > 0 || a.rocket > 0 || a.wpn >= 2))
+    for (const a of list) {
+      const W = K.WEAPON_DATA[a.remote ? a.wpn : a.pw ? a.pw.type : a.held()];
+      if (a.alive && a !== me && W && W.power)
         out.push({
           id: a.id,
           pid: K.pidOf(a),
           name: a.name,
           pos: a.body.pos,
           h: a.body.h,
-          key: a.rocket > 0 || a.wpn === 3 ? "rocket" : "sniper",
+          key: W.key,
           enemy: a.team !== me.team,
         });
+    }
     return out;
   }
   /** the engine hooks for hosting a match (fresh, or taken over from a host who left) */

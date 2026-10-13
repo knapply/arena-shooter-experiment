@@ -341,6 +341,8 @@ function updateLive() {
     return;
   }
   room = r;
+  /* lab content stays offline: everyone in a room plays the shipped game */
+  LABS.on = false;
   if (typeof room.onFast === "function") room.onFast(onFastPacket);
   room.onPeers(
     ch => {
@@ -360,6 +362,7 @@ function updateLive() {
     },
     () => {
       room = null;
+      LABS.on = true;
       sbSeen = "";
       setSandboxOverride(null);
       updateLive();
