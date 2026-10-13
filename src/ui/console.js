@@ -210,6 +210,14 @@ const CON = (() => {
         return "hitboxes " + (on ? "on" : "off");
       },
     ],
+    bake: [
+      "bake [on|off] — show only the light baked into the map (occlusion grey, bounce in color)",
+      a => {
+        SURF_DEBUG.on = onOff(a[0], SURF_DEBUG.on);
+        for (const m of SURF_MATS) m.needsUpdate = true;
+        return "bake " + (SURF_DEBUG.on ? "on" : "off");
+      },
+    ],
     nav: [
       "nav [on|off] — draw the CTF AI's walkable grid (colored by lane)",
       a => {

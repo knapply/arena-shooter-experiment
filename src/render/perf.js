@@ -8,7 +8,9 @@ const PERF = {
   postCpu: 0,
   hist: new Float32Array(120),
   hi: 0,
-  gpu: { scene: 0, post: 0, ok: false },
+  /** GPU milliseconds per pass label (scene, ssao, shafts, ssr, bloom, comp), smoothed; seen: frames since */
+  gpu: { ok: false },
+  gpuSeen: {},
   nextDraw: 0,
 };
 /* GPU timer queries (WebGL2 EXT_disjoint_timer_query_webgl2): results arrive a few frames later */
@@ -39,7 +41,9 @@ const GPUQ = (() => {
         pending.shift();
         if (!disjoint) {
           const ms = gl.getQueryParameter(p.q, gl.QUERY_RESULT) / 1e6;
-          PERF.gpu[p.label] += (ms - PERF.gpu[p.label]) * 0.1;
+          const was = PERF.gpu[p.label] || 0;
+          PERF.gpu[p.label] = was + (ms - was) * 0.1;
+          PERF.gpuSeen[p.label] = PERF.t0;
           PERF.gpu.ok = true;
         }
         gl.deleteQuery(p.q);
@@ -77,17 +81,20 @@ function perfEnd() {
   const i = renderer.info,
     mem = /** @type {any} */ (performance).memory;
   const logic = Math.max(0, ms - PERF.renderCpu - PERF.postCpu);
+  /* passes that ran in the last second (a pass that turned off drops out) */
+  const passes = Object.keys(PERF.gpuSeen).filter(k => PERF.t0 - PERF.gpuSeen[k] < 1000);
+  const gpuPost = passes.filter(k => k !== "scene").reduce((a, k) => a + PERF.gpu[k], 0);
   const rows = [
     ["frame", `${(sum / PERF.hist.length).toFixed(2)} ms avg · ${worst.toFixed(1)} worst (2 s)`],
     ["logic", `${logic.toFixed(2)} ms cpu`],
     [
       "render",
-      `${PERF.renderCpu.toFixed(2)} ms cpu${PERF.gpu.ok ? ` · ${PERF.gpu.scene.toFixed(2)} ms gpu` : ""}`,
+      `${PERF.renderCpu.toFixed(2)} ms cpu${PERF.gpu.ok ? ` · ${(PERF.gpu.scene || 0).toFixed(2)} ms gpu` : ""}`,
     ],
-    [
-      "post",
-      `${PERF.postCpu.toFixed(2)} ms cpu${PERF.gpu.ok ? ` · ${PERF.gpu.post.toFixed(2)} ms gpu` : ""}`,
-    ],
+    ["post", `${PERF.postCpu.toFixed(2)} ms cpu${PERF.gpu.ok ? ` · ${gpuPost.toFixed(2)} ms gpu` : ""}`],
+    ...(PERF.gpu.ok
+      ? [["passes", passes.map(k => `${k} ${PERF.gpu[k].toFixed(2)}`).join(" · ") + " ms gpu"]]
+      : []),
     ["draws", `${i.render.calls} calls · ${(i.render.triangles / 1000).toFixed(1)}k tris`],
     [
       "scene",

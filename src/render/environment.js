@@ -64,9 +64,11 @@ function applyGfx() {
     scene.traverse(o => {
       const m = o.material;
       if (!m || !m.isMeshStandardMaterial) return;
-      m.envMapIntensity = (refl === "glossy" ? 1.4 : 1) * (m.userData.envK != null ? m.userData.envK : 1);
+      m.envMapIntensity =
+        (refl === "glossy" || refl === "ssr" ? 1.4 : 1) * (m.userData.envK != null ? m.userData.envK : 1);
       if (m.userData.rough != null)
-        m.roughness = refl === "glossy" ? Math.max(0.25, m.userData.rough - 0.3) : m.userData.rough;
+        m.roughness =
+          refl === "glossy" || refl === "ssr" ? Math.max(0.25, m.userData.rough - 0.3) : m.userData.rough;
       m.needsUpdate = true;
     });
   }

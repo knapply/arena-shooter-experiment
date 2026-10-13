@@ -45,7 +45,8 @@ resize();
 const hemi = new THREE.HemisphereLight(0xb4cbe0, 0x5a4a3c, 1.35);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffe2c0, 2.3);
-sun.position.set(30, 50, 18);
+/* a lower sun than overhead: longer shadows, and the sky shader draws it where the shadows say it is */
+sun.position.set(30, 30, 18);
 sun.castShadow = true;
 sun.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, near: 1, far: 130 });
@@ -56,10 +57,13 @@ const _skyP = new THREE.Vector3();
 const skyTint = new THREE.Vector3(1, 1, 1);
 /* the sky's clock (render/atmosphere.js advances it): the city's searchlights sweep with it */
 const SKY_TIME = { value: 0 };
+/* the sun's direction (follows sun.position) and the sky's detail level (Sky detail setting: 0 or 1) */
+const SKY_SUN = { value: new THREE.Vector3(0.6, 0.6, 0.36) },
+  SKY_Q = { value: 1 };
 {
   const g = new THREE.SphereGeometry(40, 32, 16);
   const m = new THREE.ShaderMaterial({
-    uniforms: { tint: { value: skyTint }, tm: SKY_TIME },
+    uniforms: { tint: { value: skyTint }, tm: SKY_TIME, sunD: SKY_SUN, sq: SKY_Q },
     side: THREE.BackSide,
     depthWrite: false,
     depthTest: false,
@@ -68,7 +72,7 @@ const SKY_TIME = { value: 0 };
       "varying vec3 v;void main(){v=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
     /* dusk gradient, a ringed planet, stars and a faint nebula overhead, and a distant megacity
        skyline with lit windows along the horizon (all procedural, one draw call) */
-    fragmentShader: `uniform vec3 tint;uniform float tm;varying vec3 v;
+    fragmentShader: `uniform vec3 tint;uniform float tm;uniform vec3 sunD;uniform float sq;varying vec3 v;
 float h1(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h1(i),h1(i+vec2(1,0)),f.x),mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x),f.y);}
 void main(){vec3 d=normalize(v);float h=d.y;
@@ -109,12 +113,17 @@ vec2 w=vec2(az*240.,h*190.);float win=step(.84,h1(floor(w)))*smoothstep(.2,.4,fr
 sk+=win*mix(vec3(1.,.7,.35),vec3(.4,.8,1.),h1(vec2(col,3.)))*.4;
 if(h>th-.004&&h1(vec2(col,9.))>.6)sk+=vec3(1.,.25,.2)*.9;
 c=sk;}
-gl_FragColor=vec4(pow(c,vec3(2.2))*1.5*tint,1.);}`,
+vec3 lin=pow(c,vec3(2.2))*1.5;
+/* the sun: a hot disc, a tight glow and a wide warm haze (alpha 0 marks sky for the light shafts) */
+float sd=max(dot(d,sunD),0.);
+lin+=vec3(1.,.84,.62)*(smoothstep(.99984,.99993,sd)*30.+pow(sd,900.)*3.+pow(sd,60.)*.16+pow(sd,8.)*.04)*step(th,h);
+gl_FragColor=vec4(lin*tint,0.);}`,
   }); /* the sky follows whichever camera renders it and draws behind everything, so it is never clipped by the far plane */
   const sky = new THREE.Mesh(g, m);
   sky.renderOrder = -10;
   sky.frustumCulled = false;
   sky.onBeforeRender = (r, sc, cam) => {
+    SKY_SUN.value.copy(sun.position).normalize();
     sky.position.copy(cam.getWorldPosition(_skyP));
     sky.updateMatrixWorld();
     sky.modelViewMatrix.multiplyMatrices(cam.matrixWorldInverse, sky.matrixWorld);

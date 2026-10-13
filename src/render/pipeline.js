@@ -15,6 +15,10 @@ const GFX = {
   lastKey: "",
   b3: null,
   b4: null,
+  /* half-resolution occlusion (ao1, ao2), quarter-resolution light shafts (sh) */
+  ao1: null,
+  ao2: null,
+  sh: null,
   /* cinematic look (trailer and cutscenes): see CINE.look */
   look: null,
 };
@@ -64,6 +68,73 @@ const blur4Mat = new THREE.ShaderMaterial({
   fragmentShader:
     "uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;void main(){vec4 c=texture2D(t,vUv)*.227027;c+=texture2D(t,vUv+dir*1.3846)*.316216;c+=texture2D(t,vUv-dir*1.3846)*.316216;c+=texture2D(t,vUv+dir*3.2308)*.07027;c+=texture2D(t,vUv-dir*3.2308)*.07027;gl_FragColor=c;}",
 });
+/* screen-space ambient occlusion at half resolution: view positions rebuilt from depth, normals from
+   the flatter side of each pixel's neighbours, ten samples on a rotated spiral within `rad` metres */
+const VIEWPOS =
+  "uniform sampler2D tD;uniform vec2 clip;uniform vec2 proj;float lz(vec2 uv){float d=texture2D(tD,uv).x;return clip.x*clip.y/(clip.y-d*(clip.y-clip.x));}vec3 vp(vec2 uv){float z=lz(uv);return vec3((uv*2.-1.)*proj*z,-z);}";
+const ssaoMat = new THREE.ShaderMaterial({
+  uniforms: {
+    tD: { value: null },
+    clip: { value: new THREE.Vector2(0.1, 500) },
+    proj: { value: new THREE.Vector2(1, 1) },
+    texel: { value: new THREE.Vector2(1, 1) },
+    rad: { value: 1.1 },
+    k: { value: 1.25 },
+  },
+  vertexShader: FSV,
+  depthTest: false,
+  depthWrite: false,
+  fragmentShader: `uniform vec2 texel;uniform float rad;uniform float k;varying vec2 vUv;${VIEWPOS}
+void main(){if(texture2D(tD,vUv).x>=1.){gl_FragColor=vec4(1.);return;}
+vec3 P=vp(vUv);
+vec3 r=vp(vUv+vec2(texel.x,0.)),l=vp(vUv-vec2(texel.x,0.)),u=vp(vUv+vec2(0.,texel.y)),b=vp(vUv-vec2(0.,texel.y));
+vec3 dx=abs(r.z-P.z)<abs(P.z-l.z)?r-P:P-l;vec3 dy=abs(u.z-P.z)<abs(P.z-b.z)?u-P:P-b;
+vec3 N=normalize(cross(dx,dy));
+vec2 sr=rad/(-P.z*proj)*.5;
+float a0=6.2831*fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
+float ao=0.;
+for(int i=0;i<10;i++){float f=(float(i)+.6)/10.;float a=a0+float(i)*2.39996;
+vec3 v=vp(vUv+vec2(cos(a),sin(a))*sr*f)-P;float L=length(v);
+ao+=max(0.,dot(v,N)/max(L,1e-4)-.08)*(1.-smoothstep(rad*.6,rad*1.6,L));}
+ao=clamp(1.-ao*k/10.,0.,1.);
+gl_FragColor=vec4(vec3(ao*ao),1.);}`,
+});
+/* edge-aware blur of the occlusion: neighbours at a different depth don't bleed across */
+const aoBlurMat = new THREE.ShaderMaterial({
+  uniforms: {
+    t: { value: null },
+    tD: { value: null },
+    clip: { value: new THREE.Vector2(0.1, 500) },
+    proj: { value: new THREE.Vector2(1, 1) },
+    dir: { value: new THREE.Vector2() },
+  },
+  vertexShader: FSV,
+  depthTest: false,
+  depthWrite: false,
+  fragmentShader: `uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;${VIEWPOS}
+void main(){float z0=lz(vUv);float s=texture2D(t,vUv).r,w=1.;
+for(int i=-3;i<=3;i++){if(i==0)continue;vec2 uv=vUv+dir*float(i);
+float wi=exp(-abs(lz(uv)-z0)/(z0*.04+.02))*(1.-abs(float(i))*.2);s+=texture2D(t,uv).r*wi;w+=wi;}
+gl_FragColor=vec4(vec3(s/w),1.);}`,
+});
+/* light shafts: march from each pixel toward the sun through the sky (alpha 0 in the scene target),
+   so walls and towers cut the rays */
+const shaftMat = new THREE.ShaderMaterial({
+  uniforms: { t: { value: null }, sunUv: { value: new THREE.Vector2() }, vis: { value: 0 } },
+  vertexShader: FSV,
+  depthTest: false,
+  depthWrite: false,
+  fragmentShader: `uniform sampler2D t;uniform vec2 sunUv;uniform float vis;varying vec2 vUv;
+void main(){vec2 st=(sunUv-vUv)/36.;vec2 uv=vUv;vec3 acc=vec3(0.);float dec=1.;
+for(int i=0;i<36;i++){vec4 s=texture2D(t,uv);acc+=min(max(s.rgb-.3,0.),vec3(6.))*(1.-clamp(s.a,0.,1.))*dec;dec*=.97;uv+=st;}
+gl_FragColor=vec4(acc*vis/36.,1.);}`,
+});
+/* each map's own color mood, applied after tone mapping: shadow tint (lift), highlight tint (gain),
+   vibrance. Picked by whichever map group is showing (MAP_GROUPS, world/bake.js). */
+const MAP_GRADE = {
+  arena: { lift: [-0.012, 0.008, 0.03], gain: [1.05, 1.0, 0.94], vib: 0.18 },
+  "twin-foundry": { lift: [0.018, -0.004, 0.04], gain: [1.06, 0.98, 0.9], vib: 0.22 },
+};
 const compMat = new THREE.ShaderMaterial({
   depthTest: false,
   depthWrite: false,
@@ -89,10 +160,20 @@ const compMat = new THREE.ShaderMaterial({
     grade: { value: 0 },
     ca: { value: 0 },
     streak: { value: 0 },
+    /* ambient occlusion, light shafts and the map's grade */
+    tA: { value: null },
+    aoK: { value: 0 },
+    tSh: { value: null },
+    shaftK: { value: 0 },
+    gOn: { value: 0 },
+    gLift: { value: new THREE.Vector3() },
+    gGain: { value: new THREE.Vector3(1, 1, 1) },
+    gVib: { value: 0 },
   },
   fragmentShader: [
     "uniform sampler2D tS;uniform sampler2D tB;uniform vec2 texel;uniform float fx;uniform float sharp;uniform float bloom;uniform float expo;uniform float sat;uniform float vig;uniform float grain;uniform float time;varying vec2 vUv;",
     "uniform float cine;uniform sampler2D tF;uniform float grade;uniform float ca;uniform float streak;",
+    "uniform sampler2D tA;uniform float aoK;uniform sampler2D tSh;uniform float shaftK;uniform float gOn;uniform vec3 gLift;uniform vec3 gGain;uniform float gVib;",
     DOF_COC,
     "vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}",
     "float luma(vec3 c){return dot(c,vec3(.299,.587,.114));}",
@@ -113,12 +194,16 @@ const compMat = new THREE.ShaderMaterial({
     /* anamorphic streaks: bloom smeared sideways, tinted cool */
     "  if(streak>0.){vec3 s2=vec3(0.);for(int i=1;i<7;i++){float f=float(i)*.022;s2+=(texture2D(tB,uv+vec2(f,0.)).rgb+texture2D(tB,uv-vec2(f,0.)).rgb)*(1.-float(i)/7.);}c+=aces(s2*expo*.18)*vec3(.55,.8,1.)*streak;}",
     " }",
+    /* occlusion darkens everything but what glows */
+    " if(aoK>0.){float a=texture2D(tA,uv).r;c*=mix(1.,a,aoK*(1.-smoothstep(.75,1.,luma(c))));}",
+    " if(shaftK>0.)c+=aces(texture2D(tSh,uv).rgb*expo)*vec3(1.,.86,.66)*shaftK;",
     " c+=aces(texture2D(tB,uv).rgb*expo)*bloom;",
     " float l=luma(c);c=max(mix(vec3(l),c,sat),0.);",
     " c*=1.-vig*smoothstep(.3,.95,length(q)*1.25);",
     " float g=fract(sin(dot(uv+fract(time),vec2(12.9898,78.233)))*43758.5453);vec3 o=pow(clamp(c,0.,1.),vec3(1./2.2));",
     /* split-tone grade: cool shadows, warm highlights, a gentle S-curve */
     " if(cine>.5&&grade>0.){float L=luma(o);o+=grade*((1.-L)*(1.-L)*vec3(-.035,.012,.05)+L*L*vec3(.05,.012,-.045));o=mix(o,o*o*(3.-2.*o),grade*.35);}",
+    " if(gOn>.5){o=o*gGain+gLift*(1.-o);float L=luma(o),mx=max(o.r,max(o.g,o.b)),mn=min(o.r,min(o.g,o.b));o=mix(vec3(L),o,1.+gVib*(1.-(mx-mn)));}",
     " gl_FragColor=vec4(o+(g-.5)*grain*.6,1.);}" /* grain after gamma so dark areas are not swamped by noise */,
   ].join("\n"),
 });
@@ -138,10 +223,22 @@ function gfxResize() {
     h = Math.max(1, Math.round(H * s));
   const msaa = SET.aa === "msaa" && GFX.webgl2 && THREE.WebGLMultisampleRenderTarget;
   const wantDof = !!(GFX.look && GFX.look.dof > 0) && GFX.webgl2;
-  const key = w + "x" + h + (msaa && !wantDof ? "m" : "") + (SET.bloom > 0 ? "b" : "") + (wantDof ? "d" : "");
+  const wantAo = SET.ao === "ssao" && GFX.webgl2,
+    wantSh = !!SET.lightShafts;
+  /* the scene's depth as a texture (depth of field, occlusion); WebGL2 resolves it from MSAA too */
+  const wantDepth = wantDof || wantAo;
+  const key =
+    w +
+    "x" +
+    h +
+    (msaa ? "m" : "") +
+    (SET.bloom > 0 ? "b" : "") +
+    (wantDof ? "d" : "") +
+    (wantAo ? "a" : "") +
+    (wantSh ? "s" : "");
   if (key === GFX.lastKey && GFX.rt) return;
   GFX.lastKey = key;
-  for (const k of ["rt", "b1", "b2", "b3", "b4"])
+  for (const k of ["rt", "b1", "b2", "b3", "b4", "ao1", "ao2", "sh"])
     if (GFX[k]) {
       GFX[k].dispose();
       GFX[k] = null;
@@ -155,13 +252,11 @@ function gfxResize() {
     stencilBuffer: false,
   };
   try {
-    /* depth of field reads the depth buffer, which a multisampled target can't share */
-    GFX.rt =
-      msaa && !wantDof
-        ? new THREE.WebGLMultisampleRenderTarget(w, h, opt)
-        : new THREE.WebGLRenderTarget(w, h, opt);
-    if (msaa && !wantDof) GFX.rt.samples = 4;
-    if (wantDof) {
+    GFX.rt = msaa
+      ? new THREE.WebGLMultisampleRenderTarget(w, h, opt)
+      : new THREE.WebGLRenderTarget(w, h, opt);
+    if (msaa) GFX.rt.samples = 4;
+    if (wantDepth) {
       GFX.rt.depthTexture = new THREE.DepthTexture(w, h);
       GFX.rt.depthTexture.type = THREE.UnsignedIntType;
     }
@@ -170,6 +265,12 @@ function gfxResize() {
       bh = Math.max(1, h >> 2);
     GFX.b1 = new THREE.WebGLRenderTarget(bw, bh, bo);
     GFX.b2 = new THREE.WebGLRenderTarget(bw, bh, bo);
+    if (wantAo) {
+      const ao = Object.assign({}, bo, { type: THREE.UnsignedByteType });
+      GFX.ao1 = new THREE.WebGLRenderTarget(Math.max(1, w >> 1), Math.max(1, h >> 1), ao);
+      GFX.ao2 = new THREE.WebGLRenderTarget(Math.max(1, w >> 1), Math.max(1, h >> 1), ao);
+    }
+    if (wantSh) GFX.sh = new THREE.WebGLRenderTarget(bw, bh, bo);
     if (wantDof) {
       const fw = Math.max(1, w >> 1),
         fh = Math.max(1, h >> 1);
@@ -183,6 +284,8 @@ function gfxResize() {
   GFX.h = h;
   compMat.uniforms.texel.value.set(1 / w, 1 / h);
 }
+const _sunS = new THREE.Vector3(),
+  _sunF = new THREE.Vector3();
 function fsPass(mat, target) {
   fsQuad.material = mat;
   renderer.setRenderTarget(target);
@@ -214,8 +317,61 @@ function renderFrame() {
     if (GPUQ) GPUQ.end();
     const tp = performance.now();
     PERF.renderCpu += tp - tr;
-    if (GPUQ) GPUQ.begin("post");
     const U = compMat.uniforms;
+    /* occlusion: half resolution, then blurred across and down without crossing depth edges */
+    U.aoK.value = 0;
+    if (GFX.ao1 && GFX.rt.depthTexture) {
+      if (GPUQ) GPUQ.begin("ssao");
+      const tanY = Math.tan((camera.fov * Math.PI) / 360);
+      for (const M of [ssaoMat, aoBlurMat]) {
+        M.uniforms.tD.value = GFX.rt.depthTexture;
+        M.uniforms.clip.value.set(camera.near, camera.far);
+        M.uniforms.proj.value.set(tanY * camera.aspect, tanY);
+      }
+      ssaoMat.uniforms.texel.value.set(1 / GFX.ao1.width, 1 / GFX.ao1.height);
+      fsPass(ssaoMat, GFX.ao1);
+      aoBlurMat.uniforms.t.value = GFX.ao1.texture;
+      aoBlurMat.uniforms.dir.value.set(1 / GFX.ao1.width, 0);
+      fsPass(aoBlurMat, GFX.ao2);
+      aoBlurMat.uniforms.t.value = GFX.ao2.texture;
+      aoBlurMat.uniforms.dir.value.set(0, 1 / GFX.ao1.height);
+      fsPass(aoBlurMat, GFX.ao1);
+      U.tA.value = GFX.ao1.texture;
+      U.aoK.value = 0.85;
+      if (GPUQ) GPUQ.end();
+    }
+    /* light shafts: only while the sun is in front of the camera */
+    U.shaftK.value = 0;
+    if (GFX.sh) {
+      _sunS.copy(sun.position).normalize();
+      camera.getWorldDirection(_sunF);
+      const facing = _sunS.dot(_sunF);
+      if (facing > 0.1) {
+        _sunS.multiplyScalar(100).add(camera.getWorldPosition(_sunF)).project(camera);
+        const off = Math.max(Math.abs(_sunS.x), Math.abs(_sunS.y));
+        const vis = Math.min(1, (facing - 0.1) * 2.5) * (1 - Math.min(1, Math.max(0, off - 1) / 1.2));
+        if (vis > 0.01) {
+          if (GPUQ) GPUQ.begin("shafts");
+          shaftMat.uniforms.t.value = GFX.rt.texture;
+          shaftMat.uniforms.sunUv.value.set(_sunS.x * 0.5 + 0.5, _sunS.y * 0.5 + 0.5);
+          shaftMat.uniforms.vis.value = vis;
+          fsPass(shaftMat, GFX.sh);
+          U.tSh.value = GFX.sh.texture;
+          U.shaftK.value = 1.5;
+          if (GPUQ) GPUQ.end();
+        }
+      }
+    }
+    /* the showing map's grade */
+    const mg = SET.grade && !GFX.look && MAP_GROUPS.find(m => m.g.visible && m.g.parent),
+      gr = mg && MAP_GRADE[mg.id];
+    U.gOn.value = gr ? 1 : 0;
+    if (gr) {
+      U.gLift.value.fromArray(gr.lift);
+      U.gGain.value.fromArray(gr.gain);
+      U.gVib.value = gr.vib;
+    }
+    if (GPUQ) GPUQ.begin("bloom");
     if (SET.bloom > 0) {
       brightMat.uniforms.t.value = GFX.rt.texture;
       fsPass(brightMat, GFX.b1);
@@ -228,6 +384,7 @@ function renderFrame() {
         fsPass(blurMat, GFX.b1);
       }
     }
+    if (GPUQ) GPUQ.end();
     const L = GFX.look;
     U.cine.value = L ? 1 : 0;
     if (L) {
@@ -257,6 +414,7 @@ function renderFrame() {
       U.ca.value = L.ca || 0;
       U.streak.value = SET.bloom > 0 ? L.streak || 0 : 0;
     }
+    if (GPUQ) GPUQ.begin("comp");
     U.tS.value = GFX.rt.texture;
     U.tB.value = GFX.b1.texture;
     U.fx.value = SET.aa === "fxaa" ? 1 : 0;
