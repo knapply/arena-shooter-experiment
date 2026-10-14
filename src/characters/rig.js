@@ -229,6 +229,18 @@ function reloadKey(keys, r, fore, out) {
   }
   return out.copy(fore);
 }
+/* where the palm's centre is in a hand's frame (the right hand's; the left mirrors x) */
+const PALM = new V3(0.0375, -0.06, 0);
+const _gx = new V3(),
+  _gy = new V3(),
+  _gz = new V3(),
+  _gv = new V3(),
+  _gpull = new V3(),
+  _gc = new V3(),
+  _gn = new V3(),
+  _gk = new V3(),
+  _gqL = new THREE.Quaternion(),
+  _gqR = new THREE.Quaternion();
 /* damped spring (substepped for stability at low frame rates) */
 const spr = () => ({ x: 0, v: 0 });
 function spring(s, t, dt, f, z) {
@@ -547,9 +559,8 @@ function carriedSkull() {
       roughness: 0.55,
     })
   );
-  /* between the hands (the grip's y -0.12 and -0.45), upright in the pilot's frame and facing out */
-  m.position.set(0, -0.29, -0.06);
-  m.rotation.set(-0.35, Math.PI, 0.5);
+  /* at the carry's origin, the face forward (the hands grip its sides: rig.update) */
+  m.rotation.set(-0.15, 0, 0);
   return m;
 }
 function flagCloth(color) {
@@ -801,6 +812,22 @@ function makePilot(color, label) {
     A.sh.quaternion.copy(A.clav.quaternion).invert().multiply(_up.quaternion);
   }
   /* point a hand along a frame given in the chest's space (blend 0..1), and close its fingers */
+  /* a hand's grip on a carried object (chest frame): c, the point the palm presses on; n, the way the
+     palm faces (into the object); kn, the line of the knuckles (along a pole). Writes the wrist to put
+     the arm's IK at, and the hand's frame (its palm faces -x on the right hand, +x on the left; the
+     fingers run down -y; the knuckles along z) */
+  function gripAt(A, c, n, kn, wrist, q) {
+    _gx.copy(n).multiplyScalar(-A.side);
+    _gz.copy(kn).addScaledVector(_gx, -kn.dot(_gx)).normalize();
+    _gy.crossVectors(_gz, _gx);
+    q.setFromRotationMatrix(_m1.makeBasis(_gx, _gy, _gz));
+    return wrist.copy(c).sub(
+      _gv
+        .copy(PALM)
+        .setX(-A.side * PALM.x)
+        .applyQuaternion(q)
+    );
+  }
   function handTo(A, frameQ, k, curl) {
     _q3.copy(A.clav.quaternion).multiply(A.sh.quaternion).multiply(A.el.quaternion).invert();
     _q2.copy(_q3).multiply(frameQ);
@@ -1320,13 +1347,61 @@ function makePilot(color, label) {
       let curlL = 1,
         curlR = 1;
       if (S.flag) {
-        /* the flag: carried across the body in both hands, pole up over the right shoulder */
+        /* carrying, in both hands: the flag's pole across the body, up over the right shoulder, or the
+           oddball skull held out in front. Each hand closes on its own contact on the object (the pole,
+           or a side of the skull) and the wrist is solved back from there, so the hands sit on it, and
+           the carry swings with a blow (wound up, driven, followed through) */
         const sw = S.mocap ? Math.sin(S.loco.phase * Math.PI * 2) * 0.05 * Math.min(1, S.loco.moving) : 0;
-        flagG.position.set(0.04, -0.02 + sw * 0.3, -0.24);
-        flagG.rotation.set(0.35 + sw, 0, -0.5 + (st.melee >= 0 ? Math.sin(Math.PI * st.melee) * 0.5 : 0));
+        if (S.skull) {
+          flagG.position.set(
+            0,
+            -0.08 + sw * 0.2 + 0.18 * wind - 0.12 * strike,
+            -0.32 + 0.06 * wind - 0.13 * strike
+          );
+          flagG.rotation.set(-0.4 * wind + 0.6 * strike, 0, 0);
+        } else {
+          flagG.position.set(0.04, -0.02 + sw * 0.3, -0.24 - 0.06 * strike);
+          flagG.rotation.set(
+            0.35 + sw - 0.3 * wind + 0.35 * strike,
+            0,
+            -0.5 - 0.2 * wind + 0.35 * strike + 0.12 * fol
+          );
+        }
         flagG.updateMatrix();
-        _rk.set(0, -0.12, 0).applyMatrix4(flagG.matrix);
-        _lk.set(0, -0.45, 0).applyMatrix4(flagG.matrix);
+        /* (if a grip is out of an arm's reach, the object comes in toward the body by the shortfall,
+           so both hands stay on it through a swing) */
+        for (let pass = 0; pass < 3; pass++) {
+          let over = 0;
+          for (let i = 0; i < 2; i++) {
+            const A = arms[i];
+            if (S.skull) {
+              /* palms on the skull's sides, fingers up round it */
+              _gn.set(A.side < 0 ? 1 : -1, 0, 0).applyQuaternion(flagG.quaternion);
+              _gc.copy(flagG.position).addScaledVector(_gn, -0.155);
+              _gk.set(0, 0, -1).applyQuaternion(flagG.quaternion);
+            } else {
+              /* round the pole (right hand high, left low), palms forward */
+              _gk.set(0, 1, 0).applyQuaternion(flagG.quaternion);
+              _gc.set(0, i ? -0.12 : -0.4, 0).applyMatrix4(flagG.matrix);
+              _gn.set(0, 0, -1).addScaledVector(_gk, _gk.z).normalize();
+              _gc.addScaledVector(_gn, -0.02);
+            }
+            gripAt(A, _gc, _gn, _gk, i ? _rk : _lk, i ? _gqR : _gqL);
+            _gv.set(A.side * 0.26, 0.17, 0);
+            const d = _gv.distanceTo(i ? _rk : _lk) - 0.57;
+            if (d > over) {
+              over = d;
+              _gpull
+                .copy(_gv)
+                .sub(i ? _rk : _lk)
+                .normalize();
+            }
+          }
+          if (over <= 0.005 || pass === 2) break;
+          flagG.position.addScaledVector(_gpull, over);
+          flagG.updateMatrix();
+        }
+        curlL = curlR = S.skull ? 0.5 : 1;
         if (cloth) {
           const a = cloth.geometry.attributes.position,
             b0 = cloth.userData.base,
@@ -1355,15 +1430,24 @@ function makePilot(color, label) {
         } else _lk.copy(R.fore).applyMatrix4(gun.matrix);
       }
       if (air && !st.thrust && !st.stab && st.vy < -6) curlL = Math.min(curlL, 0.4);
-      S.lh.lerp(_lk, kf);
-      S.rh.lerp(_rk, Math.min(1, kf * 1.5));
+      /* (a carried object's grip is held exactly: easing toward it would leave the hands trailing it) */
+      if (S.flag) {
+        S.lh.copy(_lk);
+        S.rh.copy(_rk);
+      } else {
+        S.lh.lerp(_lk, kf);
+        S.rh.lerp(_rk, Math.min(1, kf * 1.5));
+      }
       /* (elbows out, not tucked) */
       solveArm(arms[0], S.lh, _pole.set(-1, -0.2, 0.3), near);
       solveArm(arms[1], S.rh, _pole.set(1, -0.2, 0.35), near);
-      if (near) {
-        const frame = S.flag ? flagG.quaternion : gun.quaternion;
-        handTo(arms[1], frame, 0.85, curlR);
-        handTo(arms[0], frame, curlL > 0.7 ? 0.7 : 0.2, curlL);
+      /* (a carried object's grip at any distance; a weapon's hands only up close) */
+      if (S.flag) {
+        handTo(arms[1], _gqR, 1, curlR);
+        handTo(arms[0], _gqL, 1, curlL);
+      } else if (near) {
+        handTo(arms[1], gun.quaternion, 0.85, curlR);
+        handTo(arms[0], gun.quaternion, curlL > 0.7 ? 0.7 : 0.2, curlL);
       }
       /* the reload's sounds, heard from anyone: seat, slap, bolt */
       if (rl >= 0 && S.lastRS >= 0) {
