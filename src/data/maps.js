@@ -125,24 +125,24 @@ MAPS.arena = {
      lines (north and south between the stairs and the barricade, east and west either side of the
      slab). A quarter cycle apart, so the shut side goes round the core */
   gates: [
-    { id: "gate-n", leaves: [[0, 13.88, 0.8, 6.24]], h: 4.6, phase: 0 },
+    { id: "gate-n", leaves: [[0, 13.88, 0.8, 6.24]], h: 3.9, phase: 0 },
     {
       id: "gate-e",
       leaves: [
         [10.4, 0, 4.4, 0.8],
         [15.2, 0, 3.6, 0.8],
       ],
-      h: 4.6,
+      h: 3.9,
       phase: 0.25,
     },
-    { id: "gate-s", leaves: [[0, -13.88, 0.8, 6.24]], h: 4.6, phase: 0.5 },
+    { id: "gate-s", leaves: [[0, -13.88, 0.8, 6.24]], h: 3.9, phase: 0.5 },
     {
       id: "gate-w",
       leaves: [
         [-10.4, 0, 4.4, 0.8],
         [-15.2, 0, 3.6, 0.8],
       ],
-      h: 4.6,
+      h: 3.9,
       phase: 0.75,
     },
   ],
@@ -296,7 +296,7 @@ MAPS.ctf = {
   /* blast gates (world/gates.js): one across the mid lane between the wing walls on each half, shut
      together, so mid closes and play moves out to the wings, then back. Gates across the wings were
      tried too and pushed everyone into mid (docs/PROPOSALS.md, M10) */
-  gates: [{ id: "gate-mid", leaves: [[0, -17.6, 18.8, 0.8]], h: 4.6, phase: 0, twin: true }],
+  gates: [{ id: "gate-mid", leaves: [[0, -17.6, 18.8, 0.8]], h: 3.9, phase: 0, twin: true }],
   /* lanes for the AI and callouts: x < -split is the left wing, x > split the right, mid between */
   lanes: { split: 9.5, x: [-18, 0, 18] },
 };

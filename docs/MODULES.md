@@ -23,7 +23,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/dress.js` | 183 | `DRESS_MATS` `zoneMat` `dressMap` |
 | `src/world/bake.js` | 268 | `MAP_GROUPS` `BAKE` `AO_R` `BOUNCE_R` `bakeBoxGeo` `bakePrep` `boxGrid` `rayBoxes` `bakeLight` |
 | `src/world/props.js` | 362 | `PROP_T` `PROP_MATS` `signAtlas` `withAttr` `dressProps` |
-| `src/world/gates.js` | 141 | `GATE_CYCLE` `GATES` `gatePeriod` `gateCycleT` `gateEase` `gateLift` `gateNavShut` `mapGates` `buildGates` `gatesAt` `gateShove` |
+| `src/world/gates.js` | 174 | `GATE_CYCLE` `GATES` `gatePeriod` `gateCycleT` `gateEase` `gateLift` `gateNavShut` `mapGates` `buildGates` `gatesAt` `gateShove` |
 | `src/render/gate-fx.js` | 150 | `GATE_TEX` `gateTex` `gateLook` `gateDraw` `_gp` `gateSounds` |
 | `src/world/maps/arena.js` | 279 | `floorTex` `crateTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `mergeGeos` `mergeMapGroup` `strip` `stairs` `buildMap` `SPAWNS` |
 | `src/world/physics.js` | 566 | `R` `H_STAND` `H_CROUCH` `TUNE_DEF` `TUNE` `NO_PILOTS` `pilotsFn` `setPilotCollider` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
@@ -80,7 +80,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
 | `src/game/exports.js` | 293 | `KA_API` |
 | `src/modes/ctf/map.js` | 225 |  |
-| `src/modes/ctf/nav.js` | 343 |  |
+| `src/modes/ctf/nav.js` | 349 |  |
 | `src/modes/ctf/brain.js` | 580 |  |
 | `src/modes/ctf/agent.js` | 1363 |  |
 | `src/modes/ctf/rules.js` | 773 |  |
