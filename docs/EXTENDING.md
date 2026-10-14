@@ -42,7 +42,7 @@ It appears in its tab, in the settings search, in export/import, and in the save
 ## A weapon
 
 1. Add an entry to `WEAPON_DATA` in `data/weapons.js`: damage, rate, magazine, spread, zoom and sounds. `docs/SANDBOX.md` regenerates its kill-time row on the next build.
-2. Give it a viewmodel and its pose set in `weapons/viewmodels.js` (`VMW`), a third-person model in `characters/rig.js` (`weaponParts`, `WPN_RIG`), and a pickup model in `weapons/pickups.js` (`MODEL_PARTS`).
+2. Model it in `weapons/models.js` (`GUN_MODELS`): one list of parts (boxes, bevelled boxes, cylinders, the ammo counter) in the viewmodel's frame builds the first-person viewmodel, the gun in other pilots' hands and the floor model. Keep the muzzle where `muzzle` says and the sight where ADS looks. Then give it hand points, poses and a light colour in `weapons/viewmodels.js` (`VMW`, plus its holo glass or sight dot), and its fit in the hands in `characters/rig.js` (`WPN_FIT`: the offset that puts its grip in the hand and the materials it may use, one draw each per pilot; `WPN_RIG`). `tools/weapon-preview.js` screenshots every weapon in first person (hip, ADS, low ammo) and held by pilots.
 3. If it is a power weapon, add it to `POWER_ROTATION` and teach the AI to use it (`modes/ctf/agent.js`: see `shootSniper` / `shootRocket`). Add a `LOCK` value in `tools/tune.js` so it can be tuned on its own.
 4. Network: the held weapon travels as two state bits (`NET.bitsOf`). A fifth weapon needs a third bit (the state word is a `u32`), and **`MSG.PROTOCOL` must go up**.
 

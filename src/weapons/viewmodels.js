@@ -1,4 +1,4 @@
-/* ============ first-person viewmodels: carbine with holo sight, sidearm with iron sights ============ */
+/* ============ first-person viewmodels: the models in weapons/models.js, sights, hands and their poses ============ */
 const vmRoot = new THREE.Group();
 camera.add(vmRoot);
 const vmArmor = new THREE.MeshStandardMaterial({ color: myColor, roughness: 0.42, metalness: 0.55 });
@@ -14,6 +14,19 @@ const vmAcc = new THREE.MeshStandardMaterial({
 });
 const vmGlove = new THREE.MeshStandardMaterial({ color: "#2a3237", roughness: 0.7, metalness: 0.15 });
 const vmPlate = new THREE.MeshStandardMaterial({ color: "#3a454c", roughness: 0.4, metalness: 0.7 });
+const vmArc = new THREE.MeshStandardMaterial({
+  color: "#2a5a6a",
+  emissive: "#8a5cff",
+  emissiveIntensity: 0.9,
+  roughness: 0.3,
+  metalness: 0.3,
+});
+/* the weapon's lights: the held weapon's colour, a flare on each shot, red and blinking on low ammo (vmLights) */
+const vmGlow = new THREE.MeshStandardMaterial({
+  color: "#000000",
+  emissive: "#5ad2ff",
+  emissiveIntensity: 1.2,
+});
 const vmGlass = new THREE.MeshBasicMaterial({
   color: 0x7fd4ff,
   transparent: true,
@@ -21,6 +34,15 @@ const vmGlass = new THREE.MeshBasicMaterial({
   depthWrite: false,
   side: THREE.DoubleSide,
 });
+/* the ammo counter: one small canvas shared by every weapon's display (only the held one is drawn) */
+const vmCtrC = document.createElement("canvas");
+vmCtrC.width = 64;
+vmCtrC.height = 32;
+const vmCtrT = new THREE.CanvasTexture(vmCtrC);
+vmCtrT.encoding = THREE.sRGBEncoding;
+const vmCtr = new THREE.MeshBasicMaterial({ map: vmCtrT });
+vmCtr.color.setScalar(1.8);
+const VM_MAT = { D: vmDark, P: vmPlate, A: vmArmor, S: vmSuit, G: vmGlow, C: vmAcc, X: vmArc };
 function vmBox(p, w, h, d, m, x, y, z) {
   const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
   o.position.set(x, y, z);
@@ -43,64 +65,53 @@ function dot(p, color, size, x, y, z) {
   p.add(s);
   return s;
 }
-// carbine
-const vmGun = new THREE.Group();
-vmRoot.add(vmGun);
-vmBox(vmGun, 0.08, 0.11, 0.58, vmDark, 0, 0, -0.1);
-vmBox(vmGun, 0.06, 0.03, 0.36, vmAcc, 0, 0.065, -0.1);
-vmBox(vmGun, 0.05, 0.09, 0.16, vmDark, 0, -0.01, 0.25);
-{
-  const g = vmBox(vmGun, 0.05, 0.12, 0.06, vmDark, 0, -0.1, 0.08);
-  g.rotation.x = 0.25;
-  const b = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 10), vmDark);
-  b.rotation.x = Math.PI / 2;
-  b.position.set(0, 0.01, -0.47);
-  vmGun.add(b);
+/* draw-call budget: a weapon's parts merge into one mesh per material; the magazine is one more
+   (the reload moves it), merged around where it seats; the counter, sight glass and dots are separate */
+function vmModel(i) {
+  const g = new THREE.Group(),
+    by = new Map(),
+    mag = [];
+  for (const p of gunParts(i)) {
+    const m = new THREE.Matrix4()
+      .makeRotationFromEuler(new THREE.Euler(p.rx, p.ry, 0))
+      .setPosition(p.x, p.y, p.z);
+    if (p.k === "n") {
+      const o = new THREE.Mesh(gunGeo(p, true), vmCtr);
+      o.applyMatrix4(m);
+      g.add(o);
+      continue;
+    }
+    const mt = VM_MAT[p.m];
+    if (!p.mag && !by.has(mt)) by.set(mt, []);
+    (p.mag ? mag : by.get(mt)).push([gunGeo(p, true), m, p]);
+  }
+  for (const [mt, list] of by) g.add(new THREE.Mesh(mergeGeos(list), mt));
+  const s = mag[0][2],
+    mg = new THREE.Mesh(
+      mergeGeos(
+        mag.map(([gg, m]) => [gg, m.premultiply(new THREE.Matrix4().makeTranslation(-s.x, -s.y, -s.z))])
+      ),
+      VM_MAT[s.m]
+    );
+  mg.position.set(s.x, s.y, s.z);
+  g.add(mg);
+  for (const [gg] of [...by.values()].flat().concat(mag)) gg.dispose();
+  g.visible = i === 0;
+  vmRoot.add(g);
+  return { g, mag: mg, slot: mg.position.clone() };
 }
-const vmMag = vmBox(vmGun, 0.05, 0.15, 0.075, vmSuit, 0, -0.13, -0.12);
-// holo sight: the red dot sits exactly on the sight line, so ADS centers it on screen where rounds go
+/* a holo sight's glass and red dot at (0, y, z); the dot is the sight line, so ADS centres it on screen
+   where rounds go */
+function vmHolo(g, y, z, w, h) {
+  const gl = new THREE.Mesh(new THREE.PlaneGeometry(w, h), vmGlass);
+  gl.position.set(0, y, z);
+  g.add(gl);
+  dot(g, 0xff3b30, 0.0042, 0, y, z);
+  return y;
+}
 const HOLO = new V3(0, 0.128, -0.08);
-vmBox(vmGun, 0.07, 0.012, 0.07, vmDark, 0, 0.086, -0.08);
-vmBox(vmGun, 0.008, 0.05, 0.012, vmDark, -0.035, 0.115, -0.08);
-vmBox(vmGun, 0.008, 0.05, 0.012, vmDark, 0.035, 0.115, -0.08);
-vmBox(vmGun, 0.078, 0.008, 0.012, vmDark, 0, 0.144, -0.08);
-{
-  const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.062, 0.046), vmGlass);
-  gl.position.copy(HOLO);
-  vmGun.add(gl);
-}
-dot(vmGun, 0xff3b30, 0.0042, HOLO.x, HOLO.y, HOLO.z);
-// sidearm
-const vmPis = new THREE.Group();
-vmRoot.add(vmPis);
-vmPis.visible = false;
-vmBox(vmPis, 0.04, 0.04, 0.21, vmDark, 0, 0.027, -0.04);
-vmBox(vmPis, 0.03, 0.008, 0.17, vmPlate, 0, 0.05, -0.045); /* slide + top rib */
-for (let i = 0; i < 5; i++)
-  vmBox(vmPis, 0.042, 0.03, 0.004, vmPlate, 0, 0.027, 0.035 + i * 0.01); /* rear serrations */
-vmBox(vmPis, 0.006, 0.016, 0.035, vmPlate, 0.021, 0.035, -0.05); /* ejection port */
-vmBox(vmPis, 0.036, 0.028, 0.17, vmPlate, 0, -0.006, -0.035);
-vmBox(vmPis, 0.03, 0.004, 0.15, vmAcc, 0, -0.021, -0.04); /* frame + accent line */
-{
-  vmBox(vmPis, 0.008, 0.03, 0.05, vmPlate, 0, -0.035, 0); /* trigger guard */
-  const tr = vmBox(vmPis, 0.006, 0.018, 0.006, vmDark, 0, -0.03, 0.004);
-  tr.rotation.x = 0.3;
-  const br = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.02, 10), vmPlate);
-  br.rotation.x = Math.PI / 2;
-  br.position.set(0, 0.028, -0.152);
-  vmPis.add(br);
-}
-{
-  const g = vmBox(vmPis, 0.036, 0.11, 0.052, vmSuit, 0, -0.07, 0.045);
-  g.rotation.x = 0.22;
-}
-const vmPisMag = vmBox(vmPis, 0.026, 0.08, 0.034, vmDark, 0, -0.09, 0.05);
-// iron sights: front post and rear notch tops share y = PIS.y
+// magnum iron sights: front post and rear notch tops share y = PIS.y
 const PIS = new V3(0, 0.0585, -0.135);
-vmBox(vmPis, 0.006, 0.012, 0.008, vmDark, 0, 0.0525, -0.135);
-vmBox(vmPis, 0.009, 0.012, 0.01, vmDark, -0.011, 0.0525, 0.05);
-vmBox(vmPis, 0.009, 0.012, 0.01, vmDark, 0.011, 0.0525, 0.05);
-dot(vmPis, 0x8cffb0, 0.0035, 0, PIS.y - 0.002, PIS.z + 0.001);
 /* the support hand through a reload (RELOAD_T in characters/rig.js): out, pouch, in, a palm slap,
    then the charging handle (carbine) or the slide (magnum) pulled back and let go */
 const VM_RELOAD = [
@@ -129,28 +140,27 @@ const PIS_RELOAD = [
   [RELOAD_T.release, [-0.03, 0.05, 0.03]],
   [1, "F"],
 ];
+const RIFLE_P = {
+  hip: { p: new V3(0.2, -0.2, -0.38), r: [0, 0, 0] },
+  aim: { p: new V3(-HOLO.x, -HOLO.y, -0.24), r: [0, 0, 0] },
+  sprint: { p: new V3(0.15, -0.3, -0.34), r: [-0.35, 0.55, 0.35] },
+  reload: { p: new V3(0.13, -0.22, -0.36), r: [0.18, 0.1, 0.55] },
+  low: { p: new V3(0.18, -0.42, -0.3), r: [-0.6, 0.3, 0.3] },
+};
+/* lab rifles share the carbine's poses but for ADS, which lines up their own sight */
+const labP = (y, z) => ({ ...RIFLE_P, aim: { p: new V3(0, -y, z), r: [0, 0, 0] } });
+/* per weapon (WEAPON_DATA order): hand points, reload path, poses, light colour */
 const VMW = [
   {
-    g: vmGun,
-    mag: vmMag,
     grip: new V3(0, -0.1, 0.08),
     fore: new V3(0, -0.07, -0.24),
-    slot: new V3(0, -0.13, -0.12),
     keys: VM_RELOAD,
-    P: {
-      hip: { p: new V3(0.2, -0.2, -0.38), r: [0, 0, 0] },
-      aim: { p: new V3(-HOLO.x, -HOLO.y, -0.24), r: [0, 0, 0] },
-      sprint: { p: new V3(0.15, -0.3, -0.34), r: [-0.35, 0.55, 0.35] },
-      reload: { p: new V3(0.13, -0.22, -0.36), r: [0.18, 0.1, 0.55] },
-      low: { p: new V3(0.18, -0.42, -0.3), r: [-0.6, 0.3, 0.3] },
-    },
+    P: RIFLE_P,
+    glow: 0x5ad2ff,
   },
   {
-    g: vmPis,
-    mag: vmPisMag,
     grip: new V3(0, -0.072, 0.048),
     fore: new V3(-0.018, -0.09, 0.04),
-    slot: new V3(0, -0.09, 0.05),
     keys: PIS_RELOAD,
     P: {
       hip: { p: new V3(0.18, -0.19, -0.37), r: [0, 0, 0] },
@@ -160,9 +170,62 @@ const VMW = [
       reload: { p: new V3(0.1, -0.18, -0.32), r: [0.35, 0.15, 0.5] },
       low: { p: new V3(0.15, -0.36, -0.28), r: [-0.8, 0.2, 0.2] },
     },
+    glow: 0x8cffb0,
   },
-];
-/* gloved hand: palm on the grip, fingers wrapped around its front, armored back plate, suit sleeve with a gauntlet over it */
+  {
+    grip: new V3(0, -0.1, 0.12),
+    fore: new V3(0, -0.07, -0.3),
+    keys: VM_RELOAD,
+    P: {
+      ...RIFLE_P,
+      hip: { p: new V3(0.2, -0.21, -0.36), r: [0, 0, 0] },
+      aim: { p: new V3(0.06, -0.24, -0.2), r: [0, 0, 0] },
+      sprint: { p: new V3(0.15, -0.3, -0.32), r: [-0.35, 0.55, 0.35] },
+    },
+    glow: 0x4a9bff,
+  },
+  {
+    grip: new V3(0, -0.21, 0.04),
+    fore: new V3(0, -0.2, -0.3),
+    keys: VM_RELOAD,
+    P: {
+      hip: { p: new V3(0.2, -0.13, -0.3), r: [0, 0, 0] },
+      aim: { p: new V3(0.1, -0.12, -0.26), r: [0, 0, 0] },
+      sprint: { p: new V3(0.16, -0.24, -0.3), r: [-0.3, 0.4, 0.25] },
+      reload: { p: new V3(0.16, -0.2, -0.32), r: [0.25, 0.1, 0.4] },
+      low: { p: new V3(0.18, -0.36, -0.3), r: [-0.5, 0.3, 0.3] },
+    },
+    glow: 0xff7a3a,
+  },
+  /* ---- lab weapons: burst rifle (a bullpup, so its reload is further back), scattergun, arc beam ---- */
+  {
+    grip: new V3(0, -0.1, -0.02),
+    fore: new V3(0, -0.07, -0.28),
+    keys: VM_RELOAD.map(([t, p]) => [t, p === "F" ? p : [p[0], p[1], p[2] + 0.22]]),
+    P: labP(0.1, -0.24),
+    glow: 0x52e0ff,
+  },
+  {
+    grip: new V3(0, -0.1, 0.06),
+    fore: new V3(0, -0.08, -0.37),
+    keys: VM_RELOAD,
+    P: labP(0.085, -0.3),
+    glow: 0xffb347,
+  },
+  {
+    grip: new V3(0, -0.1, 0.08),
+    fore: new V3(0, -0.07, -0.26),
+    keys: VM_RELOAD,
+    P: labP(0.095, -0.24),
+    glow: 0xb48cff,
+  },
+].map((o, i) => Object.assign(vmModel(i), o));
+vmHolo(VMW[0].g, HOLO.y, HOLO.z, 0.062, 0.046);
+dot(VMW[1].g, 0x8cffb0, 0.0035, 0, PIS.y - 0.002, PIS.z + 0.001);
+vmHolo(VMW[4].g, 0.1, -0.12, 0.052, 0.04);
+vmHolo(VMW[6].g, 0.095, -0.06, 0.052, 0.04);
+/* gloved hand: palm on the grip, fingers wrapped around its front, armored back plate, suit sleeve with a
+   gauntlet over it; merged per material like the weapons */
 function vmHand(side) {
   const g = new THREE.Group();
   vmBox(g, 0.03, 0.085, 0.095, vmGlove, side * 0.03, -0.012, 0.005);
@@ -184,9 +247,19 @@ function vmHand(side) {
   g.add(gt);
   const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.018, 14), vmPlate);
   ring.position.set(side * 0.04, -0.05, 0.06);
-  ring.rotation.set(-1.0 + (Math.PI / 2) * 0, 0, side * 0.3);
   ring.rotation.x = -1.0;
   g.add(ring);
+  const by = new Map();
+  for (const o of g.children) {
+    o.updateMatrix();
+    if (!by.has(o.material)) by.set(o.material, []);
+    by.get(o.material).push(o);
+  }
+  for (const [m, list] of by) {
+    if (list.length < 2) continue;
+    for (const o of list) g.remove(o);
+    g.add(new THREE.Mesh(mergeGeos(list.map(o => [o.geometry, o.matrix])), m));
+  }
   vmRoot.add(g);
   return g;
 }
@@ -209,7 +282,7 @@ const flashSprite = new THREE.Sprite(
 );
 flashSprite.scale.set(0.14, 0.14, 0.14);
 flashSprite.position.set(0, 0.01, -0.62);
-vmGun.add(flashSprite);
+VMW[0].g.add(flashSprite);
 const vmS = {
   lh: new V3(),
   lastR: -1,
@@ -227,187 +300,31 @@ const vmS = {
   lfw: 0,
   air: false,
 };
-// sniper rifle viewmodel
-const vmSnp = new THREE.Group();
-vmRoot.add(vmSnp);
-vmSnp.visible = false;
-vmBox(vmSnp, 0.075, 0.1, 0.62, vmDark, 0, 0, -0.12);
-vmBox(vmSnp, 0.06, 0.12, 0.22, vmDark, 0, -0.01, 0.3);
-vmBox(vmSnp, 0.05, 0.04, 0.4, vmAcc, 0, 0.06, -0.15);
-{
-  const b = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.55, 10), vmDark);
-  b.rotation.x = Math.PI / 2;
-  b.position.set(0, 0.015, -0.68);
-  vmSnp.add(b);
-  const s = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.3, 14), vmDark);
-  s.rotation.x = Math.PI / 2;
-  s.position.set(0, 0.115, -0.08);
-  vmSnp.add(s);
-  const l = new THREE.Mesh(
-    new THREE.CircleGeometry(0.03, 16),
-    new THREE.MeshBasicMaterial({ color: 0x2a7fff })
-  );
-  l.position.set(0, 0.115, -0.231);
-  l.rotation.y = Math.PI;
-  vmSnp.add(l);
-  const g = vmBox(vmSnp, 0.05, 0.12, 0.06, vmDark, 0, -0.1, 0.12);
-  g.rotation.x = 0.25;
+/* the held weapon's lights and counter: a flare on each shot; red, blinking, at a quarter of a
+   magazine or less; the counter redraws only when what it shows changes */
+let vmCtrK = "";
+function vmLights() {
+  const w = W(),
+    rl = reloadT > 0,
+    low = !rl && mag <= Math.max(1, Math.floor(w.mag / 4)),
+    c = low ? 0xff3a1e : VMW[wi].glow;
+  vmGlow.emissive.setHex(c);
+  vmGlow.emissiveIntensity = 1.2 + vmS.kick * 3 + (low && now % 0.5 < 0.25 ? 1.2 : 0);
+  const k = (rl ? "--" : String(mag).padStart(2, "0")) + c;
+  if (k === vmCtrK) return;
+  vmCtrK = k;
+  const x = vmCtrC.getContext("2d"),
+    hex = "#" + c.toString(16).padStart(6, "0");
+  x.fillStyle = "#04090c";
+  x.fillRect(0, 0, 64, 32);
+  x.fillStyle = hex;
+  x.font = "700 24px Chakra Petch, monospace";
+  x.textAlign = "center";
+  x.fillText(k.slice(0, 2), 32, 23);
+  x.fillRect(4, 27, rl ? 0 : (56 * mag) / w.mag, 2);
+  vmCtrT.needsUpdate = true;
 }
-const vmSnpMag = vmBox(vmSnp, 0.05, 0.12, 0.07, vmSuit, 0, -0.11, -0.02);
-VMW.push({
-  g: vmSnp,
-  mag: vmSnpMag,
-  grip: new V3(0, -0.1, 0.12),
-  fore: new V3(0, -0.07, -0.3),
-  slot: new V3(0, -0.11, -0.02),
-  keys: VM_RELOAD,
-  P: {
-    hip: { p: new V3(0.2, -0.21, -0.36), r: [0, 0, 0] },
-    aim: { p: new V3(0.06, -0.24, -0.2), r: [0, 0, 0] },
-    sprint: { p: new V3(0.15, -0.3, -0.32), r: [-0.35, 0.55, 0.35] },
-    reload: { p: new V3(0.13, -0.22, -0.36), r: [0.18, 0.1, 0.55] },
-    low: { p: new V3(0.18, -0.42, -0.3), r: [-0.6, 0.3, 0.3] },
-  },
-});
-// rocket launcher viewmodel: a launch tube on the right shoulder with a side sight
-const vmRkt = new THREE.Group();
-vmRoot.add(vmRkt);
-vmRkt.visible = false;
-{
-  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.95, 16), vmPlate);
-  tube.rotation.x = Math.PI / 2;
-  tube.position.set(0, 0, -0.18);
-  vmRkt.add(tube);
-  for (const [z, r, m] of [
-    [-0.66, 0.088, vmDark],
-    [0.3, 0.095, vmDark],
-    [-0.5, 0.079, vmAcc],
-  ]) {
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.06, 16), m);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.set(0, 0, z);
-    vmRkt.add(ring);
-  }
-  vmBox(vmRkt, 0.05, 0.12, 0.06, vmDark, 0, -0.12, 0.05).rotation.x = 0.2;
-  vmBox(vmRkt, 0.045, 0.1, 0.05, vmDark, 0, -0.11, -0.3);
-  vmBox(vmRkt, 0.05, 0.07, 0.15, vmDark, -0.1, 0.05, -0.12);
-  const lens = new THREE.Mesh(
-    new THREE.CircleGeometry(0.022, 14),
-    new THREE.MeshBasicMaterial({ color: 0xff7a3a })
-  );
-  lens.position.set(-0.1, 0.055, -0.196);
-  lens.rotation.y = Math.PI;
-  vmRkt.add(lens);
-}
-const vmRktMag = vmBox(vmRkt, 0.06, 0.06, 0.12, vmAcc, 0, 0, 0.36);
-VMW.push({
-  g: vmRkt,
-  mag: vmRktMag,
-  grip: new V3(0, -0.12, 0.05),
-  fore: new V3(0, -0.11, -0.3),
-  slot: new V3(0, 0, 0.36),
-  keys: VM_RELOAD,
-  P: {
-    hip: { p: new V3(0.2, -0.13, -0.3), r: [0, 0, 0] },
-    aim: { p: new V3(0.1, -0.12, -0.26), r: [0, 0, 0] },
-    sprint: { p: new V3(0.16, -0.24, -0.3), r: [-0.3, 0.4, 0.25] },
-    reload: { p: new V3(0.16, -0.2, -0.32), r: [0.25, 0.1, 0.4] },
-    low: { p: new V3(0.18, -0.36, -0.3), r: [-0.5, 0.3, 0.3] },
-  },
-});
-/* ---- lab weapons (VMW 4-6): burst rifle, scattergun, arc beam. Rifle poses are the carbine's but for ADS ---- */
-const vmArc = new THREE.MeshStandardMaterial({
-  color: "#9fe8ff",
-  emissive: "#8a5cff",
-  emissiveIntensity: 0.9,
-  roughness: 0.3,
-  metalness: 0.3,
-});
-function vmCyl(p, r, l, m, x, y, z) {
-  const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, 12), m);
-  o.rotation.x = Math.PI / 2;
-  o.position.set(x, y, z);
-  p.add(o);
-  return o;
-}
-/* a small holo sight centred at (0, y, z); its red dot is the sight line */
-function vmSight(g, y, z) {
-  vmBox(g, 0.06, 0.012, 0.06, vmDark, 0, y - 0.036, z);
-  vmBox(g, 0.008, 0.044, 0.01, vmDark, -0.03, y - 0.01, z);
-  vmBox(g, 0.008, 0.044, 0.01, vmDark, 0.03, y - 0.01, z);
-  vmBox(g, 0.068, 0.008, 0.01, vmDark, 0, y + 0.016, z);
-  const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.052, 0.04), vmGlass);
-  gl.position.set(0, y, z);
-  g.add(gl);
-  dot(g, 0xff3b30, 0.0042, 0, y, z);
-  return y;
-}
-/** @param {any[]} mag box args (the magazine) @param {any[]} [keys] */
-function vmLab(build, mag, grip, fore, aim, keys = VM_RELOAD) {
-  const g = new THREE.Group();
-  vmRoot.add(g);
-  g.visible = false;
-  const y = build(g);
-  VMW.push({
-    g,
-    mag: vmBox(g, ...mag),
-    grip,
-    fore,
-    slot: new V3(mag[5], mag[6], mag[7]),
-    keys,
-    P: { ...VMW[0].P, aim: { p: new V3(0, -y, aim), r: [0, 0, 0] } },
-  });
-}
-// burst rifle: a bullpup, magazine behind the grip, a small holo on top
-vmLab(
-  g => {
-    vmBox(g, 0.08, 0.11, 0.56, vmDark, 0, 0, -0.08);
-    vmBox(g, 0.06, 0.02, 0.3, vmAcc, 0, -0.035, -0.22);
-    vmCyl(g, 0.02, 0.3, vmDark, 0, 0.012, -0.51);
-    vmBox(g, 0.05, 0.12, 0.06, vmDark, 0, -0.1, -0.02).rotation.x = 0.25;
-    return vmSight(g, 0.1, -0.12);
-  },
-  [0.05, 0.13, 0.07, vmSuit, 0, -0.11, 0.12],
-  new V3(0, -0.1, -0.02),
-  new V3(0, -0.07, -0.28),
-  -0.24,
-  VM_RELOAD.map(([t, p]) => [t, p === "F" ? p : [p[0], p[1], p[2] + 0.22]])
-);
-// scattergun: a wide barrel over the magazine tube, a chunky pump grip
-vmLab(
-  g => {
-    vmCyl(g, 0.034, 0.5, vmDark, 0, 0.02, -0.47);
-    vmCyl(g, 0.044, 0.05, vmPlate, 0, 0.02, -0.7);
-    vmCyl(g, 0.024, 0.42, vmDark, 0, -0.04, -0.42);
-    vmBox(g, 0.08, 0.075, 0.16, vmPlate, 0, -0.045, -0.37);
-    for (let i = 0; i < 3; i++) vmBox(g, 0.084, 0.008, 0.012, vmDark, 0, -0.045, -0.42 + i * 0.05);
-    vmBox(g, 0.085, 0.11, 0.3, vmDark, 0, -0.01, -0.07);
-    vmBox(g, 0.06, 0.016, 0.24, vmAcc, 0, 0.05, -0.08);
-    vmBox(g, 0.06, 0.1, 0.2, vmDark, 0, -0.02, 0.17);
-    vmBox(g, 0.05, 0.12, 0.06, vmDark, 0, -0.1, 0.06).rotation.x = 0.25;
-    return 0.085;
-  },
-  [0.03, 0.03, 0.07, vmAcc, 0, -0.07, -0.12],
-  new V3(0, -0.1, 0.06),
-  new V3(0, -0.08, -0.37),
-  -0.3
-);
-// arc beam: an emitter barrel wound with glowing coil rings, a power cell under the body
-vmLab(
-  g => {
-    vmBox(g, 0.075, 0.1, 0.5, vmDark, 0, 0, -0.08);
-    vmBox(g, 0.06, 0.11, 0.16, vmDark, 0, -0.01, 0.24);
-    vmBox(g, 0.077, 0.012, 0.3, vmArc, 0, 0.01, -0.12);
-    vmCyl(g, 0.02, 0.26, vmPlate, 0, 0.01, -0.45);
-    for (let i = 0; i < 3; i++) vmCyl(g, 0.045 - i * 0.005, 0.02, vmArc, 0, 0.01, -0.37 - i * 0.07);
-    vmBox(g, 0.05, 0.12, 0.06, vmDark, 0, -0.1, 0.08).rotation.x = 0.25;
-    return vmSight(g, 0.095, -0.06);
-  },
-  [0.05, 0.09, 0.1, vmArc, 0, -0.1, -0.14],
-  new V3(0, -0.1, 0.08),
-  new V3(0, -0.07, -0.26),
-  -0.24
-);
+onFrame(vmLights);
 /* carrying the flag in first person: the weapon goes away and the flag pole sits across your hands */
 const vmFlag = new THREE.Group();
 vmRoot.add(vmFlag);
@@ -429,21 +346,4 @@ function vmCarry(on) {
   vmFlag.visible = on;
   if (on) VMW.forEach(v => (v.g.visible = false));
   else showVM();
-}
-/* draw-call budget: each weapon's static parts merge into one mesh per material (about 30 calls
-   saved). The magazine stays its own mesh (the reload moves it); hands, sights and lenses are separate. */
-for (const V of VMW) {
-  const by = new Map();
-  for (const o of V.g.children) {
-    if (!o.isMesh || o === V.mag || !o.material.isMeshStandardMaterial) continue;
-    o.updateMatrix();
-    if (!by.has(o.material)) by.set(o.material, []);
-    by.get(o.material).push(o);
-  }
-  for (const [m, list] of by) {
-    if (list.length < 2) continue;
-    for (const o of list) V.g.remove(o);
-    V.g.add(new THREE.Mesh(mergeGeos(list.map(o => [o.geometry, o.matrix])), m));
-    for (const o of list) o.geometry.dispose();
-  }
 }

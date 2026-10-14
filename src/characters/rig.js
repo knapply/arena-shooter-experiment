@@ -412,67 +412,38 @@ function buildSkin(bones, byName) {
 }
 /* ---- weapons and the carried flag: ordinary meshes in the chest's frame (one is shown at a time) ---- */
 const WGEO = new Map();
+/* each weapon's model (weapons/models.js) moved so its grip sits where WPN_RIG puts the hand, drawn with
+   only the materials that weapon has always used (one draw each per pilot); parts made of another
+   material take the nearest it has */
+/** @type {[number, number, number[]][]} */
+const WPN_FIT = [
+  [0.02, 0.02, [TRIM, ARM, GLOW, SUIT]],
+  [-0.008, 0.042, [TRIM, SUIT, GLOW]],
+  [0.02, 0.02, [TRIM, GLOW, SUIT, ARM2]],
+  [0.06, 0.04, [ARM2, TRIM, GLOW, SUIT]],
+  [0.02, 0.08, [TRIM, ARM, GLOW, SUIT, ARM2]],
+  [0.02, 0.06, [TRIM, ARM2, SUIT, ARM, GLOW]],
+  [0.02, 0.02, [TRIM, GLOW, SUIT, ARM2]],
+];
+const WPN_ROLE = { D: TRIM, P: ARM2, A: ARM, S: SUIT, G: GLOW, X: GLOW, C: ARM };
 function weaponParts(i) {
-  const L = [];
-  const W = (g, role, x, y, z, rx = 0) => L.push({ g, role, x, y, z, rx });
-  const bx = (k, w, h, d) => geo("wb:" + k, () => rbox(w, h, d, Math.min(w, h, d) * 0.25));
-  const cy = (k, a, b, h, s = 12) => geo("wc:" + k, () => new THREE.CylinderGeometry(a, b, h, s));
-  const X = Math.PI / 2;
-  if (i === 0) {
-    W(bx("gbody", 0.07, 0.1, 0.55), TRIM, 0, 0, -0.05);
-    W(bx("gtop", 0.05, 0.05, 0.3), ARM, 0, 0.06, -0.08);
-    W(bx("gsight", 0.04, 0.04, 0.07), TRIM, 0, 0.1, -0.02);
-    W(bx("gsightLt", 0.02, 0.012, 0.004), GLOW, 0, 0.105, -0.057);
-    W(cy("gbar", 0.02, 0.02, 0.18, 8), TRIM, 0, 0.01, -0.4, X);
-    W(bx("gstock", 0.05, 0.1, 0.15), TRIM, 0, -0.02, 0.28);
-    W(bx("ggrip", 0.04, 0.11, 0.05), SUIT, 0, -0.09, 0.1);
-    W(bx("gside", 0.075, 0.012, 0.25), GLOW, 0, 0.0, -0.12);
-  } else if (i === 1) {
-    W(bx("pslide", 0.045, 0.05, 0.22), TRIM, 0, 0, 0);
-    W(bx("pgrip", 0.04, 0.12, 0.055), SUIT, 0, -0.08, 0.09);
-    W(bx("plt", 0.047, 0.008, 0.08), GLOW, 0, 0.012, -0.04);
-  } else if (i === 2) {
-    W(bx("sbody", 0.06, 0.09, 0.95), TRIM, 0, 0, -0.18);
-    W(cy("sscope", 0.03, 0.03, 0.28, 10), TRIM, 0, 0.09, -0.05, X);
-    W(cy("slens", 0.022, 0.022, 0.01, 10), GLOW, 0, 0.09, -0.195, X);
-    W(bx("sgrip", 0.04, 0.11, 0.05), SUIT, 0, -0.09, 0.14);
-    W(bx("sstock", 0.05, 0.11, 0.2), ARM2, 0, -0.01, 0.38);
-  } else if (i === 3) {
-    W(cy("rtube", 0.085, 0.085, 1.05, 16), ARM2, 0, 0, -0.12, X);
-    W(cy("rmuz", 0.1, 0.09, 0.08, 16), TRIM, 0, 0, -0.66, X);
-    W(cy("rrear", 0.09, 0.11, 0.08, 16), TRIM, 0, 0, 0.42, X);
-    W(cy("rband", 0.088, 0.088, 0.03, 16), GLOW, 0, 0, -0.5, X);
-    W(bx("rgrip", 0.04, 0.12, 0.05), SUIT, 0, -0.14, 0.08);
-    W(bx("rgrip2", 0.04, 0.1, 0.05), SUIT, 0, -0.13, -0.3);
-    W(bx("rscope", 0.05, 0.07, 0.16), TRIM, -0.1, 0.06, -0.1);
-    W(bx("rscopeLt", 0.03, 0.03, 0.004), GLOW, -0.1, 0.065, -0.182);
-  } else if (i === 4) {
-    W(bx("bbody", 0.07, 0.11, 0.55), TRIM, 0, 0, -0.05);
-    W(bx("bopt", 0.04, 0.05, 0.08), ARM, 0, 0.08, -0.1);
-    W(bx("boptLt", 0.02, 0.014, 0.004), GLOW, 0, 0.09, -0.142);
-    W(cy("bbar", 0.02, 0.02, 0.14, 8), TRIM, 0, 0.01, -0.38, X);
-    W(bx("bgrip", 0.04, 0.11, 0.05), SUIT, 0, -0.09, 0.06);
-    W(bx("bmag", 0.045, 0.11, 0.06), ARM2, 0, -0.09, 0.18);
-  } else if (i === 5) {
-    W(cy("gbarrel", 0.04, 0.04, 0.6, 10), TRIM, 0, 0.02, -0.2, X);
-    W(cy("gtube", 0.028, 0.028, 0.46, 8), TRIM, 0, -0.04, -0.16, X);
-    W(bx("gpump", 0.075, 0.075, 0.15), ARM2, 0, -0.04, -0.24);
-    W(bx("grecv", 0.07, 0.11, 0.24), TRIM, 0, -0.01, 0.1);
-    W(bx("ggrip2", 0.04, 0.11, 0.05), SUIT, 0, -0.09, 0.14);
-    W(bx("gstock2", 0.05, 0.1, 0.18), ARM, 0, -0.02, 0.32);
-    W(bx("glt", 0.072, 0.01, 0.12), GLOW, 0, 0.045, 0.1);
-  } else if (i === 6) {
-    W(bx("abody", 0.07, 0.1, 0.5), TRIM, 0, 0, -0.02);
-    W(cy("abar", 0.025, 0.025, 0.28, 8), TRIM, 0, 0.01, -0.38, X);
-    for (let k = 0; k < 3; k++) W(cy("acoil", 0.05, 0.05, 0.02, 12), GLOW, 0, 0.01, -0.3 - k * 0.08, X);
-    W(bx("agrip", 0.04, 0.11, 0.05), SUIT, 0, -0.09, 0.1);
-    W(bx("astock", 0.05, 0.1, 0.16), ARM2, 0, -0.02, 0.3);
-  } else {
-    /* the flag (i = -1): a pole held across the body (the cloth is added per pilot) */
-    W(cy("fpole", 0.02, 0.02, 1.9, 8), TRIM, 0, 0, 0);
-    W(sph0("ftip"), GLOW, 0, 0.96, 0);
+  if (i >= 0) {
+    const [oy, oz, has] = WPN_FIT[i];
+    return gunParts(i)
+      .filter(p => !p.fp && p.k !== "n" && !(i === 0 && p.mag))
+      .map(p => {
+        let role = WPN_ROLE[p.m];
+        if (!has.includes(role)) role = role === ARM ? ARM2 : role === ARM2 ? ARM : TRIM;
+        if (!has.includes(role)) role = TRIM;
+        return { g: gunGeo(p, false), role, x: p.x, y: p.y + oy, z: p.z + oz, rx: p.rx };
+      });
   }
-  return L;
+  /* the flag: a pole held across the body (the cloth is added per pilot) */
+  const cy = (k, a, b, h, s = 12) => geo("wc:" + k, () => new THREE.CylinderGeometry(a, b, h, s));
+  return [
+    { g: cy("fpole", 0.02, 0.02, 1.9, 8), role: TRIM, x: 0, y: 0, z: 0, rx: 0 },
+    { g: sph0("ftip"), role: GLOW, x: 0, y: 0.96, z: 0, rx: 0 },
+  ];
 }
 const sph0 = k => geo("ws:" + k, () => new THREE.SphereGeometry(0.035, 10, 8));
 function weaponMeshes(i, mats) {
@@ -644,6 +615,12 @@ function makePilot(color, label) {
       [mag.geometry, new THREE.Matrix4().makeTranslation(MAGSLOT.x, MAGSLOT.y, MAGSLOT.z)],
     ]);
   grip.geometry = GRIP_MAG;
+  /* the weapon's lights flare with each shot */
+  for (const g of wpnG)
+    for (const m of g.children)
+      if (m.userData.role === GLOW)
+        m.onBeforeRender = () =>
+          (wmats[GLOW].emissiveIntensity = 1.5 + 2.5 * Math.exp(-12 * Math.max(0, S.t - S.lastKick)));
   const flagG = weaponMeshes(-1, wmats);
   flagG.visible = false;
   chest.add(flagG);
