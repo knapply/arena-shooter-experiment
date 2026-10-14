@@ -421,7 +421,8 @@ const podSeats = map => {
       me.chargeT = 0;
       const y = open(-30, 30);
       out.whiff = y == null ? null : take(() => KA.meleeHit(2.3, 70, "melee"));
-      /* a pilot in front, facing you with a full shield; then the same pilot with their back turned */
+      /* a pilot in front, facing you: a full shield (a blow takes 40 of it) and one a blow breaks;
+         then the same pilot with their back turned */
       const front = (yaw, sh) => {
         b.body.dead = false;
         b.body.spawnT = -99;
@@ -431,6 +432,8 @@ const podSeats = map => {
       };
       if (y != null) {
         front(me.yaw + Math.PI, 70);
+        out.full = take(() => KA.meleeHit(2.3, 70, "melee"));
+        front(me.yaw + Math.PI, 40);
         out.pilot = take(() => KA.meleeHit(2.3, 70, "melee"));
         front(me.yaw, 70);
         out.back = take(() => KA.meleeHit(2.3, 70, "melee"));
@@ -452,12 +455,14 @@ const podSeats = map => {
     );
     check(
       mi.pilot &&
+        mi.full.includes("mhit") &&
+        !mi.full.includes("mcrack") &&
         mi.pilot.includes("mhit") &&
         mi.pilot.includes("mcrack") &&
         mi.back.includes("mkill") &&
         mi.charge.includes("chit") &&
         !mi.pilot.includes("mwall"),
-      "a blow on a pilot thuds and cracks their shield, heavier from behind; a charge has its own hit",
+      "a blow on a pilot thuds, and cracks a shield it breaks; heavier from behind; a charge has its own hit",
       mi
     );
     /* kill cam: dying replays the last seconds from the killer's eyes, then shows the recap */

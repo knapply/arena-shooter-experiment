@@ -220,7 +220,7 @@ const POWER_ROTATION = ["sniper", "rocket"];
    tools/tune.js turns it on for simulations.
      burst    burst rifle pickups on the maps        scatter  the scattergun joins the power rotation
      beam     arc beam pickups on the maps           pulse    pulse grenades (strip shields, jam thrust)
-     melee    a melee blow takes at most 40 shield (meleeDamage)
+
      gates    blast gates rise and sink on both maps (world/gates.js)
      mods     map changes by name (MAP_MODS, data/maps.js) */
 const LABS = {
@@ -229,7 +229,7 @@ const LABS = {
   scatter: false,
   beam: false,
   pulse: false,
-  melee: false,
+
   gates: false,
   mods: /** @type {string[]} */ ([]),
 };
@@ -267,18 +267,19 @@ function killStats(w) {
   };
   return { best: run(true), body: run(false) };
 }
-/* melee: a blow from behind kills outright; otherwise the first blow always takes the shield down
-   (exactly what was left of it, nothing carries into health) and a blow on an unshielded pilot
-   kills. The shoulder charge keeps its own numbers. */
+/* melee: a blow from behind kills outright; otherwise a blow takes up to MELEE.shield of the shield
+   (nothing carries into health), and a blow on an unshielded pilot kills. From full shields that is
+   three blows, or one blow to finish a pilot the guns have opened up. It took the whole shield until
+   the skill-ladder pass: 40 gives new players about 0.16 s more once they're rushed and leaves the
+   top of the ladder untouched (docs/TUNING.md, "The skill ladder"). The shoulder charge keeps its own
+   numbers. */
+const MELEE = { shield: 40 };
 const MELEE_KILL = 999;
 /** damage for a melee blow on a pilot with `shield` left; `behind` from meleeBehind */
 function meleeDamage(shield, behind) {
   if (behind || shield <= 0) return MELEE_KILL;
-  /* lab (LABS.melee): a blow takes at most MELEE_LAB_SHIELD of the shield, so melee finishes fights
-     the guns start instead of winning them on its own */
-  return labOn("melee") ? Math.min(shield, MELEE_LAB_SHIELD) : shield;
+  return Math.min(shield, MELEE.shield);
 }
-const MELEE_LAB_SHIELD = 40;
 /** is the attacker (at ax, az) behind a victim at (vx, vz) facing `yaw`? (more than ~110° off their facing) */
 function meleeBehind(ax, az, vx, vz, yaw) {
   const dx = ax - vx,

@@ -499,6 +499,32 @@ function ringPieces() {
   return out;
 }
 const MAP_MODS = {
+  /* the arena's team spawns spread: each team also spawns in the two quiet corners of its own half
+     (ten spots a team, not six), against spawn camping by a stronger team (docs/TUNING.md) */
+  teamspread: {
+    map: ["arena"],
+    name: "Spread team spawns",
+    set: {
+      arena: doc => ({
+        spawns: Object.assign({}, doc.spawns, {
+          teams: [
+            doc.spawns.teams[0].concat([
+              [30, 0, -18],
+              [-30, 0, -18],
+              [18, 0, -30],
+              [-18, 0, -30],
+            ]),
+            doc.spawns.teams[1].concat([
+              [-30, 0, 18],
+              [30, 0, 18],
+              [-18, 0, 30],
+              [18, 0, 30],
+            ]),
+          ],
+        }),
+      }),
+    },
+  },
   /* the layouts before pass four (docs/TUNING.md), kept so the changes can be measured again: the
      skull's one spot, and the old free-for-all spawns (the arena's eleven; Twin Foundry's bases) */
   oneskull: {

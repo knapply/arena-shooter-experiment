@@ -6,6 +6,7 @@ window.KA = {
   POD_TIME,
   POD_EARLY,
   meleeDamage,
+  MELEE,
   meleeBehind,
   SPAWN_W,
   spawnScore,

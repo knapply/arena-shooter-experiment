@@ -266,12 +266,6 @@ const LAB_DEFS = [
     "pulse",
   ],
   [
-    "labMelee",
-    "Lighter melee",
-    "A melee blow takes at most 40 shield instead of all of it. Behind, or on a pilot with no shield left, it still kills.",
-    "melee",
-  ],
-  [
     "labGates",
     "Blast gates",
     "Armoured walls rise out of the floor for 8 s, then sink for 10: in turn round the arena's core, and across Twin Foundry's mid lane. A klaxon and flashing stripes warn 1.5 s before one moves. Crouch-jump to clamber over a shut one.",

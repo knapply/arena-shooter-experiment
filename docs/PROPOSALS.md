@@ -14,7 +14,7 @@ Everything here is **off by default**. Turn prototypes on in **Settings → Labs
 | **Spawn fronts** (arena; pass four) | Team spawn sides turn a quarter every 60 s | Oddball −0.017 and −0.019; Slayer nothing | **Dropped** |
 | **Scattergun pads** (map + weapon) | A scattergun on each Twin Foundry wing platform, 60 s respawn | 9 to 10% of kills; pilots in the mid lane 53% → 47% (on all six seed sets; 37% at Legendary); kills 0.16 to 0.19 s faster; skill share −0.002 to −0.011 (5 of 6 seed sets negative) | **Ship as option** (Labs), playtest as a default candidate |
 | **Pulse grenade** | Strips shields in 5 m (thrower's too), jams thrust 2.5 s, no damage | Fights end 0.06 to 0.24 s sooner; grenade kills −2 points; skill share within noise on CTF and in duels, a small consistent −0.006 on the arena | **Ship as option**, playtest |
-| **Lighter melee** (rule) | A melee blow takes at most 40 shield, not all of it | Melee's share of kills unchanged (48% arena); fights last +0.10 to +0.23 s, **+0.44 s for Recruits on CTF** | **Ship as option**, worth a default-tuning look for accessibility |
+| **Lighter melee** (rule) | A melee blow takes at most 40 shield, not all of it | Melee's share of kills unchanged (48% arena); fights last +0.10 to +0.23 s, **+0.44 s for Recruits on CTF** | **Shipped** in the skill-ladder pass (docs/TUNING.md, "The skill ladder") |
 | **Burst rifle** | 3-round precision bursts, four bursts kill (1.14 s) | Popular (15% of time held on CTF, 26% in duels); neutral on skill share in every mode | **Ship as option**; the AI cannot express its skill, so playtest |
 | **High ring** (arena) | Bridges and spans that link every high platform round the arena | Neutral (skill share mixed sign, kills per minute unchanged) | **Ship as option** (movement playtest) |
 | **Arc beam** | Continuous tracking beam | Underpowered: 5.6 to 6 s median kill on CTF alone; skill share 0.77 alone (below the carbine) | **Rework** (5 damage per tick tested better) or drop |
@@ -38,8 +38,8 @@ Existing behaviour found along the way (no change made; for the defaults-tuning 
 **In simulation:**
 
 ```bash
-node tools/tune.js labBurst labScatter labBeam labPulse labMelee labWeapons modDoors modSplit modPads
-MAP=arena node tools/tune.js labWeapons labMelee modRing modPillars        # team deathmatch on the arena
+node tools/tune.js labBurst labScatter labBeam labPulse labWeapons modDoors modSplit modPads
+MAP=arena node tools/tune.js labWeapons modRing modPillars        # team deathmatch on the arena
 node tools/tune.js labGates                                               # blast gates (MAP=arena too)
 GATES=1 node tools/tune.js labGateOpen labGateShut labGateOnly             # gates on: their cycle, subsets
 MAP=arena TEAM=1 node tools/tune.js labWeapons                            # one-on-one duels
@@ -164,7 +164,7 @@ If it still sits below the carbine, drop it.
 
 **Open questions:** Should the thrower be immune (more accessible, less risk-reward)? Should it come from pickups instead of the spawn loadout?
 
-### W5. Lighter melee (prototyped; found during the sims)
+### W5. Lighter melee (prototyped; shipped in the skill-ladder pass)
 
 **What:** today the first melee blow on a shielded pilot takes **all** of their remaining shield, and the second kills, so two blows kill anyone. With the lab on, a blow takes at most 40 shield. Blows from behind, and blows on a pilot whose shield is gone, still kill.
 

@@ -49,7 +49,7 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - **Free-for-all matches:** first to 15 kills, with practice drones when it's quiet
 - **Capture the Flag:** 4v4 on a mirrored map, with AI filling every empty slot
 - **Kill cam:** after you die, see the last few seconds through your killer's eyes
-- **Melee that reads:** a blow from behind kills outright; otherwise the first blow always takes the shield down and a second kills. You see a swing arc when anyone strikes, and your own blow punches the camera
+- **Melee that reads:** a blow from behind kills outright; otherwise a blow takes up to 40 shield (never health) and a blow on a pilot with no shield left kills. You see a swing arc when anyone strikes, and your own blow punches the camera
 - **Readable fights:** arcs around the crosshair point at whoever is hitting you; positional footsteps, thrusts and landings are loud up close; shield hits, shield breaks, headshots and kills each have their own hit marker and sound, and the target flashes
 - **Power weapon loop:** the HUD counts down to the power spawn's next weapon, an enemy grabbing the sniper or rockets is called out, and anyone holding one is marked through walls
 - **Flag clarity:** a named waypoint on every flag carrier, a score bar that says who has each flag, and distinct sounds and announcer lines for taken, dropped and returned
@@ -192,7 +192,7 @@ Settings are saved in your browser automatically and can be exported to or impor
 - **Controller:** look and aim sensitivity, response curve, deadzones, turn acceleration, aim assist strength, invert Y, vibration, full button remapping
 - **Gameplay:** friendly fire, spawn style (drop pods or classic), motion tracker (on or off, its corner and its size), kill cam, match intros, reticle color and size, HUD size, camera bob, screen shake, speed lines, hit sounds
 - **Sandbox:** movement, weapon and grenade tuning (see [docs/TUNING.md](docs/TUNING.md) for what each number does and how the defaults were picked). A host's sandbox applies to everyone in their room for as long as they're in it; your own saved values come back when you leave
-- **Labs:** prototype weapons (burst rifle, scattergun, arc beam, pulse grenade), a lighter melee rule and Twin Foundry layout changes, all off by default and offline only ([docs/PROPOSALS.md](docs/PROPOSALS.md) has what each does and what the simulations found)
+- **Labs:** prototype weapons (burst rifle, scattergun, arc beam, pulse grenade) and map layout changes, all off by default and offline only ([docs/PROPOSALS.md](docs/PROPOSALS.md) has what each does and what the simulations found)
 - **Audio:** master, effects and announcer volume, announcer pace
 - **Destruction:** off / explosives only / full, cover toughness, debris amount, rebuild timer
 

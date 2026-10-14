@@ -654,8 +654,8 @@ const fix = v => +v.toFixed(2);
     "melee: only a blow from behind counts as behind (facing -z, attacker at +z)"
   );
   check(
-    K.meleeDamage(70, true) >= 999 && K.meleeDamage(70, false) === 70 && K.meleeDamage(12, false) === 12,
-    "melee: from behind kills; from the front it takes exactly the shield that's left"
+    K.meleeDamage(70, true) >= 999 && K.meleeDamage(70, false) === 40 && K.meleeDamage(12, false) === 12,
+    "melee: from behind kills; from the front it takes the shield that's left, 40 at most"
   );
   K.STORE.setBackend(K.STORE.memoryBackend());
   const G = CTF.Game({ mode: "sim", render: false, seed: 8 });
@@ -678,14 +678,22 @@ const fix = v => +v.toFixed(2);
   blow(false);
   const afterFirst = { sh: v.body.shield, hp: v.body.health, dead: v.dead };
   blow(false);
-  const afterSecond = v.dead;
+  const afterSecond = { sh: v.body.shield, hp: v.body.health, dead: v.dead };
+  blow(false);
+  const afterThird = v.dead;
   v.body.reset();
   v.body.shield = 70;
   blow(true);
   check(
-    afterFirst.sh === 0 && afterFirst.hp === 45 && !afterFirst.dead && afterSecond,
-    "melee: the first blow takes the shield down, the second kills",
-    afterFirst
+    afterFirst.sh === 30 &&
+      afterFirst.hp === 45 &&
+      !afterFirst.dead &&
+      afterSecond.sh === 0 &&
+      afterSecond.hp === 45 &&
+      !afterSecond.dead &&
+      afterThird,
+    "melee: blows take 40 shield at most and never health; once the shield is gone the next kills",
+    { afterFirst, afterSecond }
   );
   check(v.dead, "melee: one blow from behind kills a full-shield pilot");
 }
@@ -820,24 +828,17 @@ const fix = v => +v.toFixed(2);
     kbm
   );
   const L = K.LABS;
-  check(
-    !L.burst && !L.scatter && !L.beam && !L.pulse && !L.melee && !L.mods.length,
-    "every lab is off by default",
-    L
-  );
-  const m0 = [K.meleeDamage(70, false), K.meleeDamage(0, false)];
-  L.melee = true;
+  check(!L.burst && !L.scatter && !L.beam && !L.pulse && !L.mods.length, "every lab is off by default", L);
   const m1 = [
     K.meleeDamage(70, false),
     K.meleeDamage(30, false),
     K.meleeDamage(0, false),
     K.meleeDamage(70, true),
   ];
-  L.melee = false;
   check(
-    m0[0] === 70 && m0[1] >= 999 && m1[0] === 40 && m1[1] === 30 && m1[2] >= 999 && m1[3] >= 999,
-    "lighter melee: a blow takes at most 40 shield; bare health and backs still die",
-    { shipped: m0, lab: m1 }
+    m1[0] === 40 && m1[1] === 30 && m1[2] >= 999 && m1[3] >= 999,
+    "melee: a blow takes at most 40 shield; bare health and backs still die",
+    m1
   );
   const play = (opts, steps) => {
     K.STORE.setBackend(K.STORE.memoryBackend());
@@ -1109,8 +1110,8 @@ const fix = v => +v.toFixed(2);
     faceOff(a, e2, 1.4);
     a.onEvent("melee", {});
     check(
-      !e2.dead && e2.body.shield === 0,
-      "without the flag the same melee only breaks the shield",
+      !e2.dead && e2.body.shield === 30,
+      "without the flag the same melee only takes 40 of the shield",
       e2.body.shield
     );
     /* a carrier killed near their own stand is a denial */

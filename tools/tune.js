@@ -46,6 +46,12 @@
                                                  level, the rest of the worse); LIMITS=1 the real score limits
                                                  (LIMIT=n sets one), for who wins and lead changes
      HEAT=1 node tools/tune.js                  map heat in the output; node tools/heat-report.js reads it
+     SKILLONLY=1 PAIR=normal,recruit node tools/tune.js   the skill ladder: only the skill matches, with
+                                                 the worse side's K/D, time to death, deaths by melee,
+                                                 grenade and spawn, its wins and objective touches, and
+                                                 both sides' headshot share ("ladder" in the output);
+                                                 MIXR=1 puts one pilot of the worse level on the worse team
+                                                 and the rest of the better level
    Besides skill share, time to kill and grenades, every variant reports: the spread of time to kill
    (quartiles), each weapon's share of kills and of time held, how much skill decides fights with each
    weapon (the better team's share of that weapon's kills), captures and time to capture, the share of
@@ -77,7 +83,11 @@ const SEED = +(process.env.SEED || 100),
   MIX = +(process.env.MIX || 0),
   LIMITS = process.env.LIMITS === "1" || !!process.env.LIMIT,
   LIMIT = +(process.env.LIMIT || 0),
-  HEAT = process.env.HEAT === "1";
+  HEAT = process.env.HEAT === "1",
+  /* SKILLONLY=1: only the skill matches (the ladder measures come from them); MIXR=n: the worse team
+     is n pilots of the worse level and the rest of the better level (does one weak pilot drag a team?) */
+  SKILLONLY = process.env.SKILLONLY === "1",
+  MIXR = +(process.env.MIXR || 0);
 /* AIMEM=1: every variant starts with a memory of the map (so aiPreAim measures something) */
 const AIMEM_ENV = process.env.AIMEM === "1";
 /** aiMemory: matches start with a memory of the map (see match) */
@@ -137,7 +147,9 @@ const KNOBS = {
   labScatter: { set: lab("scatter"), def: 0, try: [1] },
   labBeam: { set: lab("beam"), def: 0, try: [1] },
   labPulse: { set: lab("pulse"), def: 0, try: [1] },
-  labMelee: { set: lab("melee"), def: 0, try: [1] },
+  /* the most of a shield a melee blow takes (data/weapons.js MELEE; 999: the whole shield, as before the
+     skill-ladder pass) */
+  ruMeleeShield: { set: v => (K.MELEE.shield = v), def: 40, try: [999, 25] },
   /* lab weapon numbers (for reworks; use with LOCK or the lab on) */
   labBeamDmg: { set: v => Object.assign(W("beam"), { body: v, head: v }), def: 4, try: [5, 6] },
   labBurstDmg: {
@@ -154,6 +166,7 @@ const KNOBS = {
   /* pass four's layout changes undone (the skull spots; the spread free-for-all spawns), to re-measure */
   modOneSkull: { set: mod("oneskull"), def: 0, try: [1] },
   modOldSpawns: { set: mod("oldspawns"), def: 0, try: [1] },
+  modTeamSpread: { set: mod("teamspread"), def: 0, try: [1] },
   /* blast gates (both maps), and their cycle in seconds (GATES=1 turns the gates on for every variant) */
   labGates: { set: lab("gates"), def: 0, try: [1] },
   labGateOpen: { set: v => (K.GATE_CYCLE.open = v), def: 10, try: [7, 14] },
@@ -202,6 +215,11 @@ const RULE = {
   /* a dropped flag's return, a dropped skull's reset (seconds; 0 keeps the mode's own) */
   flagReset: 0,
   ballReset: 0,
+  /* seconds of spawn protection (no damage after spawning until you fire) */
+  spawnProt: 1.2,
+  /* aim magnetism for spread weapons: a miss that passes within this many metres of a pilot's body
+     counts as a body hit (0: off) */
+  magnet: 0,
 };
 const RULE_DEF = Object.assign({}, RULE);
 const rule = k => v => (RULE[k] = v);
@@ -222,6 +240,11 @@ Object.assign(KNOBS, {
   ruFlagReset: { set: rule("flagReset"), def: 0, try: [10, 25] },
   ruBallReset: { set: rule("ballReset"), def: 0, try: [8, 25] },
   /* spawn safety weights (world/spawns.js) */
+  ruSpawnProt: { set: rule("spawnProt"), def: 1.2, try: [0.6, 2.4] },
+  ruMagnet: { set: rule("magnet"), def: 0, try: [0.1, 0.2] },
+  /* headshot damage once shields are down: the magnum's and the carbine's */
+  sbMagHead: { set: v => (W("pistol").head = v), def: 50, try: [40, 60] },
+  sbCarbHead: { set: v => (W("carbine").head = v), def: 11, try: [9, 14] },
   spSeen: { set: v => (K.SPAWN_W.seen = v), def: 60, try: [30, 120] },
   spNear: { set: v => (K.SPAWN_W.near = v), def: 30, try: [20, 40] },
   spFight: { set: v => (K.SPAWN_W.fightW = v), def: 1.2, try: [0.6, 2.4] },
@@ -255,6 +278,24 @@ const RES_DEF = K.WEAPON_DATA.map(w => w.reserve);
     }
     return ev;
   };
+  const dmg0 = B.damage;
+  B.damage = function (n, now) {
+    /* world/physics.js Body.damage's spawn protection, with RULE's length */
+    if (
+      RULE.spawnProt !== 1.2 &&
+      !this.dead &&
+      now >= this.spawnT + RULE.spawnProt &&
+      now < this.spawnT + 1.2
+    ) {
+      const s = this.spawnT;
+      this.spawnT = now - 1.2;
+      const r = dmg0.call(this, n, now);
+      this.spawnT = s;
+      return r;
+    }
+    if (RULE.spawnProt > 1.2 && now < this.spawnT + RULE.spawnProt) return false;
+    return dmg0.call(this, n, now);
+  };
   const step0 = B.step;
   B.step = function (dt, inp, ev) {
     const m0 = this.meleeCD;
@@ -273,6 +314,32 @@ const RES_DEF = K.WEAPON_DATA.map(w => w.reserve);
       this.nadeInv.plasma = Math.round(nk * RULE.nades);
     }
     return r;
+  };
+  /* aim magnetism: while an AI pilot fires a spread weapon, a ray that misses a pilot but passes within
+     RULE.magnet of the body's axis (at a height inside the body) counts as a body hit */
+  let spreadShot = false;
+  const shoot0 = A.shoot;
+  A.shoot = function (tgt) {
+    spreadShot = !!RULE.magnet && !this.armed && !this.gun().precision;
+    try {
+      return shoot0.call(this, tgt);
+    } finally {
+      spreadShot = false;
+    }
+  };
+  const rt0 = K.rayTarget;
+  K.rayTarget = function (o, d, p, h, maxT) {
+    const r = rt0(o, d, p, h, maxT);
+    if (r || !spreadShot) return r;
+    const L = Math.hypot(d.x, d.z) || 1e-9,
+      t = ((p.x - o.x) * d.x + (p.z - o.z) * d.z) / (L * L);
+    if (t <= 0 || t >= maxT) return null;
+    const dx = o.x + d.x * t - p.x,
+      dz = o.z + d.z * t - p.z,
+      y = o.y + d.y * t;
+    return Math.hypot(dx, dz) < 0.4 + RULE.magnet && y > p.y && y < p.y + h - 0.45
+      ? { t, head: false }
+      : null;
   };
   const throw0 = A.throwNade;
   A.throwNade = function (type, at) {
@@ -299,6 +366,8 @@ KNOBS.sbCarbSpread.def = W("carbine").spread;
 KNOBS.sbCarbBloom.def = W("carbine").bloom;
 KNOBS.sbMagDmg.def = W("pistol").body;
 KNOBS.sbMagRate.def = W("pistol").rate;
+KNOBS.sbMagHead.def = W("pistol").head;
+KNOBS.sbCarbHead.def = W("carbine").head;
 KNOBS.sbSnipeDmg.def = W("sniper").body;
 KNOBS.sbSnipeRate.def = W("sniper").rate;
 KNOBS.sbRocketSplash.def = W("rocket").splash;
@@ -389,6 +458,10 @@ function match(diff, seed, lock) {
     const better = diff[0] === PAIR[0] ? 0 : 1;
     G.teams[better].agents.forEach((a, i) => setLevel(a, i < MIX ? PAIR[0] : PAIR[1]));
   }
+  if (MIXR && diff[0] !== diff[1]) {
+    const worse = diff[0] === PAIR[0] ? 1 : 0;
+    G.teams[worse].agents.forEach((a, i) => setLevel(a, i < MIXR ? PAIR[1] : PAIR[0]));
+  }
   /* free-for-all: the two skill levels alternate between pilots, so "team" below is the pilot's half */
   const side = a => (G.ffa ? a.team % 2 : a.team);
   const out = {
@@ -420,6 +493,12 @@ function match(diff, seed, lock) {
     final: null,
     /* kills each pilot scored (spread, and the free-for-all leader's margin) */
     pk: [],
+    /* per side (team; free-for-all: the skill half): deaths, by melee and by grenade, spawn deaths,
+       headshot kills, times from first hit to death, flag grabs */
+    sd: [
+      { deaths: 0, melee: 0, nade: 0, spawn: 0, head: 0, ttd: [], grabs: 0 },
+      { deaths: 0, melee: 0, nade: 0, spawn: 0, head: 0, ttd: [], grabs: 0 },
+    ],
     /* HEAT=1: where pilots were (once a second), died and killed from, in 2 m cells; spawn deaths
        per spawn point */
     heat: HEAT ? { occ: {}, death: {}, kill: {}, spawn: {}, zocc: {}, zdeath: {}, zkill: {} } : null,
@@ -453,6 +532,15 @@ function match(diff, seed, lock) {
         out.wk[w] = (out.wk[w] || 0) + 1;
         if (side(k) === 0) out.wk0[w] = (out.wk0[w] || 0) + 1;
       }
+      if (k && k !== v) {
+        const S = out.sd[side(v)];
+        S.deaths++;
+        if (/melee|charge|flag|skull|pound/.test(w)) S.melee++;
+        if (/frag|stick|plasma|nade|pulse/.test(w)) S.nade++;
+        if (v.__sp != null && G.t - v.__sp < 3) S.spawn++;
+        if (v.__first != null) S.ttd.push(+(G.t - v.__first).toFixed(2));
+        if (d.head && k.team !== v.team) out.sd[side(k)].head++;
+      }
       if (v.__sp != null && G.t - v.__sp < 3) {
         out.spawnDeaths++;
         if (out.heat && v.__spAt) bump(out.heat.spawn, v.__spAt);
@@ -484,6 +572,7 @@ function match(diff, seed, lock) {
       takenAt.delete(d.flag);
     } else if (t === "flagTaken") {
       out.grabs++;
+      out.sd[side(d.by)].grabs++;
       carryFrom.set(d.by, G.t);
       /* time to capture runs from the grab at the stand */
       if (!takenAt.has(d.flag) && d.flag.pos.distanceTo(CTF.FLAG_HOME[d.flag.team]) < 2)
@@ -598,14 +687,14 @@ function main() {
      the setting and not from which matches were drawn */
   const jobs = [];
   variants.forEach((vr, vi) => {
-    vr.left = MATCHES * 2;
+    vr.left = MATCHES * (SKILLONLY ? 1 : 2);
     vr.res = [];
     for (let m = 0; m < MATCHES; m++) {
       const swap = m % 2 === 1;
       const base = { vi, m, knob: vr.knob, value: vr.value, lock: vr.lock };
       jobs.push({ ...base, kind: "skill", diff: swap ? [PAIR[1], PAIR[0]] : [PAIR[0], PAIR[1]] });
       jobs[jobs.length - 1].seed = SEED + m;
-      jobs.push({ ...base, kind: "even", diff: [EVEN, EVEN], seed: SEED + 1000 + m });
+      if (!SKILLONLY) jobs.push({ ...base, kind: "even", diff: [EVEN, EVEN], seed: SEED + 1000 + m });
     }
   });
   jobs.forEach((j, i) => (j.id = i));
@@ -730,6 +819,7 @@ const extra = r => ({
   ttc: r.ttc,
   lanes: r.lanes,
   lifeShots: r.lifeShots,
+  ladder: r.ladder,
 });
 /** a variant's matches: skill matches (legendary on team 0, then swapped sides) and even matches */
 function summarize(vr) {
@@ -753,6 +843,13 @@ function summarize(vr) {
     leads = 0,
     leadWon = 0,
     leadChanges = 0;
+  /* the ladder: the worse side in the skill matches (W) against the better (B) */
+  const LW = { deaths: 0, melee: 0, nade: 0, spawn: 0, head: 0, ttd: [], grabs: 0, kills: 0 },
+    LB = { deaths: 0, melee: 0, nade: 0, spawn: 0, head: 0, ttd: [], grabs: 0, kills: 0 };
+  let lMatches = 0,
+    lWins = 0,
+    lDecided = 0,
+    lTouch = 0;
   const carry = [],
     carryEnds = { capture: 0, killed: 0, dropped: 0, reset: 0 },
     spreads = [],
@@ -777,6 +874,26 @@ function summarize(vr) {
       capN += r.cap[1 - L];
       holdL += (r.hold || [0, 0])[L];
       holdN += (r.hold || [0, 0])[1 - L];
+      if (r.sd) {
+        lMatches++;
+        for (const [S, from] of [
+          [LB, r.sd[L]],
+          [LW, r.sd[1 - L]],
+        ]) {
+          for (const k of ["deaths", "melee", "nade", "spawn", "head", "grabs"]) S[k] += from[k];
+          S.ttd.push(...from.ttd);
+        }
+        LB.kills += r.k[L];
+        LW.kills += r.k[1 - L];
+        /* who won: the score (kills, captures or skull seconds) at the end */
+        const f = r.final || [0, 0];
+        if (f[0] !== f[1]) {
+          lDecided++;
+          if (f[1 - L] > f[L]) lWins++;
+        }
+        /* did the worse side ever touch the objective (flag grabbed, skull held)? */
+        if (r.sd[1 - L].grabs > 0 || (r.hold && r.hold[1 - L] > 0)) lTouch++;
+      }
       add(swk, r.wk);
       /* r.wk0 counts team 0's kills; the better team is team L */
       for (const [w, n] of Object.entries(r.wk || {})) {
@@ -852,6 +969,23 @@ function summarize(vr) {
     killSpread: spreads.length ? +(spreads.reduce((a, b) => a + b, 0) / spreads.length).toFixed(3) : null,
     margin: margins.length ? +(margins.reduce((a, b) => a + b, 0) / margins.length).toFixed(2) : null,
     heat: HEAT ? heat : undefined,
+    /* the ladder, from the skill matches: the worse side's K/D, median time to death once hit, share
+       of its deaths by melee, by grenade and within 3 s of spawning, the share of matches it won, and
+       of matches where it touched the objective; both sides' headshot share of their kills */
+    ladder: lMatches
+      ? {
+          wKD: +(LW.kills / Math.max(1, LW.deaths)).toFixed(3),
+          wTTD: +median(LW.ttd).toFixed(2),
+          bTTD: +median(LB.ttd).toFixed(2),
+          wMelee: +(LW.melee / Math.max(1, LW.deaths)).toFixed(3),
+          wNade: +(LW.nade / Math.max(1, LW.deaths)).toFixed(3),
+          wSpawn: +(LW.spawn / Math.max(1, LW.deaths)).toFixed(3),
+          wWins: +(lWins / Math.max(1, lDecided)).toFixed(3),
+          wTouch: +(lTouch / lMatches).toFixed(3),
+          wHead: +(LW.head / Math.max(1, LW.kills)).toFixed(3),
+          bHead: +(LB.head / Math.max(1, LB.kills)).toFixed(3),
+        }
+      : null,
     ttc: ttc.length ? +median(ttc).toFixed(1) : null,
     /* rounds fired per life with each weapon (even matches, whole lives): median, 95th and 99th
        percentiles, and how many lives */

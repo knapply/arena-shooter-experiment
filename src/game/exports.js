@@ -183,6 +183,7 @@ const KA_API = {
   POD_TIME,
   POD_EARLY,
   meleeDamage,
+  MELEE,
   meleeBehind,
   SPAWN_W,
   pickSpawn,
