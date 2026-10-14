@@ -59,7 +59,7 @@ New content can ship off by default: give a weapon `lab: "<name>"` (it appears o
    - `spawns.ffa` and/or `spawns.teams`.
 
    Optional fields: `flags` (capture the flag), `ball` (where oddball's skull comes down; default the middle), `zones` (callouts, below), `lanes` (`split`, `x`: lane hints for the AI), `pickups`, and `gates` (blast walls that rise and sink on the match clock: `leaves` `[x, z, width, depth]`, `h`, `phase` 0 to 1 of the cycle, `twin`; see `world/gates.js`).
-2. `validateMap` checks it strictly; `tests/maps.test.js` runs it, including overlap checks.
+2. `validateMap` (`data/map-check.js`, in the simulation bundle only) checks it strictly; `tests/maps.test.js` runs it on every map and mod, including overlap checks.
 3. The AI can play it straight away in every mode: `CTF.Game({ map: "<id>", rules: "slayer", mode: "sim", render: false })` (`rules`: `ctf` needs `flags`; `slayer`, `ffa` and `oddball` play anywhere; without `rules` a map with flags plays capture the flag and one without Team Slayer). The nav grid sizes itself from `bounds` and seeds reachability from the first flag or spawn. Team modes use `spawns.teams` (each team together on its own side), free-for-all `spawns.ffa` (or both teams' spawns). Check it with:
    ```bash
    MAP=<id> MODE=oddball MATCHES=8 KNOBS=none node tools/tune.js
