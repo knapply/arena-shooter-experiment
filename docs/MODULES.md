@@ -28,12 +28,12 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/spawns.js` | 90 | `SPAWN_W` `_spE` `_spD` `spawnScore` `pickSpawn` `noteFight` |
 | `src/data/anim-clips.js` | 132 | `ANIM_CLIPS` |
 | `src/characters/anim.js` | 744 | `ANIM` |
-| `src/characters/rig.js` | 1367 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+39) |
+| `src/characters/rig.js` | 1394 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+39) |
 | `src/characters/look.js` | 132 | `RIG_LOOK` `_rh` `_rh2` `CHAR_GLSL` `charPatch` `applyCharLook` `teamPattern` `HEX_FRAG` `styleRig` |
 | `src/game/recorder.js` | 226 | `REC` |
 | `src/game/pilot.js` | 81 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |
 | `src/data/weapons.js` | 284 | `PILOT_SHIELD` `PILOT_HEALTH` `WEAPON_DATA` `SWITCH_TIME` `POWER_ROTATION` `LABS` `labOn` `powerRotation` `falloffAt` `killStats` `MELEE_KILL` `meleeDamage` `MELEE_LAB_SHIELD` `meleeBehind` |
-| `src/weapons/viewmodels.js` | 450 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlove` `vmPlate` `vmGlass` `vmBox` `dot` `vmGun` `vmMag` `HOLO` `vmPis` `vmPisMag` `PIS` `VM_RELOAD` `PIS_RELOAD` … (+18) |
+| `src/weapons/viewmodels.js` | 456 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlove` `vmPlate` `vmGlass` `vmBox` `dot` `vmGun` `vmMag` `HOLO` `vmPis` `vmPisMag` `PIS` `VM_RELOAD` `PIS_RELOAD` … (+18) |
 | `src/weapons/arsenal.js` | 82 | `WEAPONS` `slots` `cur` `wi` `switchT` `semiLatch` `zoomLvl` `descoped` `flinch` `ammo` `reserve` `W` `zoomK` `showVM` `wpnHud` `setSlot` `setWeapon` `giveWeapon` … (+1) |
 | `src/render/fx.js` | 394 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `PT_N` `PT_K` `_ptC` `_ptV2` `makePts` `PTS` `ptAdd` `updPts` `ptClearBelow` `tracerGeo` `tracer` … (+14) |
 | `src/render/combat-fx.js` | 525 | `CFX` `_cf` `_cf2` `_cq` `_cm` `_cz` `_cs` `fxOn` `syncDynLights` `dynLight` `heatAt` `HEAT_POOL` `heatDone` `tumblers` `casings` `chunks` `toss` `ejectCasing` … (+24) |
@@ -56,7 +56,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/ui/hud.js` | 56 | `scoresT` `renderScores` `xhEls` `hud` |
 | `src/ui/net-panel.js` | 90 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/ui/tracker.js` | 103 | `TRACK_RANGE` `TRACK_SPEED` `TRACK_PX` `trackEl` `trackT` `arenaContacts` `trackerShown` `updTracker` |
-| `src/weapons/viewmodel-anim.js` | 144 | `updVM` |
+| `src/weapons/viewmodel-anim.js` | 154 | `updVM` |
 | `src/ui/console.js` | 312 | `DEV` `timeScale` `godMode` `CON` |
 | `src/game/replay.js` | 504 | `REPLAY` `eyesShot` `KILLCAM_T` `KILLCAM` `KILL_NAMES` `recordedNear` `killCamTick` `playKillCam` |
 | `src/game/highlights.js` | 120 | `HL` `HL_KEEP` `HL_BEFORE` `HL_AFTER` `HL_POWER` `hlConsider` `hlTick` `playOfTheGame` |

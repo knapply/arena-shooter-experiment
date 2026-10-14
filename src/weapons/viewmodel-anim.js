@@ -28,12 +28,22 @@ function updVM(dt, c) {
   if (c.melee >= 0) {
     /* the strike: the gun swings hard across and forward, butt first, then recovers */
     const m = meleeCurve(c.melee);
-    _c.z -= 0.34 * m;
-    _c.x -= 0.16 * m;
-    _c.y += 0.07 * m;
-    _e1.x -= 0.5 * m;
-    _e1.y += 0.95 * m;
-    _e1.z += 0.55 * m;
+    if (V.whip) {
+      /* the pistol-whip: up, rolled onto its side and down hard across the face */
+      _c.z -= 0.3 * m;
+      _c.x -= 0.1 * m;
+      _c.y += 0.06 * m;
+      _e1.x -= 0.95 * m;
+      _e1.y += 0.35 * m;
+      _e1.z += 1.1 * m;
+    } else {
+      _c.z -= 0.34 * m;
+      _c.x -= 0.16 * m;
+      _c.y += 0.07 * m;
+      _e1.x -= 0.5 * m;
+      _e1.y += 0.95 * m;
+      _e1.z += 0.55 * m;
+    }
   }
   if (c.pound1) {
     _c.x += rnd(-0.006, 0.006);
@@ -93,7 +103,7 @@ function updVM(dt, c) {
   _e1.x += vmS.swayP;
   vmS.kick = Math.max(0, vmS.kick - dt * 14);
   _c.z += vmS.kick * W().kick;
-  _e1.x += vmS.kick * W().kick * 1.5 * (ads ? 0.5 : 1);
+  _e1.x += vmS.kick * W().kick * 1.5 * (ads ? 0.5 : 1) * (V.flip || 1);
   g.position.lerp(_c, ads ? Math.min(1, k * 1.4) : k);
   _q2.setFromEuler(_e1);
   g.quaternion.slerp(_q2, ads ? Math.min(1, k * 1.4) : k);

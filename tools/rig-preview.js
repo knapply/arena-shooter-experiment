@@ -2,7 +2,8 @@
      THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves] [out.png]
    gait   a run, a sprint and a jump, seen from the side, six frames each (stepped at exactly 60 Hz)
    loco   the other motion-captured gaits: a walk, a strafe (from the front), a backpedal and a crouched run
-   poses  idle, aiming down sights (carbine and magnum), a melee strike, the reload's slap and bolt
+   poses  idle, aiming down sights (carbine and magnum), a melee strike, the reload's slap and bolt;
+          the magnum held, its pistol-whip and its reload
    moves  the armor from the front, three-quarters and behind; crouch, ADS, sprint, a slide and a death
    A pilot really travels (planted feet lock to the ground) across the largest open floor of the
    arena, with the camera keeping pace beside it; real three.js (software WebGL); needs ffmpeg on the PATH. */
@@ -161,6 +162,9 @@ if (!process.env.THREE_PATH) {
       { melee: 0.3 },
       { reload: 0.72 },
       { reload: 0.88 },
+      { wpn: 1 },
+      { wpn: 1, melee: 0.3 },
+      { wpn: 1, reload: 0.72 },
     ]) {
       await set(Object.assign({}, base, { st }), 0);
       await step(40);

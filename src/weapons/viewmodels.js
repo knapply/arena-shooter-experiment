@@ -116,14 +116,16 @@ const VM_RELOAD = [
   [RELOAD_T.release, [-0.06, 0.06, 0.02]],
   [1, "F"],
 ];
+/* (the magnum's is quicker to the eye: the magazine stripped and flung, a fresh one driven home
+   with the heel of the hand) */
 const PIS_RELOAD = [
   [0, "F"],
-  [RELOAD_T.grab, [0, -0.15, 0.05]],
-  [RELOAD_T.out, [-0.02, -0.36, 0.08]],
-  [RELOAD_T.pouch, [-0.05, -0.5, 0.12]],
-  [RELOAD_T.well, [0, -0.3, 0.06]],
-  [RELOAD_T.seat, [0, -0.15, 0.05]],
-  [RELOAD_T.slap, [0, -0.11, 0.05]],
+  [RELOAD_T.grab, [-0.01, -0.13, 0.05]],
+  [RELOAD_T.out, [-0.07, -0.42, 0.1]],
+  [RELOAD_T.pouch, [-0.06, -0.52, 0.12]],
+  [RELOAD_T.well, [0, -0.27, 0.06]],
+  [RELOAD_T.seat, [0, -0.14, 0.05]],
+  [RELOAD_T.slap, [0, -0.075, 0.05]],
   [RELOAD_T.reach, [0, 0.06, 0.02]],
   [RELOAD_T.back, [0, 0.065, 0.1]],
   [RELOAD_T.release, [-0.03, 0.05, 0.03]],
@@ -149,13 +151,17 @@ const VMW = [
     g: vmPis,
     mag: vmPisMag,
     grip: new V3(0, -0.072, 0.048),
-    fore: new V3(-0.018, -0.09, 0.04),
+    fore: new V3(-0.026, -0.085, 0.034),
+    /* a combat grip: both hands, punched out on the centerline; ADS at near full extension; a
+       sharp muzzle snap on each shot; the melee is a pistol-whip */
+    flip: 2.4,
+    whip: true,
     slot: new V3(0, -0.09, 0.05),
     keys: PIS_RELOAD,
     P: {
-      hip: { p: new V3(0.18, -0.19, -0.37), r: [0, 0, 0] },
+      hip: { p: new V3(0.1, -0.16, -0.44), r: [0.03, 0.05, 0] },
       /* the slide sits just under the reticle, so the smart-link reticle (the aim point) stays clear */
-      aim: { p: new V3(-PIS.x, -PIS.y - 0.024, -0.27), r: [0, 0, 0] },
+      aim: { p: new V3(-PIS.x, -PIS.y - 0.034, -0.39), r: [0, 0, 0] },
       sprint: { p: new V3(0.13, -0.28, -0.3), r: [-0.7, 0.2, 0.15] },
       reload: { p: new V3(0.1, -0.18, -0.32), r: [0.35, 0.15, 0.5] },
       low: { p: new V3(0.15, -0.36, -0.28), r: [-0.8, 0.2, 0.2] },

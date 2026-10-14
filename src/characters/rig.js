@@ -136,14 +136,16 @@ const POSE = {
   rocketRun: { p: new V3(0.12, 0.06, -0.04), r: [-0.35, 0.25, 0.1] },
   /* aiming down sights: the gun comes up to the eye, stock at the cheek (rifles) or arms out (magnum) */
   ads: { p: new V3(0.05, 0.19, -0.2), r: [0, 0, 0] },
-  adsPistol: { p: new V3(0.03, 0.21, -0.42), r: [0, 0, 0] },
+  adsPistol: { p: new V3(0.02, 0.2, -0.55), r: [0, 0, 0] },
+  /* the magnum: two hands, out in front on the centerline, elbows wide */
+  pistol: { p: new V3(0.05, 0.1, -0.38), r: [0, 0, 0] },
 };
 /* a melee blow: a fast strike that leads with the stock or the gun's butt, then a slower recovery (0..1) */
 const meleeCurve = m =>
   m < 0 ? 0 : m < 0.3 ? Math.sin(((m / 0.3) * Math.PI) / 2) : Math.cos((((m - 0.3) / 0.7) * Math.PI) / 2);
 const WPN_RIG = [
   { grip: new V3(0, -0.08, 0.1), fore: new V3(0, -0.06, -0.17), kick: 3, every: 0.1 },
-  { grip: new V3(0, -0.08, 0.09), fore: new V3(-0.03, -0.11, 0.1), kick: 6, every: 0.26 },
+  { grip: new V3(0, -0.08, 0.09), fore: new V3(-0.035, -0.1, 0.075), kick: 8, every: 0.26, flip: 1 },
   { grip: new V3(0, -0.08, 0.14), fore: new V3(0, -0.06, -0.32), kick: 9, every: 0.62 },
   { grip: new V3(0, -0.15, 0.08), fore: new V3(0, -0.14, -0.3), kick: 12, every: 0.9 },
   { grip: new V3(0, -0.08, 0.06), fore: new V3(0, -0.06, -0.22), kick: 3, every: 0.36 },
@@ -1058,7 +1060,12 @@ function makePilot(color, label) {
         .multiply(spine2.quaternion)
         .multiply(chest.quaternion);
       _q2.setFromEuler(
-        _e1.set(st.pitch * 0.68 + leanS * 0.25 - S.ads * 0.1, S.gly - S.turn * 0.02, 0, "YXZ")
+        _e1.set(
+          st.pitch * 0.68 + leanS * 0.25 - S.ads * (S.wp === 1 ? 0.2 : 0.1),
+          S.gly - S.turn * 0.02,
+          0,
+          "YXZ"
+        )
       );
       _q1.invert().multiply(_q2);
       neck.quaternion.identity().slerp(_q1, 0.5);
@@ -1136,7 +1143,15 @@ function makePilot(color, label) {
           cloth.material.emissive.set(st.flagColor);
         }
       }
-      let gp = rocket ? POSE.rocket : st.aim ? (wp === 1 ? POSE.adsPistol : POSE.ads) : POSE.aim;
+      let gp = rocket
+        ? POSE.rocket
+        : st.aim
+          ? wp === 1
+            ? POSE.adsPistol
+            : POSE.ads
+          : wp === 1
+            ? POSE.pistol
+            : POSE.aim;
       if (rl >= 0) gp = POSE.reload;
       else if (!air && st.sprint) gp = rocket ? POSE.rocketRun : POSE.sprint;
       else if (st.pound === 1 || st.clamber || st.charge) gp = POSE.low;
@@ -1149,9 +1164,17 @@ function makePilot(color, label) {
       _c.copy(gp.p);
       /* aimed guns follow the look pitch (fully when sighted in) */
       const pf =
-        gp === POSE.ads || gp === POSE.adsPistol ? 0.95 : gp === POSE.aim || gp === POSE.rocket ? 0.6 : 0;
+        gp === POSE.ads || gp === POSE.adsPistol
+          ? 0.95
+          : gp === POSE.aim || gp === POSE.pistol || gp === POSE.rocket
+            ? 0.6
+            : 0;
       /* (an aimed gun stays on the aim however far the body leans) */
-      _e1.set(gp.r[0] + st.pitch * pf + kick * 0.5 + (pf > 0 ? leanS * 0.85 : 0), gp.r[1], gp.r[2]);
+      _e1.set(
+        gp.r[0] + st.pitch * pf + kick * (R.flip || 0.5) + (pf > 0 ? leanS * 0.85 : 0),
+        gp.r[1],
+        gp.r[2]
+      );
       if (rl >= 0) reloadGunMotion(rl, _c, _e1);
       _q2.setFromEuler(_e1);
       if (st.melee >= 0) {
@@ -1159,7 +1182,11 @@ function makePilot(color, label) {
         _c.z -= 0.44 * strike;
         _c.x -= 0.16 * strike;
         _c.y += 0.12 * strike;
-        _q1.setFromEuler(_e1.set(-0.5 * strike, 1.05 * strike, 0.45 * strike));
+        /* (the magnum whips: raised, rolled onto its side and brought down hard) */
+        if (wp === 1) {
+          _c.y += 0.1 * strike;
+          _q1.setFromEuler(_e1.set(-1.1 * strike, 0.35 * strike, 1.1 * strike));
+        } else _q1.setFromEuler(_e1.set(-0.5 * strike, 1.05 * strike, 0.45 * strike));
         _q2.multiply(_q1);
         /* the swing is heard and seen (rigEvents draws its arc) */
         if ((S.lastMel == null || S.lastMel < 0.08) && st.melee >= 0.08)
