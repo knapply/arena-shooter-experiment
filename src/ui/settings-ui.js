@@ -427,7 +427,7 @@ const hudHook = () => {
   document.body.dataset.trk = SET.trackerPos;
   document.documentElement.style.setProperty(
     "--trk",
-    Math.round(170 * SET.trackerSize * SET.hudScale) + "px"
+    Math.round(200 * SET.trackerSize * SET.hudScale) + "px"
   );
   for (const s of [".vitals", ".ammo", ".kit", "#medals", ".status", "#feed"])
     for (const e of /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(s)))

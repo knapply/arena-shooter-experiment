@@ -900,10 +900,10 @@ input[type="text"]:focus-visible {
   outline: none;
 }
 
-/* motion tracker (ui/tracker.js): its corner is a setting (body[data-trk]: br, bl, tr, tl) and
-   its size is --trk. Whatever shares its corner (medals, team chat) moves above or below it. */
+/* motion tracker (ui/tracker.js): where it sits is a setting (body[data-trk]: br, bl, bc, tr, tl,
+   tc, mr, ml) and its size is --trk. Whatever shares its spot (medals, team chat) moves aside. */
 :root {
-  --trk: 170px;
+  --trk: 200px;
 }
 #tracker {
   position: absolute;
@@ -928,6 +928,29 @@ body[data-trk="tl"] #tracker {
 }
 body[data-trk="bl"] #medals {
   bottom: calc(118px + var(--trk) + env(safe-area-inset-bottom, 0px));
+}
+/* the centered spots: above the ability chips, below the scoreboard */
+body[data-trk="bc"] #tracker,
+body[data-trk="tc"] #tracker {
+  right: auto;
+  left: calc(50% - var(--trk) / 2);
+}
+body[data-trk="bc"] #tracker {
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+}
+body[data-trk="tc"] #tracker {
+  bottom: auto;
+  top: calc(104px + env(safe-area-inset-top, 0px));
+}
+/* the side spots, a little above the middle so medals and team chat stay clear underneath */
+body[data-trk="mr"] #tracker,
+body[data-trk="ml"] #tracker {
+  bottom: auto;
+  top: calc(44% - var(--trk) / 2);
+}
+body[data-trk="ml"] #tracker {
+  right: auto;
+  left: 22px;
 }
 
 /* pings (ui/pings.js) */

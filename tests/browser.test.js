@@ -955,38 +955,42 @@ const podSeats = map => {
        never draws over it */
     const trkLay = await A.evaluate(async () => {
       const g = CTF.UI.game(),
-        out = {};
-      for (const pos of ["br", "bl"]) {
+        out = { bad: [] };
+      for (let i = 0; i < 6; i++)
+        g.teams[g.human.team].brain.say(
+          g,
+          g.teams[g.human.team].agents[i % 4],
+          "t" + i,
+          "Pushing the left lane " + i
+        );
+      const box = q => {
+        const e = document.querySelector(q);
+        return e && !e.hidden && e.getBoundingClientRect().height > 0 ? e.getBoundingClientRect() : null;
+      };
+      const hit = (a, b) =>
+        !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+      for (const pos of ["br", "bl", "bc", "tr", "tl", "tc", "mr", "ml"]) {
         KA.SET.trackerPos = pos;
         KA.applySettings();
-        for (let i = 0; i < 6; i++)
-          g.teams[g.human.team].brain.say(
-            g,
-            g.teams[g.human.team].agents[i % 4],
-            "t" + i,
-            "Pushing the left lane " + i
-          );
-        await new Promise(r => setTimeout(r, 300));
-        const t = document.getElementById("tracker").getBoundingClientRect(),
-          c = document.getElementById("cComms").getBoundingClientRect();
-        out[pos] = {
-          size: Math.round(t.width),
-          chat: Math.round(c.height),
-          clear: t.right < c.left || t.left > c.right || t.bottom < c.top || t.top > c.bottom,
-        };
+        await new Promise(r => setTimeout(r, 120));
+        const t = box("#tracker");
+        if (pos === "br") out.size = Math.round(t.width);
+        if (t.left < 0 || t.top < 0 || t.right > innerWidth || t.bottom > innerHeight)
+          out.bad.push(pos + " off screen");
+        for (const q of ["#cComms", ".vitals", ".ammo", ".kit", ".cbar", "#cPlan", "#medals"]) {
+          const b = box(q);
+          if (b && hit(t, b)) out.bad.push(pos + " covers " + q);
+        }
       }
+      out.chat = Math.round(box("#cComms").height);
       KA.SET.trackerPos = "br";
       KA.applySettings();
       out.mini = getComputedStyle(document.getElementById("cMini")).display;
       return out;
     });
     check(
-      trkLay.br.size >= 150 &&
-        trkLay.br.chat > 0 &&
-        trkLay.br.clear &&
-        trkLay.bl.clear &&
-        trkLay.mini === "none",
-      "the motion tracker takes the minimap's place, and team chat never covers it",
+      trkLay.size >= 190 && trkLay.chat > 0 && trkLay.bad.length === 0 && trkLay.mini === "none",
+      "the motion tracker takes the minimap's place, and in every position it stays on screen and clear of chat, vitals, ammo and abilities",
       trkLay
     );
     /* a friend's ping reaches the host, and the friend's AI teammates respond to it */

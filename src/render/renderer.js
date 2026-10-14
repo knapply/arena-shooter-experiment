@@ -70,7 +70,8 @@ const SKY_SUN = { value: new THREE.Vector3(0.6, 0.6, 0.36) },
     fog: false,
     vertexShader:
       "varying vec3 v;void main(){v=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
-    /* dusk gradient, a ringed planet, stars and a faint nebula overhead, and a distant megacity
+    /* dusk gradient, a ringed planet, twinkling stars, a shooting star now and then and a slowly
+       drifting nebula overhead, and a distant megacity
        skyline with lit windows along the horizon (all procedural, one draw call) */
     fragmentShader: `uniform vec3 tint;uniform float tm;uniform vec3 sunD;uniform float sq;varying vec3 v;
 float h1(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -82,10 +83,23 @@ float az=atan(d.z,d.x);
 /* nebula band and stars, fading in with height */
 float up=smoothstep(.12,.55,h);
 /* sampled on a plane overhead, not by azimuth (which would leave a seam where it wraps) */
-vec2 nb=d.xz/(1.25-h);float neb=n2(nb*3.)*n2(nb*7.+3.);
-c+=up*neb*vec3(.10,.05,.16)*1.6;
-vec2 sg=vec2(az*160.,h*160.);float st=h1(floor(sg));
-c+=up*step(.9965,st)*vec3(.9,.95,1.)*(.4+.6*h1(floor(sg)+7.));
+vec2 nb=d.xz/(1.25-h);float neb=n2(nb*3.+tm*.004)*n2(nb*7.+3.-tm*.006);
+c+=up*neb*vec3(.10,.05,.16)*(1.45+.25*sin(tm*.07+nb.x*2.));
+/* stars twinkle, more toward the horizon where the air is thicker; a few burn blue or amber */
+vec2 sg=vec2(az*160.,h*160.);vec2 sc0=floor(sg);float st=h1(sc0);
+float tw=.55+.45*sin(tm*(2.+5.*h1(sc0+3.))+h1(sc0+11.)*6.28);tw=mix(1.,tw,.35+.5*(1.-up));
+vec3 stc=mix(vec3(.9,.95,1.),mix(vec3(.6,.75,1.),vec3(1.,.78,.5),step(.5,h1(sc0+5.))),step(.8,h1(sc0+9.)));
+c+=up*step(.9965,st)*stc*(.4+.6*h1(sc0+7.))*tw;
+/* now and then a shooting star: a bright head and a fading tail across the upper sky */
+{float ms=tm/5.5;float mid=floor(ms);float mp=fract(ms)/.14;
+if(mp<1.&&h1(vec2(mid,21.))>.45){float ma=h1(vec2(mid,22.))*6.28;
+vec3 m0=normalize(vec3(cos(ma),.45+.4*h1(vec2(mid,23.)),sin(ma)));
+vec3 mt=normalize(cross(m0,vec3(0.,1.,0.))*(h1(vec2(mid,24.))>.5?1.:-1.)-vec3(0.,.45,0.));
+mt=normalize(mt-m0*dot(mt,m0));vec3 mn=cross(m0,mt);
+float along=atan(dot(d,mt),dot(d,m0));float off=abs(dot(d,mn));float head=mp*.55;
+float tail=smoothstep(head-.2,head,along)*step(along,head+.004)*((1.-smoothstep(0.,.0045,off))+.35*(1.-smoothstep(0.,.016,off)));
+float fade=smoothstep(0.,.15,mp)*(1.-smoothstep(.75,1.,mp));
+c+=tail*fade*vec3(.85,.92,1.)*2.2*(.2+.8*smoothstep(head-.2,head,along));}}
 /* the planet */
 vec3 pd=normalize(vec3(-.55,.32,-.77));float pa=dot(d,pd);
 float r=.12;float pr=sqrt(max(0.,1.-pa*pa));

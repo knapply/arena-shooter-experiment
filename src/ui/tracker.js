@@ -6,8 +6,8 @@
    corner and size are settings too (trackerPos, trackerSize: body[data-trk] and --trk in CSS). */
 const TRACK_RANGE = 25,
   TRACK_SPEED = 3.6,
-  /* drawing resolution: sharp up to the largest size setting on a high-density screen */
-  TRACK_PX = 300;
+  /* drawing resolution: sharp up to the largest size setting */
+  TRACK_PX = 400;
 let trackEl = null,
   trackT = 0;
 /** the arena's contacts: { pos, vel, firing, ally } */
