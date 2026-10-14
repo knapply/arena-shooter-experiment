@@ -112,7 +112,10 @@ const stats = async p => {
           !KA.myPod &&
           !document.body.classList.contains("podding") &&
           KA.PODS.filter(p => p.landed).length >= 8;
-        for (let i = 0; i < 400 && !down(); i++) await new Promise(r => setTimeout(r, 50));
+        /* game time runs 6x while we wait: CI's software renderer draws this scene at about a frame a
+           second, and a frame counts at most 50 ms of game time, so the fall would take minutes */
+        KA.CON.run("timescale 6");
+        for (let i = 0; i < 1200 && !down(); i++) await new Promise(r => setTimeout(r, 50));
         KA.CON.run("timescale 0");
         /* (what the match looked like, if the drop never came down) */
         return {
