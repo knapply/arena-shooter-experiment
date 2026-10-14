@@ -93,6 +93,18 @@
     }
     return null;
   };
+  /* fx kinds on the presence fx list: n grenade, m melee impact, p your drop pod launching, q its
+     landing point moving (steering) */
+  const fxKind = k => ({ nade: "n", mhit: "m", pod: "p", podto: "q" })[k] || null;
+  NET.fxKind = fxKind;
+  /** a player's drop pod from their fx: "p" launches it where they will land, "q" moves that point
+      (the pod is drawn here; their client owns the landing) */
+  NET.remotePod = function (a, f) {
+    const p = K.vec(f.slice(2, 5), new V3());
+    if (!a || !p) return;
+    if (f[1] === "p") a.vpod = K.dropPod(p, CTF.TEAM_HEX[a.team === 1 ? 1 : 0]);
+    else if (a.vpod && !a.vpod.landed) a.vpod.at.copy(p);
+  };
   /* state bits shared by every CTF participant */
   NET.bitsOf = function (b, o) {
     return (
@@ -258,10 +270,12 @@
         if (H.ev.length > 8) H.ev.shift();
       }
     };
-    /* grenades, and melee impacts (yours and the AI's) so clients hear where a blow landed */
+    /* grenades, melee impacts (yours and the AI's) so clients hear where a blow landed, and your drop
+       pod (launch and steering) so everyone sees it come down */
     H.onFx = function (k, a, b, g) {
-      if (k !== "nade" && k !== "mhit") return;
-      H.fx.push([++H.fxS, k === "nade" ? "n" : "m", ...a, ...b, g | 0]);
+      const c = NET.fxKind(k);
+      if (!c) return;
+      H.fx.push([++H.fxS, c, ...a, ...b, g | 0]);
       if (H.fx.length > 4) H.fx.shift();
     };
     /** @returns {HostSnapshot} */
@@ -599,7 +613,7 @@
           const p = K.vec(f.slice(2, 5), new V3()),
             v = K.vec(f.slice(5, 8), new V3());
           if (p && v) K.meleeImpact(p, v, (f[8] | 0) & 15);
-        }
+        } else if (f[1] === "p" || f[1] === "q") NET.remotePod(a, f);
       }
       if (dth) {
         const s = num(dth[0], 0, 1e9);

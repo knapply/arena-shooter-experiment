@@ -288,6 +288,27 @@ function snapView() {
   prevPos.copy(me.pos);
   smY = me.pos.y;
 }
+/** everyone else standing in the world: the mode's (its radar sees everyone but you), or the arena's */
+function othersStanding() {
+  if (EXT && EXT.radar) return EXT.radar().map(c => c.pos);
+  const out = [];
+  for (const b of bots) if (!b.body.dead) out.push(b.body.pos);
+  for (const r of remotes.values()) if (r.has && !r.dead && r.rig) out.push(r.rig.root.position);
+  return out;
+}
+/** may your pod's landing point move to (x, z)? onto a free spot, or at least further from a taken one */
+function podSteerClear(x, z) {
+  if (!myPod) return true;
+  const taken = podSpots(myPod).concat(othersStanding());
+  const y = myPod.at.y;
+  if (!spotTaken(x, y, z, taken)) return true;
+  const near = (px, pz) => {
+    let d = Infinity;
+    for (const p of taken) if (Math.abs(p.y - y) < 3) d = Math.min(d, Math.hypot(p.x - px, p.z - pz));
+    return d;
+  };
+  return near(x, z) > near(myPod.at.x, myPod.at.z);
+}
 /** a pod landing on someone takes them out */
 function podCrush(at) {
   for (const t of targets())
@@ -429,7 +450,8 @@ function frameBody(t) {
         podSteerSent = 0;
         emitFx("podto", v3a(myPod.at), [0, 0, 0], 0);
       }
-    } else if (now > respawnStart()) {
+    } else if (now > respawnStart() && !(podsOn() && killCamHolds())) {
+      /* (with pods, your pod launches once the kill cam is over or skipped) */
       if (!spawnPick || spawnPick.for !== respawnAt) {
         const sp = EXT && EXT.spawnPoint ? EXT.spawnPoint() : spawnPoint(me);
         spawnPick = { for: respawnAt, at: sp ? new V3(sp[0], sp[1] + 0.02, sp[2]) : null };
@@ -444,7 +466,9 @@ function frameBody(t) {
         me.pitch = 0;
         myPod = dropPod(at, myColor, {
           rider: true,
-          steer: { r: zone ? zone.r : 14, ok: zone ? zone.ok : null },
+          /* steering stays within the mode's zone, and off spots where someone stands or another pod
+             is coming down (it may always move further away from them) */
+          steer: { r: zone ? zone.r : 14, ok: (x, z) => (!zone || zone.ok(x, z)) && podSteerClear(x, z) },
           onLand(p) {
             const pod = myPod;
             /* you step out facing where you looked on the way down */

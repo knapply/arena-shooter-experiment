@@ -97,6 +97,10 @@ interface NetApi {
   liveHost(): { peer: string; name: string; mid: string; players: number } | null;
   okId(id: unknown): boolean;
   bitsOf(body: any, o: { reload?: boolean; fire?: boolean; wpn?: number; carry?: boolean }): number;
+  /** the presence fx letter for an fx kind (grenade, melee impact, drop pod launch and steer), or null */
+  fxKind(k: string): string | null;
+  /** draw a player's drop pod from a "p" (launch) or "q" (steer) fx entry */
+  remotePod(agent: any, f: any[]): void;
   applyBits(body: any, bits: number): void;
   readBody(body: any, presence: Record<string, any>): void;
   plausible(shooterPos: any, target: any, weapon: string, at?: any): boolean;

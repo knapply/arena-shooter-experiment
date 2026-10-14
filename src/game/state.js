@@ -38,8 +38,13 @@ let bots = [];
 let botsOn = true;
 const feed = [];
 
-/* where fighting happened lately (hits and kills), for spawn safety */
+/* where fighting happened lately, for spawn safety: hits and kills you saw, and online, every
+   player's shots (from the fire bit everyone already sends, so every client knows the same fights) */
 const ARENA_FIGHTS = [];
+EVENTS.on("kill", e => {
+  const p = pilotById(e.victim);
+  if (p && p.body) noteFight(ARENA_FIGHTS, p.body.pos, now);
+});
 EVENTS.on("damage", e => {
   for (const id of [e.victim, e.by]) {
     const p = pilotById(id);
@@ -57,7 +62,16 @@ function spawnPoint(self) {
   for (const r of remotes.values())
     if (r.has && !r.dead && r.rig)
       foes.push({ pos: r.rig.root.position, h: r.crouch ? H_CROUCH : H_STAND, yaw: r.rig.root.rotation.y });
-  return pickSpawn(SPAWNS, foes, ARENA_FIGHTS, now, Math.random);
+  return pickSpawn(SPAWNS, foes, ARENA_FIGHTS, now, Math.random, takenSpots(self));
+}
+/** where nobody should land or appear: every pilot standing in the arena (but `self`) and every pod on
+    its way down or just landed (game/pods.js podSpots) */
+function takenSpots(self) {
+  const out = podSpots(null);
+  if (self !== me && playing && !me.dead) out.push(me.pos);
+  for (const b of bots) if (b.body !== self && !b.body.dead) out.push(b.body.pos);
+  for (const r of remotes.values()) if (r.has && !r.dead && r.rig) out.push(r.rig.root.position);
+  return out;
 }
 function spawn(b) {
   const s = spawnPoint(b);

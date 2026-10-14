@@ -185,6 +185,11 @@ function remoteFor(peer) {
 function remoteState(r, st, sh, dead) {
   if (st & 64 && !(r.st & 64)) r.rlStart = now;
   if (st & 128 && !(r.st & 128)) r.mlStart = now;
+  /* their shots mark a fight for spawn safety (state.js), at most twice a second */
+  if (st & 4096 && r.rig && now - (r.fightT || -9) > 0.5) {
+    r.fightT = now;
+    noteFight(ARENA_FIGHTS, r.rig.root.position, now);
+  }
   r.st = st;
   r.crouch = !!(st & 1);
   r.sh = sh;

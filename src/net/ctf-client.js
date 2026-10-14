@@ -242,8 +242,9 @@
       }
     };
     M.onFx = function (k, a, b, g) {
-      if (k !== "nade" && k !== "mhit") return;
-      M.fx.push([++M.fxS, k === "nade" ? "n" : "m", ...a, ...b, g | 0]);
+      const c = NET.fxKind(k);
+      if (!c) return;
+      M.fx.push([++M.fxS, c, ...a, ...b, g | 0]);
       if (M.fx.length > 4) M.fx.shift();
     };
     M.died = function (src) {
@@ -265,7 +266,9 @@
         const free = pts.filter(p => !held.includes(p));
         if (free.length) pts = free;
       }
-      return K.pickSpawn(pts, foes, [], M.t || 0, Math.random);
+      /* off anyone standing there and any pod coming down (the host's AI pods, other players' pods) */
+      const taken = [...M.map.values()].filter(a => a.alive && !a.local).map(a => a.body.pos);
+      return K.pickSpawn(pts, foes, [], M.t || 0, Math.random, taken.concat(K.podSpots(null)));
     };
     function mirrorBits(a, st) {
       NET.applyBits(a.body, st);
@@ -569,7 +572,7 @@
                 const q = K.vec(f.slice(2, 5), new V3()),
                   v = K.vec(f.slice(5, 8), new V3());
                 if (q && v) K.meleeImpact(q, v, (f[8] | 0) & 15);
-              }
+              } else if (f[1] === "p" || f[1] === "q") NET.remotePod(M.byId("h:" + p.peer), f);
             }
           M.seenFx.set(p.peer, sf);
         }
