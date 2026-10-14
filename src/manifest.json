@@ -6,6 +6,7 @@
   "engine": [
     "core/store.js",
     "core/rng.js",
+    "core/vec3.js",
     "core/prelude.js",
     "game/events.js",
     "game/frame-hooks.js",
@@ -101,7 +102,7 @@
   },
   "worker": {
     "_comment": "Background simulation worker (sim-worker.js): the simulation modules with rendering stubbed out. tests/lib/headless.js loads the same list.",
-    "env": ["worker/sim-env.js", "worker/three-lite.js"],
+    "env": ["worker/sim-env.js", "core/vec3.js", "worker/three-lite.js"],
     "prelude": "worker/sim-prelude.js",
     "engine": [
       "core/store.js",

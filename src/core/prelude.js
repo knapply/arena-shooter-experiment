@@ -5,7 +5,9 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const r2 = v => Math.round(v * 100) / 100;
 const isTouch = matchMedia("(pointer:coarse)").matches;
 const reduceMotion = matchMedia("(prefers-reduced-motion:reduce)").matches;
-const V3 = THREE.Vector3;
+/* the game's vector (core/vec3.js), with three's Vector3 methods behind its own for rendering */
+Object.setPrototypeOf(Vec3.prototype, THREE.Vector3.prototype);
+const V3 = /** @type {any} */ (Vec3);
 const COLORS = ["#ffb347", "#62cdff", "#ff6f91", "#8be38b", "#c9a7ff", "#f2f2f2"];
 let myColor = COLORS[0];
 /** your armor color right now (your color in the arena, your team's in team modes) */

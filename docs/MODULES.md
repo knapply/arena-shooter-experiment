@@ -8,7 +8,8 @@ Engine modules share one scope and load in this order; mode modules are self-con
 |---|---|---|
 | `src/core/store.js` | 217 | `STORE` |
 | `src/core/rng.js` | 29 | `RNG` `rand` |
-| `src/core/prelude.js` | 39 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
+| `src/core/vec3.js` | 94 | `Vec3` |
+| `src/core/prelude.js` | 41 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
 | `src/game/events.js` | 71 | `EVENTS` |
 | `src/game/frame-hooks.js` | 21 | `FRAME_HOOKS` `onFrame` `runFrameHooks` |
 | `src/core/settings.js` | 1433 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `T_LAB` `T_MODE` `SANDBOX_DEFS` `LAB_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` … (+15) |
@@ -80,7 +81,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 41 | `_sd` `RANGE` `updAim` |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 301 | `KA_API` |
+| `src/game/exports.js` | 302 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 147 | `TFP` |
