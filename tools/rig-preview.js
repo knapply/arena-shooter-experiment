@@ -1,11 +1,13 @@
 /* Contact sheets of the pilot rig's animation, for working on characters/rig.js and anim.js.
-     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves] [out.png]
+     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves|climb|carry] [out.png]
    gait   a run, a sprint and a jump, seen from the side, six frames each (stepped at exactly 60 Hz)
    loco   the other motion-captured gaits: a walk, a strafe (from the front), a backpedal and a crouched run
    poses  idle, aiming down sights (carbine and magnum), a melee strike, the reload's slap and bolt;
           the magnum held, its pistol-whip and its reload
    moves  the armor from the front, three-quarters and behind; crouch, ADS, sprint, a slide and a death
    climb  a clamber up a 1.3 m ledge (the body's own clamber state, as physics drives it), side and 3/4
+   carry  the flag, then the oddball skull, in both hands: standing (close, from the front and the
+          side), running, mid-swing of a carry melee
    A pilot really travels (planted feet lock to the ground) across the largest open floor of the
    arena, with the camera keeping pace beside it; real three.js (software WebGL); needs ffmpeg on the PATH. */
 const fs = require("fs"),
@@ -103,7 +105,14 @@ if (!process.env.THREE_PATH) {
           B.vel.y = 0;
           if (!m.keepY) B.pos.y = 0;
         }
-        a.pose(dt, { reload: m.st.reload == null ? -1 : m.st.reload, fire: false, wpn: m.st.wpn | 0 });
+        a.pose(dt, {
+          reload: m.st.reload == null ? -1 : m.st.reload,
+          fire: false,
+          wpn: m.st.wpn | 0,
+          flag: !!m.st.carry,
+          skull: m.st.carry === "skull",
+          flagColor: "#ff5a4a",
+        });
       }
       /* the camera's bearing around the pilot: side (0), front (-90 deg), or any angle in degrees */
       const ca = ((m.cam === "front" ? -90 : m.cam === "side" ? 0 : +m.cam) * Math.PI) / 180,
@@ -144,7 +153,21 @@ if (!process.env.THREE_PATH) {
     r: 0,
     st: {},
   };
-  if (mode === "climb") {
+  if (mode === "carry") {
+    for (const carry of ["flag", "skull"])
+      for (const [m, n] of [
+        [{ cam: -60, r: 1.7 }, 40],
+        [{ cam: 20, r: 1.7 }, 40],
+        [{ v: 6.4 }, 60],
+        [{ st: { melee: 0.08 } }, 30],
+        [{ st: { melee: 0.3 } }, 30],
+        [{ cam: -40, r: 2.2, st: { melee: 0.3 } }, 30],
+      ]) {
+        await set(Object.assign({}, base, m, { st: Object.assign({ carry }, m.st) }), (n + 4) / 60);
+        await step(n);
+        await take();
+      }
+  } else if (mode === "climb") {
     for (const cam of ["side", -40]) {
       await set(Object.assign({}, base, { cam, v: 0, keepY: true }), 0);
       await step(20);

@@ -218,6 +218,9 @@ function recLocal() {
       reload: reloadT > 0 ? 1 - reloadT / RELOAD_TIME : -1,
       fire: now - lastFireT < 0.1,
       wpn: wi,
+      /* (what you carry shows in replays and kill cams: your ghost holds it in both hands) */
+      flag: !!carried(),
+      skull: carried() === "skull",
     })
   );
 }
