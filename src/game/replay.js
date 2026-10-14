@@ -329,7 +329,8 @@ const REPLAY = (() => {
         g.root.visible = true;
         g.root.position.set(s.x, s.y, s.z);
         g.root.rotation.y = s.yaw;
-        rigEvents(g, g.update(Math.max(1e-4, step), Object.assign({}, s.st, { yaw: s.yaw })));
+        const gst = Object.assign({}, s.st, { yaw: s.yaw });
+        rigEvents(g, g.update(Math.max(1e-4, step), gst), gst);
       }
       /* blast gates as they were then (their state is a function of the gate clock) */
       if (GATES.on) gateDraw(R.t + GATES.t - now);

@@ -11,6 +11,9 @@ function audio() {
     master = AC.createGain();
     master.gain.value = SET.master * SET.sfx;
     master.connect(AC.destination);
+    LIVE_AC = AC;
+    /* the reverb's impulse is generated now, on the first click, not in the middle of a fight */
+    space();
   } catch (e) {}
 }
 let NOISE = null;
@@ -87,6 +90,12 @@ function sfx(kind, vol = 1) {
     sfxVoices = 0;
   }
   if (++sfxVoices > 14 && vol < 0.5) return;
+  /* your own sounds in the world go through the body bus, which echoes when you are enclosed */
+  const out0 = sfxOut;
+  if (!sfxOut && BODY_KINDS.has(kind)) {
+    const S = space();
+    if (S) sfxOut = S.body;
+  }
   try {
     switch (kind) {
       case "shot":
@@ -265,13 +274,37 @@ function sfx(kind, vol = 1) {
       case "alarm":
         tone(t, "square", 880, 880, 0.07, 0.035 * vol);
         break;
+      /* feet by surface (footSurf): floor plates thud, raised metal decks ring hollow, gratings rattle */
       case "step":
         nz(t, 0.07, "lowpass", 420, 0.22 * vol, 1);
         nz(t, 0.03, "highpass", 3000, 0.03 * vol);
         break;
+      case "stepm":
+        nz(t, 0.06, "lowpass", 520, 0.18 * vol, 1);
+        tone(t, "triangle", 210, 185, 0.11, 0.045 * vol, 0.002);
+        nz(t, 0.05, "bandpass", 2600, 0.05 * vol, 9);
+        break;
+      case "stepg":
+        nz(t, 0.05, "lowpass", 360, 0.16 * vol, 1);
+        nz(t, 0.03, "bandpass", 1900, 0.08 * vol, 2);
+        nz(t + 0.028, 0.03, "bandpass", 3100, 0.05 * vol, 3);
+        nz(t + 0.055, 0.02, "highpass", 4200, 0.025 * vol);
+        break;
       case "land":
         nz(t, 0.16, "lowpass", 300, 0.4 * vol);
         tone(t, "sine", 80, 45, 0.15, 0.2 * vol);
+        break;
+      case "landm":
+        nz(t, 0.14, "lowpass", 380, 0.34 * vol);
+        tone(t, "sine", 95, 55, 0.18, 0.18 * vol);
+        tone(t, "triangle", 160, 140, 0.32, 0.06 * vol, 0.003);
+        nz(t, 0.22, "bandpass", 2300, 0.06 * vol, 10);
+        break;
+      case "landg":
+        nz(t, 0.14, "lowpass", 300, 0.3 * vol);
+        tone(t, "sine", 80, 45, 0.12, 0.14 * vol);
+        for (let i = 0; i < 4; i++)
+          nz(t + i * 0.035, 0.04, "bandpass", 1700 + i * 450, 0.1 * vol * (1 - i * 0.2), 2);
         break;
       case "magout":
         tone(t, "square", 700, 500, 0.03, 0.05 * vol);
@@ -289,6 +322,19 @@ function sfx(kind, vol = 1) {
       case "slide": {
         const f = nz(t, 0.6, "bandpass", 900, 0.12 * vol, 0.7, 0.02);
         f.frequency.exponentialRampToValueAtTime(250, t + 0.6);
+        break;
+      }
+      case "slidem": {
+        const f = nz(t, 0.6, "bandpass", 1500, 0.11 * vol, 1.2, 0.02);
+        f.frequency.exponentialRampToValueAtTime(420, t + 0.6);
+        tone(t, "sawtooth", 880, 620, 0.45, 0.012 * vol, 0.05);
+        break;
+      }
+      case "slideg": {
+        const f = nz(t, 0.55, "bandpass", 700, 0.1 * vol, 0.7, 0.02);
+        f.frequency.exponentialRampToValueAtTime(260, t + 0.55);
+        for (let i = 0; i < 6; i++)
+          nz(t + i * 0.07, 0.03, "bandpass", 2400, 0.06 * vol * (1 - i * 0.13), 2.5);
         break;
       }
       case "clamber":
@@ -435,13 +481,152 @@ function sfx(kind, vol = 1) {
         break;
     }
   } catch (e) {}
+  sfxOut = out0;
 }
 function distVol(p, max = 40) {
   return clamp(1 - camera.position.distanceTo(p) / max, 0, 1);
 }
+/* ---- space: a short reverb inside enclosed areas ----
+   One convolver for the whole game, fed by a send per positional sound and by the body bus (your own
+   sounds), so the node count stays bounded whatever is playing. Its impulse is generated: decaying
+   stereo noise that darkens as it dies away, over a few early reflections off nearby metal. Both
+   paths end in `master`, so the volume settings apply to the echo too. */
+let LIVE_AC = null,
+  SPACE = null;
+/** kinds you make yourself in the world (not the HUD's beeps and calls), which echo where you stand */
+const BODY_KINDS = new Set(
+  "shot sshot pshot bshot sgshot beam pulse boom rocket crumble thrust slam whoosh charge magout magin slap boltback boltfwd swing mhit mkill mcrack mwall chit cwall clamber jetstart podland podcrack gateslam step stepm stepg land landm landg slide slidem slideg".split(
+    " "
+  )
+);
+function space() {
+  /* the trailer's offline render swaps AC: it gets no reverb */
+  if (!AC || AC !== LIVE_AC) return null;
+  if (SPACE || !AC.createConvolver) return SPACE;
+  const sr = AC.sampleRate,
+    len = Math.round(sr * 0.9),
+    ir = AC.createBuffer(2, len, sr);
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c);
+    const kd = Math.exp(-7.5 / sr),
+      kb = Math.exp(-6 / sr);
+    let lp = 0,
+      amp = 1,
+      bright = 0.75;
+    for (let i = 0; i < len; i++) {
+      lp += (Math.random() * 2 - 1 - lp) * (0.2 + bright);
+      d[i] = lp * amp * Math.min(1, (i * 300) / sr);
+      amp *= kd;
+      bright *= kb;
+    }
+    for (const [ms, g] of [
+      [7, 0.6],
+      [13, -0.45],
+      [19, 0.4],
+      [29, -0.3],
+      [41, 0.25],
+    ])
+      d[Math.round(((ms + c * 1.9) * sr) / 1000)] += c ? -g : g;
+  }
+  const conv = AC.createConvolver();
+  conv.buffer = ir;
+  const send = AC.createGain(),
+    ret = AC.createGain(),
+    body = AC.createGain(),
+    bodySend = AC.createGain();
+  ret.gain.value = 0.75;
+  bodySend.gain.value = 0;
+  send.connect(conv);
+  conv.connect(ret);
+  ret.connect(master);
+  body.connect(master);
+  body.connect(bodySend);
+  bodySend.connect(send);
+  SPACE = { send, body, bodySend };
+  return SPACE;
+}
+/* how enclosed a point is, 0 (open sky) to 1 (a roofed room): a roof overhead within 10 m, and how
+   many of 8 level rays at 2.2 m (over waist-high cover) meet a wall within 14 m, closer counting more.
+   Without a roof, only lanes between tall walls echo, and only a little. Cached per 2 m cell; the
+   cache resets when the collision world changes (another map, cover destroyed or rebuilt, a gate). */
+const ENC = { key: "", cells: new Map() };
+const _encO = new THREE.Vector3(),
+  _encD = new THREE.Vector3();
+function enclosure(p) {
+  const key = SOLID.length + ":" + (SOLID.length ? SOLID[0].id : 0);
+  if (key !== ENC.key) {
+    ENC.key = key;
+    ENC.cells.clear();
+  }
+  const cx = Math.floor(p.x / 2),
+    cy = Math.floor(p.y / 2),
+    cz = Math.floor(p.z / 2),
+    ck = cx + "," + cy + "," + cz;
+  let e = ENC.cells.get(ck);
+  if (e !== undefined) return e;
+  /* from the cell's centre, so a cell reads the same whichever point asked first */
+  const x = cx * 2 + 1,
+    y = cy * 2 + 0.6,
+    z = cz * 2 + 1;
+  let roof = 0,
+    w = 0;
+  for (const b of SOLID)
+    if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 && b.y0 > y && b.y0 < y + 10) {
+      roof = 1;
+      break;
+    }
+  _encO.set(x, y + 1.6, z);
+  for (let k = 0; k < 8; k++) {
+    const a = (k * Math.PI) / 4,
+      t = rayWorld(_encO, _encD.set(Math.cos(a), 0, Math.sin(a)), 14);
+    if (t > 0.05 && t < 14) w += 1 - t / 28;
+  }
+  w /= 8;
+  e = roof ? 0.45 + 0.55 * w : 0.55 * w * w;
+  if (ENC.cells.size > 4096) ENC.cells.clear();
+  ENC.cells.set(ck, e);
+  return e;
+}
+/* your own sounds echo as much as the space you stand in */
+onFrame(
+  () => {
+    if (SPACE && AC === LIVE_AC)
+      SPACE.bodySend.gain.setTargetAtTime(enclosure(camera.position) * 0.6, AC.currentTime, 0.12);
+  },
+  { menu: true, full: true }
+);
+/* ---- what's underfoot: the collision box a point stands on; map pieces carry a material ----
+   floor plates (the default), raised metal decks (platforms, cover, walls, gates) and gratings (stairs) */
+const FOOT_SURF = { floor: "", step: "g", grate: "g" };
+function footSurf(p) {
+  let g = -50,
+    best = null;
+  for (const b of SOLID)
+    if (
+      p.x > b.x0 - 0.05 &&
+      p.x < b.x1 + 0.05 &&
+      p.z > b.z0 - 0.05 &&
+      p.z < b.z1 + 0.05 &&
+      b.y1 <= p.y + 0.3 &&
+      b.y1 > g
+    ) {
+      g = b.y1;
+      best = b;
+    }
+  if (!best || p.y - g > 1.5) return "";
+  const s = FOOT_SURF[best.mat];
+  return s == null ? "m" : s;
+}
+const FOOT_KINDS = { step: 1, land: 1, slide: 1 };
+/** a step, landing or slide at p, as the surface there sounds */
+function footKind(kind, p) {
+  return FOOT_KINDS[kind] ? kind + footSurf(p) : kind;
+}
 /* positional sound: sfx() routed through a stereo panner set from where the sound is relative to
    where you look, and a curve that is loud up close and falls away fast (you hear someone right
-   next to you before you see them) */
+   next to you before you see them). Farther sounds lose their highs (a low-pass that closes with
+   distance, scaled by the sound's range), and send to the reverb by how enclosed the sound and you
+   are. Steps, landings and slides take the surface under them. */
 let sfxOut = null;
 const _sfxV = new THREE.Vector3(),
   _sfxR = new THREE.Vector3();
@@ -450,7 +635,9 @@ function sfxAt(kind, p, max = 40, vol = 1) {
   if (d >= max) return;
   const near = 1 - d / max;
   const v = vol * near * near * (1 + Math.max(0, 1 - d / 6) * 0.6);
+  kind = footKind(kind, p);
   if (SFX_TAP || !AC || !AC.createStereoPanner) return sfx(kind, v);
+  if (v <= 0.01) return;
   const pan = AC.createStereoPanner();
   _sfxR.set(1, 0, 0).applyQuaternion(camera.quaternion);
   _sfxV.copy(p).sub(camera.position);
@@ -458,6 +645,26 @@ function sfxAt(kind, p, max = 40, vol = 1) {
   pan.pan.value = L > 0.5 ? clamp(_sfxV.dot(_sfxR) / L, -1, 1) * 0.85 : 0;
   pan.connect(master);
   sfxOut = pan;
+  /* under a crowd of voices, skip the extras (sfx drops the quiet ones anyway) */
+  const busy = sfxVoices > 10 && AC.currentTime - sfxVoiceT < 0.1;
+  if (d > 4 && !busy) {
+    const f = AC.createBiquadFilter();
+    f.type = "lowpass";
+    f.frequency.value = clamp(18000 * Math.exp((-3 * d) / max), 500, 18000);
+    f.Q.value = 0.5;
+    f.connect(pan);
+    sfxOut = f;
+  }
+  const S = !busy && space();
+  if (S) {
+    const wet = (enclosure(p) + enclosure(camera.position)) * 0.4 * (0.7 + 0.5 * (d / max));
+    if (wet > 0.02) {
+      const g = AC.createGain();
+      g.gain.value = wet;
+      pan.connect(g);
+      g.connect(S.send);
+    }
+  }
   try {
     sfx(kind, v);
   } finally {

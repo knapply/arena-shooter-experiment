@@ -15,7 +15,7 @@ const GFX = {
   lastKey: "",
   b3: null,
   b4: null,
-  /* half-resolution occlusion (ao1, ao2) and wet-floor reflections (ssr), quarter-resolution light shafts (sh) */
+  /* half-resolution occlusion (ao1, ao2) and floor reflections (ssr), quarter-resolution light shafts (sh) */
   ssr: null,
   ao1: null,
   ao2: null,
@@ -122,21 +122,34 @@ float wi=exp(-abs(lz(uv)-z0)/(z0*.04+.02))*(1.-.1*float(i*i+j*j));s+=texture2D(t
 gl_FragColor=vec4(vec3(s/w),1.);}`,
 });
 /* light shafts: march from each pixel toward the sun through the sky (alpha 0 in the scene target),
-   so walls and towers cut the rays */
+   so walls and towers cut the rays. The light is the open sky's own brightness plus a glow around the
+   sun's disk, so rays fan out from every edge that crosses the sun even where the sky is not blown out;
+   the march is jittered per pixel to hide its steps. */
 const shaftMat = new THREE.ShaderMaterial({
-  uniforms: { t: { value: null }, sunUv: { value: new THREE.Vector2() }, vis: { value: 0 } },
+  uniforms: {
+    t: { value: null },
+    sunUv: { value: new THREE.Vector2() },
+    vis: { value: 0 },
+    aspect: { value: 1 },
+  },
   vertexShader: FSV,
   depthTest: false,
   depthWrite: false,
-  fragmentShader: `uniform sampler2D t;uniform vec2 sunUv;uniform float vis;varying vec2 vUv;
-void main(){vec2 st=(sunUv-vUv)/36.;vec2 uv=vUv;vec3 acc=vec3(0.);float dec=1.;
-for(int i=0;i<36;i++){vec4 s=texture2D(t,uv);acc+=min(max(s.rgb-.3,0.),vec3(6.))*(1.-smoothstep(0.,.2,s.a))*dec;dec*=.97;uv+=st;}
+  fragmentShader: `uniform sampler2D t;uniform vec2 sunUv;uniform float vis;uniform float aspect;varying vec2 vUv;
+void main(){vec2 st=(sunUv-vUv)/36.;vec2 uv=vUv+st*fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
+vec3 acc=vec3(0.);float dec=1.;
+for(int i=0;i<36;i++){vec4 s=texture2D(t,uv);float g=max(0.,1.-length((uv-sunUv)*vec2(aspect,1.))*3.2);
+acc+=(min(max(s.rgb-.3,0.),vec3(6.))+vec3(1.,.8,.55)*g*g*g*3.)*(1.-smoothstep(0.,.2,s.a))*dec;dec*=.965;uv+=st;}
 gl_FragColor=vec4(acc*vis/36.,1.);}`,
 });
-/* screen-space reflections on wet floor (Ultra): the floor shader leaves its wetness in the scene's
-   alpha; each wet pixel marches its reflected view ray through the depth buffer and takes the color it
-   hits, fading at the screen's edges */
+/* screen-space reflections on the floor (the Reflections setting: "ssr" at High, "ssrhi" at Ultra). The
+   map's surfaces leave how mirror-like they are in the scene's alpha (render/surfaces.js: wet patches
+   fully, polished floor plates and deck tops partly); each such pixel marches its reflected view ray
+   through the depth buffer and takes the color it hits, fading at the screen's edges. Rougher surfaces
+   scatter the ray and leave their roughness in alpha, which the composite blurs by. The high quality
+   takes twice the steps and refines each hit by bisection. */
 const ssrMat = new THREE.ShaderMaterial({
+  defines: { STEPS: 20, GROW: "1.17", REFINE: 0 },
   uniforms: {
     tS: { value: null },
     tD: { value: null },
@@ -149,16 +162,24 @@ const ssrMat = new THREE.ShaderMaterial({
   depthTest: false,
   depthWrite: false,
   fragmentShader: `uniform sampler2D tS;uniform mat4 pm;uniform vec3 upV;varying vec2 vUv;${VIEWPOS}
+float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(.06711056,.00583715))));}
+vec2 suv(vec3 q){vec4 c=pm*vec4(q,1.);return c.xy/c.w*.5+.5;}
 void main(){float a=texture2D(tS,vUv).a;float w=clamp((1.-a)*2.,0.,1.);
-if(a<.25||w<.05){gl_FragColor=vec4(0.);return;}
-vec3 P=vp(vUv);vec3 V=normalize(P);vec3 R=reflect(V,upV);
+if(a<.25||w<.04){gl_FragColor=vec4(0.);return;}
+float rough=clamp(1.-w*1.3,0.,1.);
+vec3 P=vp(vUv);vec3 V=normalize(P);float j=ign(gl_FragCoord.xy),j2=ign(gl_FragCoord.yx+17.);
+vec3 N=normalize(upV+rough*.1*vec3(j2-.5,0.,j-.5));vec3 R=reflect(V,N);
 float fres=.06+.94*pow(1.-max(dot(-V,upV),0.),5.);
-float st=.18-P.z*.015;vec3 Q=P+R*st*fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));vec3 hit=vec3(0.);float found=0.;
-for(int i=0;i<32;i++){Q+=R*st;st*=1.1;vec4 c=pm*vec4(Q,1.);vec2 uv=c.xy/c.w*.5+.5;
+float st=.18-P.z*.015;vec3 Q=P+R*st*j;vec3 hit=vec3(0.);float found=0.;
+for(int i=0;i<STEPS;i++){vec3 Q0=Q;Q+=R*st;st*=GROW;vec2 uv=suv(Q);
 if(uv.x<0.||uv.x>1.||uv.y<0.||uv.y>1.||Q.z>-.05)break;
 float dz=-Q.z-lz(uv);
-if(dz>0.&&dz<st*2.5+.15){hit=texture2D(tS,uv).rgb;vec2 e=abs(uv-.5)*2.;found=(1.-smoothstep(.8,1.,max(e.x,e.y)))*(1.-float(i)/32.);break;}}
-gl_FragColor=vec4(min(hit,vec3(8.))*found*w*fres,1.);}`,
+if(dz>0.&&dz<st*2.5+.15){
+#if REFINE
+for(int k=0;k<4;k++){vec3 M=(Q0+Q)*.5;if(-M.z-lz(suv(M))>0.)Q=M;else Q0=M;}uv=suv(Q);
+#endif
+hit=texture2D(tS,uv).rgb;vec2 e=abs(uv-.5)*2.;found=(1.-smoothstep(.8,1.,max(e.x,e.y)))*(1.-float(i)/float(STEPS));break;}}
+gl_FragColor=vec4(min(hit,vec3(8.))*found*w*fres,rough);}`,
 });
 /* each map's own color mood, applied after tone mapping: shadow tint (lift), highlight tint (gain),
    vibrance. Picked by whichever map group is showing (MAP_GROUPS, world/bake.js). */
@@ -242,7 +263,8 @@ const compMat = new THREE.ShaderMaterial({
     "#endif",
     /* occlusion darkens everything but what glows */
     " if(aoK>0.){float a=texture2D(tA,uv).r;c*=mix(1.,a,aoK*(1.-smoothstep(.75,1.,luma(c))));}",
-    " if(ssrK>0.)c+=aces(texture2D(tR,uv).rgb*expo)*ssrK;",
+    /* reflections: rough ones blurred by the roughness the reflection pass left in alpha */
+    " if(ssrK>0.){vec4 r=texture2D(tR,uv);vec3 rc=r.rgb;if(r.a>.05){vec2 o=texel*(1.5+5.*r.a);rc=mix(rc,(texture2D(tR,uv+o).rgb+texture2D(tR,uv-o).rgb+texture2D(tR,uv+vec2(o.x,-o.y)).rgb+texture2D(tR,uv-vec2(o.x,-o.y)).rgb)*.25,min(1.,r.a*1.5));}c+=aces(rc*expo)*ssrK;}",
     " if(shaftK>0.)c+=aces(texture2D(tSh,uv).rgb*expo)*vec3(1.,.86,.66)*shaftK;",
     " c+=aces(texture2D(tB,uv).rgb*expo)*bloom;",
     " float l=luma(c);c=max(mix(vec3(l),c,sat),0.);",
@@ -274,7 +296,8 @@ function gfxResize() {
   const wantDof = !!(GFX.look && GFX.look.dof > 0) && GFX.webgl2;
   const wantAo = SET.ao === "ssao" && GFX.webgl2,
     wantSh = !!SET.lightShafts,
-    wantSsr = SET.reflections === "ssr" && GFX.webgl2;
+    ssrQ = GFX.webgl2 ? { ssr: 1, ssrhi: 2 }[SET.reflections] || 0 : 0,
+    wantSsr = ssrQ > 0;
   /* the scene's depth as a texture (depth of field, occlusion); WebGL2 resolves it from MSAA too */
   const wantDepth = wantDof || wantAo || wantSsr;
   const key =
@@ -286,7 +309,7 @@ function gfxResize() {
     (wantDof ? "d" : "") +
     (wantAo ? "a" : "") +
     (wantSh ? "s" : "") +
-    (wantSsr ? "r" : "");
+    (wantSsr ? "r" + ssrQ : "");
   if (key === GFX.lastKey && GFX.rt) return;
   GFX.lastKey = key;
   for (const k of ["rt", "b1", "b2", "b3", "b4", "ao1", "ao2", "sh", "ssr"])
@@ -322,7 +345,14 @@ function gfxResize() {
       GFX.ao2 = new THREE.WebGLRenderTarget(Math.max(1, w >> 1), Math.max(1, h >> 1), ao);
     }
     if (wantSh) GFX.sh = new THREE.WebGLRenderTarget(bw, bh, bo);
-    if (wantSsr) GFX.ssr = new THREE.WebGLRenderTarget(Math.max(1, w >> 1), Math.max(1, h >> 1), bo);
+    if (wantSsr) {
+      GFX.ssr = new THREE.WebGLRenderTarget(Math.max(1, w >> 1), Math.max(1, h >> 1), bo);
+      Object.assign(
+        ssrMat.defines,
+        ssrQ > 1 ? { STEPS: 40, GROW: "1.08", REFINE: 1 } : { STEPS: 20, GROW: "1.17", REFINE: 0 }
+      );
+      ssrMat.needsUpdate = true;
+    }
     if (wantDof) {
       const fw = Math.max(1, w >> 1),
         fh = Math.max(1, h >> 1);
@@ -424,6 +454,7 @@ function renderFrame() {
           shaftMat.uniforms.t.value = GFX.rt.texture;
           shaftMat.uniforms.sunUv.value.set(_sunS.x * 0.5 + 0.5, _sunS.y * 0.5 + 0.5);
           shaftMat.uniforms.vis.value = vis;
+          shaftMat.uniforms.aspect.value = camera.aspect;
           fsPass(shaftMat, GFX.sh);
           U.tSh.value = GFX.sh.texture;
           U.shaftK.value = 1.5;

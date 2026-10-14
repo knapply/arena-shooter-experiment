@@ -108,7 +108,7 @@ THREE_PATH=three.min.js node tools/rig-preview.js moves   # the armor up close, 
 
 ## Sounds
 
-Every sound is synthesized in `core/audio.js` (a `case` in `sfx`). Use `sfxAt(kind, position, range, volume)` for anything in the world, so it pans and is louder up close. The trailer's soundtrack and effects render offline through the same code.
+Every sound is synthesized in `core/audio.js` (a `case` in `sfx`). Use `sfxAt(kind, position, range, volume)` for anything in the world, so it pans, is louder up close, loses its highs far away and echoes in enclosed places. A step, landing or slide becomes its surface variant there by itself (`step`, `stepm`, `stepg`: floor plates, metal decks, gratings); add a new world sound you make yourself to `BODY_KINDS` so it echoes where you stand. The trailer's soundtrack and effects render offline through the same code.
 
 ## Tests to add
 
