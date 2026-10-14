@@ -91,6 +91,30 @@ const CLIPS = [
   { n: "right", take: "141_33", len: [0.95, 1.4], dir: -90, mirror: true },
   { n: "crouch", take: "136_09", len: [0.8, 1.8], dir: 0 },
   { n: "crouchBack", take: "136_11", len: [0.8, 1.8], dir: 180 },
+  /* variety: two more idles (weight shifts, look-arounds) and a crouched walk up on the toes */
+  { n: "idle2", take: "137_28", len: [3, 5], still: true },
+  { n: "idle3", take: "113_21", len: [3, 5.5], still: true },
+  { n: "crouch2", take: "136_13", len: [0.8, 1.8], dir: 0 },
+];
+/* one-shots (shotClip): windows of takes, in seconds from the take's first frame */
+const SHOTS = [
+  /* a run braking to a stop, planted; a quick stop that turns on the planted foot; the first
+     strides out of a standstill (its upper body) */
+  { n: "stop", take: "143_02", t: [0.55, 1.45], root: "none" },
+  { n: "plant", take: "127_19", t: [0.55, 1.35], root: "none" },
+  { n: "start", take: "143_03", t: [0.9, 1.65], root: "none" },
+  /* a running leap; a drop off a ledge onto both feet */
+  { n: "jumpRun", take: "49_05", t: [0.15, 1.2], root: "none", air: true },
+  { n: "landHard", take: "82_04", t: [2.3, 3.75], root: "none", air: true, landRef: true },
+  /* a stumble, played additively on the hips and spine as a hit reaction */
+  { n: "hit", take: "104_13", t: [0.5, 1.15], root: "none" },
+  /* emotes: both arms up; a flex; a wave (mirrored, so the free left hand waves); a shrug */
+  { n: "cheer", take: "79_69", t: [0.8, 2.0], root: "none", fps: 20 },
+  { n: "flex", take: "79_94", t: [3.9, 4.95], root: "none", fps: 20 },
+  { n: "wave", take: "141_16", t: [0.1, 1.9], root: "none", mirror: true, fps: 20 },
+  { n: "shrug", take: "141_21", t: [0.55, 1.35], root: "none", fps: 20 },
+  /* stepping up onto a ledge and over (the clamber's body) */
+  { n: "vault", take: "141_07", t: [0.85, 1.8], root: "none" },
 ];
 const JUMP = { n: "jump", take: "16_01" };
 const TURN = { take: "69_16" };
@@ -523,6 +547,169 @@ function jumpClip(R) {
   };
 }
 
+/** capture glitches (a marker swapped for a frame or a few): a bone that turns faster than a body
+    can (over 18 degrees in a frame at 120 Hz) is bridged from the last good frame to the next one
+    that is back within reach of it */
+function despike(F, dt) {
+  const lim = ((18 * Math.PI) / 180) * (dt * 120);
+  for (const b of Object.keys(F[0].L)) {
+    for (let i = 1; i < F.length; i++) {
+      if (qang(F[i - 1].L[b], F[i].L[b]) <= lim) continue;
+      const g = i - 1;
+      let j = i + 1;
+      while (j < F.length && qang(F[g].L[b], F[j].L[b]) > lim * (j - g) * 0.5) j++;
+      if (j >= F.length || j - g > 30) continue;
+      for (let k = i; k < j; k++) F[k].L[b] = qslerp(F[g].L[b], F[j].L[b], (k - g) / (j - g));
+      i = j;
+    }
+  }
+}
+/** a one-shot (a stop, a jump, a landing, a reaction, an emote, a vault) from a window of a take.
+    root: "end" keeps the hips' travel relative to where the window ends (the body carries its
+    momentum into a planted stop), "none" keeps only the sway around a slow average (the game moves
+    the body). air: take the ballistic arc out of the hips (jumps). The feet: when each is planted
+    ([on, off, ...] in seconds). */
+function shotClip(R, spec) {
+  const fr = R.frames,
+    dt = R.dt;
+  const a = Math.max(0, Math.round(spec.t[0] / dt)),
+    b = Math.min(fr.length - 1, Math.round(spec.t[1] / dt));
+  const ref = spec.root === "end" ? b : a;
+  let sx = 0,
+    sz = 0;
+  for (let f = a; f <= b; f++) {
+    const y = heading(fr[f].W);
+    sx += Math.sin(y);
+    sz += Math.cos(y);
+  }
+  const yaw = spec.root === "end" ? heading(fr[b].W) : Math.atan2(sx, sz);
+  const H = qaxis([0, 1, 0], -yaw);
+  const base = qrot(H, fr[ref].hips);
+  const F = [];
+  for (let f = a; f <= b; f++) {
+    const L = locals(fr[f].W, 0);
+    L.pelvis = qmul(H, fr[f].W.pelvis);
+    const h = qrot(H, fr[f].hips);
+    F.push({ L, pel: [h[0] - base[0], h[1], h[2] - base[2]], src: fr[f].feet.map(p => qrot(H, p)) });
+  }
+  const n = F.length;
+  despike(F, dt);
+  if (spec.root === "none") {
+    /* the body's own travel (a slow average) comes out; its sway around it stays */
+    const w = Math.round(0.35 / dt);
+    const avg = F.map((_, i) => {
+      let x = 0,
+        z = 0,
+        m = 0;
+      for (let j = Math.max(0, i - w); j <= Math.min(n - 1, i + w); j++, m++) {
+        x += F[j].pel[0];
+        z += F[j].pel[2];
+      }
+      return [x / m, z / m];
+    });
+    F.forEach((f, i) => {
+      f.pel[0] -= avg[i][0];
+      f.pel[2] -= avg[i][1];
+    });
+  }
+  if (spec.mirror) {
+    const mq = q => [q[0], -q[1], -q[2], q[3]];
+    for (const f of F) {
+      const L = {};
+      for (const k in f.L) L[k.replace(/L$/, "#").replace(/R$/, "L").replace("#", "R")] = mq(f.L[k]);
+      f.L = L;
+      f.pel[0] = -f.pel[0];
+      f.src = [2, 3, 0, 1].map(i => [-f.src[i][0], f.src[i][1], f.src[i][2]]);
+    }
+  }
+  /* planted feet: low and still in the capture */
+  const ground = Math.min(...F.map(f => Math.min(...f.src.map(p => p[1]))));
+  const down = [0, 1].map(s =>
+    F.map((f, i) => {
+      const j0 = Math.max(0, i - 2),
+        j1 = Math.min(n - 1, i + 2);
+      const sp = k =>
+        Math.hypot(F[j1].src[k][0] - F[j0].src[k][0], F[j1].src[k][2] - F[j0].src[k][2]) /
+        ((j1 - j0) * dt || 1);
+      const h = Math.min(f.src[s * 2][1] - ground - 0.05, f.src[s * 2 + 1][1] - ground);
+      return h < 0.09 && Math.min(sp(s * 2), sp(s * 2 + 1)) < 0.6 ? 1 : 0;
+    })
+  );
+  let up = 0,
+    land = 0;
+  if (spec.air) {
+    /* the longest run with both feet up, and the ballistic arc of the hips through it */
+    const air = F.map(
+      (f, i) => !down[0][i] && !down[1][i] && Math.min(...f.src.map(p => p[1])) - ground > 0.04
+    );
+    let bs = 0,
+      bl = 0;
+    for (let i = 0; i < n; i++) {
+      if (!air[i]) continue;
+      let j = i;
+      while (j < n && air[j]) j++;
+      if (j - i > bl) {
+        bl = j - i;
+        bs = i;
+      }
+      i = j;
+    }
+    const D = bl * dt;
+    for (let i = bs; i <= bs + bl && i < n; i++) {
+      const t = (i - bs) * dt;
+      F[i].pel[1] -= 0.5 * 9.81 * t * (D - t);
+    }
+    up = bs * dt;
+    land = (bs + bl) * dt;
+  }
+  /* standing height: the feet on the ground at the reference frame (a drop: after its landing) */
+  const hf = spec.landRef
+    ? Math.min(n - 1, Math.round(land / dt) + Math.round(0.6 / dt))
+    : spec.root === "end"
+      ? n - 1
+      : 0;
+  const fl = legFK(F[hf].L, F[hf].pel, "L"),
+    fr2 = legFK(F[hf].L, F[hf].pel, "R");
+  const dy = Math.min(
+    fl.anP[1] - RIG.ankleRest,
+    fl.toP[1] - 0.01,
+    fr2.anP[1] - RIG.ankleRest,
+    fr2.toP[1] - 0.01
+  );
+  for (const f of F) f.pel = [f.pel[0], f.pel[1] - dy - RIG.pelvisY, f.pel[2]];
+  const T = (n - 1) * dt;
+  const red = reduce(
+    F,
+    false,
+    6,
+    Math.max(6, Math.round(T * (spec.fps || 30))),
+    ((spec.tol || 2) * Math.PI) / 180,
+    0.01
+  );
+  const spans = down.map(c => {
+    const out = [];
+    for (let i = 0; i < n; i++)
+      if (c[i] && (i === 0 || !c[i - 1])) {
+        let j = i;
+        while (j < n && c[j]) j++;
+        out.push(Math.round(i * dt * 1000) / 1000, Math.round(Math.min(j, n - 1) * dt * 1000) / 1000);
+      }
+    return out;
+  });
+  return {
+    n: spec.n,
+    take: spec.take,
+    win: [a + 1, b + 1],
+    T,
+    keys: red.K,
+    err: [red.ea, red.ep],
+    shot: true,
+    up,
+    down: land,
+    c: spans,
+  };
+}
+
 /** turning on the spot: how long one step takes and how high the foot lifts */
 function turnStats(R) {
   const fr = R.frames,
@@ -593,13 +780,17 @@ function encode(clips) {
 }
 
 async function main() {
-  const dir = process.argv[2];
-  if (!dir) {
-    console.error("usage: node tools/mocap/convert.js <dir with the BVH takes>");
+  const dirs = process.argv.slice(2);
+  if (!dirs.length) {
+    console.error("usage: node tools/mocap/convert.js <dir with the BVH takes> [more dirs]");
     process.exit(1);
   }
   const cache = {};
-  const get = take => cache[take] || (cache[take] = retarget(load(dir, take)));
+  const find = take =>
+    dirs.find(
+      d => fs.existsSync(path.join(d, take, take + ".bvh")) || fs.existsSync(path.join(d, take + ".bvh"))
+    ) || dirs[0];
+  const get = take => cache[take] || (cache[take] = retarget(load(find(take), take)));
   const clips = [];
   for (const spec of CLIPS) {
     const c = loopClip(get(spec.take), spec);
@@ -623,26 +814,41 @@ async function main() {
   console.log(
     `turn       ${TURN.take} step ${turn.step.toFixed(2)} s, lift ${turn.lift.toFixed(2)} m (${turn.n} steps)`
   );
-  const all = [...clips, jump];
+  const shots = SHOTS.map(spec => {
+    const c = shotClip(get(spec.take), spec);
+    console.log(
+      `${c.n.padEnd(10)} ${c.take} frames ${c.win[0]}-${c.win[1]}  ${c.T.toFixed(2)} s  keys ${c.keys.length}` +
+        (spec.air ? `  takeoff ${c.up.toFixed(2)} landing ${c.down.toFixed(2)}` : "") +
+        `  feet L ${c.c[0].join(",")} R ${c.c[1].join(",")}  err ${((c.err[0] * 180) / Math.PI).toFixed(2)} deg`
+    );
+    return c;
+  });
+  const all = [...clips, jump, ...shots];
   const r3 = v => Math.round(v * 1000) / 1000;
   const meta = all.map(c =>
-    c.n === "jump"
-      ? { n: c.n, k: c.keys.length, T: r3(c.T), up: r3(c.up), down: r3(c.down) }
-      : {
-          n: c.n,
-          k: c.keys.length,
-          T: r3(c.T),
-          v: c.footVel.map(r3),
-          c: c.contact.map(s => s.map(r3)),
-        }
+    c.shot
+      ? Object.assign(
+          { n: c.n, k: c.keys.length, T: r3(c.T), shot: 1, c: c.c },
+          c.down ? { up: r3(c.up), down: r3(c.down) } : {}
+        )
+      : c.n === "jump"
+        ? { n: c.n, k: c.keys.length, T: r3(c.T), up: r3(c.up), down: r3(c.down) }
+        : {
+            n: c.n,
+            k: c.keys.length,
+            T: r3(c.T),
+            v: c.footVel.map(r3),
+            c: c.contact.map(s => s.map(r3)),
+          }
   );
   const src = `/* Generated by tools/mocap/convert.js: do not edit. Motion capture from the CMU Graphics Lab Motion
    Capture Database (mocap.cs.cmu.edu; the database was created with funding from NSF EIA-0196217),
    BVH conversion by B. Hahne (cgspeed). Takes: ${[...new Set(all.map(c => c.take))].join(", ")}.
    Every clip: keys of ${BONES.length} bone rotations (x, y, z in 1/q; w >= 0) and the pelvis offset
    from rest (1/pq m), evenly spaced over a loop (k keys over T s) or a one-shot; v: travel velocity
-   of the planted feet (x right, z back, m/s); c: when each foot is down ([on, off] phase); jump: when
-   it leaves the ground and lands (s). turn: one step of turning on the spot (s, lift m). */
+   of the planted feet (x right, z back, m/s); c: when each foot is down ([on, off] phase; seconds in
+   a one-shot, shot: 1); jump, jumpRun, landHard: when it leaves the ground and lands (s). turn: one
+   step of turning on the spot (s, lift m). */
 const ANIM_CLIPS = {
   bones: ${JSON.stringify(BONES.map(b => b[0]))},
   parents: ${JSON.stringify(BONES.map(b => (b[1] ? BONES.findIndex(x => x[0] === b[1]) : -1)))},
@@ -664,4 +870,4 @@ const ANIM_CLIPS = {
   console.log(`wrote ${path.relative(process.cwd(), OUT)} (${(src.length / 1024).toFixed(1)} KB)`);
 }
 if (require.main === module) main();
-module.exports = { BONES, RIG, CLIPS, JUMP, TURN, packInts };
+module.exports = { BONES, RIG, CLIPS, SHOTS, JUMP, TURN, packInts, retarget, load, heading, locals, legFK };

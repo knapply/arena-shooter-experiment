@@ -141,6 +141,7 @@ const KA_API = {
   rayTarget,
   SPAWNS,
   makePilot,
+  ANIM,
   EVENTS,
   PINGS,
   addPing,

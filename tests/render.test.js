@@ -88,6 +88,66 @@ const stats = async p => {
           a = { calls: Math.max(a.calls, v.calls), tris: Math.max(a.tris, v.tris) };
         }
       check(a.calls <= B.arena.drawCalls && a.tris <= B.arena.triangles, "arena view within draw budget", a);
+      /* a carried flag or skull is really held: through standing, running, sprinting, jumping, crouching
+         and every phase of a carry blow, each palm stays on the object (on the pole's surface, 2 cm off
+         its axis; on the skull's side, 15.5 cm from its centre) and each wrist reaches its grip. Posed
+         directly (no waiting on frames), so it is the same on a slow machine */
+      const grip = await p.evaluate(() => {
+        const T = KA.THREE,
+          a = KA.addPilot(new KA.Pilot({ id: "actor:grip", color: "#4aa3ff", ctl: "script" })),
+          B = a.body,
+          bones = {};
+        a.rig.root.traverse(o => o.isBone && (bones[o.name] = o));
+        const held = bones.chest.children.filter(o => o.isGroup && !o.isBone).pop();
+        const palm = (h, sd) => new T.Vector3(-sd * 0.0375, -0.06, 0).applyMatrix4(h.matrixWorld);
+        let worst = 0,
+          at = "";
+        for (const carry of ["flag", "skull"])
+          for (const [name, set] of [
+            ["stand", () => {}],
+            ["run", () => B.vel.set(0, 0, -6.4)],
+            ["sprint", () => (B.vel.set(0, 0, -9), (B.sprint = true))],
+            ["jump", () => ((B.ground = false), B.vel.set(0, 3, -5))],
+            ["crouch", () => (B.crouch = true)],
+            ...[0.05, 0.15, 0.3, 0.45, 0.7].map(m => ["blow " + m, () => (B.meleeT = 0.4 * (1 - m))]),
+          ]) {
+            B.pos.set(0, 30, 0);
+            B.vel.set(0, 0, 0);
+            B.sprint = B.crouch = false;
+            B.ground = true;
+            B.meleeT = 0;
+            for (let i = 0; i < 30; i++) {
+              set();
+              a.pose(1 / 60, { reload: -1, wpn: 0, flag: true, skull: carry === "skull", flagColor: "#f00" });
+            }
+            a.rig.root.updateMatrixWorld(true);
+            for (const [s, sd] of [
+              ["L", -1],
+              ["R", 1],
+            ]) {
+              const pc = palm(bones["hand" + s], sd);
+              let off;
+              if (carry === "flag") {
+                const o = new T.Vector3().setFromMatrixPosition(held.matrixWorld),
+                  ax = new T.Vector3(0, 1, 0).transformDirection(held.matrixWorld),
+                  v = pc.sub(o);
+                off = Math.abs(v.sub(ax.multiplyScalar(v.dot(ax))).length() - 0.02);
+              } else
+                off = Math.abs(
+                  pc.distanceTo(new T.Vector3().setFromMatrixPosition(held.matrixWorld)) - 0.155
+                );
+              const want = bones.chest.localToWorld((s === "L" ? a.rig.S.lh : a.rig.S.rh).clone()),
+                miss = new T.Vector3().setFromMatrixPosition(bones["hand" + s].matrixWorld).distanceTo(want);
+              if (Math.max(off, miss) > worst) {
+                worst = Math.max(off, miss);
+                at = carry + " " + name + " " + s;
+              }
+            }
+          }
+        a.dispose();
+        return { worst: +worst.toFixed(3), at };
+      });
+      check(grip.worst < 0.02, "a carried flag or skull is held: palms on it, wrists at the grips", grip);
       check(p.errors.length === 0, "budget scenes have no errors", p.errors.slice(0, 3));
       await p.close();
       /* CTF play at its heaviest: just after the opening drop, every pilot and every fresh wreck on
