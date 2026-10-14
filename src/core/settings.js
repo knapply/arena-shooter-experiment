@@ -360,8 +360,10 @@ const SCHEMA = [
       ["90", "90"],
       ["120", "120"],
       ["144", "144"],
+      ["165", "165"],
+      ["240", "240"],
     ],
-    desc: "The frame rate dynamic resolution works to hold. Match it to your monitor's refresh rate (60, 120, 144 Hz) for the smoothest picture.",
+    desc: "The frame rate dynamic resolution works to hold. Match it to your monitor's refresh rate (60, 120, 144, 165 or 240 Hz) for the smoothest picture. It never aims higher than your screen can show.",
   },
   {
     k: "aa",
