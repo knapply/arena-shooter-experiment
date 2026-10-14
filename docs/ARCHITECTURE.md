@@ -14,7 +14,7 @@ src/
   world/               physics and collision, destruction, maps and their sci-fi dressing
   characters/          pilot rig: motion-captured locomotion (anim.js) under procedural layers (rig.js)
   player/              aim assist, ground-pound marker
-  weapons/             arsenal data, firing, viewmodels and their animation, grenades, rockets, pickups and floor items
+  weapons/             arsenal data, firing, weapon models, viewmodels and their animation, grenades, rockets, pickups and floor items
   ui/                  HUD, reticle, settings screen
   game/                game state, deploy, main loop, drop pods, the sandbox (tuning settings), the window.KA API
   modes/               trailer and its synthesized score (trailer build only); ctf/ (map, nav, AI brain and agents, rules, UI, play and simulation modes)

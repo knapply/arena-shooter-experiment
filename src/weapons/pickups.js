@@ -29,51 +29,18 @@ function floorParts(type) {
     if (!by.has(m)) by.set(m, []);
     by.get(m).push([geo, mx]);
   };
-  const b = (w, h, d, m, x, y, z) => put(new THREE.BoxGeometry(w, h, d), m, x, y, z);
-  const cyl = (r, l, m, x, y, z) => put(new THREE.CylinderGeometry(r, r, l, 14), m, x, y, z, Math.PI / 2);
   if (type < 0) {
     /* a frag and a plasma grenade */
     put(new THREE.SphereGeometry(0.09, 10, 8), NADEMAT, -0.08, 0, 0);
     put(new THREE.SphereGeometry(0.08, 10, 8), NADEGLOW, 0.09, 0, 0);
-  } else if (WEAPONS[type].key === "rocket") {
-    cyl(0.085, 1.0, PICKMAT, 0, 0, 0);
-    cyl(0.1, 0.08, PICKMAT, 0, 0, -0.52);
-    cyl(0.086, 0.04, PICKHOT, 0, 0, -0.38);
-    b(0.05, 0.13, 0.06, PICKMAT, 0, -0.13, 0.1);
-    b(0.06, 0.07, 0.16, PICKMAT, -0.1, 0.06, -0.05);
-  } else if (WEAPONS[type].key === "pistol") {
-    b(0.05, 0.06, 0.24, PICKMAT, 0, 0, 0);
-    b(0.04, 0.13, 0.06, PICKMAT, 0, -0.08, 0.08);
-    b(0.052, 0.01, 0.1, PICKACC, 0, 0.032, -0.04);
-  } else if (WEAPONS[type].key === "burst") {
-    /* a bullpup: magazine behind the grip, a small optic on top */
-    b(0.08, 0.13, 0.62, PICKMAT, 0, 0, 0);
-    b(0.06, 0.06, 0.1, PICKACC, 0, 0.09, -0.05);
-    b(0.05, 0.14, 0.07, PICKMAT, 0, -0.12, 0.2);
-    b(0.05, 0.12, 0.07, PICKMAT, 0, -0.12, -0.06);
-    cyl(0.025, 0.14, PICKMAT, 0, 0.01, -0.38);
-  } else if (WEAPONS[type].key === "scatter") {
-    /* a pump shotgun: wide barrel over a tube, a fat pump grip */
-    cyl(0.045, 0.62, PICKMAT, 0, 0.03, -0.15);
-    cyl(0.03, 0.5, PICKMAT, 0, -0.04, -0.12);
-    b(0.08, 0.08, 0.16, PICKACC, 0, -0.04, -0.22);
-    b(0.08, 0.13, 0.32, PICKMAT, 0, -0.01, 0.3);
-    b(0.05, 0.13, 0.06, PICKMAT, 0, -0.11, 0.14);
-  } else if (WEAPONS[type].key === "beam") {
-    /* the arc beam: a slim body with glowing coil rings toward the muzzle */
-    b(0.08, 0.11, 0.6, PICKMAT, 0, 0, 0);
-    cyl(0.03, 0.3, PICKMAT, 0, 0.01, -0.42);
-    for (let i = 0; i < 3; i++) cyl(0.055, 0.025, PICKACC, 0, 0.01, -0.32 - i * 0.09);
-    b(0.05, 0.14, 0.07, PICKMAT, 0, -0.12, 0.16);
-    b(0.07, 0.14, 0.2, PICKMAT, 0, -0.02, 0.36);
-  } else {
-    const sn = WEAPONS[type].key === "sniper";
-    b(0.08, 0.12, sn ? 1.1 : 0.62, PICKMAT, 0, 0, 0);
-    b(0.07, 0.05, sn ? 0.5 : 0.32, PICKACC, 0, 0.08, -0.1);
-    b(0.07, 0.16, 0.25, PICKMAT, 0, -0.02, sn ? 0.52 : 0.32);
-    b(0.05, 0.14, 0.07, PICKMAT, 0, -0.12, 0.2);
-    if (sn) cyl(0.04, 0.32, PICKMAT, 0, 0.13, 0.05);
-  }
+  } else
+    /* the weapon's own model (weapons/models.js) in two materials: its lights (and the rocket's paint) glow */
+    for (const p of gunParts(type))
+      if (!p.fp && p.k !== "n") {
+        const hot = WEAPONS[type].key === "rocket";
+        const lit = "GX".includes(p.m) || (hot && p.m === "C");
+        put(gunGeo(p, false), lit ? (hot ? PICKHOT : PICKACC) : PICKMAT, p.x, p.y, p.z, p.rx);
+      }
   const parts = [...by].map(([m, list]) => {
     /* mergeGeos keeps uvs only when every piece has them; these all do */
     const g = mergeGeos(list);

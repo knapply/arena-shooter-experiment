@@ -26,6 +26,7 @@
     "world/spawns.js",
     "data/anim-clips.js",
     "characters/anim.js",
+    "weapons/models.js",
     "characters/rig.js",
     "characters/look.js",
     "game/recorder.js",
