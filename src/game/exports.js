@@ -50,6 +50,7 @@ const KA_API = {
   podSeat,
   podsOn,
   PODS,
+  SUPPLY,
   clearPods,
   ITEMS,
   ARENA_PICKS,

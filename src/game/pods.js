@@ -261,6 +261,8 @@ function podDraw() {
     D.nose.geometry.attributes.podTint.needsUpdate = true;
     D.bands.geometry.attributes.podTint.needsUpdate = true;
   }
+  /* and the power weapons' supply pods (game/supply-pods.js) */
+  supplyDraw();
 }
 function makePod(color) {
   const g = new THREE.Group();
@@ -482,14 +484,14 @@ const _rbE = new THREE.Euler(0, 0, 0, "YXZ"),
   _rbQ = new THREE.Quaternion(),
   _rbM = new THREE.Matrix4(),
   _rbS = new V3();
-/** crack the ground around a landed pod centred at c (the ground is at c.y) */
-function podCrater(p, c) {
-  decal(_podV.set(c.x, c.y, c.z), _podW.set(0, 1, 0), 2, 4.2);
-  const n = 11,
+/** crack the ground around a landed pod centred at c (the ground is at c.y); size scales it (supply pods) */
+function podCrater(p, c, size = 1) {
+  decal(_podV.set(c.x, c.y, c.z), _podW.set(0, 1, 0), 2, 4.2 * size);
+  const n = Math.round(11 * size),
     a0 = Math.random() * 6;
   for (let i = 0; i < n; i++) {
     const a = a0 + (i / n) * Math.PI * 2 + rnd(-0.18, 0.18),
-      r = rnd(0.98, 1.45);
+      r = rnd(0.98, 1.45) * size;
     const x = c.x + Math.sin(a) * r,
       z = c.z + Math.cos(a) * r;
     /* only on ground that is there, and never into a wall */
@@ -503,16 +505,16 @@ function podCrater(p, c) {
       a,
       tilt: -rnd(0.3, 0.75),
       roll: rnd(-0.25, 0.25),
-      s: rnd(0.75, 1.5),
+      s: rnd(0.75, 1.5) * size,
     });
   }
   /* the shockwave: a low ring of dust racing out along the ground */
-  for (let i = 0, k = pc(28); i < k; i++) {
+  for (let i = 0, k = pc(28 * size); i < k; i++) {
     const a = (i / k) * Math.PI * 2 + rnd(-0.1, 0.1),
-      v = rnd(8, 11);
+      v = rnd(8, 11) * size;
     ptAdd(
       PTS.soft,
-      _podV.set(c.x + Math.sin(a) * 1.1, c.y + 0.3, c.z + Math.cos(a) * 1.1),
+      _podV.set(c.x + Math.sin(a) * 1.1 * size, c.y + 0.3, c.z + Math.cos(a) * 1.1 * size),
       new V3(Math.sin(a) * v, rnd(0.2, 1), Math.cos(a) * v),
       rnd(1, 1.7),
       0x8a8178,
@@ -527,7 +529,8 @@ function updRubble() {
   let n = 0;
   for (let i = 0; i < L.length; i++) {
     const r = L[i];
-    if (!PODS.includes(r.p)) continue;
+    /* (a pod or supply pod that is gone takes its slabs with it) */
+    if (r.p.gone) continue;
     L[n++] = r;
     /* the slabs go down with the wreck */
     const sink = r.p.g.position.y - (r.p.at.y - r.p.seat.bury);
@@ -724,6 +727,7 @@ function updPods(dt) {
 /* the geometry is shared; the per-pod materials are not */
 function disposePod(p) {
   scene.remove(p.g);
+  p.gone = true;
   POD_BODIES.delete(p);
   p.fire.material.dispose();
   p.retro.material.dispose();
@@ -734,5 +738,6 @@ function clearPods() {
     disposePod(p);
   }
   PODS.length = 0;
+  clearSupply();
   updRubble();
 }

@@ -111,7 +111,11 @@ function updPower(dt) {
         nm = capWord(wName(p.type));
       txt +=
         (txt ? "  " : "") +
-        (p.avail ? `${nm} up` : `${nm} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
+        (supplyIncoming(p.id)
+          ? `${nm} incoming`
+          : p.avail
+            ? `${nm} up`
+            : `${nm} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
     }
   }
   if (txt !== pwHudLast) {

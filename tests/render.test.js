@@ -99,15 +99,19 @@ const stats = async p => {
         init: ["seeded-random.js"],
       });
       await q.waitForTimeout(1500);
-      await q.evaluate(() => Object.assign(KA.SET, { intros: false, dropIn: true, killCam: false }));
+      await q.evaluate(() => {
+        Object.assign(KA.SET, { intros: false, dropIn: true, killCam: false });
+        /* (nobody can take you out before the freeze) */
+        KA.CON.run("god on");
+      });
       await q.click("#ctfPlay");
       const landed = await q.evaluate(async () => {
-        const g = () => CTF.UI.game();
+        /* every opening pod down and you out of yours (a pilot may already have been taken out) */
         const down = () =>
-          !KA.me.dead &&
           !KA.myPod &&
           !document.body.classList.contains("podding") &&
-          g().agents.every(a => a.alive);
+          KA.PODS.length >= 8 &&
+          KA.PODS.every(p => p.landed);
         for (let i = 0; i < 200 && !down(); i++) await new Promise(r => setTimeout(r, 50));
         KA.CON.run("timescale 0");
         return { down: down(), pods: KA.PODS.filter(p => p.landed).length };
