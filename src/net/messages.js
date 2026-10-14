@@ -17,7 +17,8 @@
 const MSG = (() => {
   /* 6: capture the flag presence carries players' drop pods on its fx list ("p" launch, "q" steer) */
   /* 7: the match modes (Team Slayer, free for all, oddball) on the room's start and presence messages */
-  const PROTOCOL = 7;
+  /* 8: hit claims carry the shot's ray, when it was fired and what the shooter saw (net/hitcheck.js) */
+  const PROTOCOL = 8;
   const TWO_PI = Math.PI * 2;
   const BAD = /[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g;
   const enc = new TextEncoder(),
@@ -232,13 +233,19 @@ const MSG = (() => {
     ["k", "u16"],
     ["d", "u16"],
   ]);
-  /* a hit the shooter claims on someone; the victim's client applies it after its own checks */
+  /* a hit the shooter claims on someone; the victim's client applies it after its own checks
+     (net/hitcheck.js): ft = the shooter's clock when fired (ms), vt = the victim's clock the shooter
+     was seeing them at (ms, 0 if unknown), o and r = the shot's ray (zero for melee and explosions) */
   def(11, "arenaHit", "reliable", [
     ["s", "u16"],
     ["t", "str:64"],
     ["d", "u8"],
     ["w", "str:12"],
     ["hd", "bool"],
+    ["ft", "u32"],
+    ["vt", "u32"],
+    ["o", "v3:100"],
+    ["r", "v3:1000"],
   ]);
   def(12, "arenaDeath", "reliable", [
     ["s", "u16"],

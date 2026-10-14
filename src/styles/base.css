@@ -1178,7 +1178,8 @@ input[type="text"]:focus-visible {
   color: #ffb347;
   font-weight: 600;
 }
-#netHud .nsim {
+#netHud .nsim,
+#netHud .nbad {
   color: #ff8a7a;
 }
 #netHud table {
@@ -1631,7 +1632,8 @@ table.stats tr.total td {
   text-transform: uppercase;
   color: var(--thrust);
 }
-#postMe div {
+#postMe div,
+#postHits div {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -1639,7 +1641,8 @@ table.stats tr.total td {
   color: var(--dim);
   padding: 2px 0;
 }
-#postMe b {
+#postMe b,
+#postHits b {
   color: var(--ink);
   text-align: right;
   font-weight: 600;

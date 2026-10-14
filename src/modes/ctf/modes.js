@@ -1030,6 +1030,8 @@
     if (G.rules === "ctf" && mode === "sim")
       notes = G.teams.map(tm => {
         const br = tm.brain;
+        /* (only the match that runs the AI has the brains: not a client's mirror) */
+        if (!br || typeof br.arm !== "function") return "";
         let best = null,
           bv = -1;
         for (const s of CTF.STRATS) {

@@ -104,10 +104,13 @@ function sendPresence(force) {
   const fast = typeof room.fast === "function";
   if (fast && now - lastFast >= 1 / FAST_HZ - 0.002) {
     lastFast = now;
+    const ts = Math.round(performance.now()) >>> 0;
+    /* what everyone sees of you is what hits on you are checked against (hitcheck.js) */
+    MY_HIST.push(ts / 1000, me.pos, me.yaw, me.pitch, myBits(), me.dead);
     room.fast(
       MSG.encode("arenaState", {
         seq: ++fastSeq & 0xffff,
-        ts: Math.round(performance.now()) >>> 0,
+        ts,
         p: me.pos,
         v: me.vel,
         y: me.yaw,
@@ -152,6 +155,8 @@ function sendPresence(force) {
       hits: hitsOut.slice(),
       fx: fxOut.slice(),
       dth,
+      /* hits on you that failed the checks: [shooter, their hit seq, why] */
+      hr: hitRej.slice(),
       br: DESTR.recent.slice(),
       /* the room host's sandbox is everyone's (movement, weapon and grenade tuning) */
       sb: amHub() ? sandboxRules() : null,
@@ -185,6 +190,10 @@ function remoteFor(peer) {
       rlStart: -1,
       mlStart: -1,
       pb: new Playback(),
+      /** their reported movement in their clock, and their claims so far (hitcheck.js) */
+      hist: new MoveHist(),
+      stream: HITCHK.newStream(),
+      seenRej: -1,
       fastAt: -9,
     });
     addPilot(r);
@@ -218,6 +227,7 @@ function onFastPacket(from, buf) {
   const d = m.data,
     t = performance.now() / 1000;
   r.pb.push(d.ts / 1000, { p: d.p, v: d.v, y: d.y, pt: d.pt, st: d.st }, t);
+  r.hist.push(d.ts / 1000, d.p, d.y, d.pt, d.st, d.dead);
   /* only the newest packet changes discrete state (packets can arrive out of order) */
   if (r.pb.buf[r.pb.buf.length - 1].ts === d.ts / 1000) {
     r.fastAt = t;
@@ -273,18 +283,38 @@ function applyPeer(pe) {
     r.seenHit = Math.max(-1, ...hits.map(h => h.s | 0));
     r.seenFx = Math.max(-1, ...fx.map(f => f.s | 0));
     r.seenDth = dt_ ? dt_.s | 0 : -1;
+    r.seenRej = Math.max(-1, ...rejOf(pr).map(x => x[1]));
     return;
   }
   for (const h of hits) {
     const s = h.s | 0;
     if (s <= r.seenHit) continue;
     r.seenHit = s;
-    if (myPeer && h.t === myPeer && playing && !me.dead && !EXT && r.tgt.distanceTo(me.pos) < 100) {
+    const mine = !!myPeer && h.t === myPeer;
+    const v = checkHit(r, h, mine);
+    if (mine && playing && !me.dead && !EXT && r.tgt.distanceTo(me.pos) < 100) {
+      if (!v.ok) {
+        HITCHK.me.rejected++;
+        hitRej.push([pe.peer, s, v.why]);
+        while (hitRej.length > 8) hitRej.shift();
+        continue;
+      }
+      HITCHK.me.taken++;
+      HITCHK.me.rewinds.push(Math.round(v.rewind * 1000));
+      HITCHK.me.misses.push(Math.round(v.miss * 100));
+      if (HITCHK.me.rewinds.length > 200) HITCHK.me.rewinds.shift();
+      if (HITCHK.me.misses.length > 200) HITCHK.me.misses.shift();
       const w = String(h.w || "rifle").slice(0, 10);
       const n = allowDamage(pe.peer, num(h.d, 0, 999), w);
       if (n > 0) hurtMe(n, { peer: pe.peer, name: r.name, w, hd: !!h.hd });
     }
   }
+  /* your hits this player refused */
+  for (const x of rejOf(pr))
+    if (x[0] === myPeer && x[1] > r.seenRej) {
+      r.seenRej = x[1];
+      HITCHK.me.refused++;
+    }
   for (const f of fx) {
     const s = f.s | 0;
     if (s <= r.seenFx) continue;
@@ -336,6 +366,65 @@ function applyPeer(pe) {
       head: !!dt_.hd,
     });
   }
+}
+/** hits on you refused by the checks, published so the shooter knows: [shooter, seq, why] */
+const hitRej = [];
+const rejOf = pr =>
+  (Array.isArray(pr.hr) ? pr.hr.slice(-8) : []).filter(
+    x => Array.isArray(x) && typeof x[0] === "string" && Number.isFinite(x[1])
+  );
+/**
+ * check a claimed hit (hitcheck.js). Everyone runs it on every claim, so each shooter's fire rate
+ * and ammo are followed the same way everywhere; the victim decides their own hits with it, and the
+ * room host logs every verdict for the network panel and the results screen.
+ */
+function checkHit(r, h, mine) {
+  const tn = performance.now() / 1000;
+  const w = String(h.w || "rifle").slice(0, 10);
+  const ft = Number.isFinite(h.ft) ? h.ft / 1000 : null,
+    vt = Number.isFinite(h.vt) ? h.vt / 1000 : 0;
+  const o = Array.isArray(h.o) ? h.o.slice(0, 3).map(Number) : null,
+    d = Array.isArray(h.r) ? h.r.slice(0, 3).map(Number) : null;
+  const sOff = r.pb.ready ? r.pb.offset : null;
+  /* the victim, in their own clock: you (your history), or for the host anyone it relays */
+  const hub = amHub();
+  const vr = mine ? null : remotes.get(h.t);
+  const vic = mine ? MY_HIST : hub && vr && vr.hist.ready ? vr.hist : null;
+  const vOff = mine ? 0 : vr && vr.pb.ready ? vr.pb.offset : null;
+  const ftV = ft != null && sOff != null && vOff != null ? ft + sOff - vOff : null;
+  const v = HITCHK.check({
+    w,
+    o,
+    d,
+    ft,
+    vt,
+    ftV,
+    now: vOff != null ? tn - vOff : null,
+    victim: vic,
+    shooter: r.hist.ready ? r.hist : null,
+    stream: r.stream,
+  });
+  if (hub && vic) {
+    /* game times for the replay check: when this machine drew each of them at those moments */
+    const g = (t, off, pb) => now - (tn - (t + off + (pb ? pb.delay : 0)));
+    HITCHK.note(
+      r.peer,
+      r.name,
+      v,
+      v.t == null
+        ? null
+        : {
+            w,
+            o,
+            d,
+            vid: mine ? "local" : vr.id,
+            sid: r.id,
+            gv: g(v.t || 0, vOff, mine ? null : vr.pb),
+            gs: ft != null && sOff != null ? g(ft, sOff, r.pb) : now,
+          }
+    );
+  }
+  return v;
 }
 function updateLive() {
   const n = [...remotes.values()].filter(r => r.has).length;

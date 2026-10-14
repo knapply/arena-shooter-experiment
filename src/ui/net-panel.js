@@ -64,6 +64,7 @@ function updNetHud() {
     w.textContent = `Simulating ${s.sim.latency} ms ±${s.sim.jitter} one way, ${Math.round(s.sim.loss * 100)}% loss`;
     el.appendChild(w);
   }
+  if (s && s.role !== "offline") hitPanel(el);
   if (!s || !s.links.length) return;
   const tb = document.createElement("table");
   const hr = tb.insertRow();

@@ -48,16 +48,17 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/audio.js` | 724 | `AC` `master` `audio` `NOISE` `noise` `env` `nz` `tone` `SFX_LAST` `sfxVoices` `sfxVoiceT` `SFX_TAP` `sfxTap` `bodyThud` `sfx` `distVol` `LIVE_AC` `SPACE` … (+15) |
 | `src/core/announcer.js` | 186 | `VO` `hasTTS` `pickVoice` `lastSay` `say` `MEDAL` `medal` `streak` `multi` `lastKillT` `firstBlood` `lastKiller` `onKill` `objMedal` |
 | `src/game/state.js` | 496 | `EXT` `me` `myName` `playing` `paused` `now` `kills` `deaths` `mag` `reloadT` `fireCD` `myPeer` `killedBy` `respawnAt` `lastFireT` `RELOAD_TIME` `mePilot` `hitsOut` … (+44) |
-| `src/weapons/firing.js` | 282 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `engage` `SHOT` `targetId` `engageShot` `perfectKill` `burstLeft` `fireStep` `dryT` `dryFire` `fire` `startReload` `meleeHit` … (+3) |
+| `src/weapons/firing.js` | 295 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `engage` `SHOT` `r3` `targetId` `engageShot` `perfectKill` `burstLeft` `fireStep` `dryT` `dryFire` `fire` `startReload` … (+4) |
 | `src/core/input.js` | 248 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `keysT` `A` `P` `pressCode` `mouseL` `mouseR` … (+8) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 74 | `savePrefs` `leaveGame` |
 | `src/game/modes.js` | 133 | `MODE_DEFS` `defineMode` `startMode` `modeList` `modeRules` `FFA` `ffaStandings` `ffaStart` `ffaTick` `ffaEnd` `ffaRestart` `postToMenu` |
-| `src/net/messages.js` | 332 | `MSG` |
+| `src/net/messages.js` | 339 | `MSG` |
 | `src/net/playback.js` | 91 | `Playback` |
-| `src/net/arena-net.js` | 391 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `amHub` `hubPeer` `sbSeen` `adoptSandbox` `room` `lastSend` `lastFast` `fastSeq` `sentEv` `FAST_HZ` `myBits` … (+6) |
+| `src/net/hitcheck.js` | 465 | `MoveHist` `HITCHK` `MY_HIST` `pctOf` `median` `hitPanel` `WHY` `postHitsShown` `postHits` |
+| `src/net/arena-net.js` | 480 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `amHub` `hubPeer` `sbSeen` `adoptSandbox` `room` `lastSend` `lastFast` `fastSeq` `sentEv` `FAST_HZ` `myBits` … (+9) |
 | `src/ui/hud.js` | 168 | `scoresT` `renderScores` `xhEls` `hudDevice` `WEAPON_SIL` `NADE_ICON` `NADE_NAME` `hudWName` `nadeHint` `nadeKey` `drawNadeHud` `weapKey` `drawWeapHud` `hud` |
-| `src/ui/net-panel.js` | 90 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
+| `src/ui/net-panel.js` | 91 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/ui/tracker.js` | 244 | `TRACK_RANGE` `TRACK_ECHO` `TRACK_PX` `trackEl` `trackT` `trackLoud` `arenaContacts` `trackerShown` `trackEcho` `trackerFace` `trackerBlip` `trackerDanger` `updTracker` `trackerGates` |
 | `src/weapons/viewmodel-anim.js` | 239 | `_mlP` `_mlD` `meleeLand` `meleeFlush` `updVM` |
 | `src/ui/console.js` | 313 | `DEV` `timeScale` `godMode` `CON` |
@@ -79,15 +80,15 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 41 | `_sd` `RANGE` `updAim` |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 333 | `KA_API` |
+| `src/game/exports.js` | 336 | `KA_API` |
 | `src/modes/ctf/map.js` | 253 |  |
 | `src/modes/ctf/nav.js` | 349 |  |
 | `src/modes/ctf/brain.js` | 626 |  |
 | `src/modes/ctf/agent.js` | 1549 |  |
 | `src/modes/ctf/rules.js` | 1042 |  |
 | `src/modes/ctf/ui.js` | 763 |  |
-| `src/net/ctf-host.js` | 751 |  |
-| `src/net/ctf-client.js` | 744 |  |
-| `src/modes/ctf/modes.js` | 1170 |  |
+| `src/net/ctf-host.js` | 769 |  |
+| `src/net/ctf-client.js` | 753 |  |
+| `src/modes/ctf/modes.js` | 1172 |  |
 | `src/modes/trailer-score.js` | 956 |  |
 | `src/modes/trailer.js` | 1824 |  |

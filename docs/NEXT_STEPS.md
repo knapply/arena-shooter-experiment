@@ -14,8 +14,8 @@ Done: Team Slayer, free-for-all with AI that fights everyone, Team Oddball and c
 
 1. **Ranked-style matchmaking within rooms:** a simple Elo or Glicko rating per player, saved as a document (`core/store.js`). Bots get fixed ratings by skill level, so a first rating forms quickly against them.
 2. **Career stats:** `game/stats.js` already builds every number per match. Saving a summary per match (a `career` document) gives lifetime K/D, accuracy by weapon and medals, plus a profile screen.
-3. **Server-side or host-side replay validation:** recordings and seeded simulation make it possible to re-check suspicious hit streams after a match.
-4. **Tighter lag compensation for player-vs-player arena hits:** CTF AI hits are rewound by the host. Arena hits between players are applied by the victim; rewinding the victim's own history would be fairer on bad links.
+3. **Lag compensation for player-vs-player hits in CTF:** arena hits between players and every CTF hit on the AI are rewound and checked (`net/hitcheck.js`), but in CTF a hit on another player is still applied by the victim's client with only a range and line-of-sight check. The victim could run the same rewound check against its own history, as the arena does.
+4. **Act on confirmed cheating:** the host only reports hits the replay check confirms as impossible (network panel, results screen). Kicking, or ignoring a player's claims for the rest of the match, could follow once the false positive rate is known from real matches.
 
 ## Fun and feel
 
@@ -52,4 +52,4 @@ Done: Team Slayer, free-for-all with AI that fights everyone, Team Oddball and c
 3. **Live matches on the simulation worker:** the AI step is about 0.15 ms per frame now. If matches grow (16 players, more AI), moving CTF's `G.step` to the worker is ready to do: the worker bundle already runs it.
 4. **Continuous tuning:** the manual Tune workflow can run on a schedule and post a summary comment when any knob's effect crosses the noise threshold, so balance drift from code changes is caught early.
 5. **Unify the drones with the agents:** the AI free-for-all mode now runs on the CTF agents; only the practice arena still uses the drones (see Gameplay 2).
-6. **Test the post-match flow online:** the results screen is covered offline. A two-tab test of "Play again keeps the room" in CTF would protect the online path.
+6. **Test the post-match flow online: done.** Two-tab tests cover Play again keeping the room online (`tests/net.test.js`).

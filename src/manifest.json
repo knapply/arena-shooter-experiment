@@ -51,6 +51,7 @@
     "game/modes.js",
     "net/messages.js",
     "net/playback.js",
+    "net/hitcheck.js",
     "net/arena-net.js",
     "ui/hud.js",
     "ui/net-panel.js",

@@ -64,7 +64,17 @@ const SAMPLES = {
   ping: { n: 5, ts: 1234.5 },
   pong: { n: 5, ts: 1234.5 },
   arenaState: arena,
-  arenaHit: { s: 9, t: "peer-abc", d: 16, w: "rifle", hd: true },
+  arenaHit: {
+    s: 9,
+    t: "peer-abc",
+    d: 16,
+    w: "rifle",
+    hd: true,
+    ft: 123456,
+    vt: 98765,
+    o: [1.5, 2.25, -3],
+    r: [0.6, 0, -0.8],
+  },
   arenaDeath: { s: 2, by: "peer-xyz", bn: "", w: "sniper", hd: false },
   arenaFx: { s: 4, k: "slam", a: [1, 2, 3], b: [0, 0, 0], g: 0 },
   ctfMove: {
