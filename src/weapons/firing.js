@@ -57,7 +57,17 @@ function dealDamage(t, n, type, head) {
     }
   } else {
     const r = t.ref;
-    hitsOut.push({ s: ++hitSeq, t: t.peer, d: n, w: type, hd: head ? 1 : 0, at: Date.now() });
+    /* the claim the victim (and the room host) check: when you fired (your clock), when on their
+       clock you were seeing them (lag compensation), and the shot's ray */
+    const tn = performance.now() / 1000;
+    const h = { s: ++hitSeq, t: t.peer, d: n, w: type, hd: head ? 1 : 0, ft: Math.round(tn * 1000) };
+    if (r.pb && r.pb.ready) h.vt = Math.round((tn - r.pb.offset - r.pb.delay) * 1000);
+    if (SHOT.live) {
+      h.o = [r2(SHOT.o.x), r2(SHOT.o.y), r2(SHOT.o.z)];
+      h.r = [r3(SHOT.d.x), r3(SHOT.d.y), r3(SHOT.d.z)];
+    }
+    hitsOut.push(h);
+    HITCHK.me.sent++;
     while (hitsOut.length > 12) hitsOut.shift();
     const kind = hitKind(false, r.sh > 0, r.sh - n, head);
     hitMarker(kind);
@@ -76,7 +86,8 @@ function v3a(v) {
 /* ---- Perfect kills: the weapon's minimum shots, every shot on target, with a precision weapon ---- */
 const engage = new Map();
 /** the last hitscan shot fired by you */
-const SHOT = { o: new V3(), d: new V3(), t: -9 };
+const SHOT = { o: new V3(), d: new V3(), t: -9, live: false };
+const r3 = v => Math.round(v * 1000) / 1000;
 function targetId(t) {
   return t.kind === "bot" ? t.ref.id : t.kind === "peer" ? "peer:" + t.peer : pidOf(t.ref);
 }
@@ -206,7 +217,9 @@ function fire(src) {
     if (p === 0) emitFx("shot", v3a(muzzle), v3a(end));
   }
   engageShot(anyHit ? targetId(anyHit) : null);
+  SHOT.live = true;
   for (const [t, e] of dealt) dealDamage(t, Math.max(1, Math.round(e.n)), Wd.dmg, e.hd);
+  SHOT.live = false;
   sfx(Wd.snd);
   rumble(Wd.rum[0], Wd.rum[1], Wd.rum[2]);
   recoil += Wd.recoil;

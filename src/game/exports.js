@@ -187,6 +187,9 @@ const KA_API = {
   killStats,
   CON,
   REC,
+  /* hit checks and lag compensation (net/hitcheck.js) */
+  HITCHK,
+  MoveHist,
   pidOf,
   RNG,
   rand,

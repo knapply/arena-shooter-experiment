@@ -6,6 +6,7 @@
 const fs = require("fs");
 const { check, finish } = require("./lib/check.js");
 const { launch, open, text, closeTab } = require("./lib/browser.js");
+const { fairness } = require("./lib/fairness.js");
 const CONDITIONS = [
   { name: "ideal", sim: { latency: 0, jitter: 0, loss: 0 }, maxDelay: 160, maxP95: 0.4, maxJumps: 12 },
   {
@@ -16,6 +17,15 @@ const CONDITIONS = [
     maxJumps: 12,
   },
 ];
+/** poll fn(arg) in the page until it is truthy or ms pass: waits on game state, not the clock */
+async function poll(p, fn, arg, ms) {
+  const end = Date.now() + ms;
+  for (;;) {
+    const v = await p.evaluate(fn, arg).catch(() => false);
+    if (v || Date.now() > end) return v;
+    await p.waitForTimeout(150);
+  }
+}
 const pct = (a, p) => a.slice().sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * p))];
 function analyze(truth, seen) {
   const at = t => {
@@ -160,6 +170,64 @@ function analyze(truth, seen) {
       );
       await ctx.close();
     }
+    /* arena hit fairness: claims are checked against where the victim was on the shooter's screen
+       (rewound, capped), by the victim and by the room host (tests/lib/fairness.js) */
+    {
+      const F = await fairness(b, [
+        { name: "ideal", sim: { latency: 0, jitter: 0, loss: 0 } },
+        { name: "bad", sim: { latency: 75, jitter: 25, loss: 0.03 } },
+        { name: "lossy", sim: { latency: 40, jitter: 20, loss: 0.1 } },
+        { name: "awful", sim: { latency: 150, jitter: 50, loss: 0.05 } },
+      ]);
+      results.fairness = F;
+      for (const c of ["ideal", "bad", "lossy", "awful"]) {
+        const x = F[c];
+        if (!check(!!x, `fairness ${c}: measured`)) continue;
+        console.log(
+          `  hits ${c}: ` +
+            Object.entries(x)
+              .map(
+                ([k, v]) =>
+                  `${k} ${v.accepted}/${v.claims}` +
+                  (v.rewindMs ? ` (rewind ${v.rewindMs.median} ms, off ${v.missCm.median} cm)` : "")
+              )
+              .join(" · ")
+        );
+        const honest = (x.honest.accepted + x.edge.accepted) / (x.honest.claims + x.edge.claims);
+        const strict = c !== "awful";
+        check(
+          honest >= (strict ? 0.95 : 0.75),
+          `fairness ${c}: on-screen hits count (${strict ? 95 : 75}%+, hit box edges included)`,
+          { honest: x.honest, edge: x.edge }
+        );
+        check(x.miss.accepted <= (strict ? 0 : 2), `fairness ${c}: hits that missed are rejected`, x.miss);
+        check(
+          x.stale.accepted <= 3,
+          `fairness ${c}: shots at where the victim was 0.6 s ago mostly fail`,
+          x.stale
+        );
+        check(
+          x.rate.rejected >= 4,
+          `fairness ${c}: claims faster than the weapon fires are rejected`,
+          x.rate
+        );
+        if (strict)
+          check(
+            ["honest", "edge", "stale", "miss", "rate"].every(
+              k => Math.abs(x[k].hostRejected - x[k].rejected) <= 1 && x[k].refusedSeen >= x[k].rejected - 1
+            ),
+            `fairness ${c}: the host's verdicts match the victim's, and the shooter hears of refusals`,
+            x
+          );
+      }
+      const log = (F.hostLog || [])[0];
+      check(
+        !!log && log.confirmed >= log.rejected * 0.6 && log.cleared <= 2,
+        "the host's replay check confirms the rejected hits from the recording",
+        log
+      );
+      check(F.errors.length === 0, "fairness: no page errors", F.errors.slice(0, 3));
+    }
     /* capture the flag over a bad network: how smoothly does a client see the host's AI? */
     {
       const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });
@@ -261,6 +329,7 @@ function analyze(truth, seen) {
       const hs = await A.evaluate(() => Object.assign({}, CTF.NET.hitStats));
       const rate = hs.ok / Math.max(1, hs.ok + hs.bad);
       results.hitreg = Object.assign({ rate: +rate.toFixed(2) }, hs);
+      results.hitreg.log = await A.evaluate(() => (KA.HITCHK ? KA.HITCHK.rows() : null));
       console.log(`  ctf hit registration: ${JSON.stringify(results.hitreg)}`);
       check(
         hs.ok >= 20 && rate >= 0.9,
@@ -402,6 +471,132 @@ function analyze(truth, seen) {
         "CTF migration: no page errors",
         [...B.errors, ...C.errors].slice(0, 3)
       );
+      await ctx.close();
+    }
+    /* after the match, online: "Play again" keeps the room, and both players end up in the next
+       match together (capture the flag: the host starts it, the other player joins it) */
+    {
+      const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });
+      const A = await open(ctx, { tag: "A", init: ["fake-peer.js"] }),
+        B = await open(ctx, { tag: "B", init: ["fake-peer.js"] });
+      await A.waitForTimeout(600);
+      await A.click("#p2pHost");
+      await A.waitForTimeout(800);
+      await B.fill("#p2pCode", await text(A, "#p2pCodeShow"));
+      await B.click("#p2pJoin");
+      await poll(A, () => window.KAHOST.net.stats().links.length >= 1, null, 15000);
+      const [aPeer, bPeer] = await Promise.all(
+        [A, B].map(p => p.evaluate(() => window.KAHOST.net.stats().me))
+      );
+      const inMatch = (p, hostPeer) =>
+        poll(
+          p,
+          hp => {
+            const g = window.CTF && CTF.UI.game();
+            if (!g || g.over) return false;
+            /* hosting (no mirror), or a client of the given host */
+            if (!hp) return !g.map && !!CTF.NET.room;
+            return !!g.map && g.hostPeer === hp;
+          },
+          hostPeer,
+          30000
+        );
+      await A.click("#ctfPlay");
+      check(await inMatch(A, null), "post-match (CTF): the host starts a match");
+      await poll(B, () => !!(window.CTF && CTF.NET.room && CTF.NET.liveHost()), null, 15000);
+      await B.click("#ctfBlue");
+      await B.click("#ctfPlay");
+      check(await inMatch(B, aPeer), "post-match (CTF): the other player joins it");
+      const mid1 = await B.evaluate(() => CTF.UI.game().mid);
+      await A.evaluate(() => CTF.UI.game().finish(0));
+      /* Play of the Game first, then the results, on both */
+      const post = p => poll(p, () => KA.POST.open, null, 45000);
+      const [pa, pb] = [await post(A), await post(B)];
+      check(pa && pb, "post-match (CTF): both players get the results screen", { host: pa, client: pb });
+      await A.click("#postAgain");
+      check(await inMatch(A, null), "post-match (CTF): Play again hosts the next match");
+      await poll(B, m => (CTF.NET.liveHost() || {}).mid !== m && !!CTF.NET.liveHost(), mid1, 15000);
+      await B.click("#postAgain");
+      const joined = await inMatch(B, aPeer);
+      const st = await Promise.all(
+        [A, B].map(p =>
+          p.evaluate(() => ({
+            role: window.KAHOST.net.stats().role,
+            links: window.KAHOST.net.stats().links.length,
+            connected: window.__p2p.state.connected,
+            mid: CTF.UI.game() && CTF.UI.game().mid,
+          }))
+        )
+      );
+      const hostSees = await poll(
+        A,
+        bp => CTF.UI.game().agents.some(a => a.human && a.peer === bp),
+        bPeer,
+        15000
+      );
+      check(
+        joined && hostSees && st[1].mid && st[1].mid !== mid1,
+        "post-match (CTF): Play again keeps the room: both are in the next match together",
+        { joined, hostSees, st, mid1 }
+      );
+      check(
+        st[0].links >= 1 && st[1].links >= 1 && st[1].connected,
+        "post-match (CTF): still connected to each other",
+        st
+      );
+      check(A.errors.length + B.errors.length === 0, "post-match (CTF): no page errors", [
+        ...A.errors,
+        ...B.errors,
+      ]);
+      await ctx.close();
+    }
+    /* the same in the arena (free-for-all): the next match starts with both players in the room */
+    {
+      const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });
+      const A = await open(ctx, { tag: "A", init: ["fake-peer.js"] }),
+        B = await open(ctx, { tag: "B", init: ["fake-peer.js"] });
+      await A.waitForTimeout(600);
+      await A.click("#p2pHost");
+      await A.waitForTimeout(800);
+      await B.fill("#p2pCode", await text(A, "#p2pCodeShow"));
+      await B.click("#p2pJoin");
+      await poll(A, () => window.KAHOST.net.stats().links.length >= 1, null, 15000);
+      for (const p of [A, B]) {
+        await p.evaluate(() => (document.getElementById("bots").checked = false));
+        await p.click("#deploy");
+      }
+      const sees = p => poll(p, () => [...KA.remotes.values()].some(r => r.has && r.rig), null, 15000);
+      check((await sees(A)) && (await sees(B)), "post-match (arena): both players see each other");
+      /* end the match: a score limit everyone has already reached */
+      for (const p of [A, B]) await p.evaluate(() => (KA.MODE_DATA.ffa.scoreLimit = 0));
+      const post = p => poll(p, () => KA.POST.open && KA.FFA.over, null, 45000);
+      const [pa, pb] = [await post(A), await post(B)];
+      check(pa && pb, "post-match (arena): both players get the results screen", { a: pa, b: pb });
+      for (const p of [A, B]) await p.evaluate(() => (KA.MODE_DATA.ffa.scoreLimit = 15));
+      await A.click("#postAgain");
+      await B.click("#postAgain");
+      const again = p =>
+        poll(
+          p,
+          () => !KA.POST.open && !KA.FFA.over && [...KA.remotes.values()].some(r => r.has && r.rig),
+          null,
+          15000
+        );
+      const [ga, gb] = [await again(A), await again(B)];
+      const st = await Promise.all(
+        [A, B].map(p =>
+          p.evaluate(() => ({ links: window.KAHOST.net.stats().links.length, room: KA.inRoom }))
+        )
+      );
+      check(
+        ga && gb && st.every(s => s.links >= 1 && s.room),
+        "post-match (arena): Play again keeps the room and both play the next match",
+        { ga, gb, st }
+      );
+      check(A.errors.length + B.errors.length === 0, "post-match (arena): no page errors", [
+        ...A.errors,
+        ...B.errors,
+      ]);
       await ctx.close();
     }
     /* handing the room to another player */

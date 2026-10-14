@@ -877,8 +877,10 @@
     const ht = G.human ? G.human.team : -1;
     $("cBanT").textContent = w < 0 ? "Draw" : ht >= 0 ? (w === ht ? "Victory" : "Defeat") : `${TN[w]} wins`;
     $("cBanT").style.color = w < 0 ? "" : CTF.TEAM_HEX[w];
+    /* what each team learned (only the match that runs the AI has the brains: not a client's mirror) */
     const notes = G.teams.map(tm => {
       const br = tm.brain;
+      if (!br || typeof br.arm !== "function") return "";
       let best = null,
         bv = -1;
       for (const s of CTF.STRATS) {

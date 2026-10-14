@@ -197,6 +197,7 @@
       const d = m.data,
         t = performance.now() / 1000;
       a.pb.push(d.ts / 1000, { p: d.p, v: d.v, y: d.y, pt: d.pt, st: d.st }, t);
+      a.hist.push(d.ts / 1000, d.p, d.y, d.pt, d.st, d.dead);
       if (a.pb.buf[a.pb.buf.length - 1].ts === d.ts / 1000) {
         a.fastAt = t;
         a.body.shield = d.sh;
@@ -461,6 +462,9 @@
         a.init = false;
         a.spawned = true;
         a.pb = new K.Playback();
+        /* their reported movement (their clock) and claims, for the hit checks */
+        a.hist = new K.MoveHist();
+        a.stream = K.HITCHK.newStream();
         a.fastAt = -9;
         G.addHuman(a, team);
         H.remote.set(peer, a);
@@ -562,21 +566,58 @@
           hd = !!h[4];
         if (!NET.okId(tid)) continue;
         const tgt = G.byId(tid);
-        /* lag compensation: check the shot against where the target was on the shooter's screen
-           (h[5] = the host-clock time the shooter was seeing), from the match recording */
-        let at = null;
-        const vt = num(h[5], 0, 4294967295) / 1000;
-        if (vt > 0 && K.now - vt < 1) {
-          const s = K.REC.sample(K.pidOf(tgt), vt);
-          if (s) at = _rw.set(s.x, s.y, s.z);
-        }
-        if (!tgt || tgt === a || (tgt.team === a.team && !G.ff) || !NET.plausible(a.body.pos, tgt, w, at)) {
+        if (!tgt || tgt === a || (tgt.team === a.team && !G.ff)) {
           H.hitStats.bad++;
           continue;
         }
-        /* hitscan claims: the shot's ray must start near where we have the shooter and pass
-           within reach of the target's body where the shooter saw it */
-        if (h.length >= 12 && !NET.rayOk(h.slice(6, 12), a.body.pos, at || tgt.pos, tgt.body.h)) {
+        /* lag compensation: check the shot against where the target was on the shooter's screen
+           (h[5] = the host-clock time the shooter was seeing), from the match recording, rewound no
+           further than the cap (net/hitcheck.js) */
+        const vt = num(h[5], 0, 4294967295) / 1000;
+        const ray = h.length >= 12 ? h.slice(6, 12).map(Number) : null;
+        const ft = h.length >= 13 && Number.isFinite(+h[12]) ? +h[12] / 1000 : null;
+        const tn = performance.now() / 1000;
+        /* when they fired, in our game clock (their clock + the playback offset) */
+        const ftG = ft != null && a.pb.ready ? K.now - (tn - (ft + a.pb.offset)) : null;
+        const v = K.HITCHK.check({
+          w,
+          o: ray && ray.slice(0, 3),
+          d: ray && ray.slice(3, 6),
+          ft,
+          vt: vt > 0 ? vt : 0,
+          ftV: ftG,
+          now: K.now,
+          victim: ray && vt > 0 ? K.HITCHK.recHist(K.pidOf(tgt)) : null,
+          shooter: a.hist.ready ? a.hist : null,
+          stream: a.stream,
+        });
+        let at = null;
+        if (v.t != null) {
+          const s = K.REC.sample(K.pidOf(tgt), v.t);
+          if (s) at = _rw.set(s.x, s.y, s.z);
+        }
+        /* range and line of sight from where we have the shooter */
+        if (v.ok && !NET.plausible(a.body.pos, tgt, w, at)) {
+          v.ok = false;
+          v.why = "wall";
+        }
+        K.HITCHK.note(
+          a.peer,
+          a.name,
+          v,
+          v.t == null
+            ? null
+            : {
+                w,
+                o: ray.slice(0, 3),
+                d: ray.slice(3, 6),
+                vid: K.pidOf(tgt),
+                sid: K.pidOf(a),
+                gv: v.t,
+                gs: ftG != null ? ftG : K.now,
+              }
+        );
+        if (!v.ok) {
           H.hitStats.bad++;
           continue;
         }
@@ -619,30 +660,7 @@
     };
     return H;
   };
-  const _rw = new V3(),
-    _ro = new V3(),
-    _rd = new V3(),
-    _rc = new V3();
-  /** hit-registration rule for a claimed shot: origin within 3.5 m of the shooter as we know them
-      (they are drawn up to a few hundred ms behind), and the ray passes within 0.7 m of the target's
-      body axis (feet to head) at the time the shooter was seeing it */
-  NET.rayOk = function (r, shooterPos, targetPos, h) {
-    if (!r.every(v => Number.isFinite(+v))) return false;
-    _ro.set(+r[0], +r[1], +r[2]);
-    _rd.set(+r[3], +r[4], +r[5]);
-    if (_rd.lengthSq() < 0.5) return false;
-    _rd.normalize();
-    if (_ro.distanceTo(shooterPos) > 3.5 + (K.H_STAND || 1.8)) return false;
-    /* closest approach between the ray and the vertical segment of the target's body */
-    let best = 1e9;
-    for (let k = 0; k <= 8; k++) {
-      _rc.copy(targetPos);
-      _rc.y += (h * k) / 8;
-      const t = Math.max(0, _rc.clone().sub(_ro).dot(_rd));
-      best = Math.min(best, _rc.distanceTo(_ro.clone().addScaledVector(_rd, t)));
-    }
-    return best <= 0.7;
-  };
+  const _rw = new V3();
   /* tracers for a player whose shots we only know as "firing" */
   const _o = new V3(),
     _d = new V3();

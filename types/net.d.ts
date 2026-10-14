@@ -38,7 +38,9 @@ interface ClientPresence {
   st: number;
   sh: number;
   dd: 0 | 1;
-  hs: [number, string, number, string, 0 | 1][];
+  /** hits: [seq, targetId, damage, weapon, head, host-clock ms the target was seen at, then for a shot its
+      ray (ox, oy, oz, dx, dy, dz) and our clock when it was fired (ms)] */
+  hs: any[][];
   fx: any[];
   dth: [number, string, string, 0 | 1] | null;
   pk: [number, string] | null;

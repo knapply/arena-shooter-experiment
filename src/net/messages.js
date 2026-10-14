@@ -15,7 +15,7 @@
    Bump PROTOCOL whenever an existing message changes shape; players on different versions are
    told so when they join instead of receiving garbage. */
 const MSG = (() => {
-  const PROTOCOL = 5;
+  const PROTOCOL = 6;
   const TWO_PI = Math.PI * 2;
   const BAD = /[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g;
   const enc = new TextEncoder(),
@@ -230,13 +230,19 @@ const MSG = (() => {
     ["k", "u16"],
     ["d", "u16"],
   ]);
-  /* a hit the shooter claims on someone; the victim's client applies it after its own checks */
+  /* a hit the shooter claims on someone; the victim's client applies it after its own checks
+     (net/hitcheck.js): ft = the shooter's clock when fired (ms), vt = the victim's clock the shooter
+     was seeing them at (ms, 0 if unknown), o and r = the shot's ray (zero for melee and explosions) */
   def(11, "arenaHit", "reliable", [
     ["s", "u16"],
     ["t", "str:64"],
     ["d", "u8"],
     ["w", "str:12"],
     ["hd", "bool"],
+    ["ft", "u32"],
+    ["vt", "u32"],
+    ["o", "v3:100"],
+    ["r", "v3:1000"],
   ]);
   def(12, "arenaDeath", "reliable", [
     ["s", "u16"],

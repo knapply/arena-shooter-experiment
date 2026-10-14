@@ -238,7 +238,8 @@
             K.now - S.t < 0.05
               ? [S.o.x, S.o.y, S.o.z, S.d.x, S.d.y, S.d.z].map(v => Math.round(v * 1000) / 1000)
               : null;
-        M.agg.set(id, { t: id, d: n, w: w || "rifle", hd: !!hd, vt, ray });
+        /* and when we fired, on our clock (the host checks fire rate and aim against our movement) */
+        M.agg.set(id, { t: id, d: n, w: w || "rifle", hd: !!hd, vt, ray, ft: Math.round(performance.now()) });
       }
     };
     M.onFx = function (k, a, b, g) {
@@ -638,7 +639,15 @@
       M.newsy = false;
       M.sendT = 1 / 15;
       for (const v of M.agg.values())
-        M.hs.push([++M.hsS, v.t, Math.round(v.d), v.w, v.hd ? 1 : 0, v.vt, ...(v.ray || [])]);
+        M.hs.push([
+          ++M.hsS,
+          v.t,
+          Math.round(v.d),
+          v.w,
+          v.hd ? 1 : 0,
+          v.vt,
+          ...(v.ray ? [...v.ray, v.ft] : []),
+        ]);
       M.agg.clear();
       while (M.hs.length > 10) M.hs.shift();
       NET.send({
