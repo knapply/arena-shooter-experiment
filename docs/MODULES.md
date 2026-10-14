@@ -28,8 +28,8 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/maps/arena.js` | 279 | `floorTex` `crateTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `mergeGeos` `mergeMapGroup` `strip` `stairs` `buildMap` `SPAWNS` |
 | `src/world/physics.js` | 570 | `R` `H_STAND` `H_CROUCH` `TUNE_DEF` `TUNE` `REGEN_DELAY` `NO_PILOTS` `pilotsFn` `setPilotCollider` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
 | `src/world/spawns.js` | 107 | `SPAWN_W` `_spE` `_spD` `spawnScore` `pickSpawn` `spotTaken` `noteFight` |
-| `src/data/anim-clips.js` | 132 | `ANIM_CLIPS` |
-| `src/characters/anim.js` | 744 | `ANIM` |
+| `src/data/anim-clips.js` | 135 | `ANIM_CLIPS` |
+| `src/characters/anim.js` | 771 | `ANIM` |
 | `src/weapons/models.js` | 280 | `GUN_MODELS` `gunParts` `gunGeo` |
 | `src/characters/rig.js` | 1520 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+46) |
 | `src/characters/look.js` | 132 | `RIG_LOOK` `_rh` `_rh2` `CHAR_GLSL` `charPatch` `applyCharLook` `teamPattern` `HEX_FRAG` `styleRig` |
