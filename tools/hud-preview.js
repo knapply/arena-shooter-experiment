@@ -6,16 +6,17 @@
    frozen (timescale 0) for each shot. Fonts load from the web when it is reachable. */
 const fs = require("fs"),
   path = require("path");
-const { launch, ROOT } = require("../tests/lib/browser.js");
+const { launch, ROOT, routeThree } = require("../tests/lib/browser.js");
 const args = process.argv.slice(2);
 const out = args[0] && !args[0].startsWith("--") ? args[0] : "hud-shots";
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
 if (!process.env.THREE_PATH) {
-  console.error("set THREE_PATH to three.js r128's three.min.js");
+  console.error(
+    "set THREE_PATH to three.module.min.js (three.js at the version in src/manifest.json, three.core.min.js beside it)"
+  );
   process.exit(1);
 }
 fs.mkdirSync(out, { recursive: true });
-const three = fs.readFileSync(process.env.THREE_PATH, "utf8");
 const pad = (btns = {}) => ({
   connected: true,
   axes: [0, 0, 0, 0],
@@ -39,7 +40,7 @@ async function page(b, ctxOpts) {
       })
     );
   });
-  await p.route("**/three.min.js", r => r.fulfill({ contentType: "application/javascript", body: three }));
+  await routeThree(p);
   await p.goto("file://" + path.join(ROOT, "index.html"));
   await p.waitForTimeout(1200);
   return { ctx, p };

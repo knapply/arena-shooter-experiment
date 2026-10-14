@@ -2,7 +2,7 @@
 /* Visual regression: render key scenes with real three.js (software WebGL) and compare them with the
    approved screenshots in tests/visual/. Comparison is on a downscaled image with a tolerance, so tiny
    rasterization differences pass but a broken material, missing mesh or color shift fails.
-     THREE_PATH=/path/to/three.min.js node tests/visual.test.js           compare
+     THREE_PATH=/path/to/three.module.min.js node tests/visual.test.js           compare
      THREE_PATH=... VISUAL_UPDATE=1 node tests/visual.test.js              approve the current look */
 const fs = require("fs"),
   path = require("path");
@@ -46,7 +46,7 @@ async function compare(p, a, b) {
 }
 (async () => {
   if (!process.env.THREE_PATH) {
-    console.log("visual: skipped (set THREE_PATH to a three.js r128 build)");
+    console.log("visual: skipped (set THREE_PATH to three.module.min.js)");
     return;
   }
   const b = await launch({ gpu: true });

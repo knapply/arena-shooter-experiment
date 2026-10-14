@@ -31,8 +31,10 @@ function syncDynLights() {
   while (CFX.lights.length > want) scene.remove(CFX.lights.pop());
 }
 SET_HOOKS.push(syncDynLights);
+/** intensity in the legacy units it was tuned in (LIGHT_K, render/renderer.js) */
 function dynLight(p, color, intensity, life, range = 9) {
   if (!CFX.lights.length) return;
+  intensity *= LIGHT_K;
   let best = CFX.lights[0];
   for (const l of CFX.lights) if (l.intensity < best.intensity) best = l;
   if (best.intensity > intensity) return;

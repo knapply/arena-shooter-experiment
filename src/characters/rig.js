@@ -106,7 +106,6 @@ function shieldMaterial() {
     uniforms: { uI: { value: 0 }, uT: { value: 0 }, uC: { value: new THREE.Color("#ffd36b") } },
     transparent: true,
     depthWrite: false,
-    skinning: true,
     blending: THREE.AdditiveBlending,
     vertexShader: [
       "#include <common>",
@@ -572,21 +571,19 @@ function flagCloth(color) {
 function makePilot(color, label) {
   /* layered look: dark undersuit, team-colored hard armor in two tones, gunmetal trim, a gold visor
      and team-lit seams that catch the bloom */
-  const armorM = new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0.55, skinning: true });
+  const armorM = new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0.55 });
   armorM.color.multiplyScalar(0.62);
-  const armor2M = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.45, skinning: true });
+  const armor2M = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.45 });
   armor2M.color.multiplyScalar(0.36);
   const suitM = new THREE.MeshStandardMaterial({
     color: "#1b2125",
     roughness: 0.82,
     metalness: 0.1,
-    skinning: true,
   });
   const trimM = new THREE.MeshStandardMaterial({
     color: "#363f45",
     roughness: 0.38,
     metalness: 0.8,
-    skinning: true,
   });
   const visorM = new THREE.MeshStandardMaterial({
     color: "#5a3a0c",
@@ -594,19 +591,17 @@ function makePilot(color, label) {
     emissiveIntensity: 0.22,
     roughness: 0.05,
     metalness: 1,
-    skinning: true,
   });
   const glowM = new THREE.MeshStandardMaterial({
     color: "#000000",
     emissive: color,
     emissiveIntensity: 1.5,
     roughness: 0.5,
-    skinning: true,
   });
   const mats = [suitM, armorM, armor2M, trimM, visorM, glowM];
-  /* weapons and the flag are plain meshes: three.js compiles one program per material, so they get
-     their own (unskinned) copies instead of sharing the body's */
-  const wmats = mats.map(m => Object.assign(m.clone(), { skinning: false }));
+  /* weapons and the flag are plain meshes with their own copies of the materials (three.js compiles a
+     skinned and an unskinned program either way; separate copies keep their settings apart) */
+  const wmats = mats.map(m => m.clone());
   const shieldM = shieldMaterial();
   /* bones */
   const root = new THREE.Group();
@@ -707,7 +702,7 @@ function makePilot(color, label) {
   c.height = 64;
   const x = c.getContext("2d");
   const tagTex = new THREE.CanvasTexture(c);
-  tagTex.encoding = THREE.sRGBEncoding;
+  tagTex.colorSpace = THREE.SRGBColorSpace;
   const tag = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: tagTex, depthTest: false, transparent: true })
   );

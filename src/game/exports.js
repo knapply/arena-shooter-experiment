@@ -110,6 +110,7 @@ const KA_API = {
   },
   sun,
   hemi,
+  LIGHT_K,
   skyTint,
   blast,
   THREE,

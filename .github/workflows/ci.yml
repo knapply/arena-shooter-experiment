@@ -41,7 +41,11 @@ jobs:
         run: node tests/net.test.js
       - name: Render tests and draw budgets (software WebGL)
         run: |
-          curl -sSL -o /tmp/three.min.js https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
-          THREE_PATH=/tmp/three.min.js node tests/render.test.js
+          v=$(node -p "require('./src/manifest.json').three")
+          mkdir -p /tmp/three
+          for f in three.module.min.js three.core.min.js; do
+            curl -sSfL -o /tmp/three/$f "https://cdn.jsdelivr.net/npm/three@$v/build/$f"
+          done
+          THREE_PATH=/tmp/three/three.module.min.js node tests/render.test.js
       - name: Visual regression (approved screenshots in tests/visual)
-        run: THREE_PATH=/tmp/three.min.js node tests/visual.test.js
+        run: THREE_PATH=/tmp/three/three.module.min.js node tests/visual.test.js

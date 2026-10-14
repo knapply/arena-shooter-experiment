@@ -6,7 +6,7 @@
                                                          a contact sheet of single frames
      THREE_PATH=... node tools/trailer-preview.js clip 11 15.5 [fps] [out.mp4]
                                                          a small video of a stretch, with the score
-   Stills and clips render at 640x360 with real WebGL, so they need three.js r128 (THREE_PATH). */
+   Stills and clips render at 640x360 with real WebGL, so they need three.js (THREE_PATH: three.module.min.js, three.core.min.js beside it). */
 const { launch, open } = require("../tests/lib/browser.js");
 const { trailerWav } = require("./trailer-audio.js");
 const fs = require("fs"),

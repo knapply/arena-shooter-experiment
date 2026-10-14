@@ -1,7 +1,8 @@
 /* Shared Playwright setup. Env:
    CPU_SLOW     throttle every page's CPU by this factor (find timing-sensitive tests)
    CHROME_PATH  use a specific Chromium build
-   THREE_PATH   serve a real three.min.js (r128) from disk instead of the stub (enables render tests) */
+   THREE_PATH   serve the real three.js from disk instead of the stub (enables render tests): the path of
+                three.module.min.js of the version in src/manifest.json, with three.core.min.js beside it */
 const fs = require("fs"),
   path = require("path");
 const { chromium } = require("playwright");
@@ -89,11 +90,7 @@ async function open(
       },
       { intros, dropIn: drops }
     );
-  const three =
-    realThree && process.env.THREE_PATH
-      ? fs.readFileSync(process.env.THREE_PATH, "utf8")
-      : fs.readFileSync(path.join(__dirname, "..", "stubs", "three-browser.js"), "utf8");
-  await p.route("**/three.min.js", r => r.fulfill({ contentType: "application/javascript", body: three }));
+  await routeThree(p, realThree);
   await p.route("https://fonts.googleapis.com/**", r => r.fulfill({ contentType: "text/css", body: "" }));
   await p.goto((trailer ? trailerPage() : http ? "http://ka.test/index.html" : GAME) + hash);
   return p;
@@ -122,6 +119,20 @@ const roster = p =>
     KA.EXT.scores(tb);
     return [...tb.rows].map(r => r.cells[0].textContent);
   });
+/** serve three.js to a page from disk: the real build (THREE_PATH) or, without it, a stub that fakes
+    every class (enough for gameplay and UI tests). The page imports it from the CDN (build.mjs threeTags). */
+async function routeThree(p, real = true) {
+  const js = { contentType: "application/javascript" };
+  if (real && process.env.THREE_PATH) {
+    const mod = fs.readFileSync(process.env.THREE_PATH, "utf8"),
+      core = fs.readFileSync(path.join(path.dirname(process.env.THREE_PATH), "three.core.min.js"), "utf8");
+    await p.route("**/three.module.min.js", r => r.fulfill({ ...js, body: mod }));
+    await p.route("**/three.core.min.js", r => r.fulfill({ ...js, body: core }));
+  } else {
+    const stub = fs.readFileSync(path.join(__dirname, "..", "stubs", "three-browser.js"), "utf8");
+    await p.route("**/three.module.min.js", r => r.fulfill({ ...js, body: stub }));
+  }
+}
 /** wait for fn(arg) in the page to be true (false after the timeout): waits on game state, not time,
     so a slow machine (CI's software renderer) only takes longer */
 const until = (p, fn, arg, timeout = 30000) =>
@@ -129,4 +140,4 @@ const until = (p, fn, arg, timeout = 30000) =>
     () => true,
     () => false
   );
-module.exports = { launch, open, text, visible, roster, ROOT, closeTab, until };
+module.exports = { launch, open, text, visible, roster, ROOT, closeTab, until, routeThree };

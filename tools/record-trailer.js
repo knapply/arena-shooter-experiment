@@ -1,6 +1,6 @@
 /* Re-record the trailer video from the current build.
-   Needs Playwright, ffmpeg and three.js r128 (THREE_PATH). Software WebGL is fine; it takes an hour or more.
-     THREE_PATH=/path/to/three.min.js node tools/record-trailer.js
+   Needs Playwright, ffmpeg and three.js (THREE_PATH: three.module.min.js, three.core.min.js beside it). Software WebGL is fine; it takes an hour or more.
+     THREE_PATH=/path/to/three.module.min.js node tools/record-trailer.js
    Output: media/trailer.mp4 (1280x720, 30 fps, with the score and sound effects) and media/trailer-preview.gif */
 const { launch, open, ROOT } = require("../tests/lib/browser.js");
 const { trailerWav } = require("./trailer-audio.js");
