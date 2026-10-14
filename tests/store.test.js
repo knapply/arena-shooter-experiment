@@ -9,8 +9,9 @@ global.localStorage = {
   setItem: (k, v) => void mem.set(k, String(v)),
   removeItem: k => void mem.delete(k),
 };
+const { toScript } = require("../tools/esm.cjs");
 const STORE = (0, eval)(
-  fs.readFileSync(path.join(__dirname, "..", "src", "core", "store.js"), "utf8") + "\nSTORE"
+  toScript(fs.readFileSync(path.join(__dirname, "..", "src", "core", "store.js"), "utf8")) + "\nSTORE"
 );
 
 /* legacy keys move into versioned documents once */

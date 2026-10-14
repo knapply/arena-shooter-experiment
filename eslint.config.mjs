@@ -1,6 +1,6 @@
 /* Lint config. Engine modules share one scope (see docs/ARCHITECTURE.md), so each engine file gets the names
    declared by the other engine modules as globals: misspelled or missing names are caught across files. */
-import { engineScope, manifest } from "./tools/modules.mjs";
+import { engineScope, manifest, isEsm, read } from "./tools/modules.mjs";
 
 const BROWSER = Object.fromEntries(
   `window document navigator location localStorage sessionStorage performance console requestAnimationFrame cancelAnimationFrame
@@ -50,6 +50,17 @@ const RULES = {
 };
 const scope = engineScope();
 const engine = scope.map(({ path, names }) => {
+  /* an engine module written as an ES module sees only what it imports (tools/esm.cjs) */
+  if (isEsm(read(path)))
+    return {
+      files: [`src/${path}`],
+      languageOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        globals: { ...BROWSER, THREE: "readonly" },
+      },
+      rules: RULES,
+    };
   const own = new Set(names);
   const shared = {};
   for (const m of scope)

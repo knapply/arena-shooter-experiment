@@ -2,7 +2,7 @@
    AI decisions, spawn choices and rules draw from rand(), so a match started with the same seed and
    the same inputs plays out the same way (replays, bug reproduction, deterministic tests).
    Purely visual randomness (sparks, debris, camera shake) keeps using Math.random. */
-const RNG = (() => {
+export const RNG = (() => {
   let s = (Math.random() * 4294967296) >>> 0,
     seed0 = s;
   /** mulberry32: fast, small state, good enough for gameplay */
@@ -25,4 +25,4 @@ const RNG = (() => {
     },
   };
 })();
-const rand = RNG.rand;
+export const rand = RNG.rand;

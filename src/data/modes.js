@@ -1,7 +1,7 @@
 /* ============ MODE SETTINGS ============
    The numbers that define each game mode. Modes read these instead of hard-coding them, so a
    playlist, a custom game screen or a mode file only has to change data. */
-const MODE_DATA = {
+export const MODE_DATA = {
   /* free-for-all: the AI match (every pilot for themselves) and the arena's drop-in practice */
   ffa: {
     name: "Free-for-all Slayer",
@@ -40,7 +40,7 @@ const MODE_DATA = {
 /* the four playable modes, in menu order. `rules` is what modes/ctf/rules.js plays, `data` the
    MODE_DATA entry with its numbers, `maps` the maps it can be played on (the first is the default),
    `unit` what the score counts. The menu cards, intros and results read their words from here. */
-const PLAY_MODES = [
+export const PLAY_MODES = [
   {
     id: "ctf",
     data: "ctf",
@@ -108,7 +108,7 @@ const PLAY_MODES = [
             after a miss, hold fire until the aim is right on them
    Recruit is the gentle start (the default for your first bot match): slow to react, loose aim,
    short sight, few dodges and grenades. */
-const AI_SKILL = {
+export const AI_SKILL = {
   recruit: {
     react: 0.5,
     err: 0.055,
@@ -160,8 +160,8 @@ const AI_SKILL = {
 };
 /* drop pods fall from POD_HEIGHT metres in POD_TIME seconds (a re-entry burn visible across the map),
    slow at first and faster all the way down (see podLeft in game/pods.js) */
-const POD_TIME = 3,
+export const POD_TIME = 3,
   POD_HEIGHT = 320;
 /* the longer fall is spectacle only: a pod launches POD_EARLY seconds before the respawn time, so
    wait + fall is the same as it was with the old 1.35 s drop (an in-place spawn is unchanged) */
-const POD_EARLY = POD_TIME - 1.35;
+export const POD_EARLY = POD_TIME - 1.35;

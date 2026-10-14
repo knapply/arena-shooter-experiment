@@ -82,7 +82,7 @@ docs/EXTENDING.md      recipes for adding a HUD widget, setting, weapon, map, mo
 |---|---|
 | Host migration, relay server | `net/p2p-transport.js` (transport), `net/ctf-host.js` and `net/ctf-client.js` (state handoff) |
 | More maps and modes | `world/maps/*`, `modes/*` using the `KA` API; CTF rules in `modes/ctf/rules.js` |
-| ES modules and a bundler | convert one engine module at a time to `import`/`export`, starting from the leaves (`core/prelude.js`, `world/physics.js`); `build.mjs` can switch to esbuild without changing the output contract |
+| ES modules and a bundler | started: `core/store.js`, `core/rng.js`, `game/frame-hooks.js` and `data/modes.js` are ES modules (explicit `import`/`export`; tools/esm.cjs strips both so they still join the shared scope, and `types/engine-modules.d.ts` declares their exports for the script modules). Next: a module whose dependencies are all ES modules can convert the same way; `core/prelude.js` first needs setters for the `let`s other modules assign (`myColor`, `myArmor`), since an import is read-only. When most modules are converted, `build.mjs` can bundle with esbuild instead of concatenating, with the same output |
 | Web Worker / WebAssembly (not needed today: the simulation costs well under 1 ms per frame) | `world/physics.js` (`Body`, raycasts), `modes/ctf/nav.js`, and `modes/ctf/agent.js` are pure simulation with no DOM access and are already exercised headless by `tests/lib/headless.js` |
 | WebGPU renderer, newer three.js | `render/*` only; gameplay code does not touch the pipeline |
 | Desktop packaging | wraps the built `index.html` unchanged |

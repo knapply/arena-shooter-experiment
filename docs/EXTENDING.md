@@ -6,6 +6,7 @@ Ground rules that apply to everything below:
 
 - **Engine vs modes.**
   - Engine modules (`manifest.engine`) share one scope. A new engine file goes in `src/manifest.json` after everything it uses at load time. Calls made inside functions can reach modules listed later.
+  - An engine module may be an ES module instead (`core/store.js`, `core/rng.js`, `game/frame-hooks.js`, `data/modes.js`): `import { x } from "./y.js"` from other ES modules only, and `export` on its top-level declarations. The build strips both (`tools/esm.cjs`), the lint gives it only what it imports, and `node build.mjs` regenerates `types/engine-modules.d.ts` so script modules can keep using its exports by name.
   - Mode modules (`manifest.modes`) only see `window.KA` (`game/exports.js`) and `window.CTF`. If a mode needs something new from the engine, export it from `game/exports.js`. The simulation bundle also needs it in `worker/sim-exports.js` (as a stub if it's visual).
 - **The simulation must stay deterministic.**
   - Anything that affects play (AI, rules, spawns, physics) uses the seeded `rand()` / `K.rand()`, never `Math.random`, and must restore exactly on reset.
