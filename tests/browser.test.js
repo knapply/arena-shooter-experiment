@@ -60,9 +60,13 @@ const podSeats = map => {
       "pistol aims with the smart scope"
     );
     check(
-      await p.evaluate(
-        () => KA.adsP === 1 && Math.abs(KA.camera.fov - KA.SET.fov / KA.WEAPON_DATA[KA.wi].zoom[0]) < 0.5
-      ),
+      /* (it eases in over 0.15 s of game time: a slow machine draws that in fewer, longer frames) */
+      await p.evaluate(async () => {
+        const inn = () =>
+          KA.adsP === 1 && Math.abs(KA.camera.fov - KA.SET.fov / KA.WEAPON_DATA[KA.wi].zoom[0]) < 0.5;
+        for (let i = 0; i < 30 && !inn(); i++) await new Promise(r => setTimeout(r, 50));
+        return inn();
+      }),
       "the scope eases all the way in",
       await p.evaluate(() => [KA.adsP, KA.camera.fov])
     );
