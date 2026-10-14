@@ -106,13 +106,13 @@ const stats = async p => {
       });
       await q.click("#ctfPlay");
       const landed = await q.evaluate(async () => {
-        /* every opening pod down and you out of yours (a pilot may already have been taken out) */
+        /* the opening pods down and you out of yours (a pilot taken out meanwhile may already be
+           falling again in a respawn pod, so count landed pods rather than wait for every pod) */
         const down = () =>
           !KA.myPod &&
           !document.body.classList.contains("podding") &&
-          KA.PODS.length >= 8 &&
-          KA.PODS.every(p => p.landed);
-        for (let i = 0; i < 200 && !down(); i++) await new Promise(r => setTimeout(r, 50));
+          KA.PODS.filter(p => p.landed).length >= 8;
+        for (let i = 0; i < 400 && !down(); i++) await new Promise(r => setTimeout(r, 50));
         KA.CON.run("timescale 0");
         return { down: down(), pods: KA.PODS.filter(p => p.landed).length };
       });
