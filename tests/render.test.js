@@ -88,52 +88,64 @@ const stats = async p => {
           a = { calls: Math.max(a.calls, v.calls), tris: Math.max(a.tris, v.tris) };
         }
       check(a.calls <= B.arena.drawCalls && a.tris <= B.arena.triangles, "arena view within draw budget", a);
-      await p.evaluate(() => KA.extStop());
-      await p.waitForTimeout(400);
-      await p.click("#ctfSim");
-      await p.waitForTimeout(2500);
-      /* the spectator camera moves on its own, so take the worst of several samples */
-      let c = { calls: 0, tris: 0 };
-      for (let i = 0; i < 16; i++) {
-        await p.waitForTimeout(400);
-        const v = await info();
-        c = { calls: Math.max(c.calls, v.calls), tris: Math.max(c.tris, v.tris) };
-      }
-      check(c.calls <= B.ctf.drawCalls && c.tris <= B.ctf.triangles, "CTF view within draw budget", c);
-      /* Hadal Station (a team map, held to the CTF budget): free for all on it, the worst view from
-         every spawn it has (free for all and both teams) at eight headings */
-      await p.evaluate(() => KA.extStop());
-      await p.waitForTimeout(400);
-      await p.selectOption("#ffaMap", "hadal");
-      await p.click("#deploy");
-      await p.waitForTimeout(2500);
-      const hs = await p.evaluate(() => {
-        const S = KA.MAPS.hadal.spawns;
-        return [...S.ffa, ...S.teams[0], ...S.teams[1]];
-      });
-      let h = { calls: 0, tris: 0 };
-      for (const s of hs)
-        for (let k = 0; k < 8; k++) {
-          await p.evaluate(
-            ([s, yaw]) => {
-              KA.me.pos.set(s[0], s[1], s[2]);
-              KA.me.vel.set(0, 0, 0);
-              KA.me.yaw = yaw;
-              KA.me.pitch = 0;
-            },
-            [s, (k * Math.PI) / 4]
-          );
-          await p.waitForTimeout(120);
-          const v = await info();
-          h = { calls: Math.max(h.calls, v.calls), tris: Math.max(h.tris, v.tris) };
-        }
-      check(
-        h.calls <= B.ctf.drawCalls && h.tris <= B.ctf.triangles,
-        "Hadal Station view within draw budget",
-        h
-      );
       check(p.errors.length === 0, "budget scenes have no errors", p.errors.slice(0, 3));
       await p.close();
+      /* CTF play at its heaviest: just after the opening drop, every pilot and every fresh wreck on
+         the map, the world frozen; the worst view from every team spawn at eight headings. Every team
+         map is held to the same budget */
+      for (const map of ["ctf", "hadal"]) {
+        const q = await open(ctx, {
+          tag: "budget-ctf",
+          realThree: true,
+          drops: true,
+          init: ["seeded-random.js"],
+        });
+        await q.waitForTimeout(1500);
+        await q.evaluate(() => {
+          Object.assign(KA.SET, { intros: false, dropIn: true, killCam: false });
+          /* (nobody can take you out before the freeze) */
+          KA.CON.run("god on");
+        });
+        await q.selectOption("#ctfMap", map);
+        await q.click("#ctfPlay");
+        const landed = await q.evaluate(async () => {
+          /* the opening pods down and you out of yours (a pilot taken out meanwhile may already be
+           falling again in a respawn pod, so count landed pods rather than wait for every pod) */
+          const down = () =>
+            !KA.myPod &&
+            !document.body.classList.contains("podding") &&
+            KA.PODS.filter(p => p.landed).length >= 8;
+          for (let i = 0; i < 400 && !down(); i++) await new Promise(r => setTimeout(r, 50));
+          KA.CON.run("timescale 0");
+          return { down: down(), pods: KA.PODS.filter(p => p.landed).length };
+        });
+        let c = { calls: 0, tris: 0 };
+        const spots = await q.evaluate(() => CTF.SPAWNS.flat());
+        for (const s of spots)
+          for (let k = 0; k < 8; k++) {
+            await q.evaluate(
+              ([s, yaw]) => {
+                KA.CON.run(`tp ${s[0]} ${s[1]} ${s[2]}`);
+                KA.me.yaw = yaw;
+                KA.me.pitch = 0;
+              },
+              [s, (k * Math.PI) / 4]
+            );
+            await q.waitForTimeout(120);
+            const v = await q.evaluate(() => ({
+              calls: KA.renderer.info.render.calls,
+              tris: KA.renderer.info.render.triangles,
+            }));
+            c = { calls: Math.max(c.calls, v.calls), tris: Math.max(c.tris, v.tris) };
+          }
+        check(
+          landed.down && landed.pods >= 8 && c.calls <= B.ctf.drawCalls && c.tris <= B.ctf.triangles,
+          `${map} view within the CTF draw budget, with the opening drop's wrecks on the map`,
+          { ...c, ...landed }
+        );
+        check(q.errors.length === 0, `the ${map} budget scene has no errors`, q.errors.slice(0, 3));
+        await q.close();
+      }
     }
   } catch (e) {
     /* report it as a failed check, so CI shows what went wrong */

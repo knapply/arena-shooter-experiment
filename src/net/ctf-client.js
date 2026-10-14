@@ -492,6 +492,8 @@
     /* ---- per frame ---- */
     M.step = function (dt) {
       M.t += dt;
+      /* blast gates follow the host clock (online matches play without lab content: always open) */
+      K.gatesAt(M.t, false);
       const now = performance.now();
       const host = NET.ctfPeers().find(p => p.peer === M.hostPeer);
       if (host) {

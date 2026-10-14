@@ -401,6 +401,43 @@ const podSeats = map => {
       "a drop pod fits and buries itself at every arena spawn it can land on",
       arenaSeats.filter(s => !(s.ok && s.off <= 0.45 && s.bury > 0.5))
     );
+    /* the power weapon comes down in a supply pod timed by its own clock: it launches a couple of
+       seconds out, its lid is open by the time the weapon is due, the due time never moves, and
+       once the weapon is taken the empty crate sinks away */
+    const sup = await p.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      const q = KA.ARENA_PICKS.find(q => q.power);
+      const due = (q.availAt = KA.now + 3.5);
+      let s = null;
+      for (let i = 0; i < 100 && !(s = KA.SUPPLY.find(x => x.id === q.id)); i++) await wait(50);
+      if (!s) return { launched: false };
+      const out = { launched: true, early: due - KA.now, hud: document.getElementById("powerT").textContent };
+      for (let i = 0; i < 100 && !s.open; i++) await wait(20);
+      out.openBy = due - KA.now;
+      out.availEarly = q.avail;
+      for (let i = 0; i < 100 && !q.avail; i++) await wait(20);
+      out.late = KA.now - due;
+      out.same = q.availAt === due;
+      out.hud2 = document.getElementById("powerT").textContent;
+      q.consume();
+      for (let i = 0; i < 100 && !s.gone; i++) await wait(50);
+      out.gone = !!s.gone;
+      return out;
+    });
+    check(
+      sup.launched &&
+        sup.early > 1.5 &&
+        sup.early < 3 &&
+        /incoming/.test(sup.hud) &&
+        sup.openBy > -0.05 &&
+        !sup.availEarly &&
+        sup.same &&
+        sup.late < 0.1 &&
+        /up/.test(sup.hud2) &&
+        sup.gone,
+      "the power weapon drops in by supply pod, open on time, and the empty crate goes once it is taken",
+      sup
+    );
     const items = await p.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
       KA.me.spawnT = KA.now + 5;
@@ -1512,6 +1549,7 @@ const podSeats = map => {
     const falling = await O.evaluate(() => ({
       pod: !!KA.myPod,
       pods: KA.PODS.length,
+      supply: KA.SUPPLY.length,
       cockpit: !document.getElementById("podView").hidden,
       clock: KA.FFA.t0 - KA.now,
     }));
@@ -1543,8 +1581,12 @@ const podSeats = map => {
       orbit
     );
     check(
-      falling.pod && falling.pods >= 1 + orbit.bots && falling.cockpit && falling.clock > 1.5,
-      "after the intro you and the drones drop in together, before the clock starts",
+      falling.pod &&
+        falling.pods >= 1 + orbit.bots &&
+        falling.supply >= 1 &&
+        falling.cockpit &&
+        falling.clock > 1.5,
+      "after the intro you and the drones drop in together (and the power weapon in its supply pod), before the clock starts",
       falling
     );
     check(

@@ -349,6 +349,8 @@ function fsPass(mat, target) {
 let gfxChecked = false;
 function renderFrame() {
   const tr = performance.now();
+  /* drop pods are drawn instanced: their parts go out once everything has moved (game/pods.js) */
+  podDraw();
   /* low shadows redraw every other frame */
   if (!renderer.shadowMap.autoUpdate) renderer.shadowMap.needsUpdate = (++GFX.frame & 1) === 0;
   if (!GFX.on || !GFX.rt) {

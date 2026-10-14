@@ -61,7 +61,10 @@
           "rocket" or "nades" (grenades only); power spawns, death drops and other grenades are off */
       lock: opts.lock || null,
       labs,
+      /** blast gates (world/gates.js): their state is a function of G.t, so it needs no syncing */
+      gates: opts.gates != null ? !!opts.gates : labs && !!K.LABS.gates,
     };
+    K.gatesAt(0, G.gates);
     const models = CTF.loadModels();
     G.teams = [0, 1].map(t => ({ team: t, score: 0, agents: [], brain: new CTF.TeamBrain(t, models[t]) }));
     G.flags = (tdm ? [] : [0, 1]).map(t => ({
@@ -519,6 +522,7 @@
     G.step = function (dt) {
       if (G.over) return;
       G.t += dt;
+      K.gatesAt(G.t, G.gates);
       K.setPilotCollider(colliders);
       for (const tm of G.teams) tm.brain.tick(G, dt);
       for (const a of G.agents) {

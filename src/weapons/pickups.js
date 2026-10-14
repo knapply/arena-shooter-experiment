@@ -344,14 +344,22 @@ function updPickups(dt) {
     const v = pkVisual(p);
     v.g.visible = true;
     v.g.position.copy(p.pos);
-    v.model.visible = av;
+    /* a power weapon comes down in its own supply pod: hidden until the lid opens (game/supply-pods.js) */
+    const sup = p.power ? supplyTick(p, av) : null;
+    v.model.visible = av && !(sup && sup.hide);
     v.model.rotation.y += dt * 1.1;
-    v.model.position.y = (p.power ? 0.6 : 0.3) + Math.sin(now * 2 + v.g.position.x) * 0.08;
+    v.model.position.y =
+      (p.power ? 0.6 : 0.3) + (sup ? sup.lift : 0) + Math.sin(now * 2 + v.g.position.x) * 0.08;
     v.ring.material.opacity = av ? 0.75 : 0.2;
     if (p.power && v.label) {
       const s = Math.ceil(p.availIn);
       const nm = capWord(wName(p.type));
-      const txt = av ? nm : `${nm} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+      const txt =
+        sup && sup.incoming
+          ? `${nm} incoming`
+          : av
+            ? nm
+            : `${nm} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
       if (txt !== v.last) {
         v.last = txt;
         v.label.userData.draw(txt, av ? "#9fe1ff" : "#7f939c");

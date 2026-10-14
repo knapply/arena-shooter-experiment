@@ -540,7 +540,10 @@
       const avoid = (agent.carrying ? 2.2 : 1) * 0.9;
       const wl = NAV.wl,
         cz = NAV.cz;
-      const wlane = lane < 0 ? -1 : team === 0 ? lane : 2 - lane;
+      let wlane = lane < 0 ? -1 : team === 0 ? lane : 2 - lane;
+      /* a blast gate shut across that lane: no lane bias until it opens (the path finds the way round) */
+      if (wlane >= 0 && CTF.MAP.lanes && K.GATES.live.some(g => g.navShut && CTF.worldLane(g.cx) === wlane))
+        wlane = -1;
       const sg = team === 0 ? 1 : -1;
       if (wlane < 0)
         return c => {

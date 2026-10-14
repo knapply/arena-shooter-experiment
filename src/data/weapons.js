@@ -217,6 +217,7 @@ const POWER_ROTATION = ["sniper", "rocket"];
      burst    burst rifle pickups on the maps        scatter  the scattergun joins the power rotation
      beam     arc beam pickups on the maps           pulse    pulse grenades (strip shields, jam thrust)
      melee    a melee blow takes at most 40 shield (meleeDamage)
+     gates    blast gates rise and sink on both maps (world/gates.js)
      mods     map changes by name (MAP_MODS, data/maps.js) */
 const LABS = {
   on: true,
@@ -225,6 +226,7 @@ const LABS = {
   beam: false,
   pulse: false,
   melee: false,
+  gates: false,
   mods: /** @type {string[]} */ ([]),
 };
 /** is a lab feature live right now? */

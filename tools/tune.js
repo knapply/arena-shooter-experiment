@@ -25,7 +25,9 @@
                                                  closest the AI comes to free-for-all)
      node tools/tune.js labBurst modDoors       lab content (docs/PROPOSALS.md) as knobs: 1 turns it on
                                                  (labBurst labScatter labBeam labPulse labWeapons, modDoors
-                                                 modSplit on Twin Foundry, modRing modPillars on the arena);
+                                                 modSplit on Twin Foundry, modRing modPillars on the arena,
+                                                 labGates on both; labGateOpen/Shut/Move: the gate cycle,
+                                                 with GATES=1, which turns the gates on in every variant);
                                                  LOCK=burst, scatter or beam locks a lab weapon
    Besides skill share, time to kill and grenades, every variant reports: the spread of time to kill
    (quartiles), each weapon's share of kills and of time held, how much skill decides fights with each
@@ -114,6 +116,18 @@ const KNOBS = {
   modPads: { set: mod("pads"), def: 0, try: [1] },
   modRing: { set: mod("ring"), def: 0, try: [1] },
   modPillars: { set: mod("pillars"), def: 0, try: [1] },
+  /* blast gates (both maps), and their cycle in seconds (GATES=1 turns the gates on for every variant) */
+  labGates: { set: lab("gates"), def: 0, try: [1] },
+  labGateOpen: { set: v => (K.GATE_CYCLE.open = v), def: 10, try: [7, 14] },
+  labGateShut: { set: v => (K.GATE_CYCLE.shut = v), def: 8, try: [5, 11] },
+  labGateMove: { set: v => (K.GATE_CYCLE.move = v), def: 2.5, try: [1.5, 3.5] },
+  /* a subset of the gates: 1 the mid gates (Twin Foundry) or north and south (arena), 2 the others
+     (none on Twin Foundry, which only has mid gates now) */
+  labGateOnly: {
+    set: v => K.GATES.all.forEach(g => (g.off = v ? /mid|gate-[ns]$/.test(g.id) !== (v === 1) : false)),
+    def: 0,
+    try: [1, 2],
+  },
 };
 const LAB_KNOBS = Object.keys(KNOBS).filter(k => /^(lab|mod)/.test(k));
 /* TRY="sbAccel=80,90;sbRun=6.8" replaces the values tried for those knobs */
@@ -134,6 +148,9 @@ KNOBS.sbRocketSplash.def = W("rocket").splash;
 KNOBS.sbRocketRadius.def = W("rocket").radius;
 KNOBS.sbNadeFuse.def = K.NADES.frag.fuse;
 KNOBS.sbNadeRadius.def = K.NADES.frag.r;
+KNOBS.labGateOpen.def = K.GATE_CYCLE.open;
+KNOBS.labGateShut.def = K.GATE_CYCLE.shut;
+KNOBS.labGateMove.def = K.GATE_CYCLE.move;
 for (const [k, f] of [
   ["sbRun", "run"],
   ["sbSprint", "sprint"],
@@ -151,6 +168,7 @@ KNOBS.sbNadeThrow.def = K.NADE_TUNE.throw;
 KNOBS.sbNadeBounce.def = K.NADE_TUNE.bounce;
 function resetAll() {
   for (const k of Object.keys(KNOBS)) KNOBS[k].set(KNOBS[k].def);
+  if (process.env.GATES === "1") K.LABS.gates = true;
 }
 /** one match: returns kills by team, captures, times to kill and grenade outcomes */
 function match(diff, seed, lock) {

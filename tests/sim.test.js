@@ -188,4 +188,80 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     rate.toFixed(2)
   );
 }
+/* blast gates (world/gates.js) on Twin Foundry: the AI paths through an open gate and around a shut one,
+   a match with gates replays exactly, and nobody ends up inside a gate */
+{
+  const NAV = CTF.NAV;
+  const G = CTF.Game({ mode: "sim", render: false, seed: 5, gates: true });
+  const mid = K.GATES.live.find(g => g.id === "gate-mid"),
+    b = mid.boxes[0];
+  const through = path =>
+    path.some(c => {
+      const q = NAV.pos(c);
+      return q.x > b.x0 - 0.5 && q.x < b.x1 + 0.5 && q.z > b.z0 - 0.5 && q.z < b.z1 + 0.5;
+    });
+  const route = () => NAV.path(NAV.nearest(0, -24, 0), NAV.nearest(0, -12, 0));
+  /* at 5 s every gate is open; at 9 s the mid gate is about to rise (the AI treats it as shut) */
+  K.gatesAt(5, true);
+  const open = route();
+  K.gatesAt(9, true);
+  const shut = route();
+  check(open && through(open) && open.length < 16, "the AI paths through an open gate", open && open.length);
+  check(
+    shut && !through(shut) && shut.length > open.length,
+    "the AI paths round a gate about to shut",
+    shut && shut.length
+  );
+  K.gatesAt(23.5, true);
+  check(through(route()), "and through it again once it is down");
+  void G;
+  const run = () => {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const M = CTF.Game({ mode: "sim", render: false, seed: 9, gates: true });
+    const log = [];
+    let inside = 0,
+      crossed = 0;
+    const side = new Map();
+    M.onEvent = (t, d) => {
+      if (t === "kill") log.push([M.t.toFixed(3), d.killer && d.killer.idx, d.victim.idx]);
+    };
+    M.start();
+    for (let n = 0; n < 30 * 90 && !M.over; n++) {
+      M.step(1 / 30);
+      for (const a of M.agents) {
+        if (!a.alive) continue;
+        const p = a.pos;
+        for (const g of K.GATES.live)
+          for (const x of g.boxes)
+            if (
+              g.lift > 0 &&
+              p.x > x.x0 - 0.3 &&
+              p.x < x.x1 + 0.3 &&
+              p.z > x.z0 - 0.3 &&
+              p.z < x.z1 + 0.3 &&
+              p.y < x.y1 - 0.05
+            )
+              inside++;
+        /* crossings of the mid gate line between the wing walls */
+        if (Math.abs(p.x) < 9) {
+          const s = Math.sign(p.z - b.z0);
+          if (side.has(a) && side.get(a) !== s && Math.abs(p.z - b.z0) < 2) crossed++;
+          side.set(a, s);
+        } else side.delete(a);
+      }
+    }
+    const lifts = K.GATES.live.map(g => g.lift.toFixed(4));
+    return {
+      sig: JSON.stringify([log, lifts, M.agents.map(a => a.body.pos.toArray().map(v => v.toFixed(4)))]),
+      inside,
+      crossed,
+    };
+  };
+  const r1 = run(),
+    r2 = run();
+  check(r1.sig === r2.sig, "a match with gates replays exactly", r1.sig.length);
+  check(r1.inside === 0, "no pilot is ever inside a raised gate", r1.inside);
+  check(r1.crossed > 0, "the AI goes through the mid gate while it is open", r1.crossed);
+  K.gatesAt(0, false);
+}
 finish("sim");

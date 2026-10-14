@@ -82,6 +82,7 @@ function updTracker(dt) {
   x.beginPath();
   x.arc(C, C, 5.5, 0, Math.PI * 2);
   x.fill();
+  trackerGates(x, C, R);
   for (const c of trackerShown()) {
     const px = C + (c.x / TRACK_RANGE) * R,
       py = C + (c.z / TRACK_RANGE) * R;
@@ -99,4 +100,41 @@ function updTracker(dt) {
     } else x.arc(px, py, c.ally ? 7 : 9.5, 0, Math.PI * 2);
     x.fill();
   }
+}
+/** blast gates on the tracker: a bar along each leaf that is up or about to move (flashing) */
+function trackerGates(x, C, R) {
+  if (!GATES.on) return;
+  const cy = Math.cos(me.yaw),
+    sy = Math.sin(me.yaw),
+    k = R / TRACK_RANGE,
+    G = GATE_CYCLE;
+  x.save();
+  x.beginPath();
+  x.arc(C, C, R, 0, Math.PI * 2);
+  x.clip();
+  x.lineCap = "round";
+  for (const g of GATES.live) {
+    const u = gateCycleT(g, GATES.t);
+    if (g.lift <= 0 && !(u >= G.open - G.warn && u < G.open)) continue;
+    /* steady while it is shut and staying shut; flashing while it warns or moves */
+    const steady = g.lift >= 1 && u < G.open + G.move + G.shut - G.warn;
+    x.strokeStyle = steady ? "#ffae2ecc" : Math.sin(now * Math.PI * 5) > 0 ? "#ffae2eee" : "#ffae2e44";
+    for (const b of g.boxes) {
+      const thin = b.ax === "x";
+      const mx = (b.x0 + b.x1) / 2,
+        mz = (b.z0 + b.z1) / 2;
+      x.lineWidth = Math.max(4, (thin ? b.x1 - b.x0 : b.z1 - b.z0) * k);
+      x.beginPath();
+      for (const s of [-1, 1]) {
+        const dx = (thin ? mx : s > 0 ? b.x1 : b.x0) - me.pos.x,
+          dz = (thin ? (s > 0 ? b.z1 : b.z0) : mz) - me.pos.z;
+        const px = C + (dx * cy - dz * sy) * k,
+          py = C + (dx * sy + dz * cy) * k;
+        if (s < 0) x.moveTo(px, py);
+        else x.lineTo(px, py);
+      }
+      x.stroke();
+    }
+  }
+  x.restore();
 }

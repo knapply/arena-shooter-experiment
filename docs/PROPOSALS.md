@@ -17,6 +17,7 @@ Everything here is **off by default**. Turn prototypes on in **Settings → Labs
 | **Scattergun in the power rotation** | A third weapon in the centre rotation | Invisible: 0.2% of time held, 1% of kills | **Rework** into the pads (above) |
 | **Crossover doors** (Twin Foundry) | A doorway through each wing wall | No measurable effect (lanes, captures, skill share all within noise) | **Drop**, or rework as a back entrance (open question) |
 | **Split power** (Twin Foundry) | Rockets move to the wing platforms | Rocket kills ×3, teamkills +7 to +15%, fights 0.18 to 0.21 s faster, skill share mixed | **Drop** (the pads do the same job better) |
+| **Blast gates** (both maps) | Armoured walls rise out of the floor on a fixed cycle: four round the arena's core in turn, one across each half of Twin Foundry's mid lane | Twin Foundry: pilots in mid 53% → 39%, captures +11 to +37%, but skill share −0.003 to −0.017 (all six negative) and fights 0.05 to 0.33 s shorter. Arena and duels: within noise | **Ship as option** (Labs); the strongest lane-spread result so far, at about a point of skill share |
 | **Core pillars** (arena) | Four pillars off the core's corners | Skill share **−0.016 to −0.025** (clear of noise on all six seed sets and every skill pairing) | **Drop** |
 
 Existing behaviour found along the way (no change made; for the defaults-tuning pass):
@@ -28,13 +29,15 @@ Existing behaviour found along the way (no change made; for the defaults-tuning 
 
 ## How to try them
 
-**In the game:** Settings → Labs. Weapons and the pulse grenade apply from your next respawn. The Twin Foundry changes (doors, split power, scattergun pads) apply from the next capture-the-flag match. Split power and the pads use the same two platforms, so pick one. The arena changes (high ring, core pillars) are simulation-only for now: the free-for-all arena is built once at load and shared with online players, so it would need a rebuild path first.
+**In the game:** Settings → Labs. Weapons and the pulse grenade apply from your next respawn. The Twin Foundry changes (doors, split power, scattergun pads) apply from the next capture-the-flag match. Split power and the pads use the same two platforms, so pick one. Blast gates apply from the next match on both maps, the free-for-all arena included (they are built into both maps and stay sunk while the lab is off). The other arena changes (high ring, core pillars) are simulation-only for now: the free-for-all arena is built once at load and shared with online players, so it would need a rebuild path first.
 
 **In simulation:**
 
 ```bash
 node tools/tune.js labBurst labScatter labBeam labPulse labMelee labWeapons modDoors modSplit modPads
 MAP=arena node tools/tune.js labWeapons labMelee modRing modPillars        # team deathmatch on the arena
+node tools/tune.js labGates                                               # blast gates (MAP=arena too)
+GATES=1 node tools/tune.js labGateOpen labGateShut labGateOnly             # gates on: their cycle, subsets
 MAP=arena TEAM=1 node tools/tune.js labWeapons                            # one-on-one duels
 LOCK=carbine,magnum,burst,scatter,beam KNOBS=none node tools/tune.js     # single-weapon skill share
 LOCK=beam node tools/tune.js labBeamDmg                                  # a lab weapon's numbers
@@ -255,6 +258,33 @@ If it still sits below the carbine, drop it.
 
 **Recommendation: drop.**
 
+### M10. Blast gates (prototyped)
+
+**What:** heavy armoured walls (4.6 m, 0.8 m thick, hazard chevrons) that rise out of a slot in the floor and sink back on a fixed cycle: open 10 s, rising 2.5 s, shut 8 s, sinking 2.5 s (23 s). A klaxon and flashing stripes warn 1.5 s before a gate moves either way, the hydraulics rumble while it moves and it lands with a thud (positional, `sfxAt`). A sunk gate's striped top stays flush with the floor, so you can see where a wall will come up, and the motion tracker shows a raised or warning gate as a bar.
+
+- **Arena:** four gates round the ring about the core, a quarter cycle apart, so the shut side goes round the core: north and south between the core stairs and the barricade (cutting the long east-west lines at |z| 11 to 17), east and west in two leaves either side of the slab (cutting the north-south lines at |x| 8 to 17).
+- **Twin Foundry:** one gate across the mid lane between the wing walls on each half (z = ±17.6), twins, shut together. When mid closes, play moves out to the wings; when it opens, back.
+
+**How it works** (`world/gates.js`): a gate's state is a pure function of the match clock (`gateLift(g, t)`; `phase` staggers them, and every gate is open before its first cycle). Headless matches, replays, kill cams (they draw the gates as they were) and an online client following the host clock all agree with no messages. Leaves are ordinary collision boxes that move in place, so movement, bullets, grenades, rockets, blast line of sight and AI sight all see them as they rise. A rising gate never lifts or traps anyone: a pilot inside a leaf is moved out to the side they were on (`gateShove`, at the start of every `Body.step`), and nobody can step up onto a moving one. The AI's grid counts a gate as shut from 2 s before it starts to rise until it is fully down (patched like broken cover), agents re-plan the moment that changes, and attackers drop their lane bias while their lane's gate is shut. With the lab off the gates stay sunk and a seeded match is identical to one on the code before them.
+
+**Results** (three seed sets, 48 matches per kind, null controls; effect against the null mean):
+
+| | Skill share | Time to kill | Captures per match | Lanes (left / mid / right) | Other |
+|---|---|---|---|---|---|
+| Twin Foundry, Legendary vs Normal | −0.007, −0.015, −0.017 (noise ±0.005 to 0.010) | −0.17, −0.33, −0.16 s | 0.92 → 1.08, 0.78 → 0.92, 0.71 → 0.88 | 24/53/23 → 29/39/32 (every seed set) | time to capture unchanged |
+| Twin Foundry, Normal vs Recruit | −0.003, −0.004, −0.015 (noise ±0.010 to 0.018) | −0.05, −0.17, −0.09 s | 1.39 → 1.54, 1.26 → 1.71, 1.23 → 1.69 | 21/57/21 → 30/41/29 | |
+| Arena team deathmatch, L vs N | −0.006, −0.005, +0.001 (±0.003 to 0.010) | 0, +0.02, +0.06 s | | | kills per minute −0.7 to −1.2; spawn deaths 1.0% → 0.8% |
+| Arena team deathmatch, N vs R | 0.000, −0.015, −0.010 (±0.009 to 0.017) | +0.05, −0.02, 0 s | | | |
+| Duels, L vs N | +0.002, +0.027, +0.001 (±0.009 to 0.019) | −0.01, −0.08, +0.01 s | | | spawn deaths 1.3% → 1.1%, 2.5%, 2.3% |
+| Duels, N vs R | +0.003, +0.007, −0.012 (±0.006 to 0.021) | +0.05, −0.04, −0.09 s | | | |
+
+- **The first layout gated the wings too** (a gate across each wing on each half, the three lanes a third of a cycle apart). It was bad on every count on Twin Foundry: skill share −0.054 to −0.057 (Legendary vs Normal) and −0.025 to −0.034 (Normal vs Recruit), fights 0.43 to 0.49 s shorter, captures down 30 to 50%, and **mid use up** from 53% to 63%: with a wing shut more than half the time, everyone went mid. Mid gates alone (one seed set) took mid to 39%; wing gates alone took it to 81%.
+- **Timing** (mid gates, one seed set, Legendary vs Normal): open 7 or 14 s, shut 5 or 11 s, and the two mid gates half a cycle apart instead of together all measured within the noise of the default (skill share 0.827 to 0.845). 10 / 2.5 / 8 is kept: it measured best and reads well (a gate is up about a third of the time).
+
+**Recommendation: ship as an option (Labs), and playtest on Twin Foundry.** It is the strongest lane-spread result so far (better than the scattergun pads: mid 39% against 47%) and it gets captures moving, which is the main open map problem (finding 3). It does not meet the bar for a default: skill share is a little lower on all six Twin Foundry runs (about a point, like the pads), and fights are shorter, which costs the accessibility goal. Cutting long sightlines takes away the fights where aim decides most (see the core pillars, M5). On the arena it is neutral.
+
+**Open questions:** Should a mid gate close only one half at a time, so the attacking side alternates? Should the warning be longer for new players? Would a gate that only rises to chest height (cover, not a wall) keep the lane spread without the skill cost? Online, the gates follow the host clock already in capture the flag; the free-for-all arena needs the host's match clock in presence (and a protocol bump) before they can ship online.
+
 ### M6 to M9 (not built)
 
 | Idea | Why | What it needs |
@@ -283,6 +313,7 @@ If it still sits below the carbine, drop it.
 |---|---|
 | Lab flags and weapon data | `src/data/weapons.js` (`LABS`, `labOn`, `powerRotation`, `falloffAt`, the three weapons, `meleeDamage`) |
 | Map mods and lab pickups | `src/data/maps.js` (`MAP_MODS`, `mapDoc`, `lab` on pickups) |
+| Blast gates | `src/world/gates.js` (cycle, collision, `gateShove`), `src/render/gate-fx.js` (look, sounds), `gates` in `src/data/maps.js`; AI: `cellCalc` in `src/modes/ctf/nav.js`, `navTo` in `agent.js`, `costFn` in `brain.js` |
 | Settings | `src/core/settings.js` (`LAB_DEFS`, the Labs tab); `src/game/sandbox.js` (`applyLabs`) |
 | Player firing (bursts, pellets, falloff) | `src/weapons/firing.js`, `src/game/loop.js` |
 | Pulse grenade | `src/weapons/grenades.js` (`NADES.pulse`, `pulseBody`) |

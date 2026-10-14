@@ -258,6 +258,12 @@ function matchDrop(withBots = false) {
   }
   return POD_TIME;
 }
+/** put the camera straight on you after a teleport: no smoothing from where you were (it holds even
+    with the world frozen) */
+function snapView() {
+  prevPos.copy(me.pos);
+  smY = me.pos.y;
+}
 /** a pod landing on someone takes them out */
 function podCrush(at) {
   for (const t of targets())
@@ -276,6 +282,9 @@ function frameBody(t) {
   frameHits = hitActs;
   hitActs = new Set();
   destrTick();
+  /* the arena's blast gates run on the match clock (behind the menu, on the page clock); a mode moves
+     its own (CTF: G.t) */
+  if (!EXT) gatesAt(playing ? now - FFA.t0 : now, labOn("gates"));
   pollPad();
   padCapture();
   if (pad.on && $("settings").hidden) padActions();
@@ -525,7 +534,11 @@ function frameBody(t) {
   const lr = me.vel.x * Math.cos(me.yaw) - me.vel.z * Math.sin(me.yaw);
   rpos.copy(prevPos).lerp(me.pos, physAcc * 120);
   if (me.dead || paused) rpos.copy(me.pos);
-  eyeCur += ((me.h === H_STAND ? 1.62 : 1.02) - eyeCur) * Math.min(1, dt * 14);
+  /* the eye: standing, crouched, or well below a crouch in a slide (presentation only: the body
+     keeps its crouched height), dropping in fast with a dip that bottoms out a fifth of a second in */
+  const slid = me.slideT > 0 ? clamp((0.8 - me.slideT) / 0.22, 0, 1) : 1;
+  const eyeT = me.slideT > 0 ? 0.76 - 0.12 * Math.sin(Math.PI * slid) : me.h === H_STAND ? 1.62 : 1.02;
+  eyeCur += (eyeT - eyeCur) * Math.min(1, dt * (me.slideT > 0 ? 24 : 14));
   const eyeH = eyeCur;
   if (me.ground && rpos.y > smY && rpos.y - smY < 0.7) smY += (rpos.y - smY) * Math.min(1, dt * 16);
   else smY = rpos.y;
@@ -542,7 +555,7 @@ function frameBody(t) {
     rpos.z + rnd(-sh, sh)
   );
   const rollT =
-    (me.slideT > 0 ? 0.07 : 0) +
+    (me.slideT > 0 ? 0.1 + 0.06 * Math.sin(Math.PI * slid) : 0) +
     clamp(-lr * 0.004, -0.04, 0.04) +
     (me.thrustT > 0 ? clamp(-lr * 0.006, -0.08, 0.08) : 0) +
     (me.sprint ? Math.sin(stepAcc * Math.PI) * 0.012 : 0);
