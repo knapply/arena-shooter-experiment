@@ -57,13 +57,14 @@ New content can ship off by default: give a weapon `lab: "<name>"` (it appears o
    - `pieces` (`box`, `stairs`, `strip`; `twin: true` mirrors a piece for team maps);
    - `spawns.ffa` and/or `spawns.teams`.
 
-   Optional fields: `flags` (capture the flag), `lanes` (`split`, `x`: lane hints for the AI), and `pickups`.
+   Optional fields: `flags` (capture the flag), `lanes` (`split`, `x`: lane hints for the AI), `pickups` and `zones` (callouts, below).
 2. `validateMap` checks it strictly; `tests/maps.test.js` runs it, including overlap checks.
 3. The AI can play it straight away: `CTF.Game({ map: "<id>", mode: "sim", render: false })`. The nav grid sizes itself from `bounds` and seeds reachability from the first flag or spawn. A map without `flags` plays team deathmatch. Check it with:
    ```bash
    MAP=<id> MATCHES=8 KNOBS=none node tools/tune.js
    ```
-4. Callout names (`CTF.zoneName` in `modes/ctf/brain.js`) are written for Twin Foundry. A new team map should get its own names. A `zones` field on the map document would be the clean way to add them.
+4. Callout names: a team map lists its own in `zones`, `[name, x0, z0, x1, z1, lowest y]` rectangles in Red's half (the first match wins; Blue's half is the same rotated, and "our"/"their" comes from the half). Without `zones`, `CTF.zoneName` (`modes/ctf/brain.js`) falls back to names written for Twin Foundry. Hadal Station is the example.
+5. To offer it in the menu, add an option to `#ffaMap` (a map with `spawns.ffa`) or `#ctfMap` (a map with `spawns.teams`) in `html/index.html`. Online, the CTF host's pick and the arena room hub's pick travel in presence, so everyone loads the same map. Team deathmatch plays on any team map (`CTF.Game({ tdm: true })`; `MODE=tdm` in tools/tune.js).
 
 ## A game mode
 
