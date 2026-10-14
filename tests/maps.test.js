@@ -52,6 +52,7 @@ const broken = {
     pickups: [{ id: "x", weapon: "railgun", p: [0, 0, 0], respawn: 30 }],
   }),
   "no spawns": Object.assign(clone(base), { spawns: {} }),
+  "bad callout zones": Object.assign(clone(base), { zones: [["<b>", 0, 0, 1, 1]] }),
   "prototype pollution": JSON.parse('{"__proto__":{"polluted":1},"schema":1}'),
 };
 for (const [what, doc] of Object.entries(broken)) {
@@ -125,6 +126,59 @@ check(
     ctf: coverCount(K.MAPS.ctf),
   }
 );
+/* Hadal Station: builds clear of overlaps, and every spawn, flag and pickup stands clear on a surface
+   the AI can walk to from the flag stands; its callouts and the map-pick helpers */
+{
+  const doc = K.MAPS.hadal;
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 1, map: "hadal" });
+  const solids = CTF.buildMap().solids;
+  check(G && CTF.NAV.mapId === "hadal" && G.flags.length === 2, "Hadal Station plays capture the flag");
+  check(overlaps(solids).length === 0, "Hadal Station pieces don't overlap", overlaps(solids));
+  const pts = [
+    ...doc.spawns.teams[0],
+    ...doc.spawns.teams[1],
+    ...doc.spawns.ffa,
+    ...doc.flags,
+    ...doc.pickups.map(p => p.p),
+  ];
+  const N = CTF.NAV,
+    home = N.nearest(doc.flags[0][0], doc.flags[0][2], 0);
+  const bad = pts.filter(p => {
+    const c = N.cell(p[0], p[2]);
+    const onTop = c >= 0 && N.ok[c] && Math.abs(N.top[c] - p[1]) < 0.3;
+    const g = K.groundBelow(p[0], p[2], p[1] + 0.5, 0.05);
+    return (
+      !onTop || !N.path(home, c) || !K.freeAt(p[0], p[1] + 0.05, p[2], K.H_STAND) || Math.abs(g - p[1]) > 0.05
+    );
+  });
+  check(bad.length === 0, "every Hadal spawn, flag and pickup stands clear and the AI can reach it", bad);
+  const T = G.teams[0].agents.length;
+  check(T === 4 && doc.spawns.teams.every(t => t.length >= 8), "Hadal Station has a spawn for every pilot");
+  const at = (x, y, z) => ({ x, y, z });
+  const calls = [
+    CTF.zoneName(0, at(1, 0, -31.5)),
+    CTF.zoneName(1, at(1, 0, -31.5)),
+    CTF.zoneName(1, at(-5, 4.2, 0)),
+    CTF.zoneName(0, at(0, 0, 0)),
+    CTF.zoneName(1, at(-13, 2.1, 27)),
+  ];
+  check(
+    calls.join() === "our flag room,their flag room,top mid,bottom mid,our porch",
+    "Hadal Station callouts name both halves from each team's side",
+    calls
+  );
+  CTF.exitMap();
+  check(
+    K.teamMap("hadal") === "hadal" &&
+      K.teamMap("arena") === "ctf" &&
+      K.teamMap("__proto__") === "ctf" &&
+      K.ffaMap("hadal") === "hadal" &&
+      K.ffaMap("ctf") === "arena" &&
+      K.ffaMap(7) === "arena",
+    "map picks only accept maps made for the mode"
+  );
+}
 /* lab map mods (docs/PROPOSALS.md): each one, and every pair on the same map, validates; their pickups
    stand on a surface, clear of walls (split and pads use the same two platforms: pick one) */
 {

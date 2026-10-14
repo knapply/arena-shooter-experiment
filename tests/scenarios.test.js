@@ -182,7 +182,7 @@ const fix = v => +v.toFixed(2);
   /* stairs are walked, never clambered: walking or sprinting up every flight on both maps (center
      and both sides) steps up each riser and reaches the top */
   const stairBad = [];
-  for (const map of ["arena", "ctf"])
+  for (const map of ["arena", "ctf", "hadal"])
     for (const pc of K.mapPieces(K.MAPS[map]).filter(p => p.type === "stairs")) {
       const [dx, dz] = pc.dir,
         run = pc.steps * 0.72 + 1.2;
@@ -204,6 +204,33 @@ const fix = v => +v.toFixed(2);
         }
     }
   check(stairBad.length === 0, "walking up stairs steps up them without clambering", stairBad.slice(0, 4));
+  /* Hadal Station's routes to Top Mid (4.2): one jump onto a 2.1 ledge (the scuba ledge, the street
+     cube), a second onto the deck; from the floor a jump, even a crouch-jump, never reaches it */
+  const hop = (pos, yaw, tuck) =>
+    scenario({
+      map: "hadal",
+      pilots: { a: { pos, yaw } },
+      seconds: 1.2,
+      input: t => ({ a: { f: 1, jumpP: Math.abs(t - 0.1) < 0.005, crouch: tuck && t > 0.15 } }),
+    }).P.a.pos.y;
+  const NORTH = Math.PI,
+    WEST = Math.PI / 2;
+  const routes = {
+    scubaLedge: hop([4.5, 0, -9], NORTH),
+    scubaDeck: hop([4.5, 2.1, -6], NORTH),
+    cubeLedge: hop([12.5, 0, -2], WEST),
+    cubeDeck: hop([10, 2.1, -2], WEST),
+    floorDeck: hop([11.5, 0, 3], WEST, true),
+  };
+  check(
+    Math.abs(routes.scubaLedge - 2.1) < 0.05 &&
+      Math.abs(routes.scubaDeck - 4.2) < 0.05 &&
+      Math.abs(routes.cubeLedge - 2.1) < 0.05 &&
+      Math.abs(routes.cubeDeck - 4.2) < 0.05 &&
+      routes.floorDeck < 1,
+    "Hadal Station: two jumps reach Top Mid by the ledges, none from the floor",
+    Object.fromEntries(Object.entries(routes).map(([k, v]) => [k, fix(v)]))
+  );
   /* stabilize: aiming in the air holds your height */
   let y0 = null,
     drift = 0;

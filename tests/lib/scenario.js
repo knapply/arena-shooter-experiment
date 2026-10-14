@@ -3,7 +3,7 @@
 
      const { scenario } = require("../lib/scenario.js");
      const r = scenario({
-       map: "arena",                                   // or "ctf"
+       map: "arena",                                   // or any MAPS key ("ctf", "hadal")
        pilots: { a: { pos: [0, 0, 20], yaw: 0 } },     // Body fields to set (pos, yaw, pitch, shield, ...)
        seconds: 1.5,
        input: (t, P) => ({ a: { f: 1, sprint: true } }), // held inputs per pilot; *P presses are one-tick
@@ -28,8 +28,11 @@ const HZ = 120;
 let map = "arena";
 function useMap(m) {
   if (m === map) return;
-  if (m === "ctf") CTF.enterMap();
-  else CTF.exitMap();
+  if (m === "arena") CTF.exitMap();
+  else {
+    CTF.useMap(m);
+    CTF.enterMap();
+  }
   map = m;
 }
 function scenario(o) {

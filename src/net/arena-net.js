@@ -60,6 +60,8 @@ function adoptSandbox(sb) {
   sbSeen = k;
   setSandboxOverride(sb);
 }
+/** the free-for-all map the room hub is playing (null while it isn't): joiners load the same */
+let hubMap = null;
 let room = null,
   lastSend = 0,
   lastFast = 0,
@@ -143,6 +145,8 @@ function sendPresence(force) {
       fx: fxOut.slice(),
       dth,
       br: DESTR.recent.slice(),
+      /* the map: players only see the ones on theirs, and the hub's is everyone's */
+      mp: ffaKey,
       /* the room host's sandbox is everyone's (movement, weapon and grenade tuning) */
       sb: amHub() ? sandboxRules() : null,
     })
@@ -214,7 +218,9 @@ function onFastPacket(from, buf) {
 function applyPeer(pe) {
   const pr = pe.presence || {};
   const r0 = remotes.get(pe.peer);
-  if (!pr.p || !Array.isArray(pr.p) || pr.m === "ctf") {
+  const hub = hubPeer() === pe.peer;
+  if (hub) hubMap = pr.p && pr.m !== "ctf" ? ffaMap(pr.mp) : null;
+  if (!pr.p || !Array.isArray(pr.p) || pr.m === "ctf" || ffaMap(pr.mp) !== ffaKey) {
     if (r0) {
       r0.dispose();
       remotes.delete(pe.peer);

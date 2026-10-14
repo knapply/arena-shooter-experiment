@@ -100,6 +100,38 @@ const stats = async p => {
         c = { calls: Math.max(c.calls, v.calls), tris: Math.max(c.tris, v.tris) };
       }
       check(c.calls <= B.ctf.drawCalls && c.tris <= B.ctf.triangles, "CTF view within draw budget", c);
+      /* Hadal Station (a team map, held to the CTF budget): free for all on it, the worst view from
+         every spawn it has (free for all and both teams) at eight headings */
+      await p.evaluate(() => KA.extStop());
+      await p.waitForTimeout(400);
+      await p.selectOption("#ffaMap", "hadal");
+      await p.click("#deploy");
+      await p.waitForTimeout(2500);
+      const hs = await p.evaluate(() => {
+        const S = KA.MAPS.hadal.spawns;
+        return [...S.ffa, ...S.teams[0], ...S.teams[1]];
+      });
+      let h = { calls: 0, tris: 0 };
+      for (const s of hs)
+        for (let k = 0; k < 8; k++) {
+          await p.evaluate(
+            ([s, yaw]) => {
+              KA.me.pos.set(s[0], s[1], s[2]);
+              KA.me.vel.set(0, 0, 0);
+              KA.me.yaw = yaw;
+              KA.me.pitch = 0;
+            },
+            [s, (k * Math.PI) / 4]
+          );
+          await p.waitForTimeout(120);
+          const v = await info();
+          h = { calls: Math.max(h.calls, v.calls), tris: Math.max(h.tris, v.tris) };
+        }
+      check(
+        h.calls <= B.ctf.drawCalls && h.tris <= B.ctf.triangles,
+        "Hadal Station view within draw budget",
+        h
+      );
       check(p.errors.length === 0, "budget scenes have no errors", p.errors.slice(0, 3));
       await p.close();
     }

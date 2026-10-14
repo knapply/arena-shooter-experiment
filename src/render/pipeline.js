@@ -165,6 +165,8 @@ gl_FragColor=vec4(min(hit,vec3(8.))*found*w*fres,1.);}`,
 const MAP_GRADE = {
   arena: { lift: [-0.012, 0.008, 0.03], gain: [1.05, 1.0, 0.94], vib: 0.18 },
   "twin-foundry": { lift: [0.018, -0.004, 0.04], gain: [1.06, 0.98, 0.9], vib: 0.22 },
+  /* cold deep water: teal shadows, blue-green highlights */
+  hadal: { lift: [-0.02, 0.014, 0.05], gain: [0.92, 1.02, 1.08], vib: 0.2 },
 };
 /* heat haze sources for the composite pass, filled by heatUniforms (render/combat-fx.js) */
 const HEAT_U = Array.from({ length: 6 }, () => new THREE.Vector4());

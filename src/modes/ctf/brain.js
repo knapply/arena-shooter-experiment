@@ -166,6 +166,16 @@
 
   /* ---------- zone names for callouts (team-relative) ---------- */
   CTF.zoneName = function (team, p) {
+    /* the map's own callouts, written for Red's half (Blue's is the same rotated) */
+    for (const side of CTF.MAP.zones ? [1, -1] : []) {
+      const s = team === 0 ? side : -side,
+        x = p.x * s,
+        z = p.z * s;
+      const hit = CTF.MAP.zones.find(
+        ([, x0, z0, x1, z1, y0]) => x >= x0 && x <= x1 && z >= z0 && z <= z1 && p.y >= (y0 || -9)
+      );
+      if (hit) return hit[2] < 0 && hit[4] > 0 ? hit[0] : (side > 0 ? "our " : "their ") + hit[0];
+    }
     const z = team === 0 ? p.z : -p.z;
     const lane = CTF.relLane(team, p.x);
     if (z < -34) return p.y > 1.8 ? "our flag stand" : "our base";

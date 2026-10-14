@@ -252,6 +252,12 @@ function buildMap(doc, group) {
   MAPG = group;
   /** @type {Map<string, any>} */
   const byId = new Map();
+  /* box ids are numbered in the map's own range, so every peer numbers a map's boxes the same
+     whatever it built before (the network names broken cover by id) */
+  const ki = Object.values(MAPS).indexOf(doc);
+  let h = 0;
+  for (const c of doc.id) h = (h * 31 + c.charCodeAt(0)) % 89;
+  DESTR.nextId = 1000 * (ki >= 0 ? ki : 10 + h);
   for (const pc of mapPieces(doc)) {
     if (pc.type === "box") {
       const b = box(pc.p[0] + 0, pc.p[1], pc.p[2] + 0, pc.s[0], pc.s[1], pc.s[2], pc.mat);
@@ -273,4 +279,5 @@ function buildMap(doc, group) {
   return { solids, byId };
 }
 SOLID.push(...buildMap(MAPS.arena, ARENA_G).solids);
-const SPAWNS = MAPS.arena.spawns.ffa;
+/* the free-for-all spawns of the map being played (game/deploy.js useFfaMap swaps them) */
+const SPAWNS = MAPS.arena.spawns.ffa.slice();

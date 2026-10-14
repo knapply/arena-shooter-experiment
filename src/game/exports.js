@@ -87,6 +87,8 @@ const KA_API = {
   falloffAt,
   pulseBody,
   mapDoc,
+  teamMap,
+  ffaMap,
   MAP_MODS,
   NADES,
   NADE_TUNE,

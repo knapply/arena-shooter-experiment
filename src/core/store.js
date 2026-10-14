@@ -8,7 +8,7 @@
    localStorage later without touching the code that saves things. Career stats and map files will be
    more documents defined the same way.
 
-   Documents: pilot (callsign, color, voice), settings (options, keys, pad), ctfTeam, ctfBrain
+   Documents: pilot (callsign, color, voice), settings (options, keys, pad), ctfTeam, mapPick, ctfBrain
    (the AI's learned tactics). Each also reads its pre-store localStorage key once, then moves it. */
 const STORE = (() => {
   const APP = "kinetic-arena";
@@ -148,6 +148,15 @@ const STORE = (() => {
     legacy: "ka-ctf-team",
     fromLegacy: raw => (raw === "1" ? 1 : 0),
     clean: d => (d === 1 ? 1 : 0),
+  });
+  /* the maps picked in the menu (free for all; team play) and the team mode (t: 1 = deathmatch) */
+  define("mapPick", {
+    version: 1,
+    clean: d => ({
+      f: typeof d?.f === "string" ? d.f.slice(0, 32) : "",
+      m: typeof d?.m === "string" ? d.m.slice(0, 32) : "",
+      t: d?.t === 1 ? 1 : 0,
+    }),
   });
   define("ctfBrain", { version: 1, legacy: "ka-ctf-brain-v1", clean: d => (Array.isArray(d) ? d : null) });
 
