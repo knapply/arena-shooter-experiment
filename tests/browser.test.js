@@ -1357,7 +1357,9 @@ const podSeats = map => {
       await C.waitForTimeout(3000);
       await C.evaluate(watch);
       let ck = null;
-      for (let tries = 0; tries < 3 && !ck; tries++) {
+      /* (the agents may get you with a grenade or a melee instead: this checks a gunshot kill, so
+         such a kill is tried again) */
+      for (let tries = 0; tries < 5 && !(ck && ck.shots > 0); tries++) {
         await C.evaluate(() => {
           KA.SET.killCam = true;
           const g = CTF.UI.game(),
