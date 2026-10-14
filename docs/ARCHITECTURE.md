@@ -1,6 +1,6 @@
 # Architecture
 
-The game ships as one self-contained `index.html`, built from the modules in `src/` by `node build.mjs`. There is no bundler and no runtime dependency beyond three.js (r128), and PeerJS when you play online. `node build.mjs --trailer` builds the trailer recording page (`out/trailer.html`): the game plus `manifest.trailer` (its modes, and engine modules only it needs). `node tools/sizes.mjs` lists each module's minified size.
+The game ships as one self-contained `index.html`, built from the modules in `src/` by `node build.mjs`. There is no bundler and no runtime dependency beyond three.js (pinned in `src/manifest.json`, loaded from jsDelivr as an ES module that sets the global `THREE` before the game module runs; see `threeTags` in build.mjs), and PeerJS when you play online. The simulation does its vector math with the game's own `Vec3` (`core/vec3.js`), so a three.js upgrade cannot change how a match plays. `node build.mjs --trailer` builds the trailer recording page (`out/trailer.html`): the game plus `manifest.trailer` (its modes, and engine modules only it needs). `node tools/sizes.mjs` lists each module's minified size.
 
 ## Layout
 
@@ -84,7 +84,7 @@ docs/EXTENDING.md      recipes for adding a HUD widget, setting, weapon, map, mo
 | More maps and modes | `world/maps/*`, `modes/*` using the `KA` API; CTF rules in `modes/ctf/rules.js` |
 | ES modules and a bundler | started: `core/store.js`, `core/rng.js`, `game/frame-hooks.js` and `data/modes.js` are ES modules (explicit `import`/`export`; tools/esm.cjs strips both so they still join the shared scope, and `types/engine-modules.d.ts` declares their exports for the script modules). Next: a module whose dependencies are all ES modules can convert the same way; `core/prelude.js` first needs setters for the `let`s other modules assign (`myColor`, `myArmor`), since an import is read-only. When most modules are converted, `build.mjs` can bundle with esbuild instead of concatenating, with the same output |
 | Web Worker / WebAssembly (not needed today: the simulation costs well under 1 ms per frame) | `world/physics.js` (`Body`, raycasts), `modes/ctf/nav.js`, and `modes/ctf/agent.js` are pure simulation with no DOM access and are already exercised headless by `tests/lib/headless.js` |
-| WebGPU renderer, newer three.js | `render/*` only; gameplay code does not touch the pipeline |
+| WebGPU renderer | see NEXT_STEPS (Graphics 4): every custom shader would move to three's node materials (TSL); `render/*`, `characters/look.js`, `world/props.js` and the pods' shaders |
 | Desktop packaging | wraps the built `index.html` unchanged |
 
 ## Developer console
@@ -112,7 +112,7 @@ node build.mjs            # writes index.html and docs/MODULES.md
 node build.mjs --check    # fails if they are out of date (CI runs this)
 node tests/sim.test.js    # two headless AI matches
 node tests/browser.test.js
-THREE_PATH=path/to/three.min.js node tests/render.test.js
+THREE_PATH=path/to/three.module.min.js node tests/render.test.js
 ```
 
 The trailer is not part of the game. `src/manifest.json`'s `trailer` section lists its modules (`modes/trailer-score.js`, `modes/trailer.js`), markup (`html/trailer.html`) and styles; `node build.mjs --trailer` writes `out/trailer.html`, the game plus those files, and the recorder, the previewer and the trailer tests open that page (`open(ctx, { trailer: true })` in `tests/lib/browser.js` builds it). The game's Watch trailer button plays the recorded `media/trailer.mp4`.

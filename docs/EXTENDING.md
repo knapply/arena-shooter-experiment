@@ -105,11 +105,11 @@ A new gait is a new entry in `CLIPS` (take, cycle length range, travel direction
 
 Preview any change with:
 ```bash
-THREE_PATH=three.min.js node tools/rig-preview.js gait    # run, sprint, jump
-THREE_PATH=three.min.js node tools/rig-preview.js loco    # walk, strafe, backpedal, crouched run
-THREE_PATH=three.min.js node tools/rig-preview.js poses   # idle, ADS, melee, reload
-THREE_PATH=three.min.js node tools/rig-preview.js moves   # the armor up close, crouch, ADS, sprint, slide, death
-THREE_PATH=three.min.js node tools/rig-preview.js climb   # a clamber, from the side and three-quarters
+THREE_PATH=three.module.min.js node tools/rig-preview.js gait    # run, sprint, jump
+THREE_PATH=three.module.min.js node tools/rig-preview.js loco    # walk, strafe, backpedal, crouched run
+THREE_PATH=three.module.min.js node tools/rig-preview.js poses   # idle, ADS, melee, reload
+THREE_PATH=three.module.min.js node tools/rig-preview.js moves   # the armor up close, crouch, ADS, sprint, slide, death
+THREE_PATH=three.module.min.js node tools/rig-preview.js climb   # a clamber, from the side and three-quarters
 ```
 
 ## Sounds

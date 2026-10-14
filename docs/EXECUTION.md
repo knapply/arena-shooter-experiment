@@ -21,7 +21,7 @@ Minification is esbuild; `--dev` skips it and turns on the developer console.
 
 ## 2. Page load: top to bottom, once
 
-The browser parses the HTML (menu, HUD, overlays are plain markup), loads three.js r128 from a CDN, then runs the game script. Engine modules execute **in manifest order**, and each one's top-level code runs immediately:
+The browser parses the HTML (menu, HUD, overlays are plain markup), loads three.js from jsDelivr (an import map points its core at the minified build; a module script sets `window.THREE`), then runs the game script, itself a module so it runs after three. Engine modules execute **in manifest order**, and each one's top-level code runs immediately:
 
 | Order | Module(s) | What happens at load |
 |---|---|---|
