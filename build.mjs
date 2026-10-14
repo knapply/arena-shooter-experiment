@@ -23,15 +23,18 @@ export function build({ dev = false, trailer = false } = {}) {
       ? code
       : transformSync(code, { loader: "js", minify: true, target: "es2020", legalComments: "none" }).code;
   const css = code => (dev ? code : transformSync(code, { loader: "css", minify: true }).code);
+  /* markup: comments (but the build's own directives) and indentation dropped; a line break still
+     separates what it separated, so spacing between inline elements is unchanged */
+  const markup = s => (dev ? s : s.replace(/<!--(?!@)[\s\S]*?-->/g, "").replace(/\n\s+/g, "\n"));
   /* the trailer build appends its engine modules (they share the engine's scope, after game/exports.js) */
   const engine = [...man.engine, ...(trailer ? tr.engine : [])].map(mod).join(""),
     modes = [...man.modes, ...(trailer ? tr.modes : [])].map(mod).join("");
   /* dev builds switch on the developer console (press backquote) */
   const game = js(`${dev ? "window.KA_DEV = true;\n" : ""}(() => {\n"use strict";\n${engine}})();\n${modes}`);
-  const html = read("html/index.html")
+  const html = markup(read("html/index.html"))
     .replace("<!--@styles-->", () => css([...man.styles, ...(trailer ? tr.styles : [])].map(read).join("\n")))
-    .replace("<!--@trailer-->\n", () => (trailer ? read(tr.html) : ""))
-    .replace(/<!--@partial ([\w./-]+)-->/g, (_, p) => read(p).replace(/\s+$/, ""))
+    .replace("<!--@trailer-->\n", () => (trailer ? markup(read(tr.html)) : ""))
+    .replace(/<!--@partial ([\w./-]+)-->/g, (_, p) => markup(read(p)).replace(/\s+$/, ""))
     .replace(/<!--@script ([\w./-]+)-->/g, (_, p) => `<script>\n${js(mod(p))}</script>`)
     .replace("<!--@game-->", () => `<script>\n${game}</script>\n</body>\n</html>\n`);
   const problems = [];
