@@ -194,6 +194,17 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
   );
   K.gatesAt(23.5, true);
   check(through(route()), "and through it again once it is down");
+  /* a shut gate low enough to jump onto is a ledge for the AI: the path climbs over it (a jump edge) */
+  mid.h = 2;
+  K.gatesAt(9, true);
+  const low = route();
+  check(
+    low && through(low) && low.some(c => Math.abs(NAV.top[c] - 2) < 0.01),
+    "the AI climbs over a shut gate low enough to jump onto",
+    low && low.length
+  );
+  K.gatesAt(23.5, true);
+  mid.h = 3.9;
   void G;
   const run = () => {
     K.STORE.setBackend(K.STORE.memoryBackend());

@@ -838,6 +838,80 @@ const fix = v => +v.toFixed(2);
       );
     }
     check(worst < 0.01, "a rising gate never lifts a pilot", fix(worst));
+    /* a gate is a ledge like any other: 3.9 m shut is a crouch-jump clamber from the floor (a plain
+       jump falls short), moving or not; standing on one you ride it up and down; never inside one */
+    const leaf = K.GATES.live.find(x => x.id === "gate-n").boxes[0];
+    const inLeaf = q =>
+      q.x + 0.3 > leaf.x0 && q.x - 0.3 < leaf.x1 && q.z > leaf.z0 && q.z < leaf.z1 && q.y < leaf.y1 - 0.05;
+    const climb = (T, o) => {
+      K.gatesAt(T, true);
+      let top = 0,
+        inside = 0;
+      const r = scenario({
+        pilots: { a: { pos: [-1.4, 0, 14], yaw: EAST } },
+        seconds: o.seconds,
+        /* forward until over the gate (o.stop: then stand still on it) */
+        input: (t, P) => (
+          K.gatesAt(T + t, true),
+          {
+            a: {
+              f: !o.stop || P.a.pos.x < -0.3 ? 1 : 0,
+              jumpP: t > 0.1 && t < 0.11,
+              crouch: !!o.tuck && t > 0.15 && t < 0.8,
+            },
+          }
+        ),
+        every: (t, P) => {
+          top = Math.max(top, P.a.pos.y);
+          if (!P.a.clamber && inLeaf(P.a.pos)) inside++;
+        },
+      });
+      return { x: fix(r.P.a.pos.x), y: fix(r.P.a.pos.y), top: fix(top), inside, ground: r.P.a.ground };
+    };
+    const plain = climb(15, { seconds: 1.5 });
+    check(plain.top < 1.3 && plain.x < -0.7, "a plain jump does not reach a shut gate's top", plain);
+    const onto = climb(15, { seconds: 1.5, tuck: true, stop: true });
+    check(
+      Math.abs(onto.y - 3.9) < 0.02 && onto.ground && !onto.inside,
+      "a crouch-jump clambers onto a shut gate",
+      onto
+    );
+    const over = climb(15, { seconds: 3, tuck: true });
+    check(over.x > 1.5 && over.y < 0.01 && !over.inside, "and over it to the other side", over);
+    /* onto a rising gate with a plain jump while it is low, then ride it to the top */
+    const ride = climb(10.8, { seconds: 3, stop: true });
+    check(
+      Math.abs(ride.y - 3.9) < 0.02 && ride.top < 3.95 && !ride.inside,
+      "a pilot on a rising gate rides it up, not launched",
+      ride
+    );
+    /* standing on a shut gate as it sinks: ride it down to the floor */
+    K.gatesAt(19.5, true);
+    let gap = 0;
+    const down = scenario({
+      pilots: { a: { pos: [0, 3.9, 14], air: true } },
+      seconds: 4,
+      input: t => (K.gatesAt(19.5 + t, true), {}),
+      every: (t, P) => (gap = Math.max(gap, Math.abs(P.a.pos.y - Math.max(0, leaf.y1)))),
+    });
+    check(
+      down.P.a.pos.y < 0.01 && gap < 0.05 && Math.abs(down.P.a.pos.x) < 0.4,
+      "a pilot on a sinking gate rides it down",
+      fix(gap)
+    );
+    /* jumping about in the doorway through a whole cycle: never inside a gate */
+    let stuck = 0;
+    K.gatesAt(8, true);
+    scenario({
+      pilots: { a: { pos: [0, 0, 14], yaw: EAST } },
+      seconds: 16,
+      input: t => (
+        K.gatesAt(8 + t, true),
+        { a: { f: Math.sin(t * 3), s: Math.cos(t * 2), jumpP: (t * 120) % 70 < 1, crouch: (t * 10) % 7 < 3 } }
+      ),
+      every: (t, P) => !P.a.clamber && inLeaf(P.a.pos) && stuck++,
+    });
+    check(stuck === 0, "never inside a gate, whatever a pilot does as it moves", stuck);
     /* the state is a function of time alone */
     const g = K.GATES.live.find(x => x.id === "gate-n");
     const lifts = [0, 9.9, 10, 11.25, 12.5, 16, 20.5, 21.75, 23, 33].map(T => K.gateLift(g, T));

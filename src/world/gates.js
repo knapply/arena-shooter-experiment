@@ -5,10 +5,16 @@
    rotates round the map, and before its first cycle a gate is open. Every peer, headless simulation
    and replay that knows the match time therefore agrees on every gate without sending anything.
    Leaves are ordinary collision boxes (SOLID), so movement, bullets, grenades, rockets and AI sight
-   all see them; they rise and sink in place (y0 and y1 move together). A rising gate never lifts or
-   traps a pilot: anyone inside a leaf is moved out to the side they were on (gateShove, from Body.step).
+   all see them; they rise and sink in place (y0 and y1 move together). A gate is a ledge like any
+   other: shut (3.9 m) it is a crouch-jump clamber from the floor, and lower while it moves. Standing on
+   one you ride it up and down; one that rises into you from below moves you out to the side you were
+   on (gateShove, from Body.step), so nobody is launched, crushed or left inside one.
    The AI's grid treats a gate as shut from GATE_CYCLE.lead seconds before it starts to rise until it
-   is fully down again (gatesAt patches the cells, like destruction does), so bots route away early. */
+   is fully down again (gatesAt patches the cells, like destruction does), so bots route away early; a
+   shut gate low enough for a jump edge (nav JUMP) is a ledge they can climb instead.
+   Who moves them: the arena loop while no mode runs (its match clock), and every match built on
+   CTF.Game (capture the flag, team modes, spectating) from G.step with G.t; an online client follows
+   the host clock. A mode that runs its own loop calls KA.gatesAt(matchTime, on) every step. */
 const GATE_CYCLE = { open: 10, move: 2.5, shut: 8, warn: 1.5, lead: 2 };
 const GATES = {
   /** every gate of every built map */
@@ -98,6 +104,8 @@ function gatesAt(t, on) {
     if (lift !== g.lift) {
       g.lift = lift;
       for (const b of g.boxes) {
+        /* where its top was, so a pilot standing on it rides it (gateShove) */
+        b.py1 = b.y1;
         b.y1 = lift * g.h;
         b.y0 = b.y1 - g.h;
       }
@@ -110,17 +118,43 @@ function gatesAt(t, on) {
     }
   }
 }
-/** a pilot inside a gate leaf (it rose into them) steps out to the side they were on, or the other
-    side if that one is blocked; their speed into the gate is dropped. Called at the start of Body.step. */
+/** keep pilots and moving gates apart, at the start of Body.step. A gate is a ledge like any other:
+    you can clamber onto it (moving or not) and stand on it. Standing on one, you ride it up and down;
+    a gate that rises into you from below moves you out to the side you were on (or the other side if
+    that one is blocked), and your speed into it is dropped. Nobody is launched, lifted from below or
+    left inside one. */
 function gateShove(B) {
   const live = GATES.live;
   if (!live.length) return;
-  const p = B.pos;
+  const p = B.pos,
+    c = B.clamber;
   for (let i = 0; i < live.length; i++) {
     const g = live[i];
-    if (g.lift <= 0) continue;
     for (const b of g.boxes) {
-      if (!ov(p.x, p.y, p.z, B.h, b)) continue;
+      const over = p.x + R > b.x0 && p.x - R < b.x1 && p.z + R > b.z0 && p.z - R < b.z1;
+      /* climbing onto a gate as it moves: land on its top where it is now */
+      if (c) {
+        if (
+          c.to.x > b.x0 - R &&
+          c.to.x < b.x1 + R &&
+          c.to.z > b.z0 - R &&
+          c.to.z < b.z1 + R &&
+          c.to.y > b.py1 - 0.05
+        )
+          c.to.y = Math.max(c.to.y, b.y1 + 0.01);
+        continue;
+      }
+      if (!over) continue;
+      const was = b.py1 != null ? b.py1 : b.y1;
+      /* standing on it (feet at its top before it moved): ride it */
+      if (Math.abs(p.y - was) < 0.03 && was > 0.02 && (B.ground || p.y < b.y1)) {
+        if (b.y1 > 0.02) {
+          p.y = b.y1;
+          if (B.vel.y < 0) B.vel.y = 0;
+        }
+        continue;
+      }
+      if (g.lift <= 0 || !ov(p.x, p.y, p.z, B.h, b)) continue;
       const a = b.ax,
         lo = b[a + "0"] - R - 0.02,
         hi = b[a + "1"] + R + 0.02,
@@ -130,7 +164,6 @@ function gateShove(B) {
         p[a] = s > 0 ? hi : lo;
         if (freeAt(p.x, p.y, p.z, B.h)) {
           if (B.vel[a] * s < 0) B.vel[a] = 0;
-          B.clamber = null;
           break;
         }
         p[a] = keep;

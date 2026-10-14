@@ -18,18 +18,23 @@
     JUMP = 2.15,
     CLEAR = 0.42;
   /* a blast gate (world/gates.js) counts at full height while the AI treats it as shut, and not at all
-     otherwise (the grid is built with every gate open) */
+     otherwise (the grid is built with every gate open). One low enough to jump onto is a ledge: the
+     cells along it take its height (widened to a cell, as a leaf is thinner than one), so the edges
+     onto it are jump edges, and it blocks nothing */
   const solid = (b, build) => !b.gate || (!build && b.gate.navShut);
   const y0 = b => (b.gate ? 0 : b.y0),
     y1 = b => (b.gate ? b.gate.h : b.y1);
+  const ledge = b => b.gate && b.gate.h <= JUMP;
+  const pad = (b, ax) => (ledge(b) && b.ax === ax ? 0.5 : 0.01);
   function cellCalc(c, solids, build) {
     const x = X0 + (c % W) + 0.5,
       z = Z0 + ((c / W) | 0) + 0.5;
     let t = 0;
     for (const b of solids) {
       if (!solid(b, build)) continue;
-      if (x >= b.x0 - 0.01 && x <= b.x1 + 0.01 && z >= b.z0 - 0.01 && z <= b.z1 + 0.01 && y1(b) > t)
-        t = y1(b);
+      const px = pad(b, "x"),
+        pz = pad(b, "z");
+      if (x >= b.x0 - px && x <= b.x1 + px && z >= b.z0 - pz && z <= b.z1 + pz && y1(b) > t) t = y1(b);
     }
     top[c] = t;
     let free = t < 6;
@@ -37,6 +42,7 @@
       for (const b of solids) {
         if (
           solid(b, build) &&
+          !ledge(b) &&
           x + CLEAR > b.x0 &&
           x - CLEAR < b.x1 &&
           z + CLEAR > b.z0 &&

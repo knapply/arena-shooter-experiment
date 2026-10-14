@@ -273,7 +273,7 @@ const LAB_DEFS = [
   [
     "labGates",
     "Blast gates",
-    "Armoured walls rise out of the floor for 8 s, then sink for 10: in turn round the arena's core, and across Twin Foundry's mid lane. A klaxon and flashing stripes warn 1.5 s before one moves.",
+    "Armoured walls rise out of the floor for 8 s, then sink for 10: in turn round the arena's core, and across Twin Foundry's mid lane. A klaxon and flashing stripes warn 1.5 s before one moves. Crouch-jump to clamber over a shut one.",
     "gates",
   ],
   [
