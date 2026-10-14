@@ -78,6 +78,7 @@
       this.path = null;
       this.pathI = 0;
       this.repathT = 0;
+      this.gateRev = K.GATES.rev;
       this.goal = new V3();
       /** a teammate's ping to act on: { pos, until } */
       this.ping = null;
@@ -578,6 +579,11 @@
       const p = this.pos;
       const cur = NAV.nearest(p.x, p.z, p.y);
       this.repathT -= dt;
+      /* a blast gate opened or is about to close: plan again now */
+      if (this.gateRev !== K.GATES.rev) {
+        this.gateRev = K.GATES.rev;
+        this.repathT = 0;
+      }
       const gc = NAV.nearest(this.goal.x, this.goal.z, this.goal.y);
       if (!this.path || this.repathT <= 0 || (gc !== this.goalCell && this.repathT < 0.6)) {
         this.repathT = 0.9 + K.rand() * 0.6;

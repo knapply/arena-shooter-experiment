@@ -282,6 +282,9 @@ function frameBody(t) {
   frameHits = hitActs;
   hitActs = new Set();
   destrTick();
+  /* the arena's blast gates run on the match clock (behind the menu, on the page clock); a mode moves
+     its own (CTF: G.t) */
+  if (!EXT) gatesAt(playing ? now - FFA.t0 : now, labOn("gates"));
   pollPad();
   padCapture();
   if (pad.on && $("settings").hidden) padActions();

@@ -790,5 +790,57 @@ const fix = v => +v.toFixed(2);
     Object.assign(L, { burst: false, pulse: false, mods: [] });
   }
 }
+/* ---------- blast gates (world/gates.js): the arena's north gate stands across x = 0, z 10.8 to 17.
+   Its cycle: open until 10 s, rising to 12.5 s, shut until 20.5 s, sinking to 23 s ---------- */
+{
+  /* back on the arena (the lab matches above left Twin Foundry in place) */
+  CTF.exitMap();
+  const at = T => t => K.gatesAt(T + t, true);
+  const across = T =>
+    scenario({
+      pilots: { a: { pos: [-3, 0, 14], yaw: EAST } },
+      seconds: 1.2,
+      input: t => (at(T)(t), { a: { f: 1 } }),
+    }).P.a.pos;
+  try {
+    const shut = across(15),
+      open = across(5);
+    check(shut.x < -0.75 && shut.x > -0.8, "a shut gate stops a pilot", fix(shut.x));
+    check(open.x > 3, "an open gate lets a pilot through", fix(open.x));
+    const target = { pos: new K.THREE.Vector3(3, 0, 14), h: K.H_STAND };
+    const fire = T => (K.gatesAt(T, true), shoot([-5, 1.5, 14], [3, 1.2, 14], { t: target }));
+    check(fire(15) === "world", "a shut gate stops a shot", fire(15));
+    check(fire(5) && fire(5).id === "t", "an open gate lets a shot through", fire(5));
+    check(fire(11.1) === "world" && fire(10.2) && fire(10.2).id === "t", "a rising gate blocks as it rises");
+    /* standing in the doorway as it rises, on either side of its centre line: moved out, never lifted */
+    let worst = 0;
+    for (const x of [0.15, -0.15, 0]) {
+      K.gatesAt(9.5, true);
+      const r = scenario({
+        pilots: { a: { pos: [x, 0, 14] } },
+        seconds: 4,
+        input: at(9.5),
+        every: (t, P) => (worst = Math.max(worst, P.a.pos.y)),
+      });
+      const out = Math.abs(r.P.a.pos.x);
+      check(
+        out > 0.78 && Math.sign(r.P.a.pos.x || 1) === Math.sign(x || 1),
+        "a pilot in a rising gate is moved out to their side",
+        fix(r.P.a.pos.x)
+      );
+    }
+    check(worst < 0.01, "a rising gate never lifts a pilot", fix(worst));
+    /* the state is a function of time alone */
+    const g = K.GATES.live.find(x => x.id === "gate-n");
+    const lifts = [0, 9.9, 10, 11.25, 12.5, 16, 20.5, 21.75, 23, 33].map(T => K.gateLift(g, T));
+    check(
+      JSON.stringify(lifts) === JSON.stringify([0, 0, 0, 0.5, 1, 1, 1, 0.5, 0, 0]),
+      "the gate cycle: open 10 s, rise 2.5 s, shut 8 s, sink 2.5 s",
+      lifts
+    );
+  } finally {
+    K.gatesAt(0, false);
+  }
+}
 check(Date.now() - t0 < 15000, "scenarios run in seconds", Date.now() - t0 + " ms");
 finish("scenarios");

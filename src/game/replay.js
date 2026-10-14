@@ -331,6 +331,8 @@ const REPLAY = (() => {
         g.root.rotation.y = s.yaw;
         rigEvents(g, g.update(Math.max(1e-4, step), Object.assign({}, s.st, { yaw: s.yaw })));
       }
+      /* blast gates as they were then (their state is a function of the gate clock) */
+      if (GATES.on) gateDraw(R.t + GATES.t - now);
       if (cam) CINE.apply(cam, cam.smooth || 0, dt, cam.roll || 0);
       /* the subject's weapon in first person */
       if (cam && cam.vm != null && cam.vmSt) {

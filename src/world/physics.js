@@ -197,6 +197,8 @@ class Body {
     this.meleeCD = Math.max(0, this.meleeCD - dt);
     this.meleeT = Math.max(0, this.meleeT - dt);
     this.landLock = Math.max(0, this.landLock - dt);
+    /* a blast gate rising where you stand moves you out of its way (world/gates.js) */
+    gateShove(this);
     if (this.clamber) {
       const c = this.clamber;
       c.t += dt;
@@ -443,6 +445,7 @@ class Body {
         if (
           rise > 0 &&
           rise <= 0.46 &&
+          !b.gate &&
           (this.ground || wasGround || (this.coyote > 0 && v.y <= 0)) &&
           freeAt(p.x, b.y1 + 0.001, p.z, this.h)
         ) {
