@@ -337,6 +337,8 @@ const ANIM = (() => {
       hipYaw: 0,
       sprintW: 0,
       drop: 0,
+      ready: 1,
+      tuck: 0,
       feet: [foot(), foot()],
       /** the clips in play: B.n of them */
       B: { n: 0, c: new Array(8), w: new Float32Array(8), r: new Uint8Array(8) },
@@ -363,6 +365,8 @@ const ANIM = (() => {
     L.fade = 0;
     L.mode = 0;
     L.drop = 0;
+    L.ready = 1;
+    L.tuck = 0;
     for (const f of L.feet) Object.assign(f, foot());
   }
   const _q = new Float32Array(16),
@@ -512,6 +516,12 @@ const ANIM = (() => {
       for (let i = 0; i < L.B.n; i++) if (L.B.c[i].n.startsWith("crouch")) own += L.B.w[i];
       sink = -0.17 * (1 - own);
     }
+    /* a fighting stance on top of the capture: on the ground the hips sit lower over wider-set
+       feet with the knees pushed out (narrowing as the pace picks up, less of it at a sprint); in
+       the air the knees tuck until the feet reach for the ground */
+    L.ready += ((mode === 0 ? 1 - 0.45 * L.sprintW : 0) - L.ready) * Math.min(1, dt * 6);
+    L.tuck += ((mode === 1 && (I.vy > -3 || I.gd > 1.6) ? 1 : 0) - L.tuck) * Math.min(1, dt * 8);
+    const wide = 0.05 * L.ready * (1 - 0.7 * smooth(0.5, 3.5, I.spd));
     /* ---- orientation warping: the hips turn toward the travel, the rest is done by the feet ---- */
     const natA = Math.atan2(natX, -natZ);
     const moving = mode === 0 && L.moving > 0.05 && I.spd > 0.3;
@@ -547,6 +557,11 @@ const ANIM = (() => {
       qrot(_q, 8, DOWN_S, 0, _ank, o);
       for (let j = 0; j < 3; j++) _ank[o + j] += _kn[o + j];
       qmul(_q, 8, P, an * 4, _aq, s * 4);
+      const sd = s ? 1 : -1;
+      _ank[o] += sd * wide;
+      _kn[o] += sd * wide * 1.8;
+      _ank[o + 1] += 0.15 * L.tuck;
+      _ank[o + 2] += 0.07 * L.tuck;
       /* crouched, the swinging foot stays low */
       if (sink < 0) _ank[o + 1] = 0.07 + (_ank[o + 1] - 0.07) * (1 + sink * 2.4);
       /* stride and direction warping around the point under the hip */
@@ -653,7 +668,7 @@ const ANIM = (() => {
       }
     }
     /* (reach follows the pose exactly: it is as smooth as the pose is) */
-    const dropT = Math.min(0, I.gL, I.gR) + sink;
+    const dropT = Math.min(0, I.gL, I.gR) + sink - 0.075 * L.ready;
     L.drop += (dropT - L.drop) * Math.min(1, dt * (dropT < L.drop ? 30 : 10));
     L.pelP[1] += L.drop + Math.max(-0.3, need);
     /* ---- results in the pelvis' frame ---- */

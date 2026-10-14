@@ -125,11 +125,12 @@ function shieldMaterial() {
       "uniform float uI;uniform float uT;uniform vec3 uC;varying vec3 vN;varying vec3 vV;varying vec3 vP;void main(){float f=pow(1.-abs(dot(normalize(vN),normalize(vV))),1.5);float band=.5+.5*sin(vP.y*42.-uT*26.)*sin(vP.x*23.+vP.z*19.+uT*11.);float a=clamp(uI*(f*1.4+.2)*(.45+.55*band),0.,1.);gl_FragColor=vec4(uC*(1.+f*1.5),a);}",
   });
 }
-/* where the weapon sits (in the chest's frame) for each stance, and per weapon: grip and support-hand points */
+/* where the weapon sits (in the chest's frame) for each stance, and per weapon: grip and support-hand
+   points. A fighting carry: the gun up and pushed out in front, even at a run (port arms) */
 const POSE = {
-  aim: { p: new V3(0.1, 0.04, -0.22), r: [0, 0, 0] },
-  sprint: { p: new V3(0.02, -0.12, -0.16), r: [-0.5, 0.9, 0.45] },
-  reload: { p: new V3(0.08, -0.02, -0.22), r: [0.22, 0.25, 0.65] },
+  aim: { p: new V3(0.11, 0.075, -0.26), r: [0, 0, 0] },
+  sprint: { p: new V3(0.03, -0.06, -0.21), r: [-0.32, 0.85, 0.4] },
+  reload: { p: new V3(0.08, 0.02, -0.25), r: [0.22, 0.25, 0.65] },
   low: { p: new V3(0.12, -0.12, -0.14), r: [-0.7, 0.2, 0.2] },
   rocket: { p: new V3(0.15, 0.13, -0.08), r: [0, 0, 0] },
   rocketRun: { p: new V3(0.12, 0.06, -0.04), r: [-0.35, 0.25, 0.1] },
@@ -274,75 +275,87 @@ function pilotParts() {
   const sph = (k, r, a = 12, b = 9) => geo("sph:" + k, () => new THREE.SphereGeometry(r, a, b));
   const cyl = (k, a, b, h, s = 12) => geo("cyl:" + k, () => new THREE.CylinderGeometry(a, b, h, s));
   /* hips: suit, armored belt with a lit buckle, codpiece, hip and rear plates, pouches */
-  P("pelvis", rb("pel", 0.32, 0.18, 0.21, 0.04), SUIT, 0, 0, 0, null, null, true);
-  P("pelvis", rb("belt", 0.37, 0.07, 0.25, 0.02), TRIM, 0, 0.06, 0);
-  P("pelvis", rb("buckle", 0.07, 0.03, 0.012, 0.004), GLOW, 0, 0.06, -0.128);
-  P("pelvis", rb("cod", 0.15, 0.13, 0.05, 0.015), ARM, 0, -0.03, -0.12);
+  P("pelvis", rb("pel", 0.33, 0.18, 0.22, 0.04), SUIT, 0, 0, 0, null, null, true);
+  P("pelvis", rb("belt", 0.39, 0.075, 0.27, 0.02), TRIM, 0, 0.06, 0);
+  P("pelvis", rb("buckle", 0.07, 0.03, 0.012, 0.004), GLOW, 0, 0.06, -0.138);
+  P("pelvis", rb("cod", 0.16, 0.14, 0.055, 0.016), ARM, 0, -0.03, -0.125);
   for (const sd of [-1, 1]) {
-    P("pelvis", rb("hipPl", 0.05, 0.16, 0.17, 0.015), ARM2, sd * 0.19, -0.02, 0, [0, 0, sd * 0.12]);
-    P("pelvis", rb("pouch", 0.08, 0.07, 0.05, 0.012), TRIM, sd * 0.12, 0.03, 0.14);
+    P("pelvis", rb("hipPl", 0.055, 0.19, 0.2, 0.016), ARM2, sd * 0.2, -0.03, 0, [0, 0, sd * 0.16]);
+    P("pelvis", rb("pouch", 0.08, 0.07, 0.05, 0.012), TRIM, sd * 0.12, 0.03, 0.15);
   }
-  P("pelvis", rb("rearPl", 0.24, 0.12, 0.04, 0.012), ARM2, 0, -0.03, 0.12);
+  P("pelvis", rb("rearPl", 0.26, 0.13, 0.04, 0.012), ARM2, 0, -0.03, 0.125);
   for (const s of ["L", "R"]) {
-    P("tas" + s, rb("tas", 0.11, 0.16, 0.03, 0.01), ARM, 0, -0.08, 0);
-    P("tas" + s, rb("tasLt", 0.06, 0.006, 0.006, 0.002), GLOW, 0, -0.12, -0.017);
+    P("tas" + s, rb("tas", 0.13, 0.18, 0.035, 0.01), ARM, 0, -0.09, 0);
+    P("tas" + s, rb("tasLt", 0.07, 0.006, 0.006, 0.002), GLOW, 0, -0.14, -0.02);
   }
   /* lower and mid torso: suit core with segmented ab plates */
-  P("spine", cap("abs", 0.125, 0.3), SUIT, 0, 0.1, 0, null, null, true);
-  for (const sd of [-1, 1]) P("spine", rb("ab", 0.085, 0.06, 0.035, 0.01), ARM2, sd * 0.05, 0.07, -0.118);
-  P("spine2", rb("obl", 0.27, 0.12, 0.19, 0.04), SUIT, 0, 0.03, 0);
-  for (const sd of [-1, 1]) P("spine2", rb("ab2", 0.09, 0.06, 0.035, 0.01), ARM2, sd * 0.052, 0.04, -0.118);
-  /* chest: plate carrier with split pectoral plates, lit seams, collar and a jetpack */
-  P("chest", rb("chest", 0.46, 0.28, 0.26, 0.05), ARM, 0, 0.1, -0.01, null, null, true);
+  P("spine", cap("abs", 0.13, 0.3), SUIT, 0, 0.1, 0, null, null, true);
+  for (const sd of [-1, 1]) P("spine", rb("ab", 0.09, 0.06, 0.035, 0.01), ARM2, sd * 0.05, 0.07, -0.123);
+  P("spine2", rb("obl", 0.29, 0.12, 0.2, 0.04), SUIT, 0, 0.03, 0);
+  /* chest: a thick plate carrier with heavy split pectorals and a belly plate, lit seams, a high
+     collar ringing the neck with a gorget in front and a raised nape guard, and the jetpack */
+  P("chest", rb("chest", 0.5, 0.32, 0.3, 0.06), ARM, 0, 0.1, -0.01, null, null, true);
   for (const sd of [-1, 1]) {
-    P("chest", rb("pec", 0.18, 0.16, 0.05, 0.02), ARM, sd * 0.098, 0.13, -0.15, [-0.18, -sd * 0.14, 0]);
-    P("chest", rb("pecLt", 0.07, 0.008, 0.01, 0.003), GLOW, sd * 0.15, 0.05, -0.175);
-    P("chest", rb("blade", 0.15, 0.15, 0.04, 0.015), ARM2, sd * 0.11, 0.12, 0.13, [0.12, sd * 0.2, 0]);
+    P("chest", rb("pec", 0.21, 0.2, 0.06, 0.022), ARM, sd * 0.11, 0.13, -0.17, [-0.2, -sd * 0.16, 0]);
+    P("chest", rb("pecLt", 0.08, 0.008, 0.01, 0.003), GLOW, sd * 0.16, 0.035, -0.19);
+    P("chest", rb("blade", 0.17, 0.17, 0.04, 0.015), ARM2, sd * 0.12, 0.12, 0.15, [0.12, sd * 0.2, 0]);
   }
-  P("chest", rb("ridge", 0.035, 0.17, 0.05, 0.01), TRIM, 0, 0.13, -0.17, [-0.18, 0, 0]);
-  P("chest", rb("chest2", 0.34, 0.15, 0.22, 0.04), SUIT, 0, -0.08, -0.01);
-  P("chest", rb("collar", 0.3, 0.06, 0.24, 0.02), TRIM, 0, 0.25, 0);
-  P("chest", rb("pack", 0.34, 0.36, 0.15, 0.03), TRIM, 0, 0.08, 0.19);
-  P("chest", rb("packCv", 0.28, 0.22, 0.04, 0.012), ARM2, 0, 0.12, 0.275);
+  P("chest", rb("ridge", 0.035, 0.19, 0.05, 0.01), TRIM, 0, 0.12, -0.2, [-0.2, 0, 0]);
+  P("chest", rb("belly", 0.28, 0.1, 0.05, 0.015), ARM2, 0, -0.08, -0.14, [0.1, 0, 0]);
+  P("chest", rb("chest2", 0.38, 0.15, 0.24, 0.04), SUIT, 0, -0.08, -0.01);
+  P("chest", cyl("collar", 0.125, 0.15, 0.11, 12), TRIM, 0, 0.28, 0);
+  P("chest", rb("gorget", 0.2, 0.09, 0.04, 0.012), ARM2, 0, 0.28, -0.13, [0.35, 0, 0]);
+  P("chest", rb("nape", 0.26, 0.13, 0.05, 0.015), ARM2, 0, 0.31, 0.11, [-0.25, 0, 0]);
+  P("chest", rb("pack", 0.34, 0.36, 0.15, 0.03), TRIM, 0, 0.08, 0.21);
+  P("chest", rb("packCv", 0.28, 0.22, 0.04, 0.012), ARM2, 0, 0.12, 0.295);
   for (const sd of [-1, 1]) {
-    P("chest", rb("packLt", 0.012, 0.17, 0.01, 0.003), GLOW, sd * 0.155, 0.1, 0.27);
-    P("chest", cyl("noz", 0.04, 0.06, 0.12), TRIM, sd * 0.1, -0.12, 0.25);
-    P("chest", cyl("nozIn", 0.03, 0.03, 0.02), GLOW, sd * 0.1, -0.185, 0.25);
+    P("chest", rb("packLt", 0.012, 0.17, 0.01, 0.003), GLOW, sd * 0.155, 0.1, 0.29);
+    P("chest", cyl("noz", 0.04, 0.06, 0.12), TRIM, sd * 0.1, -0.12, 0.27);
+    P("chest", cyl("nozIn", 0.03, 0.03, 0.02), GLOW, sd * 0.1, -0.185, 0.27);
   }
   for (let i = 0; i < 3; i++)
-    P("chest", rb("vent", 0.2, 0.012, 0.012, 0.003), TRIM, 0, -0.02 + i * 0.03, 0.27);
-  P("chest", rb("packRib", 0.36, 0.04, 0.17, 0.012), ARM, 0, 0.2, 0.19);
+    P("chest", rb("vent", 0.2, 0.012, 0.012, 0.003), TRIM, 0, -0.02 + i * 0.03, 0.29);
+  P("chest", rb("packRib", 0.36, 0.04, 0.17, 0.012), ARM, 0, 0.2, 0.21);
   P("antenna", cyl("ant", 0.005, 0.008, 0.34, 6), TRIM, 0, 0.17, 0);
   P("antenna", sph("antTip", 0.013, 8, 6), GLOW, 0, 0.345, 0);
-  /* neck and head: helmet shell, wide visor, brow, rebreather, cheek and ear guards with lights */
+  /* neck and head: a full-face helmet with one wide wraparound visor under a heavy brow, a jaw
+     guard with a grille, flared cheek plates, ear modules with lights and a low crest */
   P("neck", cap("neck", 0.06, 0.14), SUIT, 0, 0.0, 0);
-  P("neck", cyl("neckRing", 0.075, 0.085, 0.04, 16), TRIM, 0, -0.05, 0);
-  P("head", sph("helm", 0.138, 16, 12), ARM, 0, 0.09, 0.01, null, [1, 1.05, 1.16], true);
-  P("head", sph("visor", 0.11, 16, 10), VISOR, 0, 0.092, -0.07, null, [1.16, 0.42, 0.82]);
-  P("head", rb("brow", 0.2, 0.035, 0.06, 0.012), ARM2, 0, 0.165, -0.105, [0.25, 0, 0]);
-  P("head", rb("breath", 0.085, 0.055, 0.05, 0.015), TRIM, 0, -0.005, -0.13);
+  P("head", sph("helm", 0.138, 14, 11), ARM, 0, 0.085, 0.01, null, [1.03, 1.02, 1.14], true);
+  /* (the visor is a band of a sphere, 220 degrees around the front, just proud of the shell) */
+  const visor = geo("visor", () => new THREE.SphereGeometry(0.14, 18, 5, 2.792, 3.84, 1.19, 0.63));
+  P("head", visor, VISOR, 0, 0.07, 0.01, null, [1.06, 1, 1.18]);
+  P("head", rb("brow", 0.25, 0.04, 0.08, 0.012), ARM2, 0, 0.145, -0.11, [0.35, 0, 0]);
+  P("head", rb("jaw", 0.16, 0.08, 0.1, 0.025), ARM, 0, 0.0, -0.1, [-0.25, 0, 0]);
+  P("head", rb("grille", 0.07, 0.035, 0.02, 0.006), TRIM, 0, 0.0, -0.152, [-0.25, 0, 0]);
   for (const sd of [-1, 1]) {
-    P("head", rb("cheek", 0.04, 0.09, 0.12, 0.012), TRIM, sd * 0.115, 0.02, -0.06, [0, -sd * 0.35, 0]);
-    P("head", rb("ear", 0.04, 0.06, 0.14, 0.012), TRIM, sd * 0.155, 0.08, 0.01);
-    P("head", rb("earLt", 0.008, 0.035, 0.035, 0.003), GLOW, sd * 0.178, 0.08, 0.02);
+    P("head", rb("cheek", 0.035, 0.11, 0.13, 0.01), ARM2, sd * 0.125, 0.03, -0.06, [
+      0.1,
+      -sd * 0.35,
+      sd * 0.1,
+    ]);
+    P("head", rb("ear", 0.045, 0.07, 0.12, 0.012), TRIM, sd * 0.15, 0.08, 0.02);
+    P("head", rb("earLt", 0.008, 0.035, 0.035, 0.003), GLOW, sd * 0.174, 0.08, 0.03);
   }
-  P("head", rb("crest", 0.035, 0.05, 0.2, 0.012), ARM2, 0, 0.25, 0.02);
-  P("head", rb("helmBk", 0.18, 0.08, 0.05, 0.015), ARM2, 0, 0.05, 0.14);
-  /* arms: yoke, layered pauldrons with a lit edge, sleeves, gauntlets, armored gloves and fingers */
+  P("head", rb("crest", 0.04, 0.035, 0.2, 0.01), ARM2, 0, 0.225, 0.0);
+  P("head", rb("helmBk", 0.18, 0.08, 0.05, 0.015), ARM2, 0, 0.04, 0.14);
+  /* arms: yoke, broad layered pauldrons (a heavy shell, a cap plate and a skirt) with a lit edge,
+     sleeves, an elbow cop, heavy gauntlets, armored gloves and fingers */
   for (const [s, sd] of SIDES) {
-    P("clav" + s, rb("yoke", 0.12, 0.05, 0.15, 0.015), TRIM, sd * 0.06, 0.005, 0);
-    P("sh" + s, sph("pad", 0.11, 12, 9), ARM, sd * 0.025, 0.015, 0, null, [1.35, 1, 1.2], true);
-    P("sh" + s, rb("pad2", 0.15, 0.035, 0.19, 0.014), ARM2, sd * 0.06, 0.07, 0, [0, 0, sd * 0.22]);
-    P("sh" + s, rb("padRim", 0.05, 0.03, 0.2, 0.01), TRIM, sd * 0.13, -0.04, 0);
-    P("sh" + s, rb("padLt", 0.006, 0.02, 0.16, 0.002), GLOW, sd * 0.157, -0.02, 0);
-    P("sh" + s, cap("uarm", 0.058, 0.3), SUIT, 0, -0.15, 0, null, null, true);
-    P("sh" + s, rb("bicep", 0.07, 0.14, 0.09, 0.015), ARM, sd * 0.015, -0.14, 0);
-    P("el" + s, sph("elb", 0.058, 10, 8), TRIM, 0, 0, 0);
+    P("clav" + s, rb("yoke", 0.13, 0.06, 0.17, 0.015), TRIM, sd * 0.06, 0.005, 0);
+    P("sh" + s, rb("pad", 0.23, 0.15, 0.28, 0.07), ARM, sd * 0.05, 0.04, 0, [0, 0, sd * 0.32], null, true);
+    P("sh" + s, rb("pad2", 0.17, 0.05, 0.23, 0.016), ARM2, sd * 0.03, 0.115, 0, [0, 0, sd * 0.28]);
+    P("sh" + s, rb("pad3", 0.06, 0.15, 0.24, 0.015), ARM2, sd * 0.15, -0.06, 0, [0, 0, sd * 0.12]);
+    P("sh" + s, rb("padRim", 0.05, 0.035, 0.26, 0.01), TRIM, sd * 0.165, 0.0, 0, [0, 0, sd * 0.32]);
+    P("sh" + s, rb("padLt", 0.006, 0.02, 0.18, 0.002), GLOW, sd * 0.185, -0.08, 0);
+    P("sh" + s, cap("uarm", 0.06, 0.3), SUIT, 0, -0.15, 0, null, null, true);
+    P("sh" + s, rb("bicep", 0.08, 0.15, 0.1, 0.016), ARM, sd * 0.02, -0.16, 0);
+    P("el" + s, rb("elb", 0.09, 0.09, 0.1, 0.03), TRIM, 0, 0, 0.03);
     P("el" + s, cap("farm", 0.058, 0.27), SUIT, 0, -0.13, 0, null, null, true);
-    P("el" + s, cap("gaunt", 0.07, 0.17), ARM, 0, -0.17, 0, null, [1, 1, 1.05], true);
-    P("el" + s, rb("gauntLt", 0.012, 0.08, 0.012, 0.003), GLOW, sd * 0.07, -0.18, 0);
+    P("el" + s, cap("gaunt", 0.078, 0.19), ARM, 0, -0.17, 0, null, [1, 1, 1.08], true);
+    P("el" + s, rb("gauntLt", 0.012, 0.08, 0.012, 0.003), GLOW, sd * 0.078, -0.18, 0);
     for (let i = 0; i < 2; i++)
-      P("el" + s, rb("fvent", 0.012, 0.012, 0.07, 0.003), TRIM, -sd * 0.066, -0.15 - i * 0.03, 0);
+      P("el" + s, rb("fvent", 0.012, 0.012, 0.07, 0.003), TRIM, -sd * 0.074, -0.15 - i * 0.03, 0);
     P("hand" + s, rb("palm", 0.075, 0.09, 0.09, 0.02), SUIT, 0, -0.035, 0);
     P("hand" + s, rb("handPl", 0.014, 0.06, 0.072, 0.005), ARM2, sd * 0.042, -0.03, 0);
     P("hand" + s, rb("knuck", 0.08, 0.022, 0.095, 0.008), TRIM, 0, -0.074, 0);
@@ -352,21 +365,23 @@ function pilotParts() {
     }
     P("thumb" + s, rb("th", 0.022, 0.052, 0.022, 0.008), SUIT, 0, -0.026, 0);
   }
-  /* legs: thigh plates, knee pads, shin and calf guards, armored ankles and boots with a toe joint */
+  /* legs: layered thigh plates over the undersuit, an armored knee cap, layered shin plates and a
+     calf guard, heavy boots with an ankle cuff and a toe joint */
   for (const [s, sd] of SIDES) {
-    P("hip" + s, cap("thigh", 0.09, 0.44), SUIT, 0, -0.21, 0, null, null, true);
-    P("hip" + s, rb("thighPl", 0.15, 0.27, 0.08, 0.025), ARM, 0, -0.2, -0.07, null, null, true);
-    P("hip" + s, rb("thighSd", 0.04, 0.22, 0.13, 0.012), ARM2, sd * 0.085, -0.2, 0);
-    P("hip" + s, rb("thighLt", 0.008, 0.16, 0.008, 0.003), GLOW, sd * 0.106, -0.2, -0.02);
-    P("kn" + s, sph("knee", 0.078, 12, 8), ARM, 0, 0, -0.045, null, [1, 1.1, 0.9]);
-    P("kn" + s, rb("kneePd", 0.12, 0.12, 0.05, 0.02), ARM2, 0, -0.01, -0.08);
+    P("hip" + s, cap("thigh", 0.092, 0.44), SUIT, 0, -0.21, 0, null, null, true);
+    P("hip" + s, rb("thighPl", 0.17, 0.18, 0.09, 0.025), ARM, 0, -0.12, -0.075, [0.06, 0, 0], null, true);
+    P("hip" + s, rb("thighP2", 0.16, 0.15, 0.085, 0.025), ARM2, 0, -0.28, -0.08, [-0.05, 0, 0]);
+    P("hip" + s, rb("thighSd", 0.045, 0.26, 0.15, 0.012), ARM2, sd * 0.09, -0.19, 0);
+    P("hip" + s, rb("thighLt", 0.008, 0.16, 0.008, 0.003), GLOW, sd * 0.114, -0.2, -0.02);
+    P("kn" + s, rb("kneeCap", 0.13, 0.14, 0.08, 0.03), ARM, 0, 0, -0.07, [-0.15, 0, 0]);
     P("kn" + s, cap("shin", 0.074, 0.43), SUIT, 0, -0.21, 0, null, null, true);
-    P("kn" + s, rb("shinPl", 0.13, 0.3, 0.07, 0.02), ARM, 0, -0.19, -0.06, null, null, true);
-    P("kn" + s, rb("calf", 0.11, 0.22, 0.05, 0.015), ARM2, 0, -0.2, 0.065);
-    P("kn" + s, rb("shinLt", 0.04, 0.008, 0.008, 0.003), GLOW, 0, -0.3, -0.097);
-    P("an" + s, rb("foot", 0.13, 0.09, 0.2, 0.025), TRIM, 0, -0.03, 0.0);
-    P("an" + s, rb("ankle", 0.14, 0.08, 0.14, 0.02), ARM2, 0, 0.03, 0.0);
-    P("toe" + s, rb("toe", 0.13, 0.055, 0.1, 0.02), ARM, 0, 0.005, -0.045);
+    P("kn" + s, rb("shinPl", 0.14, 0.19, 0.08, 0.022), ARM, 0, -0.13, -0.065, null, null, true);
+    P("kn" + s, rb("shinP2", 0.13, 0.15, 0.075, 0.02), ARM2, 0, -0.3, -0.07);
+    P("kn" + s, rb("calf", 0.12, 0.24, 0.06, 0.015), ARM2, 0, -0.2, 0.065);
+    P("kn" + s, rb("shinLt", 0.04, 0.008, 0.008, 0.003), GLOW, 0, -0.21, -0.108);
+    P("an" + s, rb("foot", 0.15, 0.1, 0.24, 0.025), TRIM, 0, -0.03, -0.01);
+    P("an" + s, rb("ankle", 0.16, 0.1, 0.16, 0.022), ARM2, 0, 0.04, 0.0);
+    P("toe" + s, rb("toe", 0.15, 0.065, 0.12, 0.02), ARM, 0, 0.005, -0.05);
   }
   return parts;
 }
@@ -542,11 +557,11 @@ function makePilot(color, label) {
     skinning: true,
   });
   const visorM = new THREE.MeshStandardMaterial({
-    color: "#6e4a16",
-    emissive: "#ff9a2e",
+    color: "#5a3a0c",
+    emissive: "#ffa83a",
     emissiveIntensity: 0.22,
-    roughness: 0.06,
-    metalness: 0.95,
+    roughness: 0.05,
+    metalness: 1,
     skinning: true,
   });
   const glowM = new THREE.MeshStandardMaterial({
@@ -818,8 +833,8 @@ function makePilot(color, label) {
         bx: mr / L,
         bz: mb / L,
         ang: 0,
-        angV: S.air ? 2.5 : 0.4,
-        g: 7 + power * 2.5,
+        angV: S.air ? 3 : 1,
+        g: 9 + power * 3,
         vx: mr * 0.8,
         vz: mb * 0.8,
         spin: S.air ? rnd(-2, 2) : 0,
@@ -956,22 +971,25 @@ function makePilot(color, label) {
         ANIM.update(LO, I);
       }
       S.mocap = mocap;
-      /* the body's lean: the capture leans into its own gait, so speed adds less of it here */
+      /* the body's lean: a fighting hunch, forward over the gun, in every stance (the capture leans
+         into its own gait, so speed adds less of it here); hard into a sprint */
       let pel = 0.96,
-        lean = Math.min(0.16, spd * 0.022) * (mocap ? 0.4 : 1),
+        lean = 0.15 + Math.min(0.16, spd * 0.022) * (mocap ? 0.4 : 1),
         roll = 0;
       if (!air && st.crouch) {
         pel = 0.7;
-        lean = 0.2;
+        lean = 0.32;
       }
-      if (!air && st.sprint) lean = mocap ? 0.16 : 0.36;
+      if (!air && st.sprint) lean = mocap ? 0.36 : 0.45;
+      /* a slide: low, leaning back against the lead leg, rolled toward the tucked one */
       if (st.slide) {
-        pel = 0.58;
-        lean = -0.32;
+        pel = 0.42;
+        lean = -0.4;
+        roll = -0.12;
       }
       if (air) {
-        lean = 0.06;
-        roll = clamp(-lr * 0.02, -0.18, 0.18);
+        lean = 0.17;
+        roll = clamp(-lr * 0.025, -0.24, 0.24);
       }
       if (st.thrust) {
         lean = 0.26;
@@ -983,13 +1001,15 @@ function makePilot(color, label) {
       if (st.charge) lean = 0.55;
       if (st.clamber) lean = 0.35;
       const strike = meleeCurve(st.melee);
-      if (st.melee >= 0) lean += strike * 0.35;
+      if (st.melee >= 0) lean += strike * 0.5;
+      /* a shot rocks the shoulders back */
+      lean -= S.spKick.x * 0.6;
       /* aiming down sights eases in: the head drops to the sights */
       S.ads = (S.ads || 0) + ((st.aim && !st.sprint ? 1 : 0) - (S.ads || 0)) * Math.min(1, dt * 12);
       if (!air && !st.slide) {
         /* lean into acceleration and bank into turns */
-        lean += clamp(S.accF * 0.008, -0.14, 0.14);
-        roll += clamp(-S.turn * spd * 0.012, -0.22, 0.22);
+        lean += clamp(S.accF * 0.012, -0.2, 0.2);
+        roll += clamp(-S.turn * spd * 0.02, -0.34, 0.34);
       }
       /* breathing (faster and deeper after running), and a slow weight shift at rest */
       S.puff = clamp((S.puff || 0) + (spd > 4 ? dt * 0.12 : -dt * 0.05), 0, 1);
@@ -1016,7 +1036,7 @@ function makePilot(color, label) {
       }
       /* the spine shares lean and bank between its two segments on top of the capture; breathing
          lifts the chest; a melee blow twists the torso into the strike */
-      const mtw = strike * 0.55;
+      const mtw = strike * 0.8;
       spine.rotation.set((-leanS + st.pitch * 0.3) * 0.5, mtw * 0.5, rollS * 0.5);
       spine2.rotation.set((-leanS + st.pitch * 0.3) * 0.5 + br * 0.012, mtw * 0.5, rollS * 0.5);
       if (mocap) {
@@ -1065,7 +1085,8 @@ function makePilot(color, label) {
           g.toe.rotation.x = near ? LO.toe[i] : 0;
         } else {
           const tg = _lk;
-          if (st.slide) tg.set(i === 0 ? -0.1 : 0.15, i === 0 ? gy + 0.06 : gy, i === 0 ? -0.62 : 0.24);
+          /* the slide: the lead leg out straight ahead, the other folded under it, knee out to the side */
+          if (st.slide) tg.set(i === 0 ? -0.06 : 0.2, i === 0 ? gy + 0.05 : gy + 0.02, i === 0 ? -0.8 : 0.1);
           else if (st.pound === 1) tg.set(side * 0.14, -0.42, -0.18);
           else if (st.pound === 2) tg.set(side * 0.15, -0.83, side * 0.05);
           else if (st.clamber) tg.set(side * 0.12, i === 0 ? -0.4 : -0.78, i === 0 ? -0.32 : 0.12);
@@ -1085,7 +1106,9 @@ function makePilot(color, label) {
             }
           }
           g.cur.lerp(tg, kf);
-          solve2(g.hip, g.kn, 0.44, 0.43, g.hip.position, g.cur, _pole.set(side * 0.15, 0, -1));
+          if (st.slide && i === 1) _pole.set(1, -0.55, -0.25);
+          else _pole.set(side * 0.15, 0, -1);
+          solve2(g.hip, g.kn, 0.44, 0.43, g.hip.position, g.cur, _pole);
           _q1.copy(g.hip.quaternion).multiply(g.kn.quaternion).invert();
           g.an.quaternion.copy(_q1).multiply(_q2.setFromAxisAngle(_a.set(1, 0, 0), roll));
           g.toe.rotation.x = toe;
@@ -1120,29 +1143,30 @@ function makePilot(color, label) {
       /* recoil: each shot kicks the weapon back and up through a spring, heavier for heavier guns */
       if (st.fire && S.t - S.lastKick > R.every) {
         S.lastKick = S.t;
-        S.spKick.v += R.kick;
+        S.spKick.v += R.kick * 1.35;
       }
-      const kick = spring(S.spKick, 0, dt, 7, 0.45);
+      const kick = spring(S.spKick, 0, dt, 9, 0.42);
       _c.copy(gp.p);
       /* aimed guns follow the look pitch (fully when sighted in) */
       const pf =
         gp === POSE.ads || gp === POSE.adsPistol ? 0.95 : gp === POSE.aim || gp === POSE.rocket ? 0.6 : 0;
-      _e1.set(gp.r[0] + st.pitch * pf + kick * 0.35, gp.r[1], gp.r[2]);
+      /* (an aimed gun stays on the aim however far the body leans) */
+      _e1.set(gp.r[0] + st.pitch * pf + kick * 0.5 + (pf > 0 ? leanS * 0.85 : 0), gp.r[1], gp.r[2]);
       if (rl >= 0) reloadGunMotion(rl, _c, _e1);
       _q2.setFromEuler(_e1);
       if (st.melee >= 0) {
         /* the strike: the gun swings across and forward, stock first */
-        _c.z -= 0.32 * strike;
-        _c.x -= 0.14 * strike;
-        _c.y += 0.1 * strike;
-        _q1.setFromEuler(_e1.set(-0.45 * strike, 0.95 * strike, 0.4 * strike));
+        _c.z -= 0.44 * strike;
+        _c.x -= 0.16 * strike;
+        _c.y += 0.12 * strike;
+        _q1.setFromEuler(_e1.set(-0.5 * strike, 1.05 * strike, 0.45 * strike));
         _q2.multiply(_q1);
         /* the swing is heard and seen (rigEvents draws its arc) */
         if ((S.lastMel == null || S.lastMel < 0.08) && st.melee >= 0.08)
           ev = Object.assign(ev || {}, { swing: true });
       }
       S.lastMel = st.melee;
-      _c.z += kick * 0.07;
+      _c.z += kick * 0.1;
       _c.y += br * 0.004;
       const kg = Math.min(1, k * 1.5);
       gun.position.lerp(_c, kg);
@@ -1184,8 +1208,9 @@ function makePilot(color, label) {
       if (air && !st.thrust && !st.stab && st.vy < -6) curlL = Math.min(curlL, 0.4);
       S.lh.lerp(_lk, kf);
       S.rh.lerp(_rk, Math.min(1, kf * 1.5));
-      solveArm(arms[0], S.lh, _pole.set(-0.9, -0.5, 0.5), near);
-      solveArm(arms[1], S.rh, _pole.set(0.9, -0.5, 0.5), near);
+      /* (elbows out, not tucked) */
+      solveArm(arms[0], S.lh, _pole.set(-1, -0.2, 0.3), near);
+      solveArm(arms[1], S.rh, _pole.set(1, -0.2, 0.35), near);
       if (near) {
         const frame = S.flag ? flagG.quaternion : gun.quaternion;
         handTo(arms[1], frame, 0.85, curlR);
@@ -1272,10 +1297,12 @@ function makePilot(color, label) {
     const c = Math.min(1, S.deadT * 3.4);
     pelvis.position.y = 0.96 - 0.3 * c * c;
     pelvis.rotation.y = 0;
-    spine.rotation.set(-0.15 * c, 0, F.bx * 0.1 * c);
-    spine2.rotation.set(-0.15 * c, 0, F.bx * 0.1 * c);
-    neck.rotation.set(0.45 * c, 0, 0);
-    head.rotation.set(0.2 * c, F.bx * 0.4 * c, 0);
+    /* the hit's jolt: the torso whips away from the blow and the head snaps, before the slump */
+    const jolt = S.deadT < 0.3 ? Math.sin((S.deadT / 0.3) * Math.PI) : 0;
+    spine.rotation.set(-0.15 * c + 0.3 * jolt * F.bz, 0.25 * jolt * F.bx, F.bx * (0.1 * c + 0.2 * jolt));
+    spine2.rotation.set(-0.15 * c + 0.3 * jolt * F.bz, 0.15 * jolt * F.bx, F.bx * (0.1 * c + 0.2 * jolt));
+    neck.rotation.set(0.45 * c + 0.4 * jolt, 0, 0);
+    head.rotation.set(0.2 * c + 0.3 * jolt, F.bx * 0.4 * c, 0);
     legs.forEach((g, i) => {
       _lk.set(
         g.side * (0.15 + 0.05 * c),
@@ -1289,8 +1316,8 @@ function makePilot(color, label) {
       g.toe.rotation.x = 0;
     });
     const fl = Math.min(1, S.deadT * 2.5);
-    S.lh.lerp(_lk.set(-0.48, -0.05 + 0.35 * fl * F.bz, 0.2 + 0.25 * fl), kf * 0.6);
-    S.rh.lerp(_rk.set(0.48, -0.05 + 0.3 * fl * F.bz, 0.15 + 0.3 * fl), kf * 0.6);
+    S.lh.lerp(_lk.set(-0.56, -0.02 + 0.38 * fl * F.bz, 0.2 + 0.25 * fl), kf * 0.7);
+    S.rh.lerp(_rk.set(0.56, -0.02 + 0.33 * fl * F.bz, 0.15 + 0.3 * fl), kf * 0.7);
     solveArm(arms[0], S.lh, _pole.set(-0.9, -0.5, 0.5), false);
     solveArm(arms[1], S.rh, _pole.set(0.9, -0.5, 0.5), false);
     for (const A of arms) {

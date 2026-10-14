@@ -1,8 +1,9 @@
 /* Contact sheets of the pilot rig's animation, for working on characters/rig.js and anim.js.
-     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses] [out.png]
+     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves] [out.png]
    gait   a run, a sprint and a jump, seen from the side, six frames each (stepped at exactly 60 Hz)
    loco   the other motion-captured gaits: a walk, a strafe (from the front), a backpedal and a crouched run
    poses  idle, aiming down sights (carbine and magnum), a melee strike, the reload's slap and bolt
+   moves  the armor from the front, three-quarters and behind; crouch, ADS, sprint, a slide and a death
    A pilot really travels (planted feet lock to the ground) across the largest open floor of the
    arena, with the camera keeping pace beside it; real three.js (software WebGL); needs ffmpeg on the PATH. */
 const fs = require("fs"),
@@ -63,7 +64,8 @@ if (!process.env.THREE_PATH) {
         B.pos.x += B.vel.x * dt;
         B.pos.z += B.vel.z * dt;
         B.sprint = m.sprint;
-        B.crouch = m.crouch;
+        B.crouch = m.crouch || m.slide;
+        B.slideT = m.slide ? 0.5 : 0;
         B.aiming = !!m.st.aim;
         B.meleeT = m.st.melee >= 0 ? 0.4 * (1 - m.st.melee) : 0;
         if (m.jumpT >= 0) {
@@ -87,13 +89,11 @@ if (!process.env.THREE_PATH) {
         }
         a.pose(dt, { reload: m.st.reload == null ? -1 : m.st.reload, fire: false, wpn: m.st.wpn | 0 });
       }
-      if (m.cam === "front") {
-        K.me.pos.set(B.pos.x - 3.2, 0, B.pos.z);
-        K.me.yaw = -Math.PI / 2;
-      } else {
-        K.me.pos.set(B.pos.x, 0, B.pos.z + 3);
-        K.me.yaw = 0;
-      }
+      /* the camera's bearing around the pilot: side (0), front (-90 deg), or any angle in degrees */
+      const ca = ((m.cam === "front" ? -90 : m.cam === "side" ? 0 : +m.cam) * Math.PI) / 180,
+        cr = m.r || (m.cam === "side" ? 3 : 3.2);
+      K.me.pos.set(B.pos.x + Math.sin(ca) * cr, 0, B.pos.z + Math.cos(ca) * cr);
+      K.me.yaw = ca;
       K.me.pitch = -0.08;
     }, n);
   /* a new gait: start far enough back that the frames are taken near the middle of the floor */
@@ -117,8 +117,43 @@ if (!process.env.THREE_PATH) {
     await p.screenshot({ path: f, clip: { x: 300, y: 70, width: 360, height: 430 } });
     frames.push(f);
   };
-  const base = { v: 0, dir: 0, sprint: false, crouch: false, jumpT: -1, cam: "side", st: {} };
-  if (mode === "poses") {
+  const base = {
+    v: 0,
+    dir: 0,
+    sprint: false,
+    crouch: false,
+    slide: false,
+    jumpT: -1,
+    cam: "side",
+    r: 0,
+    st: {},
+  };
+  if (mode === "moves") {
+    for (const [m, n] of [
+      [{ cam: -40, r: 2.4 }, 40],
+      [{ cam: "front", r: 2.4 }, 40],
+      [{ cam: 140, r: 2.4 }, 40],
+      [{ crouch: true }, 40],
+      [{ cam: -40, st: { aim: true } }, 40],
+      [{ cam: -40, v: 9, sprint: true }, 70],
+      [{ slide: true, v: 9 }, 4],
+      [{ slide: true, v: 8 }, 20],
+      [{ slide: true, v: 7, cam: -40 }, 30],
+      [{ slide: true, v: 7, cam: "front" }, 30],
+    ]) {
+      await set(Object.assign({}, base, m), (n + 4) / 60);
+      await step(n);
+      await take();
+    }
+    /* a death, seen from the side: going down, and down */
+    await set(Object.assign({}, base, { v: 6.4 }), 0.5);
+    await step(30);
+    await p.evaluate(() => window.__a.rig.die(null, 1));
+    for (const n of [12, 50]) {
+      await step(n);
+      await take();
+    }
+  } else if (mode === "poses") {
     for (const st of [
       {},
       { aim: true },
