@@ -8,8 +8,6 @@ Ideas for what to build next, grouped by area and roughly ordered by value for e
 2. **Free-for-all AI that fights each other.** The practice drones only ever fight you. Letting the CTF agents play free-for-all (every pilot its own team) would make the arena feel alive with friends and drones together, and would let the simulations measure the actual free-for-all mode. The agent code assumes two teams (`G.teams[1 - team]`); it needs an "enemies of" helper.
 3. **King of the Hill and Oddball** on the mode framework: both reuse spawns, stats and the results screen. Oddball needs a carried object (the flag carry is the template).
 4. **Callout zones as map data.** `CTF.zoneName` hardcodes Twin Foundry's geometry. A `zones` field in map documents would give every map proper callouts for the AI, pings and the kill feed.
-5. **Human drop pods visible online in CTF.** Your own pod is local in CTF; other players only see AI pods (relayed by the host). Relay human pods the way the arena does (`pod` / `podto` fx).
-6. **Spawn safety online for the arena host.** Each client picks its own arena spawn from what it sees. A host-advised spawn (or sharing recent fights) would make picks consistent.
 
 ## Competitiveness
 

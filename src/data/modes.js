@@ -65,9 +65,10 @@ const AI_SKILL = {
     nades: 1,
   },
 };
-/* drop pods fall from POD_HEIGHT metres in POD_TIME seconds (a re-entry burn visible across the map) */
-const POD_TIME = 2.6,
-  POD_HEIGHT = 200;
+/* drop pods fall from POD_HEIGHT metres in POD_TIME seconds (a re-entry burn visible across the map),
+   slow at first and faster all the way down (see podLeft in game/pods.js) */
+const POD_TIME = 3,
+  POD_HEIGHT = 320;
 /* the longer fall is spectacle only: a pod launches POD_EARLY seconds before the respawn time, so
    wait + fall is the same as it was with the old 1.35 s drop (an in-place spawn is unchanged) */
 const POD_EARLY = POD_TIME - 1.35;

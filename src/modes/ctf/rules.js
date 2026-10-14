@@ -345,7 +345,19 @@
         const free = pts.filter(p => !held.includes(p));
         if (free.length) pts = free;
       }
-      return K.pickSpawn(pts, foes, G.fights, G.t, K.rand);
+      return K.pickSpawn(pts, foes, G.fights, G.t, K.rand, G.pods ? G.taken() : undefined);
+    };
+    /** with drop pods: where pilots stand and pods are coming down (pending AI pods, players' relayed
+        pods, and in a rendered match every pod in the world), so nobody lands on anybody */
+    G.taken = function () {
+      const out = [];
+      for (const a of G.agents) {
+        if (a.alive) out.push(a.body.pos);
+        else if (a.podAt && a.podPt) out.push({ x: a.podPt[0], y: a.podPt[1], z: a.podPt[2] });
+        if (a.vpod && !a.vpod.landed) out.push(a.vpod.at);
+      }
+      if (G.render && K.podSpots) for (const p of K.podSpots(null)) out.push(p);
+      return out;
     };
     /** drop: a rendered match opens with every AI dropping in by pod (the respawn below, launching
         at once and landing together); the time limit gets the fall back. Headless matches never do */

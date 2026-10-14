@@ -251,12 +251,12 @@ function updSupply(dt) {
     if (!s.landed) {
       s.t += dt;
       const k = Math.min(1, s.t / s.dur);
-      const h = s.h * (1 - k * k * (0.35 + 0.65 * k));
+      const h = s.h * podLeft(k);
       s.prev.copy(s.g.position);
       s.g.position.set(s.at.x + s.seat.x, s.at.y + h, s.at.z + s.seat.z);
       s.g.rotation.y += dt * 1.5;
       s.fire.material.opacity = 0.6 + Math.random() * 0.4;
-      const heat = k < 0.8 ? 1 : Math.max(0.3, 1 - (k - 0.8) * 3.5);
+      const heat = Math.max(0.3, podHeat(k));
       podTrail(s, heat, 0.55);
       /* a blue-white head, so it reads as a supply drop and not a pilot */
       ptAdd(PTS.glow, s.g.position, new V3(), 3.6 * heat, 0x9fd4ff, 1, 0.05);

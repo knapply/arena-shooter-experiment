@@ -1,6 +1,6 @@
 /* ============ DROP PODS: spawns that fall from orbit ============
    With Spawns set to "Drop pods" (Gameplay settings), pilots come back in a pod that drops from
-   POD_HEIGHT (200 m) in POD_TIME (data/modes.js): its nose glows white-hot and it trails a re-entry
+   POD_HEIGHT (320 m) in POD_TIME (data/modes.js), slow at first and faster all the way down: its nose glows white-hot and it trails a re-entry
    burn of flame, embers and smoke you can see from anywhere on the map, fires its retros just before
    impact and punches into the ground: it buries itself up to the collar (podSeat), cracks a crater
    with slabs of floor kicked up around the rim and a dust shockwave, then blows its upper shell off
@@ -13,6 +13,13 @@ const PODS = [];
 const podsOn = () => SET.spawnStyle !== "classic";
 /* pod-local heights (y 0 is the landing point): the nose tip sits POD_NOSE under it, the collar
    (what stays of the hull) ends at 1.55, the petals and cap above it blow off on landing */
+/** how much of its height a pod has left, k (0..1) of the way through its fall: it starts slow and
+    accelerates all the way to a hard impact (ease-in) */
+const podLeft = k => 1 - k * k * k;
+/** its speed then, as a multiple of height / fall time */
+const podSpeed = k => 3 * k * k;
+/** the re-entry burn builds with speed and dims under the retros at the end */
+const podHeat = k => (k < 0.8 ? Math.min(1, 0.35 + podSpeed(k) * 0.4) : Math.max(0.25, 1 - (k - 0.8) * 3.5));
 const POD_R = 0.76,
   POD_NOSE = 0.35,
   POD_BURY = 0.95,
@@ -418,6 +425,13 @@ function steerPod(p, dx, dz, dt) {
   p.at.copy(_stC);
   return true;
 }
+/** where pods are coming down or have just landed (their pilots may still be standing there),
+    other than `except` */
+function podSpots(except) {
+  const out = [];
+  for (const p of PODS) if (p !== except && (!p.landed || p.life < 4)) out.push(p.at);
+  return out;
+}
 /* the landing marker under your own pod while you can steer it */
 const POD_MARK = new THREE.Mesh(
   new THREE.RingGeometry(0.9, 1.25, 40),
@@ -431,7 +445,7 @@ function podMarker(p) {
   if (!POD_MARK.visible) return;
   POD_MARK.position.set(p.vis.x, p.at.y + 0.06, p.vis.z);
   POD_MARK.material.color.setHex(podSteerable(p) ? 0xffb347 : 0xff5a3a);
-  /* from 200 m up the ring would be a speck: it grows with height so it stays a target */
+  /* from 320 m up the ring would be a speck: it grows with height so it stays a target */
   const up = p.skip ? 0 : Math.max(0, p.g.position.y - p.at.y);
   POD_MARK.scale.setScalar((1 + Math.sin(now * 8) * 0.06) * (1 + up * 0.012));
 }
@@ -618,8 +632,8 @@ function updPods(dt) {
     if (!p.landed) {
       p.t += dt;
       const k = Math.min(1, p.t / p.dur);
-      /* falls fast and accelerates; retros flare in the last moments */
-      const h = p.h * (1 - k * k * (0.35 + 0.65 * k));
+      /* slow at first, faster all the way to a hard impact; retros flare in the last moments */
+      const h = p.h * podLeft(k);
       p.prev.copy(p.g.position);
       p.vis.lerp(p.at, Math.min(1, dt * 8));
       /* where it will come to rest, once the landing point is nearly settled */
@@ -637,7 +651,7 @@ function updPods(dt) {
       /* a sprite draws even when it is fully transparent */
       p.retro.visible = p.retro.material.opacity > 0.01;
       /* the nose runs white-hot through the burn and dims as the retros take over */
-      const heat = k < 0.8 ? 1 : Math.max(0.25, 1 - (k - 0.8) * 3.5);
+      const heat = podHeat(k);
       p.heat = heat;
       p.heatGlow = 1.4 + heat * 2.6;
       const near =

@@ -362,8 +362,8 @@ function eyesShot(id) {
 
 /* ---- kill cam: when you die, the last seconds through your killer's eyes, ending on the kill ---- */
 /* tunable: seconds of their view before the kill (at most len, at least min, as the respawn allows),
-   seconds after it, the delay after you die, the slow motion around the killing blow, and how far
-   into your drop pod's fall it may run (you keep the rest of the fall to see and steer) */
+   seconds after it, the delay after you die, and the slow motion around the killing blow. With drop
+   pods your pod waits for the kill cam (killCamHolds): it launches when the cam ends or is skipped */
 const KILLCAM_T = {
   len: 4.5,
   min: 2,
@@ -372,7 +372,6 @@ const KILLCAM_T = {
   slowFrom: 0.15,
   slowTo: 0.35,
   slowK: 0.5,
-  pod: 1.2,
 };
 const KILLCAM = { pending: null, on: false, last: null };
 const KILL_NAMES = {
@@ -411,6 +410,10 @@ function recordedNear(id, t) {
   for (let i = REC.frameAt(f, t); i >= 0 && f[i].t > t - 0.5; i--) if (f[i].poses.has(id)) return true;
   return false;
 }
+/** a kill cam is playing, or about to (your drop pod waits for it) */
+function killCamHolds() {
+  return KILLCAM.on || (!!KILLCAM.pending && me.dead);
+}
 function killCamTick() {
   if (REPLAY.active && (P("jump") || P("melee"))) REPLAY.skip();
   /* back in the fight (a mode respawned you early): the kill cam is over */
@@ -422,10 +425,12 @@ function killCamTick() {
 }
 function playKillCam(k) {
   const T = KILLCAM_T;
-  /* it must be over before you respawn: with pods, a little way into your pod's fall */
-  const until = podsOn() && !INTRO.active ? respawnStart() + T.pod : respawnAt - 0.15;
-  const budget = until - now;
   const slowReal = (T.slowFrom + T.slowTo) / T.slowK + (T.after - T.slowTo);
+  /* over before you respawn: in place, just before it; with pods, by the time your pod would launch,
+     or (when the respawn is too quick for that) after its shortest slow-motion cut, the pod waiting */
+  const pods = podsOn() && !INTRO.active;
+  let budget = (pods ? respawnStart() : respawnAt - 0.15) - now;
+  if (pods) budget = Math.max(budget, T.min - T.slowFrom + slowReal);
   let slow = true,
     len = budget - slowReal + T.slowFrom;
   if (len < T.min) {

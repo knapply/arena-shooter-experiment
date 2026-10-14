@@ -171,7 +171,7 @@ function podCockpit(p, dt) {
   /* readouts: altitude, speed (the fall's own curve), time to impact, steering */
   pvSet("alt", String(Math.round(up)).padStart(3, "0"));
   pvSet("bar", (up / p.h).toFixed(3));
-  pvSet("vel", String(Math.round((p.h / p.dur) * (0.7 * k + 1.95 * k * k))));
+  pvSet("vel", String(Math.round((p.h / p.dur) * podSpeed(k))));
   pvSet("eta", Math.max(0, p.dur - p.t).toFixed(1));
   const steer = podSteerable(p);
   pvSet("steer", p.steer ? (steer ? "OPEN" : "LOCKED") : "—");

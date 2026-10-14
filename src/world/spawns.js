@@ -19,6 +19,8 @@ const SPAWN_W = {
   jitter: 4,
   /** half-angle (radians) of an enemy's view: inside it they'd see you appear */
   view: 1.2,
+  /** a spot with a pilot (or a pod on its way down) closer than this is taken */
+  clear: 2.5,
 };
 const _spE = new V3(),
   _spD = new V3();
@@ -69,18 +71,33 @@ function spawnScore(s, foes, fights, t) {
  * @param {{ pos: any, t: number }[]} fights
  * @param {number} t
  * @param {() => number} rand01
+ * @param {{ x: number, y: number, z: number }[]} [taken] where pilots stand and pods are coming down:
+ *   spots within SPAWN_W.clear of one are passed over while any other is free
  */
-function pickSpawn(points, foes, fights, t, rand01) {
-  let best = points[0],
-    bv = -Infinity;
+function pickSpawn(points, foes, fights, t, rand01, taken) {
+  let best = null,
+    bv = -Infinity,
+    any = points[0],
+    av = -Infinity;
   for (const s of points) {
     const v = spawnScore(s, foes, fights, t) + rand01() * SPAWN_W.jitter;
+    if (v > av) {
+      av = v;
+      any = s;
+    }
+    if (taken && spotTaken(s[0], s[1], s[2], taken)) continue;
     if (v > bv) {
       bv = v;
       best = s;
     }
   }
-  return best;
+  return best || any;
+}
+/** is there a pilot or an incoming pod within SPAWN_W.clear of (x, y, z)? */
+function spotTaken(x, y, z, taken) {
+  for (const p of taken)
+    if (Math.abs(p.y - y) < 3 && Math.hypot(p.x - x, p.z - z) < SPAWN_W.clear) return true;
+  return false;
 }
 /** remember a fight (a hit or a kill) for spawn scoring; keeps the last 32 */
 function noteFight(list, pos, t) {

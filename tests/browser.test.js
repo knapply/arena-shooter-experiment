@@ -270,6 +270,7 @@ const podSeats = map => {
       const b = KA.bots[0];
       KA.me.spawnT = -99;
       KA.me.shield = 0;
+      const t0 = KA.now;
       KA.hurtMe(999, { bot: b, w: "rifle", hd: true });
       await new Promise(r => setTimeout(r, 900));
       /* under load the replay can take a moment to start */
@@ -277,9 +278,28 @@ const podSeats = map => {
       await new Promise(r => setTimeout(r, 400));
       const capEl = document.querySelector("#cine .cap");
       const during = { active: KA.REPLAY.active, cap: capEl ? capEl.textContent : "(no caption)" };
-      /* it runs into the first part of the pod's fall at most (game time runs slower than the clock under load) */
-      for (let i = 0; i < 80 && KA.REPLAY.active; i++) await new Promise(r => setTimeout(r, 100));
-      return { during, after: KA.REPLAY.active, recap: document.getElementById("deadBy").textContent };
+      /* your drop pod waits for it: no pod while it plays, then the pod launches */
+      let podWhile = false;
+      for (let i = 0; i < 300 && KA.REPLAY.active; i++) {
+        podWhile = podWhile || !!KA.myPod;
+        await new Promise(r => setTimeout(r, 50));
+      }
+      const after = KA.REPLAY.active,
+        recap = document.getElementById("deadBy").textContent,
+        endT = KA.now - t0;
+      for (let i = 0; i < 300 && !KA.myPod && KA.me.dead; i++) await new Promise(r => setTimeout(r, 20));
+      const launch = KA.now - t0;
+      for (let i = 0; i < 400 && KA.me.dead; i++) await new Promise(r => setTimeout(r, 50));
+      return {
+        during,
+        after,
+        recap,
+        podWhile,
+        endT,
+        launch,
+        total: KA.now - t0,
+        want: KA.MODE_DATA.ffa.respawn + 1.35,
+      };
     });
     check(
       kc.during.active &&
@@ -288,6 +308,15 @@ const podSeats = map => {
         /Drone-04/.test(kc.recap) &&
         /headshot/.test(kc.recap),
       "dying plays a kill cam from the killer's eyes, then the death recap",
+      kc
+    );
+    check(
+      !kc.podWhile &&
+        kc.launch >= kc.endT - 0.05 &&
+        kc.launch - kc.endT < 0.5 &&
+        kc.total >= kc.want - 0.1 &&
+        kc.total < kc.want + 1,
+      "your drop pod launches when the kill cam ends, and you are back about when you would have been",
       kc
     );
     await p.waitForTimeout(1500);
@@ -407,6 +436,32 @@ const podSeats = map => {
       steer.bury > 0.5 && Math.abs(steer.eye - 1.62) < 0.1 && steer.hud === "visible" && !steer.cockpit,
       "a pod buries itself on impact, and you step up out of it into the fight",
       steer
+    );
+    /* nobody lands on anybody: a spot where a pilot stands (or a pod is coming down) is passed over
+       while any other is free */
+    const taken = await p.evaluate(() => {
+      const pts = KA.SPAWNS,
+        V = KA.THREE.Vector3;
+      const all = pts.slice(1).map(s => new V(s[0], s[1], s[2]));
+      let only = true;
+      for (let i = 0; i < 20; i++) only = only && KA.pickSpawn(pts, [], [], 0, Math.random, all) === pts[0];
+      const saved = KA.bots.map(b => [b.body.pos.clone(), b.body.dead]);
+      KA.bots.forEach((b, i) => {
+        b.body.dead = false;
+        b.body.pos.set(pts[i][0], pts[i][1], pts[i][2]);
+      });
+      let onThem = 0;
+      for (let i = 0; i < 40; i++) if (pts.indexOf(KA.spawnPoint(null)) < KA.bots.length) onThem++;
+      KA.bots.forEach((b, i) => {
+        b.body.pos.copy(saved[i][0]);
+        b.body.dead = saved[i][1];
+      });
+      return { only, onThem };
+    });
+    check(
+      taken.only && taken.onThem === 0,
+      "spawns and pods pass over spots where a pilot stands or a pod is coming down",
+      taken
     );
     /* a landed pod buries itself to the collar: at every spawn with open sky it fits without touching
        a wall, an overhang or the air past a ledge, sitting at most 45 cm off the spot (the pilot is
@@ -920,6 +975,34 @@ const podSeats = map => {
       rb = await roster(B);
     check(ra.length === 8 && ra.some(x => /Friend/.test(x)), "host roster includes friend", ra.join(", "));
     check(rb.length === 8 && rb.some(x => /Host/.test(x)), "friend roster includes host", rb.join(", "));
+    /* players' drop pods are seen by everyone: the friend's pod on the host, the host's on the friend */
+    const podSeen = async (who, viewer, fromHost) => {
+      await who.evaluate(() => {
+        KA.me.spawnT = -99;
+        KA.hurtMe(999, { w: "self", name: "test" });
+      });
+      return viewer.evaluate(async h => {
+        const g = CTF.UI.game();
+        const them = () =>
+          h ? [...g.map.values()].find(a => a.human && !a.local) : g.agents.find(a => a.remote);
+        for (let i = 0; i < 600 && !(them() && them().vpod); i++) await new Promise(r => setTimeout(r, 50));
+        const a = them();
+        return { seen: !!(a && a.vpod), pods: KA.PODS.length };
+      }, fromHost);
+    };
+    const seenOnHost = await podSeen(B, A, false);
+    const seenOnFriend = await podSeen(A, B, true);
+    check(
+      seenOnHost.seen && seenOnFriend.seen,
+      "in capture the flag online, players' drop pods are seen by everyone",
+      { seenOnHost, seenOnFriend }
+    );
+    await A.evaluate(async () => {
+      for (let i = 0; i < 600 && KA.me.dead; i++) await new Promise(r => setTimeout(r, 50));
+    });
+    await B.evaluate(async () => {
+      for (let i = 0; i < 600 && KA.me.dead; i++) await new Promise(r => setTimeout(r, 50));
+    });
     /* power weapons: the HUD shows the spawn's next weapon; a bot taking the sniper is called out (an
        enemy for the host, an ally for the friend) and marked over their head on both screens */
     check(
