@@ -347,6 +347,25 @@ Full readings, dead zones and the layout ideas not taken are in [PROPOSALS.md](P
 
 Skill share is up in every cell, and every fight is a little longer, which gives everyone more time to react.
 
+### Re-checked with the AI pass (on main)
+
+The AI pass (map memory, adaptive bots, the magnum rhythm, hunters that hold range) landed just before this pass. All three decisions were re-run on the merged main. Each one was undone as a knob against the shipped game: `ruRegenDelay=4`, and `modOneSkull` / `modOldSpawns`, map mods that restore the layouts from before this pass. The setup matched: the same modes, maps and pairings, seed sets 100 and 700, 48 matches of each kind, four null controls. **All three hold; nothing was reverted.**
+
+| Undo | Skill share (against the shipped game) | Other effects |
+|---|---|---|
+| Recharge delay back to 4 s | **−0.006**, lower in 11 of 14 readings; every Slayer and Oddball reading lower | fights 0.19 s shorter, grenade self-kills +7, teamkills +16. Normal vs Recruit: **−0.014**, lower in 7 of 7; Recruit fights 0.16 s shorter |
+| One skull spot | **−0.016, −0.020, −0.023, −0.032**: lower and clear of the noise in all four readings | fights 0.17 s shorter; the better team's share of skull time down by up to 1 point; 1 to 3 more changes of hands a match; fewer lead changes on the arena (2.1 to 1.7 and 2.0 to 2.0) |
+| Old free-for-all spawns | **−0.003, −0.006, −0.004, −0.006**: lower in all four readings | arena spawn deaths 1.0% → 1.7 to 1.9%; on Twin Foundry the new AI already avoids most spawn deaths (0.4 to 0.7% either way) |
+
+The new AI raises every baseline:
+
+- Slayer: 0.865 on the arena, 0.837 on Twin Foundry.
+- Free-for-all: 0.77 to 0.78.
+- Oddball: 0.93 to 0.94.
+- CTF is unchanged at 0.85.
+
+**For the AI side:** in arena Oddball, wherever the skull starts, one side of the arena takes 55 to 70% of pilot time and the other side is nearly empty. The carrier runs to a favourite hold spot and the fight follows it. This happens with one skull spot as well as three, so it comes from the hold-spot choice, not the layout.
+
 ### For a playtest, not a default
 
 - **Oddball is now very skill-decided** (the better team holds the skull 98% of the time). That's right for a competitive mode, but harsh on new players; matchmaking or the adaptive difficulty matters most here.

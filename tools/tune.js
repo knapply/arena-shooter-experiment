@@ -151,6 +151,9 @@ const KNOBS = {
   modPads: { set: mod("pads"), def: 0, try: [1] },
   modRing: { set: mod("ring"), def: 0, try: [1] },
   modPillars: { set: mod("pillars"), def: 0, try: [1] },
+  /* pass four's layout changes undone (the skull spots; the spread free-for-all spawns), to re-measure */
+  modOneSkull: { set: mod("oneskull"), def: 0, try: [1] },
+  modOldSpawns: { set: mod("oldspawns"), def: 0, try: [1] },
   /* blast gates (both maps), and their cycle in seconds (GATES=1 turns the gates on for every variant) */
   labGates: { set: lab("gates"), def: 0, try: [1] },
   labGateOpen: { set: v => (K.GATE_CYCLE.open = v), def: 10, try: [7, 14] },

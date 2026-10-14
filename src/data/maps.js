@@ -499,6 +499,37 @@ function ringPieces() {
   return out;
 }
 const MAP_MODS = {
+  /* the layouts before pass four (docs/TUNING.md), kept so the changes can be measured again: the
+     skull's one spot, and the old free-for-all spawns (the arena's eleven; Twin Foundry's bases) */
+  oneskull: {
+    map: ["arena", "ctf"],
+    name: "One skull spot",
+    set: { arena: { balls: undefined }, ctf: { balls: undefined } },
+  },
+  oldspawns: {
+    map: ["arena", "ctf"],
+    name: "Free-for-all spawns before pass four",
+    set: {
+      arena: doc => ({
+        spawns: Object.assign({}, doc.spawns, {
+          ffa: [
+            [24, 2.6, 24],
+            [-24, 2.6, -24],
+            [24, 2.6, -24],
+            [-24, 2.6, 24],
+            [0, 0, 22],
+            [0, 0, -22],
+            [22, 0, 0],
+            [-22, 0, 0],
+            [0, 3.2, 2],
+            [10, 0, -30],
+            [-10, 0, 30],
+          ],
+        }),
+      }),
+      ctf: doc => ({ spawns: { teams: doc.spawns.teams } }),
+    },
+  },
   /* Twin Foundry: a doorway through each wing wall, so mid and the wings can rotate early */
   doors: {
     map: "ctf",
