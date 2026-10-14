@@ -271,6 +271,12 @@ const LAB_DEFS = [
     "melee",
   ],
   [
+    "labGates",
+    "Blast gates",
+    "Armoured walls rise out of the floor for 8 s, then sink for 10: in turn round the arena's core, and across Twin Foundry's mid lane. A klaxon and flashing stripes warn 1.5 s before one moves.",
+    "gates",
+  ],
+  [
     "labDoors",
     "Twin Foundry: crossover doors",
     "A doorway through each wing wall, so mid and the wings can rotate early.",

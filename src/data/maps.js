@@ -121,6 +121,31 @@ MAPS.arena = {
     { id: "beam-ne", weapon: "beam", lab: "beam", p: [21, 2.6, 27], respawn: 45 },
     { id: "beam-sw", weapon: "beam", lab: "beam", p: [-21, 2.6, -27], respawn: 45 },
   ],
+  /* blast gates (world/gates.js): one across each side of the ring round the core, cutting its long
+     lines (north and south between the stairs and the barricade, east and west either side of the
+     slab). A quarter cycle apart, so the shut side goes round the core */
+  gates: [
+    { id: "gate-n", leaves: [[0, 13.88, 0.8, 6.24]], h: 4.6, phase: 0 },
+    {
+      id: "gate-e",
+      leaves: [
+        [10.4, 0, 4.4, 0.8],
+        [15.2, 0, 3.6, 0.8],
+      ],
+      h: 4.6,
+      phase: 0.25,
+    },
+    { id: "gate-s", leaves: [[0, -13.88, 0.8, 6.24]], h: 4.6, phase: 0.5 },
+    {
+      id: "gate-w",
+      leaves: [
+        [-10.4, 0, 4.4, 0.8],
+        [-15.2, 0, 3.6, 0.8],
+      ],
+      h: 4.6,
+      phase: 0.75,
+    },
+  ],
 };
 MAPS.ctf = {
   schema: 1,
@@ -268,6 +293,10 @@ MAPS.ctf = {
     { id: "beam-r", weapon: "beam", lab: "beam", p: [-17, 0, -9], respawn: 45 },
     { id: "beam-b", weapon: "beam", lab: "beam", p: [17, 0, 9], respawn: 45 },
   ],
+  /* blast gates (world/gates.js): one across the mid lane between the wing walls on each half, shut
+     together, so mid closes and play moves out to the wings, then back. Gates across the wings were
+     tried too and pushed everyone into mid (docs/PROPOSALS.md, M10) */
+  gates: [{ id: "gate-mid", leaves: [[0, -17.6, 18.8, 0.8]], h: 4.6, phase: 0, twin: true }],
   /* lanes for the AI and callouts: x < -split is the left wing, x > split the right, mid between */
   lanes: { split: 9.5, x: [-18, 0, 18] },
 };
@@ -364,6 +393,23 @@ function validateMap(doc) {
           bad(`pickup ${p.id}: rotate must be true or false`);
         else if (!vec(p.p, 3, -500, 500) || !num(p.respawn, 5, 600))
           bad(`pickup ${p.id}: bad position or respawn`);
+      });
+  }
+  if (doc.gates !== undefined) {
+    if (!Array.isArray(doc.gates) || doc.gates.length > 16) bad("at most 16 gates");
+    else
+      doc.gates.forEach((g, i) => {
+        if (!g || typeof g.id !== "string" || !/^[a-z0-9-]{1,24}$/.test(g.id)) bad(`gate ${i}: bad id`);
+        else if (
+          !Array.isArray(g.leaves) ||
+          !g.leaves.length ||
+          g.leaves.length > 4 ||
+          !g.leaves.every(l => vec(l, 4, -500, 500) && l[2] > 0.1 && l[3] > 0.1)
+        )
+          bad(`gate ${g.id}: leaves must be 1-4 [x, z, width, depth]`);
+        else if (!num(g.h, 1, 20) || !num(g.phase, 0, 1)) bad(`gate ${g.id}: h 1-20 and phase 0-1`);
+        else if (g.twin !== undefined && typeof g.twin !== "boolean")
+          bad(`gate ${g.id}: twin must be true or false`);
       });
   }
   if (doc.symmetry !== undefined && doc.symmetry !== "rotate180") bad("symmetry can only be rotate180");

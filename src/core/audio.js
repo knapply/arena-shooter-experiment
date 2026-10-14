@@ -407,6 +407,23 @@ function sfx(kind, vol = 1) {
         f.frequency.exponentialRampToValueAtTime(1150, t + 0.28);
         break;
       }
+      /* blast gates (world/gates.js): a two-tone klaxon before they move, hydraulics, the stop */
+      case "klaxon":
+        tone(t, "sawtooth", 520, 520, 0.2, 0.07 * vol, 0.01);
+        tone(t + 0.22, "sawtooth", 390, 390, 0.2, 0.07 * vol, 0.01);
+        break;
+      case "gatemove": {
+        const T = GATE_CYCLE.move;
+        nz(t, T, "lowpass", 190, 0.4 * vol, 1, 0.25);
+        tone(t, "sawtooth", 46, 58, T, 0.07 * vol, 0.3);
+        nz(t, 0.45, "highpass", 3600, 0.09 * vol, 1, 0.02);
+        break;
+      }
+      case "gateslam":
+        tone(t, "sine", 72, 30, 0.7, 0.55 * vol, 0.004);
+        nz(t, 0.4, "lowpass", 600, 0.45 * vol);
+        nz(t, 0.09, "bandpass", 2200, 0.16 * vol);
+        break;
     }
   } catch (e) {}
 }

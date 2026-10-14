@@ -52,6 +52,10 @@ const broken = {
     pickups: [{ id: "x", weapon: "railgun", p: [0, 0, 0], respawn: 30 }],
   }),
   "no spawns": Object.assign(clone(base), { spawns: {} }),
+  "a gate without leaves": Object.assign(clone(base), { gates: [{ id: "g", leaves: [], h: 4, phase: 0 }] }),
+  "a gate phase out of range": Object.assign(clone(base), {
+    gates: [{ id: "g", leaves: [[0, 0, 4, 0.8]], h: 4, phase: 2 }],
+  }),
   "prototype pollution": JSON.parse('{"__proto__":{"polluted":1},"schema":1}'),
 };
 for (const [what, doc] of Object.entries(broken)) {
@@ -94,6 +98,8 @@ check(
    spawn point is inside geometry */
 function overlaps(solids) {
   const out = [];
+  /* blast gates are checked shut (standing on the floor at full height) */
+  solids = solids.map(b => (b.gate ? Object.assign({}, b, { y0: 0, y1: b.gate.h, pid: b.gate.id }) : b));
   for (let i = 0; i < solids.length; i++)
     for (let j = i + 1; j < solids.length; j++) {
       const a = solids[i],
@@ -153,5 +159,25 @@ check(
       bad.map(p => p.id)
     );
   }
+}
+/* blast gates: no spawn, flag or pickup stands where a gate rises */
+for (const key of ["arena", "ctf"]) {
+  const doc = K.MAPS[key];
+  const pts = [
+    ...(doc.spawns.ffa || []),
+    ...(doc.spawns.teams || []).flat(),
+    ...(doc.flags || []),
+    ...(doc.pickups || []).map(q => q.p),
+  ];
+  const hit = [];
+  for (const g of K.mapGates(doc))
+    for (const [x, z, w, d] of g.leaves)
+      for (const q of pts)
+        if (Math.abs(q[0] - x) < w / 2 + 1 && Math.abs(q[2] - z) < d / 2 + 1) hit.push([g.id, q]);
+  check(
+    K.mapGates(doc).length >= 2 && !hit.length,
+    `${key}: gates stand clear of spawns, flags and pickups`,
+    hit
+  );
 }
 finish("maps");

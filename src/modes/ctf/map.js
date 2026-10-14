@@ -68,11 +68,13 @@
     if (m.home) {
       /* the arena: nothing to swap, but the AI's grid follows its destruction */
       K.DESTR.onChange = b => CTF.NAV.patch(b);
+      K.GATES.onNav = b => CTF.NAV.patch(b);
       return;
     }
     if (m.arena) return;
     K.resetDestruction();
     K.DESTR.onChange = b => CTF.NAV.patch(b);
+    K.GATES.onNav = b => CTF.NAV.patch(b);
     if (K.sun) {
       const c = K.sun.shadow.camera;
       c.left = -34;
@@ -88,6 +90,7 @@
   };
   CTF.exitMap = function () {
     const m = BUILT[CTF.MAP.id];
+    K.GATES.onNav = null;
     if (m && m.home) {
       K.DESTR.onChange = null;
       return;

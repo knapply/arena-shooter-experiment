@@ -17,24 +17,32 @@
   const STEP = 0.47,
     JUMP = 2.15,
     CLEAR = 0.42;
-  function cellCalc(c, solids) {
+  /* a blast gate (world/gates.js) counts at full height while the AI treats it as shut, and not at all
+     otherwise (the grid is built with every gate open) */
+  const solid = (b, build) => !b.gate || (!build && b.gate.navShut);
+  const y0 = b => (b.gate ? 0 : b.y0),
+    y1 = b => (b.gate ? b.gate.h : b.y1);
+  function cellCalc(c, solids, build) {
     const x = X0 + (c % W) + 0.5,
       z = Z0 + ((c / W) | 0) + 0.5;
     let t = 0;
     for (const b of solids) {
-      if (x >= b.x0 - 0.01 && x <= b.x1 + 0.01 && z >= b.z0 - 0.01 && z <= b.z1 + 0.01 && b.y1 > t) t = b.y1;
+      if (!solid(b, build)) continue;
+      if (x >= b.x0 - 0.01 && x <= b.x1 + 0.01 && z >= b.z0 - 0.01 && z <= b.z1 + 0.01 && y1(b) > t)
+        t = y1(b);
     }
     top[c] = t;
     let free = t < 6;
     if (free)
       for (const b of solids) {
         if (
+          solid(b, build) &&
           x + CLEAR > b.x0 &&
           x - CLEAR < b.x1 &&
           z + CLEAR > b.z0 &&
           z - CLEAR < b.z1 &&
-          b.y1 > t + STEP &&
-          b.y0 < t + 1.8
+          y1(b) > t + STEP &&
+          y0(b) < t + 1.8
         ) {
           free = false;
           break;
@@ -85,7 +93,7 @@
     pruned = new Uint8Array(N);
     for (let j = 0; j < H; j++)
       for (let i = 0; i < W; i++) {
-        cellCalc(j * W + i, solids);
+        cellCalc(j * W + i, solids, true);
       }
     NAV.top = top;
     NAV.ok = ok;
