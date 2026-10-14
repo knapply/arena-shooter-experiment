@@ -35,7 +35,7 @@ Ideas for what to build next, grouped by area and roughly ordered by value for e
 2. **Light shafts: done** (Ultra). The rays come from the open sky near the sun, so they fan out from every edge that crosses it.
 3. **Decals: done.** Bullet holes, scorches and pod craters in one pooled instanced mesh; the ring holds 24 (Basic combat effects: pod craters only), 64 (High) or 128 (Ultra) and overwrites the oldest.
 4. **WebGPU renderer: not feasible on three.js r128.** The game ships r128 (a single CDN script), whose renderer is WebGL only; three.js's WebGPU renderer needs a much newer release, ES module imports and its node material system, which would mean porting every `onBeforeCompile` patch and post shader. Revisit only together with a three.js upgrade; `render/*` is still the only place it would touch.
-5. **Character detail: mostly done.** Per-team armor patterns (chevrons, camo, stripes) and a visor that pulses with the shield are in `characters/look.js`. Still open: a cloth tabard on the hips (the flag's cloth, `flagCloth` in `characters/rig.js`, is the template).
+5. **Character detail: done.** Per-team armor patterns (chevrons, camo, stripes) and a visor that pulses with the shield are in `characters/look.js`, and a short tabard hangs on the hips (two spring-driven flaps). A truly simulated cloth tabard (like the flag) is still open.
 6. **Motion capture: done.** CMU takes drive the locomotion as compact clips (`data/anim-clips.js`, converted by `tools/mocap/convert.js`), blended in `characters/anim.js`.
 
 ## Sound

@@ -140,9 +140,26 @@ const POSE = {
   /* the magnum: two hands, out in front on the centerline, elbows wide */
   pistol: { p: new V3(0.05, 0.1, -0.38), r: [0, 0, 0] },
 };
-/* a melee blow: a fast strike that leads with the stock or the gun's butt, then a slower recovery (0..1) */
-const meleeCurve = m =>
-  m < 0 ? 0 : m < 0.3 ? Math.sin(((m / 0.3) * Math.PI) / 2) : Math.cos((((m - 0.3) / 0.7) * Math.PI) / 2);
+/* a blow in three parts over its 0..1: the wind-up (w, cocking back), the strike (s, fast out to full
+   reach and held), the follow-through past it (f), then the recovery; contact is at MEL_HIT */
+const sstep = (a, b, x) => {
+  const t = clamp((x - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+const MEL = { w: 0, s: 0, f: 0 },
+  MEL_HIT = 0.28;
+function meleeShape(u) {
+  MEL.w = u < 0 ? 0 : u < 0.1 ? Math.sin((u / 0.1) * 1.5708) : u < 0.17 ? 1 - (u - 0.1) / 0.07 : 0;
+  const k = clamp((u - 0.1) / (MEL_HIT - 0.1), 0, 1);
+  MEL.s =
+    u < 0.1
+      ? 0
+      : u < 0.55
+        ? 1 - (1 - k) * (1 - k) * (1 - k)
+        : 0.5 + 0.5 * Math.cos(((u - 0.55) / 0.45) * Math.PI);
+  MEL.f = u > MEL_HIT && u < 0.55 ? Math.sin(((u - MEL_HIT) / (0.55 - MEL_HIT)) * Math.PI) : 0;
+  return MEL;
+}
 const WPN_RIG = [
   { grip: new V3(0, -0.08, 0.1), fore: new V3(0, -0.06, -0.17), kick: 3, every: 0.1 },
   { grip: new V3(0, -0.08, 0.09), fore: new V3(-0.035, -0.1, 0.075), kick: 8, every: 0.26, flip: 1 },
@@ -257,6 +274,14 @@ const BONES = [["pivot", null, 0, 0, 0]];
     B("toe" + s, "an" + s, 0, -0.06, -0.1);
     B("tas" + s, "pelvis", sd * 0.1, -0.02, -0.13);
   }
+  /* the tabard: a front and a back flap of cloth hung from the belt, two segments each */
+  for (const [n, z] of [
+    ["tabF", -0.165],
+    ["tabB", 0.15],
+  ]) {
+    B(n, "pelvis", 0, 0.03, z);
+    B(n + "2", n, 0, -0.16, 0);
+  }
 })();
 /* material roles shared by every pilot's skinned geometry */
 const SUIT = 0,
@@ -286,6 +311,12 @@ function pilotParts() {
     P("pelvis", rb("pouch", 0.08, 0.07, 0.05, 0.012), TRIM, sd * 0.12, 0.03, 0.15);
   }
   P("pelvis", rb("rearPl", 0.26, 0.13, 0.04, 0.012), ARM2, 0, -0.03, 0.125);
+  /* the tabard's cloth in the darker team tone, a lit hem on the front */
+  for (const n of ["tabF", "tabB"]) {
+    P(n, rb("tab", 0.13, 0.17, 0.012), ARM2, 0, -0.08, 0);
+    P(n + "2", rb("tab2", 0.12, 0.15, 0.01), ARM2, 0, -0.07, 0);
+  }
+  P("tabF2", rb("tabHem", 0.1, 0.01, 0.004), GLOW, 0, -0.138, -0.007);
   for (const s of ["L", "R"]) {
     P("tas" + s, rb("tas", 0.13, 0.18, 0.035, 0.01), ARM, 0, -0.09, 0);
     P("tas" + s, rb("tasLt", 0.07, 0.006, 0.006, 0.002), GLOW, 0, -0.14, -0.02);
@@ -578,7 +609,7 @@ function makePilot(color, label) {
   shellMesh.renderOrder = 5;
   root.add(shellMesh);
   void skinned;
-  const { pivot, pelvis, spine, spine2, chest, neck, head, antenna } = byName;
+  const { pivot, pelvis, spine, spine2, chest, neck, head, antenna, tabF, tabF2, tabB, tabB2 } = byName;
   const arms = SIDES.map(([s, side]) => ({
     clav: byName["clav" + s],
     sh: byName["sh" + s],
@@ -713,6 +744,11 @@ function makePilot(color, label) {
     spKick: spr(),
     spAnt: spr(),
     spAntR: spr(),
+    clA: new V3(),
+    spTF: spr(),
+    spTB: spr(),
+    spTF2: spr(),
+    spTB2: spr(),
     fall: null,
   };
   const yawOf = () => (S.yaw == null ? root.rotation.y : S.yaw);
@@ -910,7 +946,26 @@ function makePilot(color, label) {
       /* locomotion comes from motion capture (characters/anim.js: walk, run, sprint, strafe,
          backpedal, crouch, jump and land, idle); the special moves (slide, ground pound, clamber,
          jetpack, stabilizer) keep procedural legs */
-      const mocap = !(st.slide || st.pound || st.clamber || st.stab || st.thrust);
+      const mocap = !(st.slide || st.pound || st.clamber || st.stab || st.thrust),
+        wasMocap = S.mocap;
+      /* into a special move the hips start where the capture had them; out of one, the legs and hips
+         ease back into the capture for a moment instead of snapping */
+      if (wasMocap && !mocap) S.pel = pelvis.position.y;
+      if (!wasMocap && mocap) S.mix = 1;
+      S.mix = Math.max(0, (S.mix || 0) - dt * 4);
+      /* a clamber, by the body's own progress (or by time, for a body seen over the network): reach,
+         grab, a knee up onto the ledge, over the top */
+      S.clT = st.clamber ? (S.clT || 0) + dt : 0;
+      const clK = st.clamber ? (st.clK >= 0 ? st.clK : Math.min(1, S.clT / 0.27)) : 0;
+      if (st.clamber && S.clT === dt) {
+        const fx = -Math.sin(st.yaw),
+          fz = -Math.cos(st.yaw);
+        S.clA.set(
+          root.position.x + fx * 0.5 + fz * 0.2,
+          root.position.y + (st.clH || 1.2),
+          root.position.z + fz * 0.5 - fx * 0.2
+        );
+      }
       const LO = S.loco;
       if (mocap) {
         /* the ground under each foot (stairs, ledges), where the feet were last frame */
@@ -978,9 +1033,17 @@ function makePilot(color, label) {
       if (st.pound === 1) lean = 0.6;
       else if (st.pound === 2) lean = 0.3;
       if (st.charge) lean = 0.55;
-      if (st.clamber) lean = 0.35;
-      const strike = meleeCurve(st.melee);
-      if (st.melee >= 0) lean += strike * 0.5;
+      if (st.clamber) {
+        lean = 0.3 + 0.45 * Math.sin(Math.PI * clK);
+        pel = 0.9 - 0.14 * Math.sin(Math.PI * clK);
+      }
+      /* a blow: wound up, driven through with the whole body, followed through */
+      const mOn = st.melee >= 0,
+        M = meleeShape(st.melee),
+        strike = mOn ? M.s : 0,
+        wind = mOn ? M.w : 0,
+        fol = mOn ? M.f : 0;
+      if (mOn) lean += strike * 0.6 + fol * 0.2 - wind * 0.15;
       /* a shot rocks the shoulders back */
       lean -= S.spKick.x * 0.6;
       /* aiming down sights eases in: the head drops to the sights */
@@ -1007,7 +1070,9 @@ function makePilot(color, label) {
       const drop = Math.min(0, S.gL, S.gR);
       /* the pelvis: the capture's (with the hips turned toward the travel), or held for a special move */
       if (mocap) {
-        pelvis.position.set(LO.pelP[0], LO.pelP[1] + pOff * 0.5, LO.pelP[2]);
+        _kB.set(LO.pelP[0], LO.pelP[1] + pOff * 0.5, LO.pelP[2]);
+        if (S.mix > 0) pelvis.position.lerp(_kB, kf);
+        else pelvis.position.copy(_kB);
         pelvis.quaternion.fromArray(LO.pelQ);
       } else {
         pelvis.position.set(sway * 0.02, S.pel + pOff + drop, 0);
@@ -1015,7 +1080,7 @@ function makePilot(color, label) {
       }
       /* the spine shares lean and bank between its two segments on top of the capture; breathing
          lifts the chest; a melee blow twists the torso into the strike */
-      const mtw = strike * 0.8;
+      const mtw = strike * 0.85 + fol * 0.3 - wind * 0.5;
       spine.rotation.set((-leanS + st.pitch * 0.3) * 0.5, mtw * 0.5, rollS * 0.5);
       spine2.rotation.set((-leanS + st.pitch * 0.3) * 0.5 + br * 0.012, mtw * 0.5, rollS * 0.5);
       if (mocap) {
@@ -1061,7 +1126,8 @@ function makePilot(color, label) {
         if (mocap) {
           /* the capture's leg: two-bone IK to its (planted, ground-following) ankle, the knee where
              the capture bends it, the foot turned as the capture's */
-          g.cur.fromArray(LO.tgt, i * 3);
+          if (S.mix > 0) g.cur.lerp(_kA.fromArray(LO.tgt, i * 3), kf);
+          else g.cur.fromArray(LO.tgt, i * 3);
           _pole.fromArray(LO.pole, i * 3);
           solve2(g.hip, g.kn, 0.44, 0.43, g.hip.position, g.cur, _pole);
           _q1.copy(g.hip.quaternion).multiply(g.kn.quaternion).invert();
@@ -1073,8 +1139,26 @@ function makePilot(color, label) {
           if (st.slide) tg.set(i === 0 ? -0.06 : 0.2, i === 0 ? gy + 0.05 : gy + 0.02, i === 0 ? -0.8 : 0.1);
           else if (st.pound === 1) tg.set(side * 0.14, -0.42, -0.18);
           else if (st.pound === 2) tg.set(side * 0.15, -0.83, side * 0.05);
-          else if (st.clamber) tg.set(side * 0.12, i === 0 ? -0.4 : -0.78, i === 0 ? -0.32 : 0.12);
-          else if (st.stab) tg.set(side * 0.13, -0.8, 0.03 + Math.sin(S.t * 3 + i * 2) * 0.05);
+          else if (st.clamber) {
+            /* the ledge's top and near edge, in the hips' frame, as the body rises and moves over it */
+            const ly = (st.clH || 1.2) * (1 - Math.min(1, clK * 1.6)) - pelvis.position.y + 0.07,
+              e = clK < 0.5 ? 2 * clK * clK : 1 - 2 * (1 - clK) * (1 - clK),
+              lz = -0.45 + 0.95 * e;
+            if (i === 0) {
+              /* the lead knee comes up and the foot plants on the ledge, then steps through */
+              const up = sstep(0.08, 0.35, clK),
+                over = sstep(0.7, 1, clK);
+              tg.set(
+                side * 0.1,
+                gy + (Math.max(gy, ly) - gy) * up,
+                0.05 + (Math.min(lz + 0.12, -0.05) - 0.05) * up
+              );
+              tg.y += (gy - tg.y) * over;
+              tg.z += (-0.12 - tg.z) * over;
+            } else
+              /* the trailing leg hangs, then swings up under the body and through */
+              tg.set(side * 0.13, gy + 0.32 * Math.sin(Math.PI * clK), 0.18 - 0.3 * clK);
+          } else if (st.stab) tg.set(side * 0.13, -0.8, 0.03 + Math.sin(S.t * 3 + i * 2) * 0.05);
           else if (!air) tg.set(side * 0.13, gy, 0.02 * (i ? 1 : -1));
           else {
             /* the jetpack: legs trail the thrust, reaching for the ground before a landing */
@@ -1091,6 +1175,7 @@ function makePilot(color, label) {
           }
           g.cur.lerp(tg, kf);
           if (st.slide && i === 1) _pole.set(1, -0.55, -0.25);
+          else if (st.clamber && i === 0) _pole.set(side * 0.2, 0.4, -1);
           else _pole.set(side * 0.15, 0, -1);
           solve2(g.hip, g.kn, 0.44, 0.43, g.hip.position, g.cur, _pole);
           _q1.copy(g.hip.quaternion).multiply(g.kn.quaternion).invert();
@@ -1100,6 +1185,20 @@ function makePilot(color, label) {
         /* tassets ride the thigh as it swings forward */
         g.tas.rotation.x = clamp(-g.cur.z * 1.4, -0.1, 0.95) + (st.crouch || st.slide ? 0.6 : 0);
       });
+      /* the tabard: the thighs kick its flaps out as they swing, the run drags them back, and each
+         lower half trails its upper on a spring */
+      {
+        const fw = Math.max(-legs[0].cur.z, -legs[1].cur.z, 0),
+          bk = Math.max(legs[0].cur.z, legs[1].cur.z, 0),
+          sit = st.crouch || st.slide ? 0.7 : 0,
+          drag = clamp(lf * 0.05, -0.4, 0.5) + (air ? clamp(st.vy * 0.03, -0.5, 0.3) : 0);
+        const a = spring(S.spTF, clamp(fw * 1.3, 0, 1) + sit - drag, dt, 3.2, 0.3),
+          b = spring(S.spTB, -clamp(bk * 1.3, 0, 1) - sit * 0.4 - drag, dt, 3.2, 0.3);
+        tabF.rotation.x = a;
+        tabB.rotation.x = b;
+        tabF2.rotation.x = spring(S.spTF2, a * 0.5, dt, 2.4, 0.25) - a * 0.35;
+        tabB2.rotation.x = spring(S.spTB2, b * 0.5, dt, 2.4, 0.25) - b * 0.35;
+      }
       /* weapon or flag */
       const rl = st.flag ? -1 : st.reload;
       const wp = st.wpn | 0,
@@ -1156,14 +1255,19 @@ function makePilot(color, label) {
       _q2.setFromEuler(_e1);
       if (st.melee >= 0) {
         /* the strike: the gun swings across and forward, stock first */
-        _c.z -= 0.44 * strike;
-        _c.x -= 0.16 * strike;
+        _c.z += 0.12 * wind - 0.48 * strike - 0.05 * fol;
+        _c.x += 0.06 * wind - 0.18 * strike - 0.06 * fol;
         _c.y += 0.12 * strike;
-        /* (the magnum whips: raised, rolled onto its side and brought down hard) */
+        /* (the magnum whips: cocked up, rolled onto its side and brought down hard) */
         if (wp === 1) {
-          _c.y += 0.1 * strike;
-          _q1.setFromEuler(_e1.set(-1.1 * strike, 0.35 * strike, 1.1 * strike));
-        } else _q1.setFromEuler(_e1.set(-0.5 * strike, 1.05 * strike, 0.45 * strike));
+          _c.y += 0.08 * wind + 0.1 * strike;
+          _q1.setFromEuler(
+            _e1.set(0.45 * wind - 1.1 * strike - 0.3 * fol, 0.35 * strike, 1.1 * strike + 0.2 * fol)
+          );
+        } else
+          _q1.setFromEuler(
+            _e1.set(-0.5 * strike, -0.35 * wind + 1.1 * strike + 0.35 * fol, 0.5 * strike + 0.2 * fol)
+          );
         _q2.multiply(_q1);
         /* the swing is heard and seen (rigEvents draws its arc) */
         if ((S.lastMel == null || S.lastMel < 0.08) && st.melee >= 0.08)
@@ -1200,7 +1304,11 @@ function makePilot(color, label) {
         _rk.copy(R.grip).applyMatrix4(gun.matrix);
         if (rl >= 0) reloadKey(RIG_RELOAD, rl, R.fore, _lk).applyMatrix4(gun.matrix);
         else if (st.clamber) {
-          _lk.set(-0.22, 0.42, -0.38);
+          /* the free hand grabs the ledge's edge and holds it while the body goes over */
+          if (near && clK < 0.75) {
+            chest.updateMatrixWorld(true);
+            chest.worldToLocal(_lk.copy(S.clA));
+          } else _lk.set(-0.22, 0.42, -0.38);
           curlL = 0.3;
         } else if (!air && st.sprint && !rocket && S.mocap) {
           /* the free arm swings with the stride as the capture's does, held a little off the body */
@@ -1356,6 +1464,9 @@ function bodyState(B, extra) {
     stab: B.stabbing,
     pound: B.pound,
     clamber: !!B.clamber,
+    /* (how far through it, and how high the ledge: only known where the body is simulated) */
+    clK: B.clamber && B.clamber.dur ? Math.min(1, B.clamber.t / B.clamber.dur) : -1,
+    clH: B.clamber && B.clamber.to ? B.clamber.to.y - B.clamber.from.y : 0,
     charge: B.chargeT > 0,
     melee: B.meleeT > 0 ? 1 - B.meleeT / 0.4 : -1,
     aim: !!B.aiming,

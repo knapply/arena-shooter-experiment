@@ -1,4 +1,27 @@
 /* ============ viewmodel animation ============ */
+/* a blow's impact waits for the first-person strike to reach it (a charge's, or one with no blow in
+   flight, lands at once): then the thud and sparks, the hitstop, the camera punch and the rumble */
+const _mlP = new V3(),
+  _mlD = new V3();
+function meleeLand(p, d, f) {
+  meleeFlush();
+  _mlP.copy(p);
+  _mlD.copy(d);
+  vmS.land = f + 1;
+  if (f & MFX.CHARGE || vmS.mc < 0 || vmS.mc >= MEL_HIT) meleeFlush();
+}
+function meleeFlush() {
+  if (!vmS.land) return;
+  const f = vmS.land - 1,
+    world = f & MFX.WORLD;
+  vmS.land = 0;
+  meleeFx(_mlP, _mlD, f);
+  vmS.stop = world ? 0.035 : f & MFX.CHARGE ? 0.09 : 0.075;
+  vmS.punch = world ? 0.55 : 1;
+  shakeT = Math.max(shakeT, world ? 0.08 : 0.16);
+  fovK = Math.max(fovK, world ? 0.4 : 0.9);
+  rumble(world ? 0.45 : 1, world ? 0.35 : 0.85, world ? 90 : 160);
+}
 function updVM(dt, c) {
   /* while a replay plays, it poses the viewmodel from the recording (game/replay.js) */
   if (REPLAY.active && !c.replay) return;
@@ -36,24 +59,38 @@ function updVM(dt, c) {
   } else if (c.moving) {
     _c.y += Math.abs(Math.cos(ph)) * 0.0025;
   }
-  if (c.melee >= 0) {
-    /* the strike: the gun swings hard across and forward, butt first, then recovers */
-    const m = meleeCurve(c.melee);
+  /* a blow runs on its own clock (meleeShape: wind-up, strike, follow-through), which stops dead for
+     a moment when it lands (hitstop); the impact itself waits for the moment of contact */
+  if (c.melee >= 0 && !c.charge && (vmS.mc < 0 || c.melee < vmS.lastM - 0.2)) vmS.mc = c.melee;
+  vmS.lastM = c.melee;
+  if (vmS.mc >= 0) {
+    if (vmS.stop > 0) vmS.stop -= dt;
+    else vmS.mc += dt / 0.4;
+    if (vmS.mc >= 1) vmS.mc = -1;
+  }
+  if (vmS.land && (vmS.mc >= MEL_HIT || vmS.mc < 0 || c.charge)) meleeFlush();
+  vmS.punch *= Math.exp(-14 * dt);
+  if (vmS.mc >= 0 || c.charge) {
+    const M = meleeShape(c.charge ? 0.4 : vmS.mc),
+      w = M.w,
+      s = M.s,
+      f = M.f;
     if (V.whip) {
-      /* the pistol-whip: up, rolled onto its side and down hard across the face */
-      _c.z -= 0.3 * m;
-      _c.x -= 0.1 * m;
-      _c.y += 0.06 * m;
-      _e1.x -= 0.95 * m;
-      _e1.y += 0.35 * m;
-      _e1.z += 1.1 * m;
+      /* the pistol-whip: cocked up, then rolled onto its side and brought down hard across */
+      _c.y += 0.08 * w + 0.06 * s - 0.05 * f;
+      _c.z += 0.04 * w - 0.32 * s;
+      _c.x -= 0.11 * s + 0.04 * f;
+      _e1.x += 0.5 * w - 1 * s - 0.35 * f;
+      _e1.y += 0.38 * s;
+      _e1.z += 1.15 * s + 0.2 * f;
     } else {
-      _c.z -= 0.34 * m;
-      _c.x -= 0.16 * m;
-      _c.y += 0.07 * m;
-      _e1.x -= 0.5 * m;
-      _e1.y += 0.95 * m;
-      _e1.z += 0.55 * m;
+      /* the butt-stroke: drawn back and turned, then driven across and forward, stock first */
+      _c.x += 0.06 * w - 0.18 * s - 0.07 * f;
+      _c.y += -0.02 * w + 0.08 * s;
+      _c.z += 0.08 * w - 0.38 * s - 0.04 * f;
+      _e1.x += 0.1 * w - 0.55 * s;
+      _e1.y += -0.35 * w + 1.05 * s + 0.35 * f;
+      _e1.z += -0.2 * w + 0.62 * s + 0.25 * f;
     }
   }
   if (c.pound1) {
@@ -133,7 +170,42 @@ function updVM(dt, c) {
   else _lk.copy(V.fore).applyMatrix4(g.matrix);
   vmS.lh.lerp(_lk, kf);
   vmL.position.copy(vmS.lh);
-  vmL.quaternion.slerp(g.quaternion, kf);
+  const free = c.reload >= 0 || vmS.throwT > 0 || c.clamber;
+  vmL.quaternion.slerp(free || !V.lq ? g.quaternion : _q3.copy(g.quaternion).multiply(V.lq), kf);
+  handPose(vmL, free ? "grip" : "wrap");
+  handPose(vmR, "grip");
+  /* clambering, both hands come off the gun, reach and plant flat on the ledge (held where it is in
+     the world, so the view rises over them), then go back to the gun */
+  const cl = c.cl;
+  vmS.cl += ((cl && cl.dur && cl.t < cl.dur * 0.8 ? 1 : 0) - vmS.cl) * Math.min(1, dt * (cl ? 20 : 9));
+  if (cl && cl.to && vmS.clOf !== cl) {
+    vmS.clOf = cl;
+    const dx = cl.to.x - cl.from.x,
+      dz = cl.to.z - cl.from.z,
+      L = Math.hypot(dx, dz) || 1;
+    for (let s = 0; s < 2; s++)
+      vmS.clA[s].set(
+        cl.from.x + (dx / L) * 0.5 - (dz / L) * (s ? 0.21 : -0.21),
+        cl.to.y + 0.01,
+        cl.from.z + (dz / L) * 0.5 + (dx / L) * (s ? 0.21 : -0.21)
+      );
+  }
+  if (vmS.cl > 0.01 && vmS.clOf) {
+    camera.updateMatrixWorld();
+    _q2.setFromAxisAngle(_a.set(0, 1, 0), me.yaw).premultiply(_q1.copy(camera.quaternion).invert());
+    [vmL, vmR].forEach((h, s) => {
+      vmRoot.worldToLocal(_lk.copy(vmS.clA[s]));
+      /* (a low ledge would put them under the view: they plant at its foot and sink as you rise) */
+      const k = cl && cl.dur ? cl.t / cl.dur : 1;
+      _lk.y = clamp(_lk.y, -0.3 - 1.2 * Math.max(0, k - 0.3), 0.04);
+      _lk.z = Math.min(_lk.z, -0.4);
+      h.position.lerp(_lk, vmS.cl);
+      h.quaternion.slerp(_q2, vmS.cl);
+      if (vmS.cl > 0.5) handPose(h, "flat");
+    });
+  }
+  handArm(vmR);
+  handArm(vmL);
   const r = c.reload,
     mg = V.mag;
   if (r >= 0) {
