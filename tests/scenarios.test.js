@@ -1148,6 +1148,10 @@ const fix = v => +v.toFixed(2);
       if (t === "kill") kills.push(d);
     };
     G.start();
+    /* these rules are the same on every skull spot: pin the first drop to the middle, and keep the
+       power weapon beside it out of the test */
+    CTF.BALL_HOME.set(...K.MAPS.arena.ball);
+    G.pickups = [];
     const a = G.teams[0].agents[0],
       e = G.teams[1].agents[0];
     bench(G, [a, e]);
@@ -1214,6 +1218,26 @@ const fix = v => +v.toFixed(2);
       over: G.over,
       w: G.winner,
     });
+  }
+  /* skull spots: each match (and each drop) picks one of the map's spots, so matches open in
+     different places, and never the same spot twice running */
+  for (const map of ["arena", "ctf"]) {
+    const spots = K.MAPS[map].balls.map(p => p.join(",")),
+      firsts = new Set();
+    let repeat = false;
+    for (let seed = 1; seed <= 6; seed++) {
+      K.STORE.setBackend(K.STORE.memoryBackend());
+      const G = CTF.Game({ mode: "sim", render: false, seed, rules: "oddball", map });
+      firsts.add(CTF.BALL_HOME.toArray().join(","));
+      const s0 = G.ballSpot;
+      G.nextBallSpot();
+      if (G.ballSpot === s0) repeat = true;
+    }
+    check(
+      firsts.size >= 2 && [...firsts].every(p => spots.includes(p)) && !repeat,
+      `${map}: the skull opens on different spots from the map's list, never the same twice running`,
+      [...firsts]
+    );
   }
   /* free-for-all: every pilot is their own team, and the AI fights everyone */
   {

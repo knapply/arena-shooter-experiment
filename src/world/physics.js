@@ -26,6 +26,9 @@ const TUNE_DEF = {
   stab: 1.3,
 };
 const TUNE = Object.assign({}, TUNE_DEF);
+/* seconds without damage before shields (then health) recharge: 3, down from 4 by simulation in every
+   mode (docs/TUNING.md, "Every mode, every rule") */
+const REGEN_DELAY = 3;
 /* pilots are solid to each other: modes say who else is in the world (anything with pos, h and dead) */
 const NO_PILOTS = [];
 let pilotsFn = null;
@@ -549,12 +552,13 @@ class Body {
   }
   regen(dt, now) {
     if (this.dead) return 0;
+    /* sprinting holds the recharge 0.7 s from starting */
     if (this.sprint && this.shield < 70) {
-      this.lastDmg = Math.max(this.lastDmg, now - 3.3);
+      this.lastDmg = Math.max(this.lastDmg, now - (REGEN_DELAY - 0.7));
       return 0;
     }
     let ev = 0;
-    if (now - this.lastDmg > 4) {
+    if (now - this.lastDmg > REGEN_DELAY) {
       if (this.shield < 70) {
         if (this.shield <= 0) ev = 1;
         this.shield = Math.min(70, this.shield + 48 * dt);

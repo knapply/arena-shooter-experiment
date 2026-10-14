@@ -152,8 +152,9 @@ const KNOBS = {
 const RULE = {
   shield: 70,
   health: 45,
-  /* seconds without damage before recharging, and shield / health points a second */
-  regenDelay: 4,
+  /* seconds without damage before recharging (world/physics.js REGEN_DELAY), and shield / health
+     points a second */
+  regenDelay: 3,
   shieldRate: 48,
   healthRate: 28,
   /* seconds between melee swings, and after a shoulder charge */
@@ -179,7 +180,7 @@ const rule = k => v => (RULE[k] = v);
 Object.assign(KNOBS, {
   ruShield: { set: rule("shield"), def: 70, try: [55, 85] },
   ruHealth: { set: rule("health"), def: 45, try: [35, 55] },
-  ruRegenDelay: { set: rule("regenDelay"), def: 4, try: [3, 5] },
+  ruRegenDelay: { set: rule("regenDelay"), def: 3, try: [2.5, 3.5] },
   ruShieldRate: { set: rule("shieldRate"), def: 48, try: [32, 64] },
   ruMeleeCD: { set: rule("meleeCD"), def: 0.75, try: [0.55, 1] },
   ruChargeCD: { set: rule("chargeCD"), def: 1.3, try: [1, 1.8] },
@@ -214,7 +215,7 @@ const RES_DEF = K.WEAPON_DATA.map(w => w.reserve);
     /* world/physics.js Body.regen with RULE's numbers */
     if (this.dead) return 0;
     if (this.sprint && this.shield < RULE.shield) {
-      this.lastDmg = Math.max(this.lastDmg, now - (RULE.regenDelay === 4 ? 3.3 : RULE.regenDelay - 0.7));
+      this.lastDmg = Math.max(this.lastDmg, now - (RULE.regenDelay - 0.7));
       return 0;
     }
     let ev = 0;
@@ -468,11 +469,13 @@ function match(diff, seed, lock) {
       ? [0, 1].map(s => Math.max(0, ...G.agents.filter(a => side(a) === s).map(a => a.k)))
       : G.teams.map(T => T.score);
   const steps = MINUTES * 60 * 30;
-  const lanes = !!CTF.MAP.lanes;
+  const lanes = !!CTF.MAP.lanes,
+    timeline = [];
   for (let i = 0; i < steps && !G.over; i++) {
     G.step(1 / 30);
-    if (i === steps >> 1) out.half = scores();
     if (i % 30) continue;
+    /* the score once a second: half time is half of the match actually played */
+    timeline.push(scores());
     /* once a second: what each pilot holds, and where the ones in the middle of the map are */
     for (const a of G.agents) {
       if (!a.alive) continue;
@@ -485,7 +488,15 @@ function match(diff, seed, lock) {
       }
     }
   }
-  if (!out.half) out.half = scores();
+  out.half = timeline[timeline.length >> 1] || scores();
+  /* how many times the lead changed hands (ties don't count as a change) */
+  let leader = -1;
+  out.leadChanges = 0;
+  for (const s of timeline) {
+    const l = s[0] > s[1] ? 0 : s[1] > s[0] ? 1 : -1;
+    if (l >= 0 && leader >= 0 && l !== leader) out.leadChanges++;
+    if (l >= 0) leader = l;
+  }
   out.final = scores();
   out.pk = G.agents.map(a => a.k);
   for (const a of [...carryFrom.keys()]) carryEnd(a, "reset");
@@ -662,6 +673,7 @@ const extra = r => ({
   turns: r.turnsPerMatch,
   carry: r.carry,
   leadWins: r.leadWins,
+  leadChanges: r.leadChanges,
   spread: r.killSpread,
   margin: r.margin,
   ttc: r.ttc,
@@ -688,7 +700,8 @@ function summarize(vr) {
     grabs = 0,
     nEven = 0,
     leads = 0,
-    leadWon = 0;
+    leadWon = 0,
+    leadChanges = 0;
   const carry = [],
     carryEnds = { capture: 0, killed: 0, dropped: 0, reset: 0 },
     spreads = [],
@@ -731,6 +744,7 @@ function summarize(vr) {
         if (m > 0) spreads.push(Math.sqrt(pk.reduce((a, b) => a + (b - m) ** 2, 0) / pk.length) / m);
         margins.push(pk[0] - pk[1]);
       }
+      leadChanges += r.leadChanges || 0;
       /* did whoever led at half time win? (ties at half or at the end don't count) */
       if (r.half && r.final && r.half[0] !== r.half[1] && r.final[0] !== r.final[1]) {
         leads++;
@@ -783,6 +797,7 @@ function summarize(vr) {
     carry: carry.length ? { med: +median(carry).toFixed(1), n: carry.length, ...carryEnds } : null,
     /* whoever led at half time won this share of the matches with a leader (even matches) */
     leadWins: leads ? +(leadWon / leads).toFixed(3) : null,
+    leadChanges: +(leadChanges / Math.max(1, nEven)).toFixed(2),
     killSpread: spreads.length ? +(spreads.reduce((a, b) => a + b, 0) / spreads.length).toFixed(3) : null,
     margin: margins.length ? +(margins.reduce((a, b) => a + b, 0) / margins.length).toFixed(2) : null,
     heat: HEAT ? heat : undefined,

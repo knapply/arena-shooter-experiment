@@ -136,11 +136,19 @@ check(
 {
   const mods = Object.entries(K.MAP_MODS);
   for (const [m, M] of mods)
-    for (const others of [[], ...mods.filter(([o, O]) => o !== m && O.map === M.map).map(([o]) => [o])]) {
-      const doc = K.mapDoc(M.map, [m, ...others]);
-      const v = K.validateMap(doc);
-      check(v.ok && doc.id !== K.MAPS[M.map].id, `map mod ${[m, ...others].join(" + ")} validates`, v.errors);
-    }
+    for (const key of [].concat(M.map))
+      for (const others of [
+        [],
+        ...mods.filter(([o, O]) => o !== m && [].concat(O.map).includes(key)).map(([o]) => [o]),
+      ]) {
+        const doc = K.mapDoc(key, [m, ...others]);
+        const v = K.validateMap(doc);
+        check(
+          v.ok && doc.id !== K.MAPS[key].id,
+          `map mod ${[m, ...others].join(" + ")} on ${key} validates`,
+          v.errors
+        );
+      }
   for (const key of ["ctf", "arena"]) {
     const doc = K.mapDoc(key, Object.keys(K.MAP_MODS));
     K.LABS.mods = Object.keys(K.MAP_MODS);
