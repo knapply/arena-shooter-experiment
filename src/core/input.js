@@ -87,7 +87,7 @@ document.addEventListener("pointerlockerror", () => {
 });
 addEventListener("mousemove", e => {
   if (!playing || paused || isTouch || (!locked && !lockFailed)) return;
-  const s = 0.0022 * SET.sens * (aiming ? SET.adsSens * Math.min(1, 1.8 / zoomK()) : 1);
+  const s = 0.0022 * SET.sens * lookSens(SET.adsSens);
   mdx += e.movementX * s;
   mdy += e.movementY * s * (SET.invertY ? -1 : 1);
 });

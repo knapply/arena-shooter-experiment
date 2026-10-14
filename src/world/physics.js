@@ -17,6 +17,13 @@ const TUNE_DEF = {
   thrustCD: 2.2,
   slideBoost: 3.2,
   slideCap: 15,
+  /* speed while aiming a low-zoom optic, and a sniper scope (a share of run speed) */
+  adsMove: 0.9,
+  scopeMove: 0.72,
+  /* seconds to bring the gun up after a sprint ends before it can fire */
+  raise: 0,
+  /* seconds of hover from aiming in the air (stabilize) */
+  stab: 1.3,
 };
 const TUNE = Object.assign({}, TUNE_DEF);
 /* pilots are solid to each other: modes say who else is in the world (anything with pos, h and dead) */
@@ -148,6 +155,7 @@ class Body {
     this.vel.set(0, 0, 0);
     this.sprint = false;
     this.sprintT = 0;
+    this.raiseT = 0;
     this.thrustCD = 0;
     this.thrustT = 0;
     this.slideT = 0;
@@ -197,6 +205,7 @@ class Body {
     this.meleeCD = Math.max(0, this.meleeCD - dt);
     this.meleeT = Math.max(0, this.meleeT - dt);
     this.landLock = Math.max(0, this.landLock - dt);
+    this.raiseT = Math.max(0, this.raiseT - dt);
     if (this.clamber) {
       const c = this.clamber;
       c.t += dt;
@@ -227,6 +236,7 @@ class Body {
       this.sprint = true;
       this.sprintT += dt;
     } else if (this.ground) {
+      if (this.sprint) this.raiseT = TUNE.raise;
       this.sprint = false;
       this.sprintT = 0;
     }
@@ -287,7 +297,14 @@ class Body {
       if (this.ground) this.pound = 0;
     }
     this.stabbing = false;
-    if (inp.aim && !this.ground && this.pound === 0 && this.stabT < 1.3 && this.thrustT <= 0 && v.y < 2) {
+    if (
+      inp.aim &&
+      !this.ground &&
+      this.pound === 0 &&
+      this.stabT < TUNE.stab &&
+      this.thrustT <= 0 &&
+      v.y < 2
+    ) {
       this.stabbing = true;
       this.stabT += dt;
       v.y *= Math.pow(0.001, dt);
@@ -339,14 +356,14 @@ class Body {
       v.z += wish.z * 6 * dt;
       if (!inp.crouch && this.slideT < 0.55) this.slideT = 0;
     } else if (this.pound === 0) {
-      /* aiming slows you a little with low-zoom scopes and more with a sniper scope (inp.aimMul) */
+      /* aiming slows you a little with low-zoom optics and more with a sniper scope (inp.scoped) */
       const speed =
         (this.crouch
           ? TUNE.crouchSpeed
           : this.sprint
             ? TUNE.sprint
             : inp.aim
-              ? TUNE.run * (inp.aimMul || 0.72)
+              ? TUNE.run * (inp.scoped ? TUNE.scopeMove : TUNE.adsMove)
               : TUNE.run) * (this.speedMul || 1);
       const tx = wish.x * speed,
         tz = wish.z * speed;
@@ -357,7 +374,7 @@ class Body {
           v.x = tx + (v.x - tx) * k;
           v.z = tz + (v.z - tz) * k;
         } else {
-          /* strafing as a skill: reversing direction bites harder (95) than speeding up (70), so a
+          /* strafing as a skill: reversing direction bites harder (95) than speeding up (80), so a
              well-timed change of direction is quick enough to make someone miss, but not instant */
           const a = (tx * v.x + tz * v.z < 0 ? TUNE.reverse : TUNE.accel) * dt;
           v.x += clamp(tx - v.x, -a, a);

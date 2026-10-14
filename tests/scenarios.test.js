@@ -61,10 +61,18 @@ const fix = v => +v.toFixed(2);
     scenario({
       pilots: { a: { pos: RUN, yaw: 0 } },
       seconds: 1,
-      input: () => ({ a: { s: 1, aim: true, aimMul: 0.9 } }),
+      input: () => ({ a: { s: 1, aim: true } }),
     })
   );
   check(between(ads, 5.2, 6), "strafing while aiming a low-zoom scope keeps 90% speed", fix(ads));
+  const scoped = ran(
+    scenario({
+      pilots: { a: { pos: RUN, yaw: 0 } },
+      seconds: 1,
+      input: () => ({ a: { s: 1, aim: true, scoped: true } }),
+    })
+  );
+  check(between(scoped, 4.1, 4.8), "a sniper scope slows you more (72%)", fix(scoped));
   const w06 = ran(
     scenario({ pilots: { a: { pos: RUN, yaw: EAST } }, seconds: 0.6, input: () => ({ a: { f: 1 } }) })
   );

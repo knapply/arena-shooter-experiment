@@ -45,11 +45,11 @@ function hud() {
     pa.style.opacity = "1";
     $("poundArc").setAttribute("stroke-dashoffset", String(239 * (1 - Math.min(1, me.poundT / 0.55))));
   } else pa.style.opacity = "0";
-  const sp = (aiming ? 4 : 9) + bloom * 400 + recoil * 200;
+  const sp = 9 - 5 * adsP + bloom * 400 + recoil * 200;
   xhEls[0].style.transform = `translateY(${-sp / 3}px)`;
   xhEls[1].style.transform = `translateY(${sp / 3}px)`;
   xhEls[2].style.transform = `translateX(${-sp / 3}px)`;
   xhEls[3].style.transform = `translateX(${sp / 3}px)`;
-  $("xh").style.opacity = String(aiming ? 0 : 1);
+  $("xh").style.opacity = String(1 - adsP);
   if (!$("scores").hidden) renderScores();
 }

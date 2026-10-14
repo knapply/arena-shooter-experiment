@@ -25,11 +25,16 @@ function updAim() {
   const red = hit && tr <= RANGE[wi];
   $("xh").classList.toggle("red", red);
   const sc = $("scope");
-  const on = aiming && W().scope !== "holo";
+  /* the optic fades in over the last three quarters of the zoom and settles from slightly large; it
+     fades out the same way when you let go or are shot out of it */
+  const op = W().scope === "holo" ? 0 : clamp((adsP - 0.25) / 0.75, 0, 1),
+    on = op > 0;
   sc.hidden = !on;
   if (on) {
+    sc.style.opacity = String(op);
+    sc.style.transform = `scale(${1.08 - 0.08 * op})`;
     sc.className = "sc-" + W().scope + (red ? " lock" : "");
-    $("sZoom").textContent = zoomK() + "×";
+    if (aiming) $("sZoom").textContent = zoomK() + "×";
     $("sRange").textContent = tr < 299 ? tr.toFixed(1) + " m" : "– m";
   }
 }

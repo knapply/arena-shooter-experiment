@@ -124,7 +124,7 @@ function padGame(dt) {
     const curve = Math.pow(m, SET.padCurve) / m;
     const accel = 1 + Math.min(1, Math.max(0, GP.hold - 0.18) / 0.3) * SET.padAccel;
     const fr = 1 - (1 - aimFriction()) * SET.aimAssist;
-    const sens = 3.2 * SET.padSens * (aiming ? SET.padAdsSens * Math.min(1, 1.8 / zoomK()) : 1) * accel * fr;
+    const sens = 3.2 * SET.padSens * lookSens(SET.padAdsSens) * accel * fr;
     me.yaw -= rx * curve * sens * dt;
     me.pitch = clamp(me.pitch - ry * curve * sens * 0.72 * dt * (SET.padInvertY ? -1 : 1), -1.5, 1.5);
   } else GP.hold = 0;

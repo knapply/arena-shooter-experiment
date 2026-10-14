@@ -159,6 +159,15 @@ function sfx(kind, vol = 1) {
       case "clink":
         tone(t, "triangle", 2600, 2300, 0.05, 0.05 * vol);
         break;
+      /* the optic powering up, stepping a level, and dropping away */
+      case "zin":
+      case "zstep":
+        tone(t, "sine", kind === "zin" ? 1100 : 1500, 2100, 0.07, 0.035 * vol);
+        nz(t, 0.05, "highpass", 5000, 0.03 * vol);
+        break;
+      case "zout":
+        tone(t, "sine", 1700, 900, 0.06, 0.025 * vol);
+        break;
       case "sshot":
         nz(t, 0.22, "bandpass", 900, 0.55 * vol, 0.8);
         tone(t, "sawtooth", 190, 38, 0.35, 0.16 * vol);

@@ -653,7 +653,6 @@ body[data-trk="bl"] #ctfHud.play #cComms {
     rgba(110, 200, 255, 0.08) 30.6vmin,
     rgba(8, 14, 20, 0.38) 31vmin
   );
-  animation: scopeIn 0.14s ease-out;
 }
 .sc-smart .ret .o {
   left: 50%;
@@ -698,7 +697,6 @@ body[data-trk="bl"] #ctfHud.play #cComms {
 }
 .sc-sniper .lens {
   background: radial-gradient(circle at center, transparent 0 41vmin, #05080a 41.4vmin);
-  animation: scopeIn 0.1s ease-out;
 }
 .sc-sniper .ret .a,
 .sc-sniper .ret .b {
@@ -745,12 +743,6 @@ body[data-trk="bl"] #ctfHud.play #cComms {
 }
 #scope.sc-sniper.lock .ret i:not(.o) {
   background: #ff4b3e;
-}
-@keyframes scopeIn {
-  from {
-    transform: scale(1.08);
-    opacity: 0.2;
-  }
 }
 #thrustArc {
   position: absolute;

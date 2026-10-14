@@ -7,14 +7,25 @@ function updVM(dt, c) {
   const V = VMW[wi],
     P = V.P,
     g = V.g;
-  let pose = c.aim ? P.aim : P.hip;
+  /* aimK (0..1) follows the eased zoom, so the gun reaches the eye as the zoom lands */
+  const aK = c.aimK === undefined ? (c.aim ? 1 : 0) : c.aimK,
+    blend = c.aimK !== undefined && aK > 0 && aK < 1;
+  let pose = aK > 0.5 ? P.aim : P.hip;
   if (c.reload >= 0) pose = P.reload;
   else if (c.sprint) pose = P.sprint;
   else if (c.low) pose = P.low;
   _c.copy(pose.p);
   _e1.set(pose.r[0], pose.r[1], pose.r[2]);
+  if (blend && (pose === P.aim || pose === P.hip)) {
+    /* the gun leads the zoom a little: it is at the eye before the optic finishes */
+    const h = P.hip,
+      a = P.aim,
+      u = aK * (2 - aK);
+    _c.lerpVectors(h.p, a.p, u);
+    _e1.set(h.r[0] + (a.r[0] - h.r[0]) * u, h.r[1] + (a.r[1] - h.r[1]) * u, h.r[2] + (a.r[2] - h.r[2]) * u);
+  }
   const ph = c.stepPh * Math.PI,
-    ads = c.aim && c.reload < 0;
+    ads = aK > 0.5 && c.reload < 0;
   if (c.sprint) {
     _c.x += Math.sin(ph) * 0.045;
     _c.y += Math.abs(Math.cos(ph)) * 0.035;
@@ -94,9 +105,11 @@ function updVM(dt, c) {
   vmS.kick = Math.max(0, vmS.kick - dt * 14);
   _c.z += vmS.kick * W().kick;
   _e1.x += vmS.kick * W().kick * 1.5 * (ads ? 0.5 : 1);
-  g.position.lerp(_c, ads ? Math.min(1, k * 1.4) : k);
+  /* while the zoom eases, the pose is already eased: follow it closely so the gun lands with the zoom */
+  const gk = blend ? 1 - Math.exp(-50 * dt) : ads ? Math.min(1, k * 1.4) : k;
+  g.position.lerp(_c, gk);
   _q2.setFromEuler(_e1);
-  g.quaternion.slerp(_q2, ads ? Math.min(1, k * 1.4) : k);
+  g.quaternion.slerp(_q2, gk);
   g.updateMatrix();
   vmR.position.copy(V.grip).applyMatrix4(g.matrix);
   vmR.quaternion.copy(g.quaternion);
