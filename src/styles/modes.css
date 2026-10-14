@@ -178,3 +178,10 @@
   font-size: 0.82em;
   color: var(--dim);
 }
+/* the results screen's note under the score (adaptive bots: where they go next) */
+#postNote {
+  margin-top: 6px;
+  font: 500 12px var(--f-mono);
+  letter-spacing: 0.04em;
+  color: var(--thrust);
+}

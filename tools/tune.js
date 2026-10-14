@@ -33,6 +33,10 @@
                                                  labGates on both; labGateOpen/Shut/Move: the gate cycle,
                                                  with GATES=1, which turns the gates on in every variant);
                                                  LOCK=burst, scatter or beam locks a lab weapon
+     node tools/tune.js aiHoldRange aiRhythm    the AI's habits (modes/ctf/memory.js CTF.AI), 0 turns
+                                                 one off; aiMemory 1 starts every match with a memory of
+                                                 the map learned from two earlier matches; AIMEM=1 does
+                                                 that for every variant (then aiPreAim 0 measures pre-aim)
    Besides skill share, time to kill and grenades, every variant reports: the spread of time to kill
    (quartiles), each weapon's share of kills and of time held, how much skill decides fights with each
    weapon (the better team's share of that weapon's kills), captures and time to capture, the share of
@@ -56,6 +60,10 @@ const SEED = +(process.env.SEED || 100),
   /* the skill matches: the better level first */
   PAIR = (process.env.PAIR || "legendary,normal").split(","),
   TEAM = +(process.env.TEAM || 4);
+/* AIMEM=1: every variant starts with a memory of the map (so aiPreAim measures something) */
+const AIMEM_ENV = process.env.AIMEM === "1";
+/** aiMemory: matches start with a memory of the map (see match) */
+const AIMEM = { on: AIMEM_ENV };
 const LOCKS = ["carbine", "magnum", "sniper", "rocket", "nades", "burst", "scatter", "beam"];
 /* lab content: a flag in K.LABS, or a map mod in K.LABS.mods */
 const lab = k => v => (K.LABS[k] = !!v);
@@ -137,6 +145,12 @@ const KNOBS = {
     def: 0,
     try: [1, 2],
   },
+  /* the AI's habits (modes/ctf/memory.js CTF.AI): 0 turns one off. aiMemory 1 gives every match a
+     memory of the map learned from two earlier headless matches (seeded, so still deterministic) */
+  aiHoldRange: { set: v => (CTF.AI.holdRange = !!v), def: 1, try: [0] },
+  aiRhythm: { set: v => (CTF.AI.rhythm = !!v), def: 1, try: [0] },
+  aiPreAim: { set: v => (CTF.AI.preAim = !!v), def: 1, try: [0] },
+  aiMemory: { set: v => (AIMEM.on = !!v), def: AIMEM_ENV ? 1 : 0, try: [AIMEM_ENV ? 0 : 1] },
 };
 const LAB_KNOBS = Object.keys(KNOBS).filter(k => /^(lab|mod)/.test(k));
 /* TRY="sbAccel=80,90;sbRun=6.8" replaces the values tried for those knobs */
@@ -185,6 +199,27 @@ function resetAll() {
 /** one match: returns kills by team, captures, times to kill and grenade outcomes */
 function match(diff, seed, lock) {
   K.STORE.setBackend(K.STORE.memoryBackend());
+  /* aiMemory: two earlier matches on the same map (other seeds) teach the AI where fights happen */
+  let memory = null;
+  if (AIMEM.on) {
+    for (const s of [seed + 50000, seed + 60000]) {
+      const T = CTF.Game({
+        mode: "sim",
+        render: false,
+        seed: s,
+        diff,
+        map: MAPID,
+        rules: RULES,
+        perTeam: TEAM,
+        memory,
+        saveMemory: false,
+      });
+      if (!memory) memory = T.mem = new CTF.MapMemory(CTF.MAP, null);
+      T.start();
+      for (let i = 0; i < 3 * 60 * 30 && !T.over; i++) T.step(1 / 30);
+      if (!T.over) memory.commit();
+    }
+  }
   /* everything but capture the flag plays the full time (a score limit would end matches at different
      lengths) */
   const G = CTF.Game({
@@ -197,6 +232,8 @@ function match(diff, seed, lock) {
     rules: RULES,
     scoreLimit: RULES === "ctf" ? 0 : 1e9,
     perTeam: TEAM,
+    memory,
+    saveMemory: false,
   });
   /* free-for-all: the two skill levels alternate between pilots, so "team" below is the pilot's half */
   const side = a => (G.ffa ? a.team % 2 : a.team);

@@ -104,6 +104,8 @@ const PLAY_MODES = [
    sight    how far they spot enemies (metres; drones see 60% of it)
    dodge    how often they jink and thrust out of fire (1 = the full repertoire)
    nades    how many grenades they carry and how keen they are to throw (1 = 2 frags + 1 plasma)
+   rhythm   the magnum's perfect-kill rhythm (0.5 and up): while landing, fire at its rate exactly;
+            after a miss, hold fire until the aim is right on them
    Recruit is the gentle start (the default for your first bot match): slow to react, loose aim,
    short sight, few dodges and grenades. */
 const AI_SKILL = {
@@ -117,6 +119,7 @@ const AI_SKILL = {
     sight: 42,
     dodge: 0.3,
     nades: 0.4,
+    rhythm: 0,
   },
   normal: {
     react: 0.32,
@@ -128,6 +131,7 @@ const AI_SKILL = {
     sight: 75,
     dodge: 1,
     nades: 1,
+    rhythm: 0,
   },
   heroic: {
     react: 0.24,
@@ -139,6 +143,7 @@ const AI_SKILL = {
     sight: 75,
     dodge: 1,
     nades: 1,
+    rhythm: 0,
   },
   legendary: {
     react: 0.17,
@@ -150,6 +155,7 @@ const AI_SKILL = {
     sight: 75,
     dodge: 1,
     nades: 1,
+    rhythm: 1,
   },
 };
 /* drop pods fall from POD_HEIGHT metres in POD_TIME seconds (a re-entry burn visible across the map),

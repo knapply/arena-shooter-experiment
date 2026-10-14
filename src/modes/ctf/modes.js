@@ -36,6 +36,8 @@
     intelT = 0,
     orbit = 0;
   /** what is being played: { id (a PLAY_MODES id), map (a MAPS key), size, diff } */
+  /** the bots in this match play at the adaptive level (offline), which the result moves */
+  let adapting = false;
   let pick = { id: "ctf", map: "ctf", size: 4, diff: "recruit" },
     simPick = { rules: "ctf", map: "ctf", size: 4 };
   const cpos = new V3(),
@@ -163,7 +165,10 @@
   function startHost() {
     const P = PM(pick.id),
       R = K.modeRules(P.id),
-      diff = pick.diff;
+      /* offline, the bots play at the adaptive level (a number between the skills; Settings → Gameplay) */
+      adaptive = !CTF.NET.room && K.SET.adaptBots,
+      diff = adaptive ? K.botLevel() : pick.diff;
+    adapting = adaptive;
     mode = "play";
     overT = 0;
     potgDone = false;
@@ -501,6 +506,7 @@
   }
   function startClient(h) {
     pick = { id: h.mode, map: h.map, size: pick.size, diff: pick.diff };
+    adapting = false;
     CTF.useMap(h.map);
     CTF.enterMap();
     mode = "play";
@@ -1060,7 +1066,21 @@
       }, 30);
     };
     const again = Object.assign({}, pick);
+    /* adaptive bots: a win makes the next match a little harder, a loss a little easier (free-for-all:
+       by your place, first to last) */
+    let note = "";
+    if (adapting && G.human && !G.map) {
+      adapting = false;
+      let score = w < 0 ? 0 : w === G.human.team ? 1 : -1;
+      if (G.ffa) {
+        const ranked = G.teams.slice().sort((a, b) => b.score - a.score),
+          place = ranked.findIndex(t => t.team === G.human.team);
+        score = 1 - (2 * place) / Math.max(1, ranked.length - 1);
+      }
+      note = K.botAdaptNote(K.botAdapt(score));
+    }
     K.showPost({
+      note,
       mode: `${PM(G.rules).name} · ${mapName(pick.map)}`,
       title: winTitle(),
       color: w < 0 ? "" : CTF.teamHex(w),

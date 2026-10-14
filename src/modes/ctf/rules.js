@@ -83,6 +83,11 @@
           "rocket" or "nades" (grenades only); power spawns, death drops and other grenades are off */
       lock: opts.lock || null,
       labs,
+      /** what the AI remembers about this map from earlier matches (modes/ctf/memory.js): rendered
+          matches load and save it; headless ones only use one passed in (opts.memory) */
+      mem: opts.memory !== undefined ? opts.memory : opts.render ? CTF.loadMemory(CTF.MAP) : null,
+      /** save the memory after the match (rendered matches by default) */
+      saveMem: opts.saveMemory !== undefined ? !!opts.saveMemory : !!opts.render,
       /** blast gates (world/gates.js): their state is a function of G.t, so it needs no syncing */
       gates: opts.gates != null ? !!opts.gates : labs && !!K.LABS.gates,
     };
@@ -589,6 +594,11 @@
             `Dead. ${killer.name} ${CTF.zoneName(victim.team, killer.pos)}`
           );
       }
+      /* the map memory: where people die and kill */
+      if (G.mem) {
+        G.mem.add("fight", p, 1);
+        if (killer && killer !== victim) G.mem.add("fight", killer.pos, 0.5);
+      }
       G.killLog.push({ t: G.t, k: killer ? killer.id : null, v: victim.id });
       G.emit("kill", { victim, killer, type, head, carried, denial });
     };
@@ -777,6 +787,10 @@
           );
         }
         CTF.saveModels(G.teams.map(t => t.brain));
+      }
+      if (G.mem) {
+        G.mem.commit();
+        if (G.saveMem) CTF.saveMemory(G.mem);
       }
       G.emit("end", { winner });
     };

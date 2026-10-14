@@ -106,7 +106,7 @@ function renderStatsRoster() {
 const POST = { open: false, onAgain: null, onChange: null, onLeave: null, autoT: 0 };
 /**
  * show the results after Play of the Game
- * @param {{ title: string, sub?: string, mode?: string, color?: string, again?: Function, change?: Function, leave?: Function, auto?: number }} o
+ * @param {{ title: string, sub?: string, note?: string, mode?: string, color?: string, again?: Function, change?: Function, leave?: Function, auto?: number }} o
  */
 function showPost(o) {
   POST.open = true;
@@ -119,6 +119,9 @@ function showPost(o) {
   $("postWin").textContent = o.title;
   $("postWin").style.color = o.color || "";
   $("postScore").textContent = o.sub || "";
+  /* a line under the score (adaptive bots: where they go next) */
+  $("postNote").textContent = o.note || "";
+  $("postNote").hidden = !o.note;
   renderPost();
   $("post").hidden = false;
   $("cBanner").hidden = true;

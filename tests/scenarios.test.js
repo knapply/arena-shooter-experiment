@@ -1272,5 +1272,177 @@ const fix = v => +v.toFixed(2);
   }
   K.STORE.setBackend(K.STORE.memoryBackend());
 }
+/* ---------- the AI pass: skill between levels, map memory, the magnum rhythm, holding range ---------- */
+{
+  const S = K.AI_SKILL;
+  const mid = CTF.skillAt(1.5);
+  check(
+    Math.abs(mid.react - (S.normal.react + S.heroic.react) / 2) < 1e-9 &&
+      Math.abs(mid.err - (S.normal.err + S.heroic.err) / 2) < 1e-9 &&
+      CTF.skillAt(0).react === S.recruit.react &&
+      CTF.skillAt(3).react === S.legendary.react,
+    "skill between levels interpolates every number (1.5: halfway from Normal to Heroic)",
+    { react: mid.react, err: mid.err }
+  );
+  check(
+    CTF.skillAt(2.99) === CTF.skillAt(3) && CTF.skillAt(-1) === CTF.skillAt(0),
+    "levels snap to steps and clamp to the ends"
+  );
+  /* the map memory: heat where things happen, faded by later matches, small when saved */
+  const doc = K.MAPS.arena,
+    V = (x, y, z) => new K.THREE.Vector3(x, y, z);
+  const mem = new CTF.MapMemory(doc, null);
+  for (let i = 0; i < 20; i++) mem.add("fight", V(20, 0, 20), 1);
+  mem.add("seen", V(-20, 0, 0), 1);
+  check(
+    mem.heat("fight", 20, 20) === 0 && mem.n === 0,
+    "a match's heat only counts once it is folded in",
+    mem.heat("fight", 20, 20)
+  );
+  mem.commit();
+  check(
+    mem.heat("fight", 20, 20) === 1 && mem.heat("fight", -20, -20) === 0 && mem.n === 1,
+    "fights leave heat where they happened",
+    mem.heat("fight", 20, 20)
+  );
+  for (let i = 0; i < 3; i++) {
+    for (let k = 0; k < 20; k++) mem.add("fight", V(-20, 0, -20), 1);
+    mem.commit();
+  }
+  check(
+    mem.heat("fight", -20, -20) === 1 && mem.heat("fight", 20, 20) < 0.5,
+    "older heat fades as new matches come in",
+    { old: mem.heat("fight", 20, 20) }
+  );
+  const back = new CTF.MapMemory(doc, JSON.parse(JSON.stringify(mem.toJSON())));
+  check(
+    back.n === 4 &&
+      back.heat("fight", -20, -20) === 1 &&
+      Math.abs(back.heat("fight", 20, 20) - mem.heat("fight", 20, 20)) < 0.02,
+    "the memory saves and loads",
+    back.toJSON().f.length
+  );
+  const big = new CTF.MapMemory(doc, null);
+  for (let x = -36; x < 36; x += 1)
+    for (let z = -36; z < 36; z += 1) big.add("seen", V(x, 0, z), 1 + ((x * 7 + z * 13) & 15));
+  big.commit();
+  check(
+    big.toJSON().s.length <= 600,
+    "it keeps only the hottest cells (bounded size)",
+    big.toJSON().s.length / 2
+  );
+  const junk = new CTF.MapMemory(doc, {
+    w: mem.w,
+    h: mem.h,
+    n: 3,
+    f: [5, "x", -2, 4, 999999, 3, 7, Infinity],
+    s: "nope",
+  });
+  check(
+    junk.toJSON().f.length === 0 || junk.toJSON().f.every(v => Number.isFinite(v)),
+    "a hostile saved memory is cleaned",
+    junk.toJSON()
+  );
+  /* a memory makes the AI hunt where fights happen, and watch where enemies are seen */
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 31, rules: "slayer", map: "arena", memory: back });
+  G.start();
+  const a = G.teams[0].agents[0];
+  for (const x of G.agents)
+    if (x !== a) {
+      x.dead = true;
+      x.body.dead = true;
+      x.respawnAt = 1e9;
+      x.body.pos.set(0, -80, 0);
+    }
+  const picks = new Set();
+  a.role = "hunt";
+  for (let i = 0; i < 40; i++) {
+    a.huntPt = null;
+    a.objective();
+    picks.add(a.huntPt.x.toFixed(1) + "," + a.huntPt.z.toFixed(1));
+  }
+  const hotPick = [...picks].some(k => {
+    const [x, z] = k.split(",").map(Number);
+    return Math.hypot(x + 20, z + 20) < 4;
+  });
+  check(hotPick, "on a known map, hunters go where the fights were", [...picks].slice(0, 6));
+  /* pre-aim: with a known sight line ahead, a pilot moving with no target looks at it */
+  const seenMem = new CTF.MapMemory(doc, null);
+  for (let k = 0; k < 30; k++) seenMem.add("seen", V(-22, 0, 16), 1);
+  seenMem.commit();
+  G.mem = seenMem;
+  a.role = "hunt";
+  a.target = null;
+  /* the west lane, looking north up it */
+  a.body.pos.set(-22, 0, -5);
+  a.body.pos.y = K.groundBelow(-22, -5, 1, 0.05);
+  const pre = a.preAim(1, new K.THREE.Vector3(0, 0, 1));
+  check(
+    !!pre && Math.abs(pre.z - 16) < 3,
+    "pre-aim: a known sight line ahead is watched",
+    pre && pre.toArray()
+  );
+  const behind = (a.preT = 0) || a.preAim(1, new K.THREE.Vector3(0, 0, -1));
+  check(!behind, "pre-aim: not one behind you", behind && behind.toArray());
+  CTF.AI.preAim = false;
+  a.preT = 0;
+  check(!a.preAim(1, new K.THREE.Vector3(0, 0, 1)), "pre-aim can be turned off (CTF.AI.preAim)");
+  CTF.AI.preAim = true;
+  /* the magnum's rhythm: at Legendary, a hit means the next shot at the weapon's rate exactly; a miss
+     means holding fire for a steadier aim. Below Legendary the re-aim pause stays */
+  const e = G.teams[1].agents[0];
+  e.dead = false;
+  e.body.dead = false;
+  a.body.pos.set(0, 0, -10);
+  a.body.pos.y = K.groundBelow(0, -10, 1, 0.05);
+  e.body.pos.set(0, a.body.pos.y, -18);
+  e.body.shield = 70;
+  e.body.health = 999;
+  e.body.spawnT = -99;
+  a.body.yaw = 0;
+  a.body.pitch = 0;
+  const pistol = K.WEAPON_DATA[1];
+  const fire = (lvl, hit) => {
+    G.diff[0] = lvl;
+    a.wpn = 1;
+    a.ammo[1] = pistol.mag;
+    a.magHit = hit;
+    a.fireCD = 0;
+    a.stepDt = 1 / 30;
+    a.body.vel.set(0, 0, 0);
+    a.shoot(e);
+    return +a.fireCD.toFixed(3);
+  };
+  check(
+    fire("legendary", true) === +pistol.rate.toFixed(3),
+    "Legendary: landing with the magnum, it fires at its rate exactly",
+    fire("legendary", true)
+  );
+  check(
+    fire("legendary", false) === +(pistol.rate + S.legendary.magPace).toFixed(3) &&
+      fire("heroic", true) === +(pistol.rate + S.heroic.magPace).toFixed(3),
+    "after a miss, or below Legendary, the magnum keeps its pause to re-aim",
+    { miss: fire("legendary", false), heroic: fire("heroic", true) }
+  );
+  CTF.AI.rhythm = false;
+  check(
+    fire("legendary", true) === +(pistol.rate + S.legendary.magPace).toFixed(3),
+    "the rhythm can be turned off (CTF.AI.rhythm)"
+  );
+  CTF.AI.rhythm = true;
+  /* holding range: a hunter already in a fight doesn't charge at its target */
+  a.role = "hunt";
+  a.target = e;
+  a.acqT = 0;
+  a.brain().enemyMem.set(e.id, { pos: e.body.pos.clone(), vel: e.body.vel.clone(), t: G.t, agent: e });
+  a.objective();
+  check(!a.mustMove, "a hunter in a fight lets the fight decide the range", a.mustMove);
+  CTF.AI.holdRange = false;
+  a.objective();
+  check(a.mustMove, "(the old charge-in behaviour, CTF.AI.holdRange off)", a.mustMove);
+  CTF.AI.holdRange = true;
+  K.STORE.setBackend(K.STORE.memoryBackend());
+}
 check(Date.now() - t0 < 15000, "scenarios run in seconds", Date.now() - t0 + " ms");
 finish("scenarios");

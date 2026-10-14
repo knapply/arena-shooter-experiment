@@ -81,6 +81,7 @@
   "modes": [
     "modes/ctf/map.js",
     "modes/ctf/nav.js",
+    "modes/ctf/memory.js",
     "modes/ctf/brain.js",
     "modes/ctf/agent.js",
     "modes/ctf/rules.js",
@@ -117,6 +118,7 @@
     "modes": [
       "modes/ctf/map.js",
       "modes/ctf/nav.js",
+      "modes/ctf/memory.js",
       "modes/ctf/brain.js",
       "modes/ctf/agent.js",
       "modes/ctf/rules.js"

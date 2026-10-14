@@ -157,7 +157,11 @@ $("sizePick").addEventListener("change", () => {
   saveMenu();
   renderMenu();
 });
-$("botSkill").addEventListener("change", () => renderMenu());
+/* picking a bot skill starts the adaptive level over from it */
+$("botSkill").addEventListener("change", () => {
+  STORE.save("botLevel", { lvl: BOT_LEVELS.indexOf($("botSkill").value), base: $("botSkill").value });
+  renderMenu();
+});
 function setTeam(t) {
   MENU.sel.team = t;
   STORE.save("ctfTeam", t);
@@ -176,11 +180,16 @@ function menuSummary(P, h, L) {
     return `Joining ${h.name}'s ${P.name} on ${mapName(h.map)} · ${n} player${n === 1 ? "" : "s"} in it · ${modeGoal(P)}. You take a bot's place.`;
   }
   const n = MENU.size(),
-    sk = $("botSkill"),
-    skill = sk.selectedIndex >= 0 ? sk.options[sk.selectedIndex].textContent : "";
+    /* adaptive bots: where they are now (offline only); otherwise the pick */
+    adapt = SET.adaptBots && !(L && L.room),
+    pick = $("botSkill").options[$("botSkill").selectedIndex].textContent,
+    bots = k =>
+      adapt
+        ? `${k} bot${k > 1 ? "s" : ""} (${botLevelName(botLevel())}, adapting)`
+        : `${k} ${pick} bot${k > 1 ? "s" : ""}`;
   const who = P.teams
-    ? `you${n > 1 ? ` and ${n - 1} ${skill} bot${n > 2 ? "s" : ""}` : ""} on ${MENU.sel.team ? "Blue" : "Red"} against ${n}`
-    : `you and ${n - 1} ${skill} bot${n > 2 ? "s" : ""}, every pilot for themselves`;
+    ? `you${n > 1 ? ` and ${bots(n - 1)}` : ""} on ${MENU.sel.team ? "Blue" : "Red"} against ${n}`
+    : `you and ${bots(n - 1)}, every pilot for themselves`;
   const room = L && L.room ? " Friends in your room can join." : "";
   return `${P.name} on ${mapName(MENU.map())}: ${who} · ${modeGoal(P)}.${room}`;
 }

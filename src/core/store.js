@@ -9,8 +9,9 @@
    more documents defined the same way.
 
    Documents: pilot (callsign, color, voice), settings (options, keys, pad), ctfTeam, ctfBrain
-   (the AI's learned tactics), menu (the picked mode, and each mode's map and team size). Each also
-   reads its pre-store localStorage key once, then moves it. */
+   (the AI's learned tactics), aiMaps (the AI's memory of each map), botLevel (adaptive bot skill),
+   menu (the picked mode, and each mode's map and team size). Each also reads its pre-store
+   localStorage key once, then moves it. */
 const STORE = (() => {
   const APP = "kinetic-arena";
   /** in-memory fallback when storage is blocked (private windows, sandboxed previews) */
@@ -159,6 +160,28 @@ const STORE = (() => {
     clean: d => (d === 1 ? 1 : 0),
   });
   define("ctfBrain", { version: 1, legacy: "ka-ctf-brain-v1", clean: d => (Array.isArray(d) ? d : null) });
+  /* what the AI remembers about each map it has played (modes/ctf/memory.js): heat maps of fights and
+     sightings; the memory module re-checks every cell when it loads one */
+  define("aiMaps", {
+    version: 1,
+    clean: d => {
+      const maps = {};
+      if (d && d.maps && typeof d.maps === "object")
+        for (const id of Object.keys(d.maps).slice(0, 8)) {
+          const v = d.maps[id];
+          if (/^[a-z0-9-]{1,40}$/.test(id) && v && typeof v === "object") maps[id] = v;
+        }
+      return { maps };
+    },
+  });
+  /* adaptive bot skill: where the bots are now, 0 (Recruit) to 3 (Legendary), and the pick it started from */
+  define("botLevel", {
+    version: 1,
+    clean: d => ({
+      lvl: Number.isFinite(+d?.lvl) ? Math.max(0, Math.min(3, +d.lvl)) : -1,
+      base: ["recruit", "normal", "heroic", "legendary"].includes(d?.base) ? d.base : "",
+    }),
+  });
   /* the menu's last pick: the mode, and each mode's map and team size (ui/menu.js) */
   const MODE_IDS = ["ctf", "slayer", "ffa", "oddball"];
   define("menu", {
