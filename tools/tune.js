@@ -37,10 +37,21 @@
                                                  one off; aiMemory 1 starts every match with a memory of
                                                  the map learned from two earlier matches; AIMEM=1 does
                                                  that for every variant (then aiPreAim 0 measures pre-aim)
+     node tools/tune.js ruRegenDelay ruShield  rules the Sandbox tab doesn't expose (ru*: shield, health,
+                                                 recharge, melee, carrier one-hit, AI grenades, power
+                                                 respawns, reserves, respawn delay, pods, flag and skull
+                                                 resets; sp*: spawn safety weights), patched into the
+                                                 simulation only; a full sweep leaves them out
+     PILOTS=6 MODE=ffa node tools/tune.js       free-for-all size; MIX=1 mixed-skill teams (n of the better
+                                                 level, the rest of the worse); LIMITS=1 the real score limits
+                                                 (LIMIT=n sets one), for who wins and lead changes
+     HEAT=1 node tools/tune.js                  map heat in the output; node tools/heat-report.js reads it
    Besides skill share, time to kill and grenades, every variant reports: the spread of time to kill
    (quartiles), each weapon's share of kills and of time held, how much skill decides fights with each
    weapon (the better team's share of that weapon's kills), captures and time to capture, the share of
-   deaths within 3 s of spawning, and lane use in the middle of a lane map.
+   deaths within 3 s of spawning, lane use in the middle of a lane map, how long flag and skull
+   carriers last and how their carries end, whether the half-time leader won and how often the lead
+   changed hands (LIMITS), and the spread of kills across pilots with the top pilot's margin.
    Output: a table on stdout and tools/out/tune.json (OUT=name.json). tools/tune-merge.js combines
    several outputs. See docs/TUNING.md for how defaults were chosen. */
 const fs = require("fs"),
@@ -59,7 +70,14 @@ const SEED = +(process.env.SEED || 100),
   RULES = process.env.MODE || (MAPID === "arena" ? "slayer" : "ctf"),
   /* the skill matches: the better level first */
   PAIR = (process.env.PAIR || "legendary,normal").split(","),
-  TEAM = +(process.env.TEAM || 4);
+  TEAM = +(process.env.TEAM || 4),
+  /* PILOTS=n free-for-all pilots (default the mode data), MIX=n mixed-skill teams, LIMITS=1 the real
+     score limits (LIMIT=n sets one), HEAT=1 heat maps */
+  PILOTS = +(process.env.PILOTS || 0),
+  MIX = +(process.env.MIX || 0),
+  LIMITS = process.env.LIMITS === "1" || !!process.env.LIMIT,
+  LIMIT = +(process.env.LIMIT || 0),
+  HEAT = process.env.HEAT === "1";
 /* AIMEM=1: every variant starts with a memory of the map (so aiPreAim measures something) */
 const AIMEM_ENV = process.env.AIMEM === "1";
 /** aiMemory: matches start with a memory of the map (see match) */
@@ -152,7 +170,120 @@ const KNOBS = {
   aiPreAim: { set: v => (CTF.AI.preAim = !!v), def: 1, try: [0] },
   aiMemory: { set: v => (AIMEM.on = !!v), def: AIMEM_ENV ? 1 : 0, try: [AIMEM_ENV ? 0 : 1] },
 };
+/* ---- rule knobs: pilot durability, melee, grenades, items, respawns, spawns and objectives. These
+   are numbers the Sandbox tab doesn't expose, so the simulation sets them through RULE (hooks below
+   patch the simulation in this process only; shipped code is untouched). Every default reproduces
+   the game exactly. ---- */
+const RULE = {
+  shield: 70,
+  health: 45,
+  /* seconds without damage before recharging (world/physics.js REGEN_DELAY), and shield / health
+     points a second */
+  regenDelay: 3,
+  shieldRate: 48,
+  healthRate: 28,
+  /* seconds between melee swings, and after a shoulder charge */
+  meleeCD: 0.75,
+  chargeCD: 1.3,
+  /* 1: a flag or skull carrier's melee kills in one hit; 0: it follows the normal melee rule */
+  carryHit: 1,
+  /* the AI's grenades at spawn (a multiple of its level's count), and its pause after a throw */
+  nades: 1,
+  nadeCD: 1,
+  /* power spawn respawn times, and the starting guns' reserves (multiples of the map's / the data's) */
+  power: 1,
+  reserve: 1,
+  /* seconds added to the respawn delay; drop pods (1) or in-place spawns (0) */
+  respawn: 0,
+  pods: 0,
+  /* a dropped flag's return, a dropped skull's reset (seconds; 0 keeps the mode's own) */
+  flagReset: 0,
+  ballReset: 0,
+};
+const RULE_DEF = Object.assign({}, RULE);
+const rule = k => v => (RULE[k] = v);
+Object.assign(KNOBS, {
+  ruShield: { set: rule("shield"), def: 70, try: [55, 85] },
+  ruHealth: { set: rule("health"), def: 45, try: [35, 55] },
+  ruRegenDelay: { set: rule("regenDelay"), def: 3, try: [2.5, 3.5] },
+  ruShieldRate: { set: rule("shieldRate"), def: 48, try: [32, 64] },
+  ruMeleeCD: { set: rule("meleeCD"), def: 0.75, try: [0.55, 1] },
+  ruChargeCD: { set: rule("chargeCD"), def: 1.3, try: [1, 1.8] },
+  ruCarryHit: { set: rule("carryHit"), def: 1, try: [0] },
+  ruNades: { set: rule("nades"), def: 1, try: [0.5, 1.5] },
+  ruNadeCD: { set: rule("nadeCD"), def: 1, try: [0.6, 1.5] },
+  ruPower: { set: rule("power"), def: 1, try: [0.67, 1.5] },
+  ruReserve: { set: rule("reserve"), def: 1, try: [0.5, 2] },
+  ruRespawn: { set: rule("respawn"), def: 0, try: [-2, 2] },
+  ruPods: { set: rule("pods"), def: 0, try: [1] },
+  ruFlagReset: { set: rule("flagReset"), def: 0, try: [10, 25] },
+  ruBallReset: { set: rule("ballReset"), def: 0, try: [8, 25] },
+  /* spawn safety weights (world/spawns.js) */
+  spSeen: { set: v => (K.SPAWN_W.seen = v), def: 60, try: [30, 120] },
+  spNear: { set: v => (K.SPAWN_W.near = v), def: 30, try: [20, 40] },
+  spFight: { set: v => (K.SPAWN_W.fightW = v), def: 1.2, try: [0.6, 2.4] },
+});
+KNOBS.spSeen.def = K.SPAWN_W.seen;
+KNOBS.spNear.def = K.SPAWN_W.near;
+KNOBS.spFight.def = K.SPAWN_W.fightW;
+const RES_DEF = K.WEAPON_DATA.map(w => w.reserve);
+/* the hooks: each one is the shipped behaviour exactly when RULE holds its defaults */
+{
+  const B = K.Body.prototype;
+  const reset0 = B.reset;
+  B.reset = function () {
+    reset0.call(this);
+    this.shield = RULE.shield;
+    this.health = RULE.health;
+  };
+  B.regen = function (dt, now) {
+    /* world/physics.js Body.regen with RULE's numbers */
+    if (this.dead) return 0;
+    if (this.sprint && this.shield < RULE.shield) {
+      this.lastDmg = Math.max(this.lastDmg, now - (RULE.regenDelay - 0.7));
+      return 0;
+    }
+    let ev = 0;
+    if (now - this.lastDmg > RULE.regenDelay) {
+      if (this.shield < RULE.shield) {
+        if (this.shield <= 0) ev = 1;
+        this.shield = Math.min(RULE.shield, this.shield + RULE.shieldRate * dt);
+      } else this.health = Math.min(RULE.health, this.health + RULE.healthRate * dt);
+    }
+    return ev;
+  };
+  const step0 = B.step;
+  B.step = function (dt, inp, ev) {
+    const m0 = this.meleeCD;
+    const r = step0.call(this, dt, inp, ev);
+    /* a swing this step set the cooldown to the shipped 0.75 or 1.3 */
+    if (this.meleeCD > m0) this.meleeCD = this.meleeCD === 1.3 ? RULE.chargeCD : RULE.meleeCD;
+    return r;
+  };
+  const A = CTF.Agent.prototype;
+  const spawn0 = A.spawn;
+  A.spawn = function (p) {
+    const r = spawn0.call(this, p);
+    if (RULE.nades !== 1) {
+      const nk = this.skill().nades;
+      this.nadeInv.frag = Math.round(2 * nk * RULE.nades);
+      this.nadeInv.plasma = Math.round(nk * RULE.nades);
+    }
+    return r;
+  };
+  const throw0 = A.throwNade;
+  A.throwNade = function (type, at) {
+    const r = throw0.call(this, type, at);
+    if (RULE.nadeCD !== 1) this.nadeCD *= RULE.nadeCD;
+    return r;
+  };
+}
+/* per-pilot skill levels (MIX: mixed-skill teams) */
+function setLevel(a, level) {
+  a.skill = () => K.AI_SKILL[level];
+}
 const LAB_KNOBS = Object.keys(KNOBS).filter(k => /^(lab|mod)/.test(k));
+const RULE_KNOBS = Object.keys(KNOBS).filter(k => /^(ru|sp)/.test(k));
 /* TRY="sbAccel=80,90;sbRun=6.8" replaces the values tried for those knobs */
 for (const part of (process.env.TRY || "").split(";").filter(Boolean)) {
   const [k, vals] = part.split("=");
@@ -194,6 +325,8 @@ KNOBS.sbNadeThrow.def = K.NADE_TUNE.throw;
 KNOBS.sbNadeBounce.def = K.NADE_TUNE.bounce;
 function resetAll() {
   for (const k of Object.keys(KNOBS)) KNOBS[k].set(KNOBS[k].def);
+  Object.assign(RULE, RULE_DEF);
+  K.WEAPON_DATA.forEach((w, i) => (w.reserve = RES_DEF[i]));
   if (process.env.GATES === "1") K.LABS.gates = true;
 }
 /** one match: returns kills by team, captures, times to kill and grenade outcomes */
@@ -230,11 +363,29 @@ function match(diff, seed, lock) {
     lock,
     map: MAPID,
     rules: RULES,
-    scoreLimit: RULES === "ctf" ? 0 : 1e9,
+    /* LIMITS=1: every mode plays to its real score limit (matches end early; "who wins" measures) */
+    scoreLimit: RULES === "ctf" || LIMITS ? 0 : 1e9,
     perTeam: TEAM,
     memory,
     saveMemory: false,
+    pilots: PILOTS || undefined,
+    pods: !!RULE.pods,
   });
+  /* rule knobs that live on the match */
+  G.respawnDelay += RULE.respawn;
+  if (RULE.flagReset) G.flagReset = RULE.flagReset;
+  if (RULE.ballReset) G.ballReset = RULE.ballReset;
+  if (LIMIT) G.scoreLimit = LIMIT;
+  for (const p of G.pickups || []) if (p.power) p.respawn *= RULE.power;
+  if (RULE.reserve !== 1)
+    for (const w of ["carbine", "pistol"])
+      W(w).reserve = Math.round(RES_DEF[K.WEAPON_DATA.indexOf(W(w))] * RULE.reserve);
+  /* MIX=n: in a skill match, the better team is n pilots of the better level and the rest of the
+     worse level (does one strong pilot carry a team?) */
+  if (MIX && diff[0] !== diff[1]) {
+    const better = diff[0] === PAIR[0] ? 0 : 1;
+    G.teams[better].agents.forEach((a, i) => setLevel(a, i < MIX ? PAIR[0] : PAIR[1]));
+  }
   /* free-for-all: the two skill levels alternate between pilots, so "team" below is the pilot's half */
   const side = a => (G.ffa ? a.team % 2 : a.team);
   const out = {
@@ -258,8 +409,29 @@ function match(diff, seed, lock) {
     /* oddball: seconds each side held the skull, and how often it changed hands */
     hold: [0, 0],
     turns: 0,
+    /* carriers (flag or skull): seconds from pick-up to losing it, and how each carry ended */
+    carry: [],
+    carryEnd: { capture: 0, killed: 0, dropped: 0, reset: 0 },
+    /* score of each side at half time, and at the end (who led, who won) */
+    half: null,
+    final: null,
+    /* kills each pilot scored (spread, and the free-for-all leader's margin) */
+    pk: [],
+    /* HEAT=1: where pilots were (once a second), died and killed from, in 2 m cells; spawn deaths
+       per spawn point */
+    heat: HEAT ? { occ: {}, death: {}, kill: {}, spawn: {}, zocc: {}, zdeath: {}, zkill: {} } : null,
   };
-  const takenAt = new Map();
+  const takenAt = new Map(),
+    carryFrom = new Map();
+  const cell = p => `${Math.floor(p.x / 2)},${Math.floor(p.z / 2)}`;
+  const zone = p => K.zoneLabel(CTF.MAP, p, -1) || "(no zone)";
+  const bump = (o, k) => (o[k] = (o[k] || 0) + 1);
+  const carryEnd = (a, how) => {
+    if (!carryFrom.has(a)) return;
+    out.carry.push(+(G.t - carryFrom.get(a)).toFixed(1));
+    out.carryEnd[how]++;
+    carryFrom.delete(a);
+  };
   G.onEvent = (t, d) => {
     if (t === "shot") {
       const a = d.by;
@@ -278,7 +450,17 @@ function match(diff, seed, lock) {
         out.wk[w] = (out.wk[w] || 0) + 1;
         if (side(k) === 0) out.wk0[w] = (out.wk0[w] || 0) + 1;
       }
-      if (v.__sp != null && G.t - v.__sp < 3) out.spawnDeaths++;
+      if (v.__sp != null && G.t - v.__sp < 3) {
+        out.spawnDeaths++;
+        if (out.heat && v.__spAt) bump(out.heat.spawn, v.__spAt);
+      }
+      if (out.heat && k && k !== v) {
+        bump(out.heat.death, cell(v.pos));
+        bump(out.heat.kill, cell(k.pos));
+        bump(out.heat.zdeath, zone(v.pos));
+        bump(out.heat.zkill, zone(k.pos));
+      }
+      carryEnd(v, "killed");
       if (k && k.team !== v.team) out.k[side(k)]++;
       if (k && k.team === v.team) out.team++;
       if (/frag|stick|plasma|nade/.test(d.type || "")) {
@@ -293,22 +475,29 @@ function match(diff, seed, lock) {
       if (v.__first != null) out.ttk.push(G.t - v.__first);
       v.__first = null;
     } else if (t === "capture") {
+      if (d.by) carryEnd(d.by, "capture");
       out.cap[d.by ? d.by.team : d.flag ? 1 - d.flag.team : 0]++;
       if (takenAt.has(d.flag)) out.ttc.push(G.t - takenAt.get(d.flag));
       takenAt.delete(d.flag);
     } else if (t === "flagTaken") {
       out.grabs++;
+      carryFrom.set(d.by, G.t);
       /* time to capture runs from the grab at the stand */
       if (!takenAt.has(d.flag) && d.flag.pos.distanceTo(CTF.FLAG_HOME[d.flag.team]) < 2)
         takenAt.set(d.flag, G.t);
     } else if (t === "flagReset" || t === "flagReturn") takenAt.delete(d.flag);
-    else if (t === "ballTaken") out.turns++;
+    else if (t === "ballTaken") {
+      out.turns++;
+      carryFrom.set(d.by, G.t);
+    } else if ((t === "flagDrop" || t === "ballDrop") && d.by && !d.by.dead && !d.killer)
+      carryEnd(d.by, "dropped");
   };
   G.start();
   for (const a of G.agents) {
     const sp = a.spawn.bind(a);
     a.spawn = p => {
       a.__sp = G.t;
+      a.__spAt = p ? `${Math.round(p[0])},${Math.round(p[2])}` : null;
       a.__life = {};
       return sp(p);
     };
@@ -316,22 +505,49 @@ function match(diff, seed, lock) {
     a.onHit = (n, type, head, att) => {
       if (a.__first == null || G.t - a.__lastHit > 3) a.__first = G.t;
       a.__lastHit = G.t;
+      /* RULE.carryHit 0: a carrier's swing follows the normal melee rule */
+      if (!RULE.carryHit && n >= 999 && (type === "flag" || type === "skull") && att && att.pos)
+        n = K.meleeDamage(a.body.shield, K.meleeBehind(att.pos.x, att.pos.z, a.pos.x, a.pos.z, a.body.yaw));
       return on(n, type, head, att);
     };
   }
+  /* the score of each side (teams; in free-for-all the best pilot of each skill half) */
+  const scores = () =>
+    G.ffa
+      ? [0, 1].map(s => Math.max(0, ...G.agents.filter(a => side(a) === s).map(a => a.k)))
+      : G.teams.map(T => T.score);
   const steps = MINUTES * 60 * 30;
-  const lanes = !!CTF.MAP.lanes;
+  const lanes = !!CTF.MAP.lanes,
+    timeline = [];
   for (let i = 0; i < steps && !G.over; i++) {
     G.step(1 / 30);
     if (i % 30) continue;
+    /* the score once a second: half time is half of the match actually played */
+    timeline.push(scores());
     /* once a second: what each pilot holds, and where the ones in the middle of the map are */
     for (const a of G.agents) {
       if (!a.alive) continue;
       const key = K.WEAPON_DATA[a.held()].key;
       out.held[key] = (out.held[key] || 0) + 1;
       if (lanes && Math.abs(a.pos.z) < 30) out.lanes[CTF.worldLane(a.pos.x)]++;
+      if (out.heat) {
+        bump(out.heat.occ, cell(a.pos));
+        bump(out.heat.zocc, zone(a.pos));
+      }
     }
   }
+  out.half = timeline[timeline.length >> 1] || scores();
+  /* how many times the lead changed hands (ties don't count as a change) */
+  let leader = -1;
+  out.leadChanges = 0;
+  for (const s of timeline) {
+    const l = s[0] > s[1] ? 0 : s[1] > s[0] ? 1 : -1;
+    if (l >= 0 && leader >= 0 && l !== leader) out.leadChanges++;
+    if (l >= 0) leader = l;
+  }
+  out.final = scores();
+  out.pk = G.agents.map(a => a.k);
+  for (const a of [...carryFrom.keys()]) carryEnd(a, "reset");
   /* minutes actually played (a capture limit can end a match early) */
   out.min = G.t / 60;
   if (G.ball) out.hold = [G.teams[0].held, G.teams[1].held];
@@ -362,7 +578,7 @@ function main() {
       ? []
       : knobArg.length
         ? knobArg
-        : Object.keys(KNOBS).filter(k => !LAB_KNOBS.includes(k));
+        : Object.keys(KNOBS).filter(k => !LAB_KNOBS.includes(k) && !RULE_KNOBS.includes(k));
   const locks = (process.env.LOCK || "").split(",").filter(Boolean);
   for (const l of locks)
     if (!LOCKS.includes(l)) {
@@ -463,6 +679,7 @@ function main() {
           PAIR,
           MAP: MAPID,
           MODE: RULES,
+          MODS: K.LABS.mods.slice(),
           TEAM,
         },
         null,
@@ -502,6 +719,11 @@ const extra = r => ({
   caps: r.capsPerMatch,
   hold: r.holdSkill,
   turns: r.turnsPerMatch,
+  carry: r.carry,
+  leadWins: r.leadWins,
+  leadChanges: r.leadChanges,
+  spread: r.killSpread,
+  margin: r.margin,
   ttc: r.ttc,
   lanes: r.lanes,
   lifeShots: r.lifeShots,
@@ -524,7 +746,15 @@ function summarize(vr) {
     spawnDeaths = 0,
     caps = 0,
     grabs = 0,
-    nEven = 0;
+    nEven = 0,
+    leads = 0,
+    leadWon = 0,
+    leadChanges = 0;
+  const carry = [],
+    carryEnds = { capture: 0, killed: 0, dropped: 0, reset: 0 },
+    spreads = [],
+    margins = [],
+    heat = { occ: {}, death: {}, kill: {}, spawn: {}, zocc: {}, zdeath: {}, zkill: {} };
   const wk = {},
     life = {},
     held = {},
@@ -552,6 +782,22 @@ function summarize(vr) {
       }
     } else {
       nEven++;
+      carry.push(...(r.carry || []));
+      add(carryEnds, r.carryEnd);
+      if (r.heat) for (const k of Object.keys(heat)) add(heat[k], r.heat[k]);
+      /* kill spread: the coefficient of variation of pilots' kills; the top pilot's lead over the next */
+      const pk = (r.pk || []).slice().sort((a, b) => b - a);
+      if (pk.length > 1) {
+        const m = pk.reduce((a, b) => a + b, 0) / pk.length;
+        if (m > 0) spreads.push(Math.sqrt(pk.reduce((a, b) => a + (b - m) ** 2, 0) / pk.length) / m);
+        margins.push(pk[0] - pk[1]);
+      }
+      leadChanges += r.leadChanges || 0;
+      /* did whoever led at half time win? (ties at half or at the end don't count) */
+      if (r.half && r.final && r.half[0] !== r.half[1] && r.final[0] !== r.final[1]) {
+        leads++;
+        if (r.half[0] > r.half[1] === r.final[0] > r.final[1]) leadWon++;
+      }
       add(wk, r.wk);
       add(held, r.held);
       for (const [w, a] of Object.entries(r.life || {})) (life[w] = life[w] || []).push(...a);
@@ -595,6 +841,14 @@ function summarize(vr) {
     spawnDeaths: +(spawnDeaths / Math.max(1, kills)).toFixed(3),
     capsPerMatch: +(caps / Math.max(1, nEven)).toFixed(2),
     grabsPerMatch: +(grabs / Math.max(1, nEven)).toFixed(2),
+    /* carriers: median seconds held, and how carries ended */
+    carry: carry.length ? { med: +median(carry).toFixed(1), n: carry.length, ...carryEnds } : null,
+    /* whoever led at half time won this share of the matches with a leader (even matches) */
+    leadWins: leads ? +(leadWon / leads).toFixed(3) : null,
+    leadChanges: +(leadChanges / Math.max(1, nEven)).toFixed(2),
+    killSpread: spreads.length ? +(spreads.reduce((a, b) => a + b, 0) / spreads.length).toFixed(3) : null,
+    margin: margins.length ? +(margins.reduce((a, b) => a + b, 0) / margins.length).toFixed(2) : null,
+    heat: HEAT ? heat : undefined,
     ttc: ttc.length ? +median(ttc).toFixed(1) : null,
     /* rounds fired per life with each weapon (even matches, whole lives): median, 95th and 99th
        percentiles, and how many lives */

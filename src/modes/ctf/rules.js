@@ -110,6 +110,22 @@
       dropT: 0,
       pulls: 0,
     }));
+    /* oddball on a map with several skull spots (balls): every drop, the first included, picks one at
+       random (never the spot it came down on last), so matches open in different places. Otherwise
+       the map's ball point. CTF.BALL_HOME follows, so everything that waits for the skull does */
+    const SPOTS = odd && CTF.MAP.balls ? CTF.MAP.balls : null,
+      home = CTF.MAP.ball || [0, 0, 0];
+    CTF.BALL_HOME.set(home[0], home[1], home[2]);
+    G.ballSpot = -1;
+    G.nextBallSpot = function () {
+      if (!SPOTS) return;
+      let i = Math.floor(K.rand() * SPOTS.length);
+      if (SPOTS.length > 1 && i === G.ballSpot) i = (i + 1) % SPOTS.length;
+      G.ballSpot = i;
+      CTF.BALL_HOME.set(SPOTS[i][0], SPOTS[i][1], SPOTS[i][2]);
+    };
+    G.nextBallSpot();
+
     /** oddball: the skull. incoming (a pod is bringing it), home (on its spot), carried or dropped */
     G.ball = odd
       ? {
@@ -664,6 +680,7 @@
       B.carrier = null;
       B.landAt = G.t + K.POD_TIME + 1;
       B.podSent = false;
+      G.nextBallSpot();
       G.emit("ballReset", {});
     }
     const _bp = new K.THREE.Vector3();

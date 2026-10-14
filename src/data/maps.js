@@ -98,6 +98,9 @@ MAPS.arena = {
     { id: "barricade4", type: "box", mat: "cover", p: [-18, 0, -9], s: [3.6, 1.1, 0.6] },
   ],
   spawns: {
+    /* free-for-all: fifteen spots. The open east and west lane spots (±22, 0) were the worst spawn
+       traps; the alcoves behind the pillars and four quiet corners replace them, and with more spots
+       to choose from spawn safety cut deaths within 3 s of spawning from 5.4% to 3.4% (docs/TUNING.md) */
     ffa: [
       [24, 2.6, 24],
       [-24, 2.6, -24],
@@ -105,11 +108,15 @@ MAPS.arena = {
       [-24, 2.6, 24],
       [0, 0, 22],
       [0, 0, -22],
-      [22, 0, 0],
-      [-22, 0, 0],
       [0, 3.2, 2],
       [10, 0, -30],
       [-10, 0, 30],
+      [32.5, 0, 0],
+      [-32.5, 0, 0],
+      [30, 0, 18],
+      [-30, 0, -18],
+      [18, 0, -30],
+      [-18, 0, 30],
     ],
     /* team modes: red spawns together on the south half, blue on the north */
     teams: [
@@ -133,6 +140,14 @@ MAPS.arena = {
   },
   /* oddball: where the skull's pod comes down (the core's roof, beside the power weapon) */
   ball: [3, 3.2, 0],
+  /* every drop, the first included, picks one of these instead (never the last one again): the core's
+     roof and the alcoves behind the east and west pillars, all the same distance from both teams. The
+     one spot east of centre left the west of the arena empty (docs/TUNING.md) */
+  balls: [
+    [3, 3.2, 0],
+    [32.5, 0, 0],
+    [-32.5, 0, 0],
+  ],
   /* callout zones (first match wins): b = [x0, z0, x1, z1], y = [low, high]; north is +z */
   zones: [
     { name: "core top", b: [-5, -5, 5, 5], y: [2.8, 99] },
@@ -299,6 +314,22 @@ MAPS.ctf = {
     { id: "midBarricade1", type: "box", mat: "cover", p: [-13.5, 0, -2], s: [0.6, 1.2, 3], twin: true },
   ],
   spawns: {
+    /* free-for-all: twelve spots over the bases, wings, catwalks and mid (with only the bases' spawns,
+       free-for-all fought almost entirely in the bases; docs/TUNING.md) */
+    ffa: [
+      [-6, 2.4, -45.5],
+      [6, 2.4, 45.5],
+      [14, 0, -46],
+      [-14, 0, 46],
+      [-21, 0, -19],
+      [21, 0, 19],
+      [21, 0, -30],
+      [-21, 0, 30],
+      [-24.5, 2.6, -6],
+      [24.5, 2.6, 6],
+      [-7, 0, -8],
+      [7, 0, 8],
+    ],
     teams: [
       [
         [-6, 2.4, -45.5],
@@ -326,8 +357,14 @@ MAPS.ctf = {
     [0, 2.4, -43],
     [0, 2.4, 43],
   ],
-  /* oddball: the skull comes down on the mid tower's roof, level with both bases */
+  /* oddball: the skull comes down on the mid tower's roof, level with both bases; with balls, every
+     drop picks one of them: the roof or either catwalk (which nothing else brings anyone to) */
   ball: [3, 3, 0],
+  balls: [
+    [3, 3, 0],
+    [-24.5, 2.6, 0],
+    [24.5, 2.6, 0],
+  ],
   /* callout zones (first match wins). side: the team whose half it is (0 red, south; 1 blue, north):
      callouts say "our" or "their" to a team and "Red" or "Blue" to everyone else */
   zones: [
@@ -481,6 +518,14 @@ function validateMap(doc) {
   )
     bad("lanes must be { split, x: [left, mid, right] }");
   if (doc.ball !== undefined && !vec(doc.ball, 3, -500, 500)) bad("ball must be a point [x, y, z]");
+  if (
+    doc.balls !== undefined &&
+    (!Array.isArray(doc.balls) ||
+      !doc.balls.length ||
+      doc.balls.length > 16 ||
+      !doc.balls.every(p => vec(p, 3, -500, 500)))
+  )
+    bad("balls must be 1-16 points [x, y, z]");
   if (doc.zones !== undefined) {
     if (!Array.isArray(doc.zones) || doc.zones.length > 64) bad("at most 64 zones");
     else
@@ -650,7 +695,8 @@ const MOD_DOCS = new Map();
 /** the map document for a MAPS key with the named mods that apply to it (the plain map when none do) */
 function mapDoc(key, mods) {
   const base = MAPS[key];
-  const on = (mods || []).filter(m => MAP_MODS[m] && MAP_MODS[m].map === key).sort();
+  const onMap = M => (Array.isArray(M.map) ? M.map.includes(key) : M.map === key);
+  const on = (mods || []).filter(m => MAP_MODS[m] && onMap(MAP_MODS[m])).sort();
   if (!base || !on.length) return base;
   const id = [base.id, ...on].join("-");
   if (MOD_DOCS.has(id)) return MOD_DOCS.get(id);
@@ -660,6 +706,9 @@ function mapDoc(key, mods) {
     if (M.remove) doc.pieces = doc.pieces.filter(pc => !M.remove.includes(pc.id));
     if (M.add) doc.pieces = doc.pieces.concat(M.add);
     if (M.pickups) doc.pickups = M.pickups(doc.pickups || []);
+    /* fields set outright (or computed from the map so far) */
+    const set = M.set && M.set[key];
+    if (set) Object.assign(doc, typeof set === "function" ? set(doc) : set);
   }
   MOD_DOCS.set(id, doc);
   return doc;
