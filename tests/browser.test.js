@@ -1274,6 +1274,17 @@ const podSeats = map => {
       });
     await listen(A);
     await listen(B);
+    /* a live enemy bot without a power weapon (they may all be respawning for a moment) */
+    await A.waitForFunction(
+      () => {
+        const g = CTF.UI.game();
+        return g.teams[1 - g.human.team].agents.some(
+          a => !a.human && !a.remote && a.alive && !(a.sniper > 0) && !(a.rocket > 0)
+        );
+      },
+      null,
+      { timeout: 30000, polling: 50 }
+    );
     const holder = await A.evaluate(() => {
       const g = CTF.UI.game();
       const e = g.teams[1 - g.human.team].agents.find(
@@ -1313,6 +1324,22 @@ const podSeats = map => {
       };
       /* live bots could kill the carrier while we look: keep them alive for the check */
       e.onHit = () => ({ died: false, sh: true });
+      /* ...and hold them still in the middle, away from their own stand (where they would capture) */
+      const think = e.think;
+      e.think = () => ({
+        f: 0,
+        s: 0,
+        sprint: false,
+        thrust: false,
+        crouch: false,
+        crouchP: false,
+        jumpP: false,
+        aim: false,
+        scoped: false,
+        meleeP: false,
+      });
+      e.body.pos.set(-18, 0, 0);
+      e.body.vel.set(0, 0, 0);
       const f = g.flags[ht];
       f.state = "carried";
       f.carrier = e;
@@ -1330,6 +1357,7 @@ const podSeats = map => {
       out.heard2 = heard.slice();
       KA.sfx = sfx0;
       delete e.onHit;
+      e.think = think;
       return out;
     });
     check(

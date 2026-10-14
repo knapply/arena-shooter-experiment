@@ -500,8 +500,13 @@ function analyze(truth, seen) {
       await ctx.close();
     }
     /* after the match, online: "Play again" keeps the room, and both players end up in the next
-       match together (capture the flag: the host starts it, the other player joins it) */
-    {
+       match together (the host picks the mode and starts it, the other player joins it), in a team
+       mode with flags, one with the skull, and free-for-all */
+    for (const [mode, name] of [
+      ["ctf", "CTF"],
+      ["oddball", "oddball"],
+      ["ffa", "free-for-all"],
+    ]) {
       const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });
       const A = await open(ctx, { tag: "A", init: ["fake-peer.js"] }),
         B = await open(ctx, { tag: "B", init: ["fake-peer.js"] });
@@ -527,20 +532,26 @@ function analyze(truth, seen) {
           hostPeer,
           30000
         );
-      await A.click("#ctfPlay");
-      check(await inMatch(A, null), "post-match (CTF): the host starts a match");
+      await A.click("#mode-" + mode);
+      await A.click("#play");
+      check(await inMatch(A, null), `post-match (${name}): the host starts a match`);
       await poll(B, () => !!(window.CTF && CTF.NET.room && CTF.NET.liveHost()), null, 15000);
-      await B.click("#ctfBlue");
-      await B.click("#ctfPlay");
-      check(await inMatch(B, aPeer), "post-match (CTF): the other player joins it");
+      if (mode !== "ffa") await B.click("#ctfBlue");
+      await B.click("#play");
+      check(await inMatch(B, aPeer), `post-match (${name}): the other player joins it`);
+      check(
+        (await B.evaluate(() => CTF.UI.game().rules)) === mode,
+        `post-match (${name}): they play the host's mode`,
+        await B.evaluate(() => CTF.UI.game().rules)
+      );
       const mid1 = await B.evaluate(() => CTF.UI.game().mid);
       await A.evaluate(() => CTF.UI.game().finish(0));
       /* Play of the Game first, then the results, on both */
       const post = p => poll(p, () => KA.POST.open, null, 45000);
       const [pa, pb] = [await post(A), await post(B)];
-      check(pa && pb, "post-match (CTF): both players get the results screen", { host: pa, client: pb });
+      check(pa && pb, `post-match (${name}): both players get the results screen`, { host: pa, client: pb });
       await A.click("#postAgain");
-      check(await inMatch(A, null), "post-match (CTF): Play again hosts the next match");
+      check(await inMatch(A, null), `post-match (${name}): Play again hosts the next match`);
       await poll(B, m => (CTF.NET.liveHost() || {}).mid !== m && !!CTF.NET.liveHost(), mid1, 15000);
       await B.click("#postAgain");
       const joined = await inMatch(B, aPeer);
@@ -562,15 +573,15 @@ function analyze(truth, seen) {
       );
       check(
         joined && hostSees && st[1].mid && st[1].mid !== mid1,
-        "post-match (CTF): Play again keeps the room: both are in the next match together",
+        `post-match (${name}): Play again keeps the room: both are in the next match together`,
         { joined, hostSees, st, mid1 }
       );
       check(
         st[0].links >= 1 && st[1].links >= 1 && st[1].connected,
-        "post-match (CTF): still connected to each other",
+        `post-match (${name}): still connected to each other`,
         st
       );
-      check(A.errors.length + B.errors.length === 0, "post-match (CTF): no page errors", [
+      check(A.errors.length + B.errors.length === 0, `post-match (${name}): no page errors`, [
         ...A.errors,
         ...B.errors,
       ]);

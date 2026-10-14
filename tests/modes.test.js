@@ -162,6 +162,35 @@ const until = (p, fn, arg, timeout = 30000) =>
         KA.me.pitch = 0;
         return e.id;
       });
+    /** a melee at an enemy right in front of you, once you stand still and can swing (no sprint
+        built up, which would make it a shoulder charge; no thrust; melee ready), retried a few
+        times on a slow machine; true when that enemy died to weapon w */
+    const swing = async w => {
+      for (let i = 0; i < 4; i++) {
+        await p.evaluate(() => {
+          KA.me.vel.set(0, 0, 0);
+        });
+        await until(
+          p,
+          () =>
+            KA.me.ground && KA.me.thrustT <= 0 && KA.me.meleeCD <= 0 && KA.me.sprintT < 0.1 && !KA.me.dead,
+          null,
+          10000
+        );
+        const v = await enemyAhead();
+        await p.keyboard.press("KeyF");
+        if (
+          await until(
+            p,
+            a => window.__k.some(k => k.v === "ctf:" + a[0] && k.w === a[1] && k.k === "local"),
+            [v, w],
+            4000
+          )
+        )
+          return true;
+      }
+      return false;
+    };
     /** the match ends: Play of the Game, then the results screen */
     const results = async () => {
       const ok = await until(p, () => KA.POST.open, null, 90000);
@@ -237,15 +266,8 @@ const until = (p, fn, arg, timeout = 30000) =>
     await p.waitForTimeout(300);
     await p.mouse.up();
     check((await p.evaluate(() => KA.lastFireT)) === ft, "a flag carrier can't shoot");
-    const victim = await enemyAhead();
-    await p.keyboard.press("KeyF");
     check(
-      await until(
-        p,
-        v => window.__k.some(k => k.v === "ctf:" + v && k.w === "flag" && k.k === "local"),
-        victim,
-        5000
-      ),
+      await swing("flag"),
       "a melee by the flag carrier kills in one hit",
       await p.evaluate(() => window.__k.slice(-2))
     );
@@ -354,10 +376,8 @@ const until = (p, fn, arg, timeout = 30000) =>
         (await p.evaluate(() => JSON.stringify(KA.nadeInv))) === nades,
       "holding the skull: no shooting, no grenades"
     );
-    const v2 = await enemyAhead();
-    await p.keyboard.press("KeyF");
     check(
-      await until(p, v => window.__k.some(k => k.v === "ctf:" + v && k.w === "skull"), v2, 5000),
+      await swing("skull"),
       "a melee with the skull kills in one hit",
       await p.evaluate(() => window.__k.slice(-2))
     );
