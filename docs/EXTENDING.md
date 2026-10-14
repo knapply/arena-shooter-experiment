@@ -57,7 +57,7 @@ New content can ship off by default: give a weapon `lab: "<name>"` (it appears o
    - `pieces` (`box`, `stairs`, `strip`; `twin: true` mirrors a piece for team maps);
    - `spawns.ffa` and/or `spawns.teams`.
 
-   Optional fields: `flags` (capture the flag), `lanes` (`split`, `x`: lane hints for the AI), `pickups`, `zones` (callouts, below) and `gates` (blast walls that rise and sink on the match clock: `leaves` `[x, z, width, depth]`, `h`, `phase` 0 to 1 of the cycle, `twin`; see `world/gates.js`).
+   Optional fields: `flags` (capture the flag), `lanes` (`split`, `x`: lane hints for the AI), `pickups`, `zones` (callouts, below), `look` (`"deep"`: a map on the sea floor, see `world/deep.js`) and `gates` (blast walls that rise and sink on the match clock: `leaves` `[x, z, width, depth]`, `h`, `phase` 0 to 1 of the cycle, `twin`; see `world/gates.js`).
 2. `validateMap` checks it strictly; `tests/maps.test.js` runs it, including overlap checks.
 3. The AI can play it straight away: `CTF.Game({ map: "<id>", mode: "sim", render: false })`. The nav grid sizes itself from `bounds` and seeds reachability from the first flag or spawn. A map without `flags` plays team deathmatch. Check it with:
    ```bash

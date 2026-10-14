@@ -439,6 +439,7 @@ function renderFrame() {
       SURF_U.surfMark.value = cur.mark.tex;
       SURF_U.surfMarkB.value.copy(cur.mark.b);
     }
+    deepShow(!!cur && cur.look === "deep");
     const gr = SET.grade && !GFX.look && cur && MAP_GRADE[cur.id];
     U.gOn.value = gr ? 1 : 0;
     if (gr) {

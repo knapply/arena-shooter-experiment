@@ -216,11 +216,11 @@ const fix = v => +v.toFixed(2);
   const NORTH = Math.PI,
     WEST = Math.PI / 2;
   const routes = {
-    scubaLedge: hop([4.5, 0, -9], NORTH),
-    scubaDeck: hop([4.5, 2.1, -6], NORTH),
-    cubeLedge: hop([12.5, 0, -2], WEST),
-    cubeDeck: hop([10, 2.1, -2], WEST),
-    floorDeck: hop([11.5, 0, 3], WEST, true),
+    scubaLedge: hop([5.4, 0, -10.5], NORTH),
+    scubaDeck: hop([5.4, 2.1, -7.2], NORTH),
+    cubeLedge: hop([15, 0, -2.4], WEST),
+    cubeDeck: hop([12, 2.1, -2.4], WEST),
+    floorDeck: hop([13.8, 0, 3.6], WEST, true),
   };
   check(
     Math.abs(routes.scubaLedge - 2.1) < 0.05 &&

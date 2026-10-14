@@ -34,7 +34,8 @@ DRESS_MATS.rib.userData.envK = 0.9;
 }
 /** the light color for a spot on a map: arena quadrants, or team halves with a neutral middle */
 function zoneMat(doc, x, z) {
-  if (doc.symmetry === "rotate180") return Math.abs(z) < 12 ? "stripV" : z < 0 ? "redStrip" : "blueStrip";
+  if (doc.symmetry === "rotate180")
+    return Math.abs(z) < 12 ? (doc.look === "deep" ? "stripG" : "stripV") : z < 0 ? "redStrip" : "blueStrip";
   return x >= 0 ? (z >= 0 ? "stripB" : "stripG") : z >= 0 ? "stripV" : "strip";
 }
 function dressMap(doc, solids) {
@@ -172,6 +173,8 @@ function dressMap(doc, solids) {
   }
   /* pipes, cables, fans, beacons and signs (world/props.js) */
   dressProps(doc, solids, rnd01, zoneMat, faceList);
+  /* a map under the sea gets its set pieces (world/deep.js) */
+  if (doc.look === "deep") dressDeep(doc, add);
   if (aoQuads.length) {
     const m = new THREE.Mesh(mergeGeos(aoQuads), DRESS_MATS.ao);
     m.renderOrder = 1;

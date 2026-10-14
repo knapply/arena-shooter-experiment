@@ -27,13 +27,16 @@ function makeMotes() {
       t: { value: 0 },
       cam: { value: new THREE.Vector3() },
       box: { value: MOTE_BOX },
+      deep: SKY_DEEP,
       scale: { value: 500 },
       map: { value: SOFT },
     },
-    vertexShader: `uniform float t;uniform vec3 cam;uniform float box;uniform float scale;attribute float seed;varying float vA;
+    vertexShader: `uniform float t;uniform vec3 cam;uniform float box;uniform float scale;uniform float deep;attribute float seed;varying float vA;
 void main(){
   /* slow drift with a little sway, wrapped into a box around the camera */
   vec3 drift=vec3(.18+.12*seed,.05*sin(t*.4+seed*20.),.1-.2*seed)*t;
+  /* under the sea: marine snow, sinking */
+  drift=mix(drift,vec3(.04*sin(t*.3+seed*9.),-.12-.1*seed,.03)*t,deep);
   vec3 sway=vec3(sin(t*.7+seed*31.),cos(t*.5+seed*17.),sin(t*.6+seed*11.))*.25;
   vec3 p=mod(position+drift-cam+box,2.*box)-box+cam+sway;
   vec4 mv=modelViewMatrix*vec4(p,1.);
@@ -44,7 +47,7 @@ void main(){
   vA=smoothstep(.6,2.5,d)*(1.-smoothstep(box*.55,box,length(p-cam)))*(.55+.45*sin(t*(1.+seed*2.)+seed*40.));
 }`,
     fragmentShader: `uniform sampler2D map;varying float vA;
-void main(){float a=texture2D(map,gl_PointCoord).a*vA*.55;gl_FragColor=vec4(vec3(1.,.93,.82)*a,a);}`,
+uniform float deep;void main(){float a=texture2D(map,gl_PointCoord).a*vA*.55;gl_FragColor=vec4(mix(vec3(1.,.93,.82),vec3(.7,.95,1.),deep)*a,a);}`,
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,

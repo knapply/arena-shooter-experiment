@@ -53,6 +53,7 @@ const broken = {
   }),
   "no spawns": Object.assign(clone(base), { spawns: {} }),
   "bad callout zones": Object.assign(clone(base), { zones: [["<b>", 0, 0, 1, 1]] }),
+  "unknown look": Object.assign(clone(base), { look: "lava" }),
   "a gate without leaves": Object.assign(clone(base), { gates: [{ id: "g", leaves: [], h: 4, phase: 0 }] }),
   "a gate phase out of range": Object.assign(clone(base), {
     gates: [{ id: "g", leaves: [[0, 0, 4, 0.8]], h: 4, phase: 2 }],
@@ -163,11 +164,11 @@ check(
   check(T === 4 && doc.spawns.teams.every(t => t.length >= 8), "Hadal Station has a spawn for every pilot");
   const at = (x, y, z) => ({ x, y, z });
   const calls = [
-    CTF.zoneName(0, at(1, 0, -31.5)),
-    CTF.zoneName(1, at(1, 0, -31.5)),
+    CTF.zoneName(0, at(1.2, 0, -40.8)),
+    CTF.zoneName(1, at(1.2, 0, -40.8)),
     CTF.zoneName(1, at(-5, 4.2, 0)),
     CTF.zoneName(0, at(0, 0, 0)),
-    CTF.zoneName(1, at(-13, 2.1, 27)),
+    CTF.zoneName(1, at(-15.6, 2.1, 32.4)),
   ];
   check(
     calls.join() === "our flag room,their flag room,top mid,bottom mid,our porch",
