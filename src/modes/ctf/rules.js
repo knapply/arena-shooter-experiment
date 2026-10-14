@@ -1,22 +1,32 @@
-/* ===== Match rules (CTF.Game): flags, scoring, respawns and AI learning. Runs rendered or headless =====
-   CTF.Game(opts) builds a match on a map (opts.map, default Twin Foundry; a map without flags plays team
-   deathmatch) and returns G:
+/* ===== Match rules (CTF.Game): flags, the skull, scoring, respawns and AI learning. Runs rendered or headless =====
+   CTF.Game(opts) builds a match on a map (opts.map, default Twin Foundry) under a set of rules
+   (opts.rules): "ctf" capture the flag, "slayer" team deathmatch, "ffa" free-for-all (every pilot is a
+   team of one) or "oddball" (hold the skull). Without opts.rules a map with flags plays capture the
+   flag and one without plays team deathmatch. It returns G:
      G.agents / G.teams     every pilot (AI, you, online players) and each team's TeamBrain
+     G.foes(team)           everyone who is an enemy of a team (the other team; everyone else in FFA)
      G.start(), G.step(dt)  begin, then advance the whole match: brains, bots (think + Body.step),
-                            respawns and drop pods, grenades, rockets, items on the floor, flags, the clock
-     G.kill(...)            the one place a pilot dies: score, drops, flag drop, events
+                            respawns and drop pods, grenades, rockets, items on the floor, flags, the
+                            skull, the clock
+     G.kill(...)            the one place a pilot dies: score, drops, flag or skull drop, events
      G.emit(type, d)        rule events for the UI, the engine's event stream and the netcode
-   What each team learned about its opponent is saved at the end of a match (CTF.saveModels). */
+   Carrying the flag or the skull takes both hands: no guns or grenades, but a melee kills in one hit.
+   A flag carrier who sprints or thrusts lets the flag go (players: the engine's carry rules; the AI
+   never does). What each team learned about its opponent is saved after capture the flag matches
+   (CTF.saveModels). */
 (function () {
   const K = window.KA,
     CTF = window.CTF;
   const NAMES = [
-    ["Vex", "Kade", "Rook", "Juno"],
-    ["Sol", "Brix", "Nyx", "Talon"],
+    ["Vex", "Kade", "Rook", "Juno", "Hale", "Mira"],
+    ["Sol", "Brix", "Nyx", "Talon", "Orin", "Zed"],
   ];
   CTF.NAMES = NAMES;
-  /* opts.map picks the map (default Twin Foundry); a map without flags plays team deathmatch: the AI
-     hunts, and a kill on the other team scores a point */
+  /** free-for-all names: the two teams' names interleaved */
+  const FFA_NAMES = NAMES[0].flatMap((n, i) => [n, NAMES[1][i]]);
+  /** the MODE_DATA entry each set of rules reads */
+  const RULES_DATA = { ctf: "ctf", slayer: "tdm", ffa: "ffa", oddball: "oddball" };
+  CTF.RULES_DATA = RULES_DATA;
   CTF.Game = function (opts) {
     /* lab content (docs/PROPOSALS.md): offline matches and simulations only, never online */
     const labs = opts.labs !== false && K.LABS.on;
@@ -24,8 +34,14 @@
     /* the AI's walkable grid is built once per map (and patched as cover breaks) */
     if (CTF.NAV.mapId !== CTF.MAP.id) CTF.NAV.build(CTF.buildMap().solids);
     CTF.enterMap();
-    const tdm = !CTF.hasFlags(),
-      MD = tdm ? K.MODE_DATA.tdm : K.MODE_DATA.ctf;
+    let rules = opts.rules || (CTF.hasFlags() ? "ctf" : "slayer");
+    if (!RULES_DATA[rules] || (rules === "ctf" && !CTF.hasFlags())) rules = "slayer";
+    const ffa = rules === "ffa",
+      odd = rules === "oddball",
+      MD = K.MODE_DATA[RULES_DATA[rules]];
+    /* free-for-all: every pilot is a team of one */
+    const nTeams = ffa ? Math.max(2, Math.min(FFA_NAMES.length, opts.pilots || MD.pilots)) : 2;
+    const d0 = opts.diff || ["legendary", "legendary"];
     /* seeded before anything random happens, so seed + inputs reproduce the match */
     const seed = K.RNG.seed(opts.seed);
     const G = {
@@ -33,11 +49,19 @@
       t: 0,
       mode: opts.mode,
       render: !!opts.render,
-      diff: opts.diff || ["legendary", "legendary"],
+      /** skill per team (in free-for-all the given levels alternate between pilots) */
+      diff: Array.from({ length: nTeams }, (_, i) => d0[i % d0.length]),
       scoreLimit: opts.scoreLimit || MD.scoreLimit,
       timeLimit: opts.timeLimit || MD.timeLimit,
-      /** team deathmatch: no flags, kills score */
-      tdm,
+      /** the rules played: "ctf", "slayer", "ffa" or "oddball", and on which map (a MAPS key) */
+      rules,
+      mapKey: opts.map || "ctf",
+      /** kills score (team deathmatch and free-for-all) */
+      tdm: rules === "slayer" || ffa,
+      ffa,
+      /** a dropped flag goes home after this long; a dropped skull is dropped in again after this long */
+      flagReset: K.MODE_DATA.ctf.flagReset || 15,
+      ballReset: opts.ballReset || (odd ? MD.ballReset : 15),
       respawnDelay: MD.respawn,
       over: false,
       winner: -1,
@@ -63,9 +87,17 @@
       gates: opts.gates != null ? !!opts.gates : labs && !!K.LABS.gates,
     };
     K.gatesAt(0, G.gates);
-    const models = CTF.loadModels();
-    G.teams = [0, 1].map(t => ({ team: t, score: 0, agents: [], brain: new CTF.TeamBrain(t, models[t]) }));
-    G.flags = (tdm ? [] : [0, 1]).map(t => ({
+    /* what the teams learned is about capture the flag on Twin Foundry: other rules start fresh */
+    const models = rules === "ctf" ? CTF.loadModels() : null;
+    G.teams = Array.from({ length: nTeams }, (_, t) => ({
+      team: t,
+      score: 0,
+      /** oddball: seconds this team has held the skull */
+      held: 0,
+      agents: [],
+      brain: new CTF.TeamBrain(t, models ? models[t] : CTF.freshModel()),
+    }));
+    G.flags = (rules === "ctf" ? [0, 1] : []).map(t => ({
       team: t,
       state: "home",
       pos: CTF.FLAG_HOME[t].clone(),
@@ -73,14 +105,49 @@
       dropT: 0,
       pulls: 0,
     }));
+    /** oddball: the skull. incoming (a pod is bringing it), home (on its spot), carried or dropped */
+    G.ball = odd
+      ? {
+          ball: true,
+          team: -1,
+          state: "incoming",
+          pos: CTF.BALL_HOME.clone(),
+          carrier: null,
+          dropT: 0,
+          landAt: Infinity,
+          podSent: false,
+          /** whoever just let it go can't pick it straight back up */
+          noPick: null,
+          noPickT: 0,
+        }
+      : null;
     /* opts.perTeam: pilots per team (simulated duels on the arena use 1) */
-    for (let t = 0; t < 2; t++)
-      for (let i = 0; i < (opts.perTeam || 4); i++) {
-        G.teams[t].agents.push(new CTF.Agent(G, t, i, NAMES[t][i], false));
-      }
-    G.agents = [...G.teams[0].agents, ...G.teams[1].agents];
+    if (ffa)
+      for (let t = 0; t < nTeams; t++) G.teams[t].agents.push(new CTF.Agent(G, t, 0, FFA_NAMES[t], false));
+    else
+      for (let t = 0; t < 2; t++)
+        for (let i = 0; i < Math.min(NAMES[t].length, opts.perTeam || MD.teamSize || 4); i++)
+          G.teams[t].agents.push(new CTF.Agent(G, t, i, NAMES[t][i], false));
+    G.agents = G.teams.flatMap(tm => tm.agents);
     G.emit = (type, d) => {
       if (G.onEvent) G.onEvent(type, d || {});
+    };
+    /* who is an enemy of whom: the other team, or in free-for-all everyone else (rebuilt with the roster) */
+    let foeCache = [];
+    G.foes = team => (ffa ? foeCache[team] || [] : G.teams[1 - team].agents);
+    /** the spawn points a team uses (free-for-all: every spawn on the map) */
+    G.spawnList = team => (ffa ? CTF.FFA_SPAWNS : CTF.SPAWNS[team]);
+    /** the team's own pilot carrying the objective (their flag, or the skull), or null */
+    G.mateCarrier = team => {
+      if (G.ball) return G.ball.carrier && G.ball.carrier.team === team ? G.ball.carrier : null;
+      const f = G.flags[1 - team];
+      return f && f.state === "carried" && f.carrier ? f.carrier : null;
+    };
+    /** an enemy carrying the objective (our flag, or the skull), or null */
+    G.foeCarrier = team => {
+      if (G.ball) return G.ball.carrier && G.ball.carrier.team !== team ? G.ball.carrier : null;
+      const f = G.flags[team];
+      return f && f.state === "carried" && f.carrier ? f.carrier : null;
     };
     G.hurtHuman = (e, n, src) => {
       K.noteFight(G.fights, e.pos, G.t);
@@ -124,15 +191,17 @@
       return mates;
     };
     G.bench = [];
-    G.bodies = G.agents.map(a => a.body);
     const rebuild = () => {
-      G.agents = [...G.teams[0].agents, ...G.teams[1].agents];
+      G.agents = G.teams.flatMap(tm => tm.agents);
       G.bodies = G.agents.map(a => a.body);
+      if (ffa) foeCache = G.teams.map(tm => G.agents.filter(a => a.team !== tm.team));
     };
+    rebuild();
     /* pilots are solid to each other */
     const colliders = () => G.bodies;
     function dropFlag(a) {
       if (!a.carrying) return;
+      if (a.carrying === G.ball) return dropBall(a, null);
       const f = a.carrying;
       f.state = "dropped";
       f.carrier = null;
@@ -183,17 +252,27 @@
       G.emit("roster", {});
     };
     G.moveHuman = function (a, team) {
-      if (a.team === team) return;
+      if (a.team === team || ffa) return;
       G.removeHuman(a);
       G.addHuman(a, team);
     };
+    /** the team a player joins: their pick in team modes; in free-for-all a pilot slot no player holds
+        yet (-1 when every slot has a player) */
+    G.openTeam = function (want) {
+      if (!ffa) return want === 1 ? 1 : 0;
+      const open = G.teams.filter(tm => !tm.agents.some(a => a.human));
+      if (!open.length) return -1;
+      const idle = open.find(tm => tm.agents.every(a => a.dead));
+      return (idle || open[open.length - 1]).team;
+    };
     if (opts.mode === "play") {
-      G.human = new CTF.Agent(G, opts.humanTeam || 0, 0, K.myName, true, false, opts.humanId || "h:local");
-      G.addHuman(G.human, opts.humanTeam || 0);
+      const ht = ffa ? 0 : opts.humanTeam || 0;
+      G.human = new CTF.Agent(G, ht, 0, K.myName, true, false, opts.humanId || "h:local");
+      G.addHuman(G.human, ht);
     }
     G.nades = new K.NadeWorld(G.render);
     G.rockets = new K.RocketWorld(G.render);
-    G.claims = [null, null];
+    G.claims = G.teams.map(() => null);
     const ROTK = labs ? K.powerRotation() : K.POWER_ROTATION,
       ROT = ROTK.map(k => K.WEAPON_DATA.findIndex(w => w.key === k));
     /* lab pickups only while their lab is on */
@@ -264,6 +343,7 @@
       const br = G.teams[a.team].brain;
       const nm = key === "rocket" ? "rockets" : key === "sniper" ? "the sniper" : "the scattergun";
       br.say(G, a.human ? br.leader(G) : a, "snp", a.human ? `${a.name} has ${nm}` : `I've got ${nm}`, true);
+      if (ffa) return true;
       const ob = G.teams[1 - a.team].brain,
         l = ob.leader(G);
       if (l)
@@ -372,11 +452,12 @@
     /** the safest of the team's spawns: out of enemy sight lines, away from enemies and recent fights
         (world/spawns.js) */
     G.spawnPoint = function (team) {
-      const foes = G.teams[1 - team].agents.filter(e => e.alive).map(e => e.body);
-      let pts = CTF.SPAWNS[team];
+      const foes = [];
+      for (const e of G.foes(team)) if (e.alive) foes.push(e.body);
+      let pts = G.spawnList(team);
       /* during an opening drop the players stay off the AI's spots (G.start) */
       if (G.t < (G.dropT || 0)) {
-        const held = CTF.dropSpots(team, G.teams[team].agents.filter(a => !a.human).length);
+        const held = dropSpots(team);
         const free = pts.filter(p => !held.includes(p));
         if (free.length) pts = free;
       }
@@ -394,6 +475,16 @@
       if (G.render && K.podSpots) for (const p of K.podSpots(null)) out.push(p);
       return out;
     };
+    /* the opening drop's spots for a team's AI pilots (CTF.dropSpots); in free-for-all each AI pilot
+       takes its own spawn, spread over the list */
+    function dropSpots(team) {
+      if (!ffa) return CTF.dropSpots(team, G.teams[team].agents.filter(a => !a.human).length);
+      const ai = G.agents.filter(a => !a.human),
+        pts = CTF.FFA_SPAWNS,
+        k = ai.findIndex(a => a.team === team);
+      if (k < 0) return ai.map((a, i) => pts[i % pts.length]);
+      return [pts[k % pts.length]];
+    }
     /** drop: a rendered match opens with every AI dropping in by pod (the respawn below, launching
         at once and landing together); the time limit gets the fall back. Headless matches never do */
     G.start = function (drop) {
@@ -406,7 +497,7 @@
       if (fall)
         for (const tm of G.teams) {
           const ai = tm.agents.filter(a => !a.human),
-            spots = CTF.dropSpots(tm.team, ai.length);
+            spots = dropSpots(tm.team);
           ai.forEach((a, k) => {
             const pt = spots[k % spots.length];
             a.dead = true;
@@ -421,6 +512,12 @@
       if (fall) {
         G.dropT = K.POD_TIME;
         G.timeLimit += K.POD_TIME;
+      }
+      /* the first skull comes down a few seconds after everyone is on the ground */
+      if (G.ball) {
+        G.ball.landAt =
+          G.t + (fall ? K.POD_TIME : 0) + (opts.ballFirst != null ? opts.ballFirst : MD.ballFirst);
+        G.ball.podSent = false;
       }
       for (const tm of G.teams) {
         tm.brain.chooseStrategy(G);
@@ -453,7 +550,16 @@
       victim.sniper = victim.sniperMag = victim.rocket = 0;
       victim.pw = null;
       victim.pwOut = false;
-      if (victim.carrying) {
+      /* what the kill meant, for medals and the post-match moments: the carrier went down (a flag
+         carrier near their own stand is a denial) */
+      const carried = victim.carrying === G.ball && G.ball ? "ball" : victim.carrying ? "flag" : "";
+      const denial =
+        carried === "flag" &&
+        !!killer &&
+        killer.team !== victim.team &&
+        p.distanceTo(CTF.FLAG_HOME[victim.team]) < 20;
+      if (carried === "ball") dropBall(victim, killer);
+      else if (victim.carrying) {
         const f = victim.carrying;
         f.state = "dropped";
         f.carrier = null;
@@ -484,21 +590,128 @@
           );
       }
       G.killLog.push({ t: G.t, k: killer ? killer.id : null, v: victim.id });
-      G.emit("kill", { victim, killer, type, head });
+      G.emit("kill", { victim, killer, type, head, carried, denial });
     };
     /** a player holding Interact at the enemy flag */
     G.humanTakeFlag = function (a) {
       const f = G.flags[1 - a.team];
-      if (!a || !a.alive || a.carrying || f.state === "carried" || a.pos.distanceTo(f.pos) > 1.8)
+      if (!f || !a || !a.alive || a.carrying || f.state === "carried" || a.pos.distanceTo(f.pos) > 1.8)
         return false;
       pickup(f, a);
       return true;
     };
-    /** let go of the flag where you stand (switching weapons does this) */
+    /** let go of the flag or the skull where you stand (switching weapons, sprinting or thrusting
+        with the flag does this) */
     G.dropFlagBy = function (a) {
       if (!a || !a.carrying) return;
       dropFlag(a);
     };
+    /* ---- the skull (oddball) ---- */
+    function takeBall(a) {
+      const B = G.ball;
+      B.state = "carried";
+      B.carrier = a;
+      a.carrying = B;
+      G.emit("ballTaken", { by: a });
+      const br = G.teams[a.team].brain;
+      br.say(
+        G,
+        a.human ? br.leader(G) : a,
+        "ball",
+        a.human ? `${a.name} has the skull, cover them` : "I've got the skull! Cover me",
+        true
+      );
+      const ob = G.teams[1 - a.team].brain,
+        l = ob.leader(G);
+      if (l) ob.say(G, l, "ballL", `They have the skull. ${a.name}, ${CTF.zoneName(ob.team, a.pos)}`, true);
+    }
+    function dropBall(a, killer) {
+      const B = G.ball;
+      B.state = "dropped";
+      B.carrier = null;
+      B.dropT = G.t;
+      const p = a.pos;
+      B.pos.set(p.x, K.groundBelow(p.x, p.z, p.y + 0.5, 0.05), p.z);
+      a.carrying = null;
+      B.noPick = a;
+      B.noPickT = G.t + 1.2;
+      G.emit("ballDrop", { by: a, killer });
+      if (killer && killer.team !== a.team) {
+        const br = G.teams[killer.team].brain;
+        br.say(
+          G,
+          killer.human ? br.leader(G) : killer,
+          "ballD",
+          `Carrier down, skull ${CTF.zoneName(br.team, B.pos)}`,
+          true
+        );
+      }
+    }
+    /** the skull goes away and comes down again by pod in the middle */
+    function resetBall() {
+      const B = G.ball;
+      B.state = "incoming";
+      B.carrier = null;
+      B.landAt = G.t + K.POD_TIME + 1;
+      B.podSent = false;
+      G.emit("ballReset", {});
+    }
+    const _bp = new K.THREE.Vector3();
+    function stepBall(dt) {
+      const B = G.ball;
+      if (B.state === "incoming") {
+        if (!B.podSent && G.t >= B.landAt - K.POD_TIME) {
+          B.podSent = true;
+          G.emit("ballPod", { pos: CTF.BALL_HOME.clone() });
+        }
+        if (G.t < B.landAt) return;
+        B.state = "home";
+        B.pos.copy(CTF.BALL_HOME);
+        /* the pod lands on whoever is standing on the spot */
+        for (const e of G.agents)
+          if (
+            e.alive &&
+            Math.hypot(e.pos.x - B.pos.x, e.pos.z - B.pos.z) < 1.5 &&
+            Math.abs(e.pos.y - B.pos.y) < 2.2
+          ) {
+            if (e.human) G.hurtHuman(e, 999, { name: "Skull pod", agent: null, world: true, w: "pod" });
+            else e.onHit(999, "pod", false, false);
+          }
+        G.emit("ballSpawn", { pos: B.pos });
+        return;
+      }
+      if (B.state === "carried") {
+        const c = B.carrier;
+        if (!c || !c.alive) {
+          if (c) dropBall(c, null);
+          else B.state = "dropped";
+          return;
+        }
+        B.pos.copy(c.pos);
+        /* the carrier's team scores every second it is held (from the moment the match clock runs) */
+        if (G.t >= (G.dropT || 0)) {
+          const tm = G.teams[c.team];
+          tm.held += dt;
+          c.ballT = (c.ballT || 0) + dt;
+          tm.score = Math.floor(tm.held);
+          if (tm.held >= G.scoreLimit) G.finish(c.team);
+        }
+        return;
+      }
+      if (B.state === "dropped" && (G.t - B.dropT > G.ballReset || B.pos.y < -5)) {
+        resetBall();
+        return;
+      }
+      /* on the floor: anyone who touches it picks it up */
+      for (const a of G.agents) {
+        if (!a.alive || a.carrying || (a === B.noPick && G.t < B.noPickT)) continue;
+        _bp.copy(a.pos);
+        if (Math.hypot(_bp.x - B.pos.x, _bp.z - B.pos.z) < 1.2 && Math.abs(_bp.y - B.pos.y) < 1.8) {
+          takeBall(a);
+          break;
+        }
+      }
+    }
     function pickup(f, a) {
       f.state = "carried";
       f.carrier = a;
@@ -550,19 +763,38 @@
       if (G.over) return;
       G.over = true;
       G.winner = winner;
-      const s = [G.teams[0].score, G.teams[1].score];
-      for (const tm of G.teams) {
-        const other = G.teams[1 - tm.team];
-        tm.brain.endMatch(
-          G,
-          winner === tm.team,
-          s[tm.team],
-          s[1 - tm.team],
-          Object.assign({}, other.brain.genes)
-        );
+      /* the teams learn from capture the flag (their strategies and the map are about it) */
+      if (rules === "ctf") {
+        const s = [G.teams[0].score, G.teams[1].score];
+        for (const tm of G.teams) {
+          const other = G.teams[1 - tm.team];
+          tm.brain.endMatch(
+            G,
+            winner === tm.team,
+            s[tm.team],
+            s[1 - tm.team],
+            Object.assign({}, other.brain.genes)
+          );
+        }
+        CTF.saveModels(G.teams.map(t => t.brain));
       }
-      CTF.saveModels(G.teams.map(t => t.brain));
       G.emit("end", { winner });
+    };
+    /** who leads when time runs out: the best score (held time in oddball), -1 for a tie */
+    G.leader = function () {
+      const val = tm => (G.ball ? tm.held : tm.score);
+      let best = -1,
+        bv = -Infinity,
+        tie = false;
+      for (const tm of G.teams) {
+        const v = val(tm);
+        if (v > bv) {
+          bv = v;
+          best = tm.team;
+          tie = false;
+        } else if (v === bv) tie = true;
+      }
+      return tie ? -1 : best;
     };
     G.step = function (dt) {
       if (G.over) return;
@@ -629,7 +861,9 @@
           if (
             p.avail &&
             !(a.sniper > 0) &&
-            (p.power ? !(p.lab && a.armed) : !a.prim && !a.carrying) &&
+            /* a carrier's hands are full */
+            !a.carrying &&
+            (p.power ? !(p.lab && a.armed) : !a.prim) &&
             Math.hypot(a.pos.x - p.pos.x, a.pos.z - p.pos.z) < 1.6 &&
             Math.abs(a.pos.y - p.pos.y) < 1.6
           )
@@ -671,7 +905,7 @@
           if (G.flags[enemy].state === "home" && c.pos.distanceTo(CTF.FLAG_HOME[enemy]) < 1.7) capture(f, c);
           continue;
         }
-        if (f.state === "dropped" && G.t - f.dropT > 15) {
+        if (f.state === "dropped" && G.t - f.dropT > G.flagReset) {
           f.state = "home";
           f.pos.copy(CTF.FLAG_HOME[own]);
           G.emit("flagReset", { flag: f });
@@ -696,10 +930,12 @@
             continue;
           }
           if (a.team === own && f.state === "dropped") {
+            /* a return from near their capture point saved the match: a clutch return */
+            const clutch = f.pos.distanceTo(CTF.FLAG_HOME[enemy]) < 20;
             f.state = "home";
             f.pos.copy(CTF.FLAG_HOME[own]);
             a.rets++;
-            G.emit("flagReturn", { flag: f, by: a });
+            G.emit("flagReturn", { flag: f, by: a, clutch });
             G.teams[own].brain.say(
               G,
               a.human ? G.teams[own].brain.leader(G) : a,
@@ -711,18 +947,16 @@
           }
         }
       }
+      if (G.ball) stepBall(dt);
       // stalled segments re-plan
-      for (const tm of G.teams) {
-        if (!G.tdm && G.t - tm.brain.segStart > 80 && !G.flags[1 - tm.team].carrier) {
-          tm.brain.endSegment(G, 0.3 + Math.min(0.3, tm.brain.segFlagPulls * 0.1));
-          tm.brain.chooseStrategy(G, "This isn't working.");
+      if (rules === "ctf")
+        for (const tm of G.teams) {
+          if (G.t - tm.brain.segStart > 80 && !G.flags[1 - tm.team].carrier) {
+            tm.brain.endSegment(G, 0.3 + Math.min(0.3, tm.brain.segFlagPulls * 0.1));
+            tm.brain.chooseStrategy(G, "This isn't working.");
+          }
         }
-      }
-      if (G.t >= G.timeLimit) {
-        const s0 = G.teams[0].score,
-          s1 = G.teams[1].score;
-        G.finish(s0 > s1 ? 0 : s1 > s0 ? 1 : -1);
-      }
+      if (G.t >= G.timeLimit && !G.over) G.finish(G.leader());
       // danger memory fades slowly
       if (((G.t * 10) | 0) % 300 === 0) for (const tm of G.teams) tm.brain.danger.decay(0.98);
     };

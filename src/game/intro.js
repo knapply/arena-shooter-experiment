@@ -14,7 +14,7 @@ const centroid = pts => {
 };
 /**
  * @param {any} map the map document
- * @param {{ mode: string, limit: string, teams?: string[][], teamNames?: string[], teamColors?: string[] }} o
+ * @param {{ mode: string, limit: string, teams?: string[][] | null, teamNames?: string[], teamColors?: string[], objective?: { at: number[], title: string, sub: string } | null }} o
  */
 function playIntro(map, o, onEnd) {
   const shots = [];
@@ -56,13 +56,18 @@ function playIntro(map, o, onEnd) {
         ),
       });
     });
-  /* 4: the objective */
-  if (map.flags) {
-    const f = map.flags[1],
-      fv = new V3(f[0], f[1] + 0.8, f[2]);
+  /* 4: the objective (o.objective: { at: [x, y, z], title, sub }; null for none; default the flag) */
+  const ob =
+    o.objective !== undefined
+      ? o.objective
+      : map.flags
+        ? { at: map.flags[1], title: "Capture their flag", sub: "Bring it to your stand" }
+        : null;
+  if (ob) {
+    const fv = new V3(ob.at[0], ob.at[1] + 0.8, ob.at[2]);
     shots.push({
       dur: 0.8,
-      card: ["Objective", "Capture their flag", "Bring it to your stand"],
+      card: ["Objective", ob.title, ob.sub],
       shot: CINE.orbit(fv, 7, 2.6, 0.4, 0.6, 56),
     });
   }

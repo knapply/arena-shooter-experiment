@@ -35,6 +35,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Browser tests
         run: node tests/browser.test.js
+      - name: Game modes and the mode select menu
+        run: node tests/modes.test.js
       - name: Network smoothness under simulated lag and loss
         run: node tests/net.test.js
       - name: Render tests and draw budgets (software WebGL)

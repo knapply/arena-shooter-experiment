@@ -90,33 +90,42 @@
   <div class="panel">
     <div class="eyebrow">Arena 01 · Foundry Basin</div>
     <h1>Kinetic <em>Arena</em></h1>
-    <p class="lede">Thrust, slide, clamber, hover and slam. Host a room and friends with the code drop into the same arena in real time. Practice drones keep you company when it's empty.</p>
+    <p class="lede">Thrust, slide, clamber, hover and slam. Pick a mode and play it against AI pilots, or host a room and friends with the code join your match.</p>
     <div class="row">
       <label class="f" for="callsign">Callsign<input type="text" id="callsign" maxlength="14" value="Pilot" autocomplete="off"></label>
       <div class="swl">Armor<div class="row" id="swatches"></div></div>
     </div>
-    <div class="row">
-      <button class="go" id="deploy">Deploy</button>
-      <button class="ghost" id="trailerBtn">Watch trailer</button>
-      <button class="ghost" id="openSet">Settings</button>
-    </div>
-    <div class="row">
-      <label class="tog" for="bots" title="AI pilots fill the free-for-all arena when there are not enough players online"><input type="checkbox" id="bots" checked> Practice drones</label>
-      <label class="tog" for="botSkill" title="How well AI pilots aim, move and use the map: Recruit for learning, Legendary for a real fight">Bot skill <select id="botSkill"><option value="recruit" selected>Recruit</option><option value="normal">Normal</option><option value="heroic">Heroic</option><option value="legendary">Legendary</option></select></label>
-      <label class="tog" for="vo" title="The announcer calls out medals, scores and flag events"><input type="checkbox" id="vo" checked> Announcer</label>
-    </div>
+    <section class="mpick" aria-labelledby="mpickH">
+      <div class="eyebrow" id="mpickH">Choose a mode</div>
+      <div class="mcards" id="modeCards" role="radiogroup" aria-labelledby="mpickH"></div>
+      <div class="msetup" id="modeSetup">
+        <label class="tog" for="mapPick">Map <select id="mapPick"></select></label>
+        <div class="row teampick" id="teamPick" role="group" aria-label="Team"><span class="tlab">Team</span><button class="tbtn r" id="ctfRed" aria-pressed="true">Red</button><button class="tbtn b" id="ctfBlue" aria-pressed="false">Blue</button></div>
+        <label class="tog" for="sizePick"><span id="sizeLab">Team size</span> <select id="sizePick"></select></label>
+        <label class="tog" for="botSkill" title="How well AI pilots aim, move and use the map: Recruit for learning, Legendary for a real fight">Bot skill <select id="botSkill"><option value="recruit" selected>Recruit</option><option value="normal">Normal</option><option value="heroic">Heroic</option><option value="legendary">Legendary</option></select></label>
+        <button class="ghost sm" id="modeRules" title="Score limit, time limit and the mode's other rules">Rules</button>
+      </div>
+      <p class="msum" id="modeSum" aria-live="polite"></p>
+      <div class="row"><button class="go big" id="play">Play</button><button class="ghost" id="watchAI">Watch AI vs AI</button></div>
+    </section>
     <div class="modes" id="p2p">
       <div class="eyebrow">Play with friends · peer to peer</div>
       <div class="row" id="p2pIdle"><button class="go" id="p2pHost">Host a room</button><input id="p2pCode" class="p2pin" maxlength="5" placeholder="Code" autocomplete="off" spellcheck="false" aria-label="Room code"><button class="ghost" id="p2pJoin">Join</button></div>
       <div class="row" id="p2pLive" hidden><span class="p2pcode">Room<b id="p2pCodeShow"></b></span><button class="ghost" id="p2pCopy">Copy invite</button><button class="ghost" id="p2pBest" hidden></button></div>
       <div class="net" id="p2pMsg" aria-live="polite">Host a room, then send friends the 5-character code. They open this same file and join with it. Everyone needs an internet connection.</div>
+      <div class="net" id="lobby" aria-live="polite">Offline: matches play against AI pilots.</div>
     </div>
     <div class="modes">
-      <div class="eyebrow">Capture the flag · Twin Foundry</div>
-      <div class="row teampick" role="group" aria-label="Team"><span class="tlab">Team</span><button class="tbtn r" id="ctfRed" aria-pressed="true">Red</button><button class="tbtn b" id="ctfBlue" aria-pressed="false">Blue</button></div>
-      <div class="row"><button class="go" id="ctfPlay">Play CTF</button><button class="ghost" id="ctfSim">Watch AI vs AI</button></div>
-      <div class="net" id="ctfNet" aria-live="polite">Checking for other pilots…</div>
-      <p class="lede">4 on 4, first to 3 captures on a mirrored map. Friends in your room join the same match and take a bot's slot. Switch sides any time with J, D-pad up, or the pause menu.</p>
+      <div class="eyebrow">More</div>
+      <div class="row">
+        <button class="ghost" id="deploy" title="Drop straight into the arena: no match to join, friends in your room drop in beside you">Practice arena</button>
+        <button class="ghost" id="trailerBtn">Watch trailer</button>
+        <button class="ghost" id="openSet">Settings</button>
+      </div>
+      <div class="row">
+        <label class="tog" for="bots" title="Practice drones fill the practice arena when there are not enough players online"><input type="checkbox" id="bots" checked> Practice drones</label>
+        <label class="tog" for="vo" title="The announcer calls out medals, scores and objective events"><input type="checkbox" id="vo" checked> Announcer</label>
+      </div>
     </div>
     <div class="net" id="netState">Solo for now · host or join a room to play with friends</div>
     <div class="keys" id="keysDesk">

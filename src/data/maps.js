@@ -111,7 +111,49 @@ MAPS.arena = {
       [10, 0, -30],
       [-10, 0, 30],
     ],
+    /* team modes: red spawns together on the south half, blue on the north */
+    teams: [
+      [
+        [-24, 2.6, -24],
+        [24, 2.6, -24],
+        [0, 0, -22],
+        [10, 0, -30],
+        [-10, 0, -30],
+        [0, 0, -32.5],
+      ],
+      [
+        [24, 2.6, 24],
+        [-24, 2.6, 24],
+        [0, 0, 22],
+        [-10, 0, 30],
+        [10, 0, 30],
+        [0, 0, 32.5],
+      ],
+    ],
   },
+  /* oddball: where the skull's pod comes down (the core's roof, beside the power weapon) */
+  ball: [3, 3.2, 0],
+  /* callout zones (first match wins): b = [x0, z0, x1, z1], y = [low, high]; north is +z */
+  zones: [
+    { name: "core top", b: [-5, -5, 5, 5], y: [2.8, 99] },
+    { name: "core", b: [-10, -10, 10, 10] },
+    { name: "NE platform", b: [19, 19, 29, 29], y: [2, 99] },
+    { name: "NW platform", b: [-29, 19, -19, 29], y: [2, 99] },
+    { name: "SE platform", b: [19, -29, 29, -19], y: [2, 99] },
+    { name: "SW platform", b: [-29, -29, -19, -19], y: [2, 99] },
+    { name: "north balcony", b: [-15, 33, 15, 37], y: [2, 99] },
+    { name: "south balcony", b: [-15, -37, 15, -33], y: [2, 99] },
+    { name: "east balcony", b: [33, -15, 37, 15], y: [2, 99] },
+    { name: "west balcony", b: [-37, -15, -33, 15], y: [2, 99] },
+    { name: "NE corner", b: [12, 12, 37, 37] },
+    { name: "NW corner", b: [-37, 12, -12, 37] },
+    { name: "SE corner", b: [12, -37, 37, -12] },
+    { name: "SW corner", b: [-37, -37, -12, -12] },
+    { name: "north lane", b: [-12, 10, 12, 37] },
+    { name: "south lane", b: [-12, -37, 12, -10] },
+    { name: "east lane", b: [10, -12, 37, 12] },
+    { name: "west lane", b: [-37, -12, -10, 12] },
+  ],
   /* rotate: the centre power weapon cycles through POWER_ROTATION, one each time it spawns */
   pickups: [
     { id: "arena-power", weapon: "sniper", rotate: true, p: [0, 4.5, 0], respawn: 90 },
@@ -284,6 +326,26 @@ MAPS.ctf = {
     [0, 2.4, -43],
     [0, 2.4, 43],
   ],
+  /* oddball: the skull comes down on the mid tower's roof, level with both bases */
+  ball: [3, 3, 0],
+  /* callout zones (first match wins). side: the team whose half it is (0 red, south; 1 blue, north):
+     callouts say "our" or "their" to a team and "Red" or "Blue" to everyone else */
+  zones: [
+    { name: "flag stand", side: 0, b: [-9, -47, 9, -37], y: [1.8, 99] },
+    { name: "flag stand", side: 1, b: [-9, 37, 9, 47], y: [1.8, 99] },
+    { name: "base", side: 0, b: [-26, -50, 26, -34] },
+    { name: "base", side: 1, b: [-26, 34, 26, 50] },
+    { name: "top of mid", b: [-4.5, -4.5, 4.5, 4.5], y: [2.5, 99] },
+    { name: "west catwalk", b: [-26, -11, -23, 11], y: [2, 99] },
+    { name: "east catwalk", b: [23, -11, 26, 11], y: [2, 99] },
+    { name: "mid", b: [-9.5, -6, 9.5, 6] },
+    { name: "west wing", side: 0, b: [-26, -34, -9.5, 0] },
+    { name: "east wing", side: 0, b: [9.5, -34, 26, 0] },
+    { name: "mid lane", side: 0, b: [-9.5, -34, 9.5, 0] },
+    { name: "west wing", side: 1, b: [-26, 0, -9.5, 34] },
+    { name: "east wing", side: 1, b: [9.5, 0, 26, 34] },
+    { name: "mid lane", side: 1, b: [-9.5, 0, 9.5, 34] },
+  ],
   /* power weapon: sniper on the cover block atop the mid tower, grabbable from the tower roof */
   pickups: [
     { id: "ctf-power", weapon: "sniper", rotate: true, p: [0, 4.2, 0], respawn: 90 },
@@ -418,8 +480,55 @@ function validateMap(doc) {
     (!doc.lanes || !num(doc.lanes.split, 0, 200) || !vec(doc.lanes.x, 3, -500, 500))
   )
     bad("lanes must be { split, x: [left, mid, right] }");
+  if (doc.ball !== undefined && !vec(doc.ball, 3, -500, 500)) bad("ball must be a point [x, y, z]");
+  if (doc.zones !== undefined) {
+    if (!Array.isArray(doc.zones) || doc.zones.length > 64) bad("at most 64 zones");
+    else
+      doc.zones.forEach((z, i) => {
+        if (!z || typeof z.name !== "string" || !/^[A-Za-z0-9 '-]{1,24}$/.test(z.name))
+          bad(`zone ${i}: name must be 1-24 letters, digits, spaces or dashes`);
+        else if (!vec(z.b, 4, -500, 500) || z.b[2] <= z.b[0] || z.b[3] <= z.b[1])
+          bad(`zone ${z.name}: b must be [x0, z0, x1, z1] with x1 > x0 and z1 > z0`);
+        else if (z.y !== undefined && (!vec(z.y, 2, -100, 100) || z.y[1] <= z.y[0]))
+          bad(`zone ${z.name}: y must be [low, high]`);
+        else if (z.side !== undefined && z.side !== 0 && z.side !== 1)
+          bad(`zone ${z.name}: side must be 0 or 1`);
+      });
+  }
   return { ok: !errors.length, errors };
 }
+/* ---- callout zones: what a place is called, from the map's `zones` (first match wins) ---- */
+/** the zone a point is in on a map, or null */
+function mapZone(doc, p) {
+  if (!doc || !doc.zones) return null;
+  for (const z of doc.zones)
+    if (
+      p.x >= z.b[0] &&
+      p.x <= z.b[2] &&
+      p.z >= z.b[1] &&
+      p.z <= z.b[3] &&
+      (!z.y || (p.y >= z.y[0] && p.y <= z.y[1]))
+    )
+      return z;
+  return null;
+}
+const SIDE_NAMES = ["Red", "Blue"];
+/** a zone's callout: "our base" / "their base" to a team (0 or 1), "Red base" to anyone else; "" if
+    the point is in no zone */
+function zoneLabel(doc, p, team) {
+  const z = mapZone(doc, p);
+  if (!z) return "";
+  if (z.side == null) return z.name;
+  if (team === 0 || team === 1) return (z.side === team ? "our " : "their ") + z.name;
+  return SIDE_NAMES[z.side] + " " + z.name;
+}
+/** the map being played (modes set it; the arena otherwise), for pings and the kill feed */
+let PLAY_MAP = MAPS.arena;
+function setPlayMap(doc) {
+  PLAY_MAP = doc || MAPS.arena;
+}
+/** where a point is on the map being played, as a callout anyone can read ("" outside every zone) */
+const zoneAt = p => zoneLabel(PLAY_MAP, p, -1);
 /** pieces with their 180° twins expanded, in build order (a twin right after its original) */
 function mapPieces(doc) {
   const out = [];

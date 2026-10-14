@@ -4,7 +4,26 @@
 /** flag: [state 0 home | 1 carried | 2 dropped, x, y, z, carrierId or "", seconds since dropped] */
 type FlagRow = [number, number, number, number, string, number];
 /** agent: [id, team, slot, x, y, z, vx, vy, vz, yaw, pitch, state bits, shield, dead 0|1, spotted-by-team bits, name, kills, deaths] */
-type AgentRow = [string, number, number, number, number, number, number, number, number, number, number, number, number, number, number, string, number, number];
+type AgentRow = [
+  string,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  string,
+  number,
+  number,
+];
 /** host to everyone, about 15 times a second */
 interface HostSnapshot {
   id: string;
@@ -12,7 +31,19 @@ interface HostSnapshot {
   rv: number;
   t: number;
   tl: number;
-  sc: [number, number];
+  /** each team's score (in free-for-all, every pilot's kills) */
+  sc: number[];
+  /** the mode ("ctf", "slayer", "ffa", "oddball") and map (a MAPS key) the match plays */
+  md?: string;
+  mp?: string;
+  /** score limit, flag reset and skull reset (seconds) */
+  sl?: number;
+  fr?: number;
+  rr?: number;
+  /** oddball: seconds each team has held the skull */
+  ho?: number[];
+  /** oddball: the skull [state (0 incoming, 1 home, 2 carried, 3 dropped), x, y, z, carrier id, seconds on the floor] */
+  bl?: [number, number, number, number, string, number];
   ov: number | null;
   fl: FlagRow[];
   ag: AgentRow[];

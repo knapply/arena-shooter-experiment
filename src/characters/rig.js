@@ -524,6 +524,33 @@ function weaponMeshes(i, mats) {
 }
 /* the carbine's grip with its magazine seated, merged: the loose magazine is only drawn mid-reload */
 let GRIP_MAG = null;
+/** the oddball skull as a carrier holds it (one shared geometry; held between the hands of the flag grip) */
+let SKULL_GEO = null;
+function carriedSkull() {
+  if (!SKULL_GEO) {
+    const cran = new THREE.SphereGeometry(0.15, 14, 10);
+    cran.scale(1, 1.05, 1.15);
+    const face = new THREE.BoxGeometry(0.18, 0.1, 0.14);
+    face.translate(0, -0.09, -0.07);
+    SKULL_GEO = mergeGeos([
+      [cran, new THREE.Matrix4()],
+      [face, new THREE.Matrix4()],
+    ]);
+  }
+  const m = new THREE.Mesh(
+    SKULL_GEO,
+    new THREE.MeshStandardMaterial({
+      color: "#f2e6c9",
+      emissive: "#ffcf6b",
+      emissiveIntensity: 0.3,
+      roughness: 0.55,
+    })
+  );
+  /* between the hands (the grip's y -0.12 and -0.45), upright in the pilot's frame and facing out */
+  m.position.set(0, -0.29, -0.06);
+  m.rotation.set(-0.35, Math.PI, 0.5);
+  return m;
+}
 function flagCloth(color) {
   const g = new THREE.PlaneGeometry(0.62, 0.4, 8, 3);
   g.translate(0.31, 0, 0);
@@ -672,7 +699,8 @@ function makePilot(color, label) {
   const flagG = weaponMeshes(-1, wmats);
   flagG.visible = false;
   chest.add(flagG);
-  let cloth = null;
+  let cloth = null,
+    skullM = null;
   const c = document.createElement("canvas");
   c.width = 256;
   c.height = 64;
@@ -733,6 +761,7 @@ function makePilot(color, label) {
     lastKick: -9,
     wp: 0,
     flag: false,
+    skull: false,
     idle: 0,
     glance: 0,
     glanceT: 2,
@@ -1204,9 +1233,10 @@ function makePilot(color, label) {
       const wp = st.wpn | 0,
         R = WPN_RIG[wp] || WPN_RIG[0],
         rocket = wp === 3;
-      if (wp !== S.wp || !!st.flag !== S.flag) {
+      if (wp !== S.wp || !!st.flag !== S.flag || !!st.skull !== S.skull) {
         S.wp = wp;
         S.flag = !!st.flag;
+        S.skull = !!st.skull;
         wpnG.forEach((g, i) => (g.visible = i === wp && !S.flag));
         flagG.visible = S.flag;
         if (S.flag && !cloth) {
@@ -1214,6 +1244,12 @@ function makePilot(color, label) {
           cloth.position.set(0, 0.72, 0);
           flagG.add(cloth);
         }
+        /* the oddball skull is held in the same two-handed grip, in place of the pole and cloth */
+        if (S.skull && !skullM) {
+          skullM = carriedSkull();
+          flagG.add(skullM);
+        }
+        for (const c of flagG.children) c.visible = c === skullM ? S.skull : !S.skull;
         if (cloth && st.flagColor) {
           cloth.material.color.set(st.flagColor);
           cloth.material.emissive.set(st.flagColor);
@@ -1477,5 +1513,7 @@ function bodyState(B, extra) {
     wpn: extra && extra.wpn | 0,
     flag: !!(extra && extra.flag),
     flagColor: extra && extra.flagColor,
+    /* the carried thing is the oddball skull, not a flag */
+    skull: !!(extra && extra.skull),
   };
 }

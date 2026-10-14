@@ -1,0 +1,180 @@
+/* ---------- the mode picker (main menu, ui/menu.js) ---------- */
+#menu .panel {
+  max-width: 680px;
+}
+/* wide screens: the picker, the summary and Play sit in a column of their own beside the title, so
+   what you're about to play is always in view */
+@media (min-width: 1100px) {
+  #menu .panel {
+    max-width: 1220px;
+    grid-template-columns: minmax(340px, 400px) minmax(560px, 1fr);
+    column-gap: 44px;
+    align-items: start;
+  }
+  #menu .panel > * {
+    grid-column: 1;
+  }
+  #menu .panel > .mpick {
+    grid-column: 2;
+    grid-row: 1 / span 12;
+    border-top: 0;
+    padding-top: 0;
+    position: sticky;
+    top: 28px;
+  }
+}
+.mpick {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.mcards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 10px;
+}
+.mcard {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  text-align: left;
+  font-family: var(--f-mono);
+  color: var(--dim);
+  background: #0b1216a8;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  padding: 13px 14px 12px;
+  cursor: pointer;
+  min-height: 44px;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.mcard:hover {
+  border-color: #4a5c66;
+}
+.mcard[aria-checked="true"] {
+  border-color: var(--thrust);
+  background: #2a1f0f9e;
+  color: var(--ink);
+}
+.mcard[aria-checked="true"] .mname::before {
+  content: "▸ ";
+  color: var(--thrust);
+}
+.mcard.off {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.mname {
+  font: 700 17px var(--f-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.mline {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.mpts {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.mpts li::marker {
+  color: var(--thrust);
+}
+.mlim {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--thrust);
+}
+.mtag {
+  justify-self: start;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--void);
+  background: var(--shield);
+  padding: 2px 7px;
+}
+.msetup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+}
+.msetup select {
+  font: 500 13px var(--f-mono);
+  color: var(--ink);
+  background: #0006;
+  border: 1px solid var(--line);
+  padding: 7px 10px;
+  min-height: 36px;
+}
+.msetup select:disabled {
+  opacity: 0.7;
+}
+.ghost.sm {
+  padding: 8px 14px;
+  font-size: 12px;
+}
+.msum {
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);
+  border-left: 3px solid var(--thrust);
+  padding: 4px 0 4px 12px;
+}
+.go.big {
+  font-size: 20px;
+  padding: 16px 38px;
+}
+@media (max-width: 420px) {
+  .go.big {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mcard {
+    transition: none;
+  }
+}
+/* ---------- mode HUD (modes/ctf/ui.js) ---------- */
+.cclock {
+  display: grid;
+  justify-items: center;
+}
+.cclock small {
+  font: 500 9.5px var(--f-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  white-space: nowrap;
+}
+/* oddball: the held times read as clocks */
+#ctfHud[data-rules="oddball"] .cteam b {
+  font-size: 24px;
+}
+.cmark.skull {
+  color: #f2e6c9;
+}
+.cmark.skull i {
+  background: #f2e6c9;
+  border-radius: 50% 50% 40% 40%;
+  clip-path: none;
+}
+.cmark.tx i {
+  background: currentColor;
+}
+/* the kill feed names where it happened (the map's callout zones) */
+#feed small.z {
+  margin-left: 8px;
+  font-size: 0.82em;
+  color: var(--dim);
+}

@@ -57,27 +57,30 @@ New content can ship off by default: give a weapon `lab: "<name>"` (it appears o
    - `pieces` (`box`, `stairs`, `strip`; `twin: true` mirrors a piece for team maps);
    - `spawns.ffa` and/or `spawns.teams`.
 
-   Optional fields: `flags` (capture the flag), `lanes` (`split`, `x`: lane hints for the AI), `pickups`, and `gates` (blast walls that rise and sink on the match clock: `leaves` `[x, z, width, depth]`, `h`, `phase` 0 to 1 of the cycle, `twin`; see `world/gates.js`).
+   Optional fields: `flags` (capture the flag), `ball` (where oddball's skull comes down; default the middle), `zones` (callouts, below), `lanes` (`split`, `x`: lane hints for the AI), `pickups`, and `gates` (blast walls that rise and sink on the match clock: `leaves` `[x, z, width, depth]`, `h`, `phase` 0 to 1 of the cycle, `twin`; see `world/gates.js`).
 2. `validateMap` checks it strictly; `tests/maps.test.js` runs it, including overlap checks.
-3. The AI can play it straight away: `CTF.Game({ map: "<id>", mode: "sim", render: false })`. The nav grid sizes itself from `bounds` and seeds reachability from the first flag or spawn. A map without `flags` plays team deathmatch. Check it with:
+3. The AI can play it straight away in every mode: `CTF.Game({ map: "<id>", rules: "slayer", mode: "sim", render: false })` (`rules`: `ctf` needs `flags`; `slayer`, `ffa` and `oddball` play anywhere; without `rules` a map with flags plays capture the flag and one without Team Slayer). The nav grid sizes itself from `bounds` and seeds reachability from the first flag or spawn. Team modes use `spawns.teams` (each team together on its own side), free-for-all `spawns.ffa` (or both teams' spawns). Check it with:
    ```bash
-   MAP=<id> MATCHES=8 KNOBS=none node tools/tune.js
+   MAP=<id> MODE=oddball MATCHES=8 KNOBS=none node tools/tune.js
    ```
-4. Callout names (`CTF.zoneName` in `modes/ctf/brain.js`) are written for Twin Foundry. A new team map should get its own names. A `zones` field on the map document would be the clean way to add them.
+4. Callouts: a `zones` list names places for the AI's comms, pings and the kill feed. Each zone is `{ name, b: [x0, z0, x1, z1], y?: [low, high], side?: 0 | 1 }`; the first zone a point is in wins, so list platforms before the floor under them. A zone with a `side` is on that team's half: a team hears "our base" or "their base", everyone else "Red base". `tests/maps.test.js` checks every spawn and pickup is in a zone.
+5. To offer it in the menu, add its key to the `maps` of the modes in `PLAY_MODES` (`data/modes.js`) that it suits.
 
 ## A game mode
+
+The four match modes share one implementation: `CTF.Game({ rules })` in `modes/ctf/rules.js` (scoring, flags, the skull, respawns, the clock), the AI (`brain.js` roles per rules, `agent.js` objectives), the HUD and waypoints (`ui.js`), the netcode and `modes.js` (hosting, joining, spectating). A new set of rules (King of the Hill, say) is mostly a branch in each: a `RULES_DATA` entry and `MODE_DATA` numbers, its scoring in `G.step`, roles in `TeamBrain.assign`, a HUD side in `UI.sides`, its state in the host snapshot, and a `PLAY_MODES` card. A mode outside that framework registers itself:
 
 1. Numbers go in `MODE_DATA` (`data/modes.js`). Register the mode with `defineMode({ id, name, settings, start })` (`game/modes.js`).
 2. When it starts, hand the engine a hooks object with `extPlay(hooks)`. Every hook is optional:
    - Simulation: `tick(dt)`, `targets()`, `respawn()`, `spawnPoint()`, `podZone()`, `dropItems()` and `pickups()`.
    - Your HUD and stats: `roster()` (ids, names, teams, score of record, for the stats screens), `powerHolders()`, `radar()` and `scores(tbody)`.
+   - Carrying something in both hands: `carrying()` (`"flag"`, `"skull"` or `""`: no guns or grenades, a one-hit melee), `carryNoRun()` (sprinting or thrusting drops it, through `dropFlag()`).
    - Online: `onFx()` and `onPing()`.
    - Leaving: `exit()`.
-3. Emit the standard events (`kill`, `flagTaken`, `capture`, `matchStart`, `matchEnd` and so on). Then the kill feed, medals, highlights, Play of the Game and the stats screens work without further code.
+3. Emit the standard events (`kill`, `flagTaken`, `capture`, `ballTaken`, `matchStart`, `matchEnd` and so on; a kill can say what the victim `carried`, whether it was a `denial`, and the `zone`). Then the kill feed, medals (`core/announcer.js`: add a `MEDAL` entry and push it in `onKill` or a subscriber), highlights, Play of the Game and the stats screens work without further code; a moment for the results screen is one `STATS.mark(text, kind, team)` in a subscriber (`game/stats.js`).
 4. At the end, call `K.playOfTheGame(...)`, then `K.showPost({ title, sub, mode, again, change, leave })`.
-5. Online modes follow the CTF pattern: host-authoritative rules (`net/ctf-host.js`), clients mirroring snapshots and predicting their own movement (`net/ctf-client.js`). Every new message goes in `net/messages.js`.
-
-The flagless rules in `modes/ctf/rules.js` (team deathmatch on the arena, used by the simulations) are the starting point for a playable Slayer mode. That mode needs a menu entry, a score-only HUD (the CTF HUD shows flag states), and a scoreboard hook.
+5. Online modes follow the CTF pattern: host-authoritative rules (`net/ctf-host.js`), clients mirroring snapshots and predicting their own movement (`net/ctf-client.js`). The snapshot names the mode and map (`md`, `mp`), so joiners build the same match; when its shape changes, bump `MSG.PROTOCOL`. Every new message goes in `net/messages.js`.
+6. Rules a player can change (score and time limits) are settings in the Modes tab (`core/settings.js`), read through `modeRules(id)`; the menu card's limits and the Rules button follow them.
 
 ## AI behaviour
 
@@ -117,7 +120,8 @@ Every sound is synthesized in `core/audio.js` (a `case` in `sfx`). Use `sfxAt(ki
 | Change | Where |
 |---|---|
 | Movement, hit rules, AI decisions, mode rules | `tests/scenarios.test.js` (headless, milliseconds) |
-| Whole-match behaviour, determinism | `tests/sim.test.js` |
+| Whole-match behaviour, determinism (every mode on every map) | `tests/sim.test.js` |
+| A mode from the menu, its rules for a player, the results, the room's mode online | `tests/modes.test.js` |
 | UI, settings, online play | `tests/browser.test.js` (stub three.js, simulated peers) |
 | Wire formats | `tests/messages.test.js` |
 | A look that changed on purpose | `VISUAL_UPDATE=1 THREE_PATH=... node tests/visual.test.js`, then commit the PNGs |

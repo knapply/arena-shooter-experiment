@@ -40,6 +40,9 @@ const STATS = {
         carries: 0,
         flagT: 0,
         carryAt: -1,
+        /** oddball: seconds holding the skull, and since when (-1: not holding it) */
+        ballT: 0,
+        ballAt: -1,
         /** who hurt this pilot lately: id → time (for assists) */
         hurtBy: new Map(),
       };
@@ -82,6 +85,8 @@ const WEAPON_NAMES = {
   charge: "Charge",
   melee: "Melee",
   pod: "Pod",
+  flag: "Flag",
+  skull: "Skull",
 };
 EVENTS.on("matchStart", () => STATS.reset());
 EVENTS.on("shot", e => {
@@ -114,6 +119,14 @@ EVENTS.on("kill", e => {
       v.flagT += now - v.carryAt;
       v.carryAt = -1;
     }
+    endBall(v);
+  }
+  /* the moments the modes are about */
+  if (k && v && e.killer !== e.victim) {
+    if (e.weapon === "pod") STATS.mark(`${k.name} landed a drop pod on ${v.name}`, "pod", k.team);
+    else if (e.weapon === "skull") STATS.mark(`${k.name} beat ${v.name} with the skull`, "skull", k.team);
+    else if (e.weapon === "flag") STATS.mark(`${k.name} swung the flag at ${v.name}`, "skull", k.team);
+    if (e.denial) STATS.mark(`${k.name} stopped ${v.name} short of a capture`, "denial", k.team);
   }
   if (k && e.killer !== e.victim) {
     k.k++;
@@ -161,7 +174,35 @@ EVENTS.on("capture", e => {
 });
 EVENTS.on("flagReturn", e => {
   const r = STATS.row(e.pilot, e.pilotName);
-  if (r) r.rets++;
+  if (!r) return;
+  r.rets++;
+  if (e.clutch) STATS.mark(`${r.name} returned the flag from right by the enemy stand`, "clutch", r.team);
+});
+/* oddball: time holding the skull, from when it's taken until it drops or the carrier dies */
+function endBall(r) {
+  if (r && r.ballAt >= 0) {
+    r.ballT += now - r.ballAt;
+    r.ballAt = -1;
+  }
+  return r;
+}
+EVENTS.on("ballTaken", e => {
+  const r = STATS.row(e.pilot, e.pilotName);
+  if (!r) return;
+  r.ballAt = now;
+  STATS.mark(`${r.name} took the skull`, "flag", r.team);
+});
+EVENTS.on("ballDrop", e => endBall(STATS.byId.get(e.pilot)));
+EVENTS.on("matchEnd", e => {
+  for (const r of STATS.byId.values()) endBall(r);
+  if (e.lastHold) {
+    const h = STATS.byId.get(e.holder);
+    STATS.mark(
+      h ? `${h.name} held the skull to the very end` : "The skull was held to the very end",
+      "hold",
+      h ? h.team : -1
+    );
+  }
 });
 /** who is in the match right now: the mode's roster, or the arena's players */
 function statRoster() {
@@ -181,7 +222,7 @@ function powerHeld() {
   return m;
 }
 /** a pilot's contribution, for sorting and MVP */
-const statScore = r => r.k + r.a * 0.5 + r.caps * 3 + r.rets + r.dmg / 400 - r.d * 0.25;
+const statScore = r => r.k + r.a * 0.5 + r.caps * 3 + r.rets + r.ballT / 15 + r.dmg / 400 - r.d * 0.25;
 /** every pilot in the match with their numbers (roster order is replaced by the current sort) */
 STATS.rows = function () {
   const roster = statRoster();
@@ -211,7 +252,8 @@ STATS.rows = function () {
     /* the mode's kills and deaths are the score of record */
     if (p.k != null) r.k = p.k;
     if (p.d != null) r.d = p.d;
-    const carry = r.carryAt >= 0 ? now - r.carryAt : 0;
+    const carry = r.carryAt >= 0 ? now - r.carryAt : 0,
+      ball = r.ballAt >= 0 ? now - r.ballAt : 0;
     return {
       id: r.id,
       name: r.name,
@@ -235,6 +277,7 @@ STATS.rows = function () {
       rets: r.rets,
       carries: r.carries,
       flagT: r.flagT + carry,
+      ballT: r.ballT + ball,
       score: statScore(r),
     };
   });
@@ -273,6 +316,17 @@ STATS.awards = function (rows) {
       name: run.name,
       value: `${run.caps} caps · ${Math.round(run.flagT)} s`,
       me: run.me,
+    });
+  const hold = best(
+    r => r.ballT,
+    r => r.ballT >= 1
+  );
+  if (hold)
+    out.push({
+      title: "Skull keeper",
+      name: hold.name,
+      value: `${Math.round(hold.ballT)} s held`,
+      me: hold.me,
     });
   return out;
 };

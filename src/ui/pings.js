@@ -43,7 +43,9 @@ function pingTarget(origin, dir) {
         pos: p.pos.clone(),
       };
   if (wall >= 150) return null;
-  return { kind: "place", label: "Here", pos: hit };
+  /* a place is called by the map's callout zone when it has one ("Red base", "north lane") */
+  const z = zoneAt(hit);
+  return { kind: "place", label: z ? z[0].toUpperCase() + z.slice(1) : "Here", pos: hit };
 }
 /** a danger mark at the reticle point (or along any ray): the first wall or floor it meets, or 80 m
     out when it meets nothing */

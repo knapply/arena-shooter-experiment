@@ -1,6 +1,6 @@
 /* ============ settings screen ============ */
 const T_KEYS = "Keys";
-const STABS = [T_GFX, T_CTL, T_KEYS, T_PAD, T_GAME, T_SBX, T_LAB, T_AUD, T_DES];
+const STABS = [T_GFX, T_CTL, T_KEYS, T_PAD, T_GAME, T_MODE, T_SBX, T_LAB, T_AUD, T_DES];
 /** q: the search box (empty shows the current tab) */
 const SUI = { tab: T_GFX, from: "menu", padCap: null, q: "" };
 const el = (tag, cls, txt) => {
@@ -14,15 +14,26 @@ function setMsg(t, bad) {
   m.textContent = t || "";
   m.classList.toggle("bad", !!bad);
 }
-function openSettings(from) {
+/** from: "menu" or "pause"; tab and focus: open on a tab with one setting focused (a mode's rules) */
+function openSettings(from, tab, focus) {
   SUI.from = from;
+  if (tab) {
+    SUI.tab = tab;
+    SUI.q = "";
+    $("setSearch").value = "";
+  }
   $("settings").hidden = false;
   (from === "pause" ? $("pause") : $("menu")).hidden = true;
   renderSettings();
   setMsg("");
   $("setIO").hidden = true;
-  const f = /** @type {HTMLElement} */ ($("settings").querySelector(".stab[aria-selected=true]"));
-  if (f) f.focus();
+  const f = /** @type {HTMLElement} */ (
+    (focus && $("set_" + focus)) || $("settings").querySelector(".stab[aria-selected=true]")
+  );
+  if (f) {
+    f.focus();
+    if (focus && f.scrollIntoView) f.scrollIntoView({ block: "center" });
+  }
 }
 /* dragging a slider changes a setting many times a second: save once it settles (closing the
    panel or the page saves straight away) */

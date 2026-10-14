@@ -69,5 +69,5 @@ function leaveGame() {
   if (room) room.presence({ p: null }).catch(() => {});
 }
 $("callsign").addEventListener("keydown", e => {
-  if (e.key === "Enter") $("deploy").click();
+  if (e.key === "Enter") $("play").click();
 });

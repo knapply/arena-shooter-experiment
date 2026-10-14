@@ -9,7 +9,8 @@
    more documents defined the same way.
 
    Documents: pilot (callsign, color, voice), settings (options, keys, pad), ctfTeam, ctfBrain
-   (the AI's learned tactics). Each also reads its pre-store localStorage key once, then moves it. */
+   (the AI's learned tactics), menu (the picked mode, and each mode's map and team size). Each also
+   reads its pre-store localStorage key once, then moves it. */
 const STORE = (() => {
   const APP = "kinetic-arena";
   /** in-memory fallback when storage is blocked (private windows, sandboxed previews) */
@@ -158,6 +159,23 @@ const STORE = (() => {
     clean: d => (d === 1 ? 1 : 0),
   });
   define("ctfBrain", { version: 1, legacy: "ka-ctf-brain-v1", clean: d => (Array.isArray(d) ? d : null) });
+  /* the menu's last pick: the mode, and each mode's map and team size (ui/menu.js) */
+  const MODE_IDS = ["ctf", "slayer", "ffa", "oddball"];
+  define("menu", {
+    version: 1,
+    clean: d => {
+      const pick = (o, ok) => {
+        const out = {};
+        if (o && typeof o === "object") for (const k of MODE_IDS) if (ok(o[k])) out[k] = o[k];
+        return out;
+      };
+      return {
+        mode: MODE_IDS.includes(d?.mode) ? d.mode : "",
+        maps: pick(d?.maps, v => v === "arena" || v === "ctf"),
+        size: pick(d?.size, v => Number.isInteger(v) && v >= 1 && v <= 12),
+      };
+    },
+  });
 
   return {
     define,

@@ -4,10 +4,11 @@ Ideas for what to build next, grouped by area and roughly ordered by value for e
 
 ## Gameplay and modes
 
-1. **Team Slayer on the arena (playable).** The AI already plays team deathmatch on the arena for the simulations (`CTF.Game({ map: "arena" })`). A playable mode needs a menu entry, a score-only HUD (the CTF HUD shows flag states) and the results screen hook. It would give friends a team mode that isn't capture the flag. (`modes/ctf/modes.js`, `modes/ctf/ui.js`.)
-2. **Free-for-all AI that fights each other.** The practice drones only ever fight you. Letting the CTF agents play free-for-all (every pilot its own team) would make the arena feel alive with friends and drones together, and would let the simulations measure the actual free-for-all mode. The agent code assumes two teams (`G.teams[1 - team]`); it needs an "enemies of" helper.
-3. **King of the Hill and Oddball** on the mode framework: both reuse spawns, stats and the results screen. Oddball needs a carried object (the flag carry is the template).
-4. **Callout zones as map data.** `CTF.zoneName` hardcodes Twin Foundry's geometry. A `zones` field in map documents would give every map proper callouts for the AI, pings and the kill feed.
+Done: Team Slayer, free-for-all with AI that fights everyone, Team Oddball and callout zones as map data (`docs/ARCHITECTURE.md`, Game modes), human and supply drop pods visible online in capture the flag, and spawn safety online in the arena (shared fights).
+
+1. **King of the Hill** on the same framework as oddball: a hill zone (a callout zone with a flag on it), held time scored like the skull, the AI's roles from `assignBall` (hold, escort, hunt). A moving hill would use the skull's pod drop to announce each move.
+2. **Retire the practice drones.** The practice arena (`#deploy`) still runs the drones' own simpler AI (`game/state.js`) and the arena's peer-to-peer presence play, because many tests and tools start there. Moving it onto a free-for-all `CTF.Game` with drop-in hosting would leave one AI to maintain.
+3. **Mode-specific map features:** oddball and Slayer play on maps made for capture the flag and free-for-all. Hold spots for the skull (today: the middle of each callout zone near the skull's spot), Slayer spawns on Twin Foundry away from the flag stands, and a free-for-all spawn list for Twin Foundry would each be a few lines of map data.
 
 ## Competitiveness
 
@@ -19,7 +20,7 @@ Ideas for what to build next, grouped by area and roughly ordered by value for e
 ## Fun and feel
 
 1. **Vehicles or a jump pad network** for the larger CTF map: movement is the game's identity, and mid-map launch pads would add routes.
-2. **More medals and post-match moments:** pod kills, flag denials, clutch returns. The event stream makes each one a few lines in `core/announcer.js` and `game/stats.js`.
+2. **More medals and post-match moments:** pod kills, flag swings, skull kills, carrier kills, flag denials, clutch returns and last-second holds are in. Next: assists on a capture, a "hold the line" for defending the flag through a push, a skull kept for 30 s straight.
 3. **Equipment slot** (a deployable shield or a grapple) with its own cooldown on the HUD kit chips.
 4. **Spectator tools for online matches:** follow-cam for dead players, and the director camera from AI-vs-AI.
 
@@ -50,5 +51,5 @@ Ideas for what to build next, grouped by area and roughly ordered by value for e
 2. **ES modules for the engine:** the shared-scope concatenation works and is checked by the unused/duplicate-name lint. Converting leaf modules (`core/prelude.js`, `world/physics.js`) to import/export first would make dependencies explicit (see ARCHITECTURE's roadmap).
 3. **Live matches on the simulation worker:** the AI step is about 0.15 ms per frame now. If matches grow (16 players, more AI), moving CTF's `G.step` to the worker is ready to do: the worker bundle already runs it.
 4. **Continuous tuning:** the manual Tune workflow can run on a schedule and post a summary comment when any knob's effect crosses the noise threshold, so balance drift from code changes is caught early.
-5. **Unify the drones with the agents:** the arena's practice drones have their own simpler AI in `game/state.js`. Making them CTF agents in free-for-all (see gameplay 2) would remove a second AI to maintain.
+5. **Unify the drones with the agents:** the AI free-for-all mode now runs on the CTF agents; only the practice arena still uses the drones (see Gameplay 2).
 6. **Test the post-match flow online:** the results screen is covered offline. A two-tab test of "Play again keeps the room" in CTF would protect the online path.
