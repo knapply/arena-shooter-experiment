@@ -59,6 +59,7 @@
     "game/stats.js",
     "game/intro.js",
     "game/pods.js",
+    "game/supply-pods.js",
     "game/pod-view.js",
     "ui/pings.js",
     "game/loop.js",

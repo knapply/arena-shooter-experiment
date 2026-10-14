@@ -39,7 +39,7 @@ The browser parses the HTML (menu, HUD, overlays are plain markup), loads three.
 | 12 | `weapons/firing.js`, `core/input.js`, `gamepad.js` | Outgoing damage, input listeners (keyboard, mouse, touch, pointer lock), gamepad polling. |
 | 13 | `game/deploy.js`, `game/modes.js` | The Deploy button handler, free-for-all rules, the mode registry (`defineMode`). |
 | 14 | `net/*` | Wire message codecs, remote playback buffers, arena presence sync. |
-| 15 | `ui/*`, `game/replay.js`, `highlights.js`, `intro.js`, `pods.js`, `pod-view.js`, `stats.js` | HUD, network panel, motion tracker, console, kill cam and Play of the Game, match intros, drop pods and their cockpit, match stats. |
+| 15 | `ui/*`, `game/replay.js`, `highlights.js`, `intro.js`, `pods.js`, `supply-pods.js`, `pod-view.js`, `stats.js` | HUD, network panel, motion tracker, console, kill cam and Play of the Game, match intros, drop pods (and the power weapons' supply pods) and their cockpit, match stats. |
 | 16 | `game/loop.js` | The frame function (`frame`) and everything it calls per frame. Nothing runs yet. |
 | 17 | `ui/settings-ui.js` (sets `gfxReady`), `weapons/pickups.js`, `ui/power.js`, `damage-dir.js`, `stats-ui.js`, `player/assists.js`, `ui/reticle.js` | Remaining UI, pickups and their visuals. |
 | 18 | `game/exports.js` | Builds `window.KA` and **starts the loop**: `requestAnimationFrame(frame)`. |

@@ -13,7 +13,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/frame-hooks.js` | 21 | `FRAME_HOOKS` `onFrame` `runFrameHooks` |
 | `src/core/settings.js` | 1311 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `T_LAB` `SANDBOX_DEFS` `LAB_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` `SET` … (+15) |
 | `src/render/renderer.js` | 169 | `canvas` `renderer` `scene` `camera` `resize` `hemi` `sun` `_skyP` `skyTint` `SKY_TIME` `SKY_SUN` `SKY_Q` |
-| `src/render/pipeline.js` | 647 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `DOF_COC` `cocMat` `blur4Mat` `VIEWPOS` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `MAP_GRADE` `HEAT_U` `compMat` `fsQuad` `fsScene` … (+19) |
+| `src/render/pipeline.js` | 649 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `DOF_COC` `cocMat` `blur4Mat` `VIEWPOS` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `MAP_GRADE` `HEAT_U` `compMat` `fsQuad` `fsScene` … (+19) |
 | `src/render/environment.js` | 172 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyGfx` `pc` `scaleBoxUV` |
 | `src/render/surfaces.js` | 319 | `SURF_MATS` `SURF_DEBUG` `SURF_U` `SURF_GLSL` `surfMat` `applySurf` `bakeMarkings` |
 | `src/render/perf.js` | 118 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
@@ -57,24 +57,25 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/ui/net-panel.js` | 90 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/ui/tracker.js` | 103 | `TRACK_RANGE` `TRACK_SPEED` `TRACK_PX` `trackEl` `trackT` `arenaContacts` `trackerShown` `updTracker` |
 | `src/weapons/viewmodel-anim.js` | 144 | `updVM` |
-| `src/ui/console.js` | 312 | `DEV` `timeScale` `godMode` `CON` |
+| `src/ui/console.js` | 313 | `DEV` `timeScale` `godMode` `CON` |
 | `src/game/replay.js` | 504 | `REPLAY` `eyesShot` `KILLCAM_T` `KILLCAM` `KILL_NAMES` `recordedNear` `killCamTick` `playKillCam` |
 | `src/game/highlights.js` | 120 | `HL` `HL_KEEP` `HL_BEFORE` `HL_AFTER` `HL_POWER` `hlConsider` `hlTick` `playOfTheGame` |
 | `src/game/stats.js` | 280 | `ASSIST_WINDOW` `GUN_WEAPONS` `STATS` `WEAPON_NAMES` `endCarry` `statRoster` `powerHeld` `statScore` |
 | `src/game/intro.js` | 121 | `INTRO` `_ic` `centroid` `playIntro` `endIntro` `introFrame` |
-| `src/game/pods.js` | 651 | `PODS` `podsOn` `POD_R` `POD_NOSE` `POD_BURY` `POD_EYE` `POD_BLOW` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `inSolid` `solidDepth` `podBlocked` `SEAT_TRY` `podSeat` `makePod` … (+27) |
+| `src/game/pods.js` | 744 | `PODS` `podsOn` `POD_R` `POD_NOSE` `POD_BURY` `POD_EYE` `POD_BLOW` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `inSolid` `solidDepth` `podBlocked` `SEAT_TRY` `podSeat` `POD_N` … (+34) |
+| `src/game/supply-pods.js` | 334 | `SUPPLY` `SUP_STATE` `SUPPLY_FALL` `SUPPLY_EARLY` `SUPPLY_H` `SUPPLY_BURY` `SUPPLY_N` `SUP_BEACON` `supplyAtlas` `atlasUv` `SUP_GREY` `SUP_STRIPE` `SUP_GLOW` `SUP_DRAW` `_spM` `supplyDraw` `launchSupply` `disposeSupply` … (+5) |
 | `src/game/pod-view.js` | 225 | `PV` `PV_RISE` `PV_END` `pvEl` `pvLerp` `pvBuild` `pvSet` `pvShow` `pvHide` `_pvP` `podCockpit` `podCockpitLand` `podCockpitIdle` |
 | `src/ui/pings.js` | 103 | `PINGS` `PING_LIFE` `_pgD` `_pgO` `_pgV` `pingTarget` `addPing` `pingNow` `pingLayer` `updPings` |
-| `src/game/loop.js` | 734 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `jetOn` `jetPuff` `meEvent` … (+28) |
+| `src/game/loop.js` | 740 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `jetOn` `jetPuff` `meEvent` … (+29) |
 | `src/ui/settings-ui.js` | 517 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `saveSoonT` `saveSoon` `saveNow` `closeSettings` `onSetChange` `renderSettings` `searchHit` `renderSearch` `settingRow` `renderKeys` `renderPadBinds` `padCapture` … (+7) |
-| `src/weapons/pickups.js` | 422 | `PICKMAT` `PICKACC` `PICKHOT` `NADEMAT` `NADEGLOW` `NADE_CAP` `wName` `capWord` `MODEL_PARTS` `floorParts` `weaponModel` `labelSprite` `PK_VIS` `RING_GEO` `ringMat` `DROP_RING` `pkVisual` `powerSpawn` … (+17) |
-| `src/ui/power.js` | 143 | `PW_KEYS` `pwKey` `PW_TEX` `pwTex` `PW_MARKS` `pwMark` `arenaPowerHolders` `pwCallT` `powerCallout` `pwHudLast` `pwPrev` `updPower` |
+| `src/weapons/pickups.js` | 430 | `PICKMAT` `PICKACC` `PICKHOT` `NADEMAT` `NADEGLOW` `NADE_CAP` `wName` `capWord` `MODEL_PARTS` `floorParts` `weaponModel` `labelSprite` `PK_VIS` `RING_GEO` `ringMat` `DROP_RING` `pkVisual` `powerSpawn` … (+17) |
+| `src/ui/power.js` | 147 | `PW_KEYS` `pwKey` `PW_TEX` `pwTex` `PW_MARKS` `pwMark` `arenaPowerHolders` `pwCallT` `powerCallout` `pwHudLast` `pwPrev` `updPower` |
 | `src/ui/damage-dir.js` | 49 | `DARCS` `DARC_LIFE` `hitSource` `damageArc` `updDamageArcs` |
 | `src/ui/stats-ui.js` | 211 | `TEAM_NAMES` `fmtTime` `STAT_COLS` `SUM_KEYS` `statsTable` `renderStatsRoster` `POST` `showPost` `renderPost` `closePost` `postAct` `updPost` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 36 | `_sd` `RANGE` `updAim` |
-| `src/render/prewarm.js` | 59 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 281 | `KA_API` |
+| `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
+| `src/game/exports.js` | 282 | `KA_API` |
 | `src/modes/ctf/map.js` | 222 |  |
 | `src/modes/ctf/nav.js` | 335 |  |
 | `src/modes/ctf/brain.js` | 577 |  |

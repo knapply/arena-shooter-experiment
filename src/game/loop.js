@@ -258,6 +258,12 @@ function matchDrop(withBots = false) {
   }
   return POD_TIME;
 }
+/** put the camera straight on you after a teleport: no smoothing from where you were (it holds even
+    with the world frozen) */
+function snapView() {
+  prevPos.copy(me.pos);
+  smY = me.pos.y;
+}
 /** a pod landing on someone takes them out */
 function podCrush(at) {
   for (const t of targets())
