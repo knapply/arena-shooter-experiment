@@ -194,6 +194,141 @@ Capture the flag at normal skill has the longest lives and the most shooting, so
 
 With the finite reserves in place the same capture-the-flag runs come out within noise of before (kills per minute 15.0 against 15.4, skill share 0.848 against 0.854), and the arena is unchanged: a normal life very rarely runs out.
 
+## Every mode, every rule (pass four)
+
+Every mode now runs headless with its own measures, on both maps where the mode supports them: capture the flag (Twin Foundry), Team Slayer, free-for-all (eight AI pilots, every one for themselves) and Team Oddball (Proving Grounds and Twin Foundry). This pass swept every sandbox knob again, and for the first time the rules the Sandbox tab doesn't expose. It also used the simulations to find each map's dead zones, dominant spots and spawn traps, and changed the maps where that helped.
+
+### New in tools/tune.js
+
+```bash
+MODE=oddball MAP=arena node tools/tune.js ruRegenDelay ruShield     # any mode on any map
+LIMITS=1 MINUTES=10 KNOBS=none node tools/tune.js                  # real score limits: who wins, lead changes
+MIX=1 MODE=slayer MAP=arena KNOBS=none node tools/tune.js          # one Legendary pilot + three Normal vs four Normal
+TEAM=3 node tools/tune.js     PILOTS=6 MODE=ffa node tools/tune.js  # team and free-for-all sizes
+HEAT=1 OUT=h.json node tools/tune.js && node tools/heat-report.js tools/out/h.json   # map heat
+```
+
+- **Rule knobs** (`ru*`, `sp*`):
+  - shield and health;
+  - recharge delay and rate;
+  - melee and shoulder-charge cooldowns, and the carrier one-hit rule (`ruCarryHit 0`: a carrier's swing follows the normal melee rule);
+  - the AI's grenade count and throw cooldown;
+  - power-weapon respawn times, starting reserves, respawn delay and drop pods;
+  - the dropped flag's return time and the dropped skull's reset time;
+  - the spawn-safety weights.
+
+  These numbers aren't in the Sandbox tab, so `tune.js` sets them through hooks that patch the simulation in its own process. Shipped code is untouched, and at its defaults every hook reproduces the game exactly (checked by replaying seeds in all three kinds of mode).
+- **New measures:**
+  - how long carriers hold the flag or skull, and how each carry ends (capture, killed, dropped);
+  - whether the side leading at half time won (with `LIMITS`) and how often the lead changed hands;
+  - the spread of kills across pilots, and the top pilot's margin;
+  - with `HEAT=1`, where pilots stood, died and killed from (2 m cells and the maps' callout zones), and the deaths within 3 s of spawning at each spawn point.
+- **`tools/heat-report.js`** turns heat into:
+  - per zone: time share against area share, and kills made from the zone against deaths in it;
+  - the share of the walkable floor nobody uses;
+  - the deadliest standing spots;
+  - the spawn traps.
+
+### Method
+
+Each cell is one mode on one map. For each, there were two seed sets (100, 700) of 48 matches of each kind (Legendary vs Normal for skill share, Normal vs Normal for everything else), 4 minutes each, with four null controls (run-speed nudges of ±0.0001 m/s). A variant's effect is against the mean of the five null results, and its noise is the largest null deviation. Seven mode-and-map cells × two seed sets gives 14 readings per variant. Anything changed was confirmed on two more seed sets (1300, 1900), against Recruits (Recruit even matches; Normal vs Recruit), and in every cell.
+
+### Where each mode starts (before this pass)
+
+| Mode, map | Skill share | Noise | Time to kill | Kills/min | Other |
+|---|---|---|---|---|---|
+| CTF, Twin Foundry | 0.851 | ±0.014 | 2.77 s | 15.0 | 19% of flag carries end in a capture; the median carry lasts 5.1 s; the side leading at half time wins 95% of matches, and the lead changes 0.06 times a match |
+| Slayer, arena | 0.795 | ±0.010 | 2.08 s | 30.6 | half-time leader wins 72%, 3.0 lead changes |
+| Slayer, Twin Foundry | 0.774 | ±0.010 | 2.27 s | 25.1 | half-time leader wins 73%, 3.3 lead changes |
+| Free-for-all, arena | 0.730 | ±0.006 | 2.78 s | 34.1 | **5.4% of deaths within 3 s of spawning**; the top pilot wins by 1.75 kills on average |
+| Free-for-all, Twin Foundry | 0.715 | ±0.010 | 2.68 s | 32.4 | **4.1% spawn deaths**; 46% of the time is spent in the two bases |
+| Oddball, arena | 0.911 | ±0.008 | 2.11 s | 25.4 | the better team holds the skull 96.8% of the time; 28 changes of hands a match; carries last 4.3 s; 2.0 lead changes |
+| Oddball, Twin Foundry | 0.896 | ±0.017 | 2.12 s | 21.5 | holds 97.7%; 22 changes of hands; 1.8 lead changes |
+
+Oddball is the most skill-decisive mode, and free-for-all the least. Capture the flag is decided by its first capture.
+
+Some rules never come into play in these simulations:
+
+- The AI returns every dropped flag by touch before the 15 s reset, so the return time changed nothing.
+- The AI never uses the shoulder charge, so its cooldown changed nothing.
+- No AI carrier drops a flag by sprinting.
+
+### Rules (14 readings each; "positive" counts readings with a higher skill share, "clear" those outside the noise)
+
+| Setting (default) | Tried | Skill share | Other effects | Decision |
+|---|---|---|---|---|
+| **Recharge delay (4 s)** | 3 | **+0.007, positive 11/14, clear 7/14**; confirmed on two more seed sets: +0.007, positive 10/14, every Slayer reading positive and clear (+0.011 to +0.018) | **fights 0.12 to 0.14 s longer**; fewer grenade self-kills and teamkills; CTF capture rate +2 to +3 points; against Recruits, fights 0.08 s longer, fewer self-kills and teamkills | **Changed to 3 s.** It raises the skill ceiling and gives everyone more time to react: better pilots recover between fights, and a pilot under fire still has to break away. 2.5 measured the same (+0.009); 3.5 half as much; 5 the opposite (−0.006). |
+| Shield (70) | 55, 85 | 55: **+0.015, positive 14/14**; 85: −0.012, positive 1/14 | 55: fights 0.13 s shorter, grenade self-kills +10, teamkills +13 | Kept. A smaller shield raises the ceiling more than anything else, but it shortens every fight; that's the accessibility cost the rules here don't pay. Worth a playtest as a "hardcore" playlist. |
+| Respawn delay (5 to 6 s) | +2, −2 s | +2: +0.014, positive 11/14; −2: **−0.024, positive 0/14** | +2: 3.7 fewer kills a minute, **CTF capture rate +10 points**, carries 1 to 2 s longer | Kept. Longer waits snowball fights, and a 7 to 8 s wait doesn't feel responsive. For capture the flag alone, +2 s is the strongest lever found for captures (see below). |
+| Health (45) | 35, 55 | 35: 0.000; 55: −0.007 | 35: self-kills +13, teamkills +19 | Kept. |
+| Shield recharge rate (48/s) | 32, 64 | 64: +0.002; 32: −0.003 | none | Kept. |
+| Carrier one-hit melee (on) | off | −0.005 | **CTF capture rate −7 to −12 points; Oddball changes of hands +8 to +13 a match**; carries 2 s shorter | Kept: it's what lets a carrier survive at all. |
+| Starting reserves (×1) | ×0.5, ×2 | ×0.5: **−0.015, clear 10/14**; ×2: +0.005 | ×0.5: Oddball hold share −0.5 to −1.8 points | Kept. Running dry is a coin flip that hurts the better side, and the current loads are already rarely exhausted. |
+| Melee cooldown (0.75 s) | 0.55, 1 | 0.000, −0.003 | none | Kept. |
+| AI grenades (×1), throw cooldown (×1) | ×0.5, ×1.5; ×0.6, ×1.5 | all within ±0.004 | faster throws: self-kills +13, teamkills +31 | Kept. |
+| Power respawn times (×1) | ×0.67, ×1.5 | 0.000 | none | Kept. |
+| Drop pods (simulations use in-place spawns) | pods on | +0.005, positive 11/14 | 2.4 fewer kills a minute (the pod's own spot choice) | No change (it's the player's setting). |
+| Spawn safety: sight, nearness and fight weights | ½× and 2× | all within ±0.003 | none | Kept. |
+| Flag return (15 s), skull reset (15 s), charge cooldown (1.3 s) | 10/25, 8/25, 1/1.8 | no effect (identical matches) | see above | Kept. |
+
+**On top of the AI pass.** The recharge delay was checked again on a local merge of this branch with the AI pass (map memory, adaptive bots, the magnum rhythm, hunters that hold range; not on main yet). Going back to 4 s there gives:
+
+- skill share **−0.006, lower in 11 of 14 readings**, every Slayer and Oddball reading lower;
+- fights 0.19 s shorter;
+- 7 more grenade self-kills and 16 more teamkills.
+
+So 3 s holds with the new AI too. That AI raises skill share a lot by itself (Slayer on the arena 0.80 → 0.87, Oddball 0.94, free-for-all 0.78), so every baseline here moves when it lands.
+
+### The Sandbox tab, in every mode
+
+Every sandbox knob was swept again in all seven cells (54 variants). None moved skill share by more than +0.003 on average, and none was positive in more than 11 of 14 readings. The movement, weapon and grenade defaults are at a local optimum in every mode, not just the two the earlier passes measured. The magnum's 0.3 s interval (−0.007, clear 7/14) and the slower thrust cooldown (−0.004) confirm the current values from the other side. Nothing changed.
+
+### Team size, free-for-all size, mixed skill, the oddball time to win
+
+| | Measured | Read |
+|---|---|---|
+| **Team size** (4 v 4 default) | CTF: 2 v 2 skill 0.872 to 0.879, 3 v 3 0.857 to 0.874, 4 v 4 0.846 to 0.857; flag carries ending in a capture 48%, 30%, 20%. Slayer: within 0.01 at every size. Oddball: 2 v 2 0.78 to 0.83, 3 v 3 0.86 to 0.89, 4 v 4 0.89 to 0.92 | Smaller CTF teams capture far more and are at least as skill-decisive. Oddball needs full teams to reward the better team as much. |
+| **Free-for-all size** (8 pilots) | spawn deaths: 4 pilots 1%, 6 pilots 2%, 8 pilots 4 to 6%, 10 pilots 9 to 10%; skill share 0.70 to 0.77 at every size | Crowding, not skill, is what changes. The spread spawns below bring 8 pilots down to 1.5% (Twin Foundry) and 3.4% (arena). Six pilots would be calmer still; worth a playtest. |
+| **Mixed teams** (one Legendary + three Normal vs four Normal) | better team's kill share: Slayer 0.56 to 0.60, CTF 0.62, Oddball 0.66 to 0.69 (skull hold 0.76 to 0.79); two Legendaries: 0.64 to 0.80; three: 0.72 to 0.87 | One strong pilot carries Oddball most and Slayer least. |
+| **Oddball time to win** (120 s) | 60 s: 1.2 lead changes, hold share 0.94 to 0.96; 90 s: 1.6; 120 s: 1.8 to 2.1; 180 s: 2.2 to 2.5, hold share 0.96 to 0.98 | Longer games have more comebacks and are more skill-decided. 120 s balances match length against both. Kept. |
+
+### Maps: what the heat showed, and what changed
+
+Full readings, dead zones and the layout ideas not taken are in [PROPOSALS.md](PROPOSALS.md) (M11 to M15). In short:
+
+- **Oddball spots.** On the arena, the skull's one spot east of centre left the west lane and both western corners nearly empty (west lane 4.5% of the time on 10.6% of the floor; the NW and SW corners 1% each). Every drop, the first included, now picks one of three spots the same distance from both teams, never the same twice running. On the arena those are the core's roof and the alcoves behind the east and west pillars; on Twin Foundry, the mid tower's roof and both catwalks, which nothing else brings anyone to.
+  - Skill share: +0.011, +0.016, +0.011 (arena) and +0.002, +0.006, +0.021 (Twin Foundry), clear of the noise on all six.
+  - On the arena the west lane doubles to 8.6% and the western corners reach 4%, and lead changes go up (1.9 to 2.0, 2.1 to 2.3).
+  - On Twin Foundry, lead changes fall (1.8 to 1.3).
+- **Free-for-all spawns, Twin Foundry.** Free-for-all used both bases' spawns, so 46% of the time went into the bases, the mid tower saw nobody, and 4.1% of deaths came within 3 s of spawning. Twelve spots over the bases, wings, catwalks and mid:
+  - bases fall to 11% of the time;
+  - spawn deaths 4.1% → 1.5% on three seed sets;
+  - skill share +0.032, +0.034, +0.032, all clear.
+- **Free-for-all spawns, arena.** The open spots at (±22, 0) in the east and west lanes caused 35% of all spawn deaths. With them replaced by the alcoves behind the pillars and four quiet corners (15 spots in all, up from 11), spawn deaths fall from 5.2 to 5.4% to 3.2 to 3.5% on both seed sets, and skill share is unchanged (+0.002, +0.003). A version with only the four corners moved the deaths to the corners without reducing them: it is the number of choices that helps.
+- **Tried and dropped: spawn fronts.** Turning the arena's team spawn sides a quarter every 60 s (so the fight moves round the map) cost Oddball −0.017 and −0.019 and did nothing for Slayer.
+
+### After this pass (the shipped game, two seed sets each)
+
+| Mode, map | Skill share | Time to kill | Kills/min | Other |
+|---|---|---|---|---|
+| CTF, Twin Foundry | 0.851 → **0.863** | 2.77 → 2.99 s | 15.0 → 14.7 | 18% of carries end in a capture; 0.1 lead changes |
+| Slayer, arena | 0.795 → **0.802** | 2.08 → 2.13 s | 30.6 → 30.3 | 3.05 lead changes |
+| Slayer, Twin Foundry | 0.774 → **0.781** | 2.27 → 2.36 s | 25.1 → 24.9 | 3.17 lead changes |
+| Free-for-all, arena | 0.730 → **0.737** | 2.78 → 2.91 s | 34.1 → 32.6 | spawn deaths 5.4% → **3.4%** |
+| Free-for-all, Twin Foundry | 0.715 → **0.747** | 2.68 → 2.84 s | 32.4 → 30.0 | spawn deaths 4.1% → **1.5%** |
+| Oddball, arena | 0.911 → **0.939** | 2.11 → 2.34 s | 25.4 → 24.0 | hold share 0.968 → 0.982; 2.1 lead changes |
+| Oddball, Twin Foundry | 0.896 → **0.933** | 2.12 → 2.31 s | 21.5 → 20.5 | hold share 0.977 → 0.983; 1.3 lead changes |
+
+Skill share is up in every cell, and every fight is a little longer, which gives everyone more time to react.
+
+### For a playtest, not a default
+
+- **Oddball is now very skill-decided** (the better team holds the skull 98% of the time). That's right for a competitive mode, but harsh on new players; matchmaking or the adaptive difficulty matters most here.
+- **Capture the flag is decided by its first capture.** The lead changes about once in ten matches. A 2 s longer respawn in CTF raises the capture rate by 10 points; so does playing 3 v 3, by about 9 points (2 v 2: 27). A back entrance to each flag room (PROPOSALS M7) is the layout answer.
+- **A 55 shield** for a hardcore playlist (skill share +0.015 in every reading, fights 0.13 s shorter).
+- **Six-pilot free-for-all** (spawn deaths 2% before the spread spawns).
+- **Movement** is still judged best by playtesting (below).
+
 ## Limits of the method
 
 The AI's skill levels differ in reaction time and aim error, so the simulations measure how much **aim and reaction** decide fights. Movement skill (strafe timing, thrust dodges, slide jumps) is something the AI only partly expresses, so movement settings are better judged by playtesting with the sliders. The sandbox tab exists for exactly that.

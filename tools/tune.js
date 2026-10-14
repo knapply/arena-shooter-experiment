@@ -33,10 +33,21 @@
                                                  labGates on both; labGateOpen/Shut/Move: the gate cycle,
                                                  with GATES=1, which turns the gates on in every variant);
                                                  LOCK=burst, scatter or beam locks a lab weapon
+     node tools/tune.js ruRegenDelay ruShield  rules the Sandbox tab doesn't expose (ru*: shield, health,
+                                                 recharge, melee, carrier one-hit, AI grenades, power
+                                                 respawns, reserves, respawn delay, pods, flag and skull
+                                                 resets; sp*: spawn safety weights), patched into the
+                                                 simulation only; a full sweep leaves them out
+     PILOTS=6 MODE=ffa node tools/tune.js       free-for-all size; MIX=1 mixed-skill teams (n of the better
+                                                 level, the rest of the worse); LIMITS=1 the real score limits
+                                                 (LIMIT=n sets one), for who wins and lead changes
+     HEAT=1 node tools/tune.js                  map heat in the output; node tools/heat-report.js reads it
    Besides skill share, time to kill and grenades, every variant reports: the spread of time to kill
    (quartiles), each weapon's share of kills and of time held, how much skill decides fights with each
    weapon (the better team's share of that weapon's kills), captures and time to capture, the share of
-   deaths within 3 s of spawning, and lane use in the middle of a lane map.
+   deaths within 3 s of spawning, lane use in the middle of a lane map, how long flag and skull
+   carriers last and how their carries end, whether the half-time leader won and how often the lead
+   changed hands (LIMITS), and the spread of kills across pilots with the top pilot's margin.
    Output: a table on stdout and tools/out/tune.json (OUT=name.json). tools/tune-merge.js combines
    several outputs. See docs/TUNING.md for how defaults were chosen. */
 const fs = require("fs"),

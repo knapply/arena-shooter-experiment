@@ -100,7 +100,7 @@ MAPS.arena = {
   spawns: {
     /* free-for-all: fifteen spots. The open east and west lane spots (±22, 0) were the worst spawn
        traps; the alcoves behind the pillars and four quiet corners replace them, and with more spots
-       to choose from spawn safety cut deaths within 3 s of spawning from 5.3% to 3.3% (docs/TUNING.md) */
+       to choose from spawn safety cut deaths within 3 s of spawning from 5.4% to 3.4% (docs/TUNING.md) */
     ffa: [
       [24, 2.6, 24],
       [-24, 2.6, -24],

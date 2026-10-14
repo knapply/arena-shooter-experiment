@@ -8,6 +8,10 @@ Everything here is **off by default**. Turn prototypes on in **Settings → Labs
 
 | Idea | What it is | Headline sim result | Recommendation |
 |---|---|---|---|
+| **Oddball skull spots** (both maps; pass four) | Every skull drop picks one of three spots the same distance from both teams | Skill share +0.002 to +0.021 (clear on all six seed sets); the arena's empty west half comes back into play | **Shipped** |
+| **Spread free-for-all spawns** (both maps; pass four) | Twin Foundry gets its own twelve; the arena swaps two open lane spawns for six safer ones | Spawn deaths 4.1% → 1.5% and 5.4% → 3.4%; Twin Foundry skill share +0.032 | **Shipped** |
+| **Shield recharge after 3 s** (rule; pass four) | Down from 4 s | Skill share up in 21 of 28 readings, every Slayer one clear; fights 0.12 s longer | **Shipped** (docs/TUNING.md) |
+| **Spawn fronts** (arena; pass four) | Team spawn sides turn a quarter every 60 s | Oddball −0.017 and −0.019; Slayer nothing | **Dropped** |
 | **Scattergun pads** (map + weapon) | A scattergun on each Twin Foundry wing platform, 60 s respawn | 9 to 10% of kills; pilots in the mid lane 53% → 47% (on all six seed sets; 37% at Legendary); kills 0.16 to 0.19 s faster; skill share −0.002 to −0.011 (5 of 6 seed sets negative) | **Ship as option** (Labs), playtest as a default candidate |
 | **Pulse grenade** | Strips shields in 5 m (thrower's too), jams thrust 2.5 s, no damage | Fights end 0.06 to 0.24 s sooner; grenade kills −2 points; skill share within noise on CTF and in duels, a small consistent −0.006 on the arena | **Ship as option**, playtest |
 | **Lighter melee** (rule) | A melee blow takes at most 40 shield, not all of it | Melee's share of kills unchanged (48% arena); fights last +0.10 to +0.23 s, **+0.44 s for Recruits on CTF** | **Ship as option**, worth a default-tuning look for accessibility |
@@ -295,6 +299,64 @@ If it still sits below the carbine, drop it.
 | M7. Flag-room back entrance on Twin Foundry | Captures fall from 1.35 to 0.21 per match as skill rises; attackers need routes where defence wins | Stairs from the outer wing to the back of each base platform; no new mechanics. **The next map change to build.** |
 | M8. Overshield or damage-boost pickup in an exposed spot | Risk-reward timing without another gun | A non-weapon pickup type (the item code assumes a weapon or grenades) |
 | M9. Spawn-room cover | Spawn deaths | Not needed at Normal (0.2% CTF, 1% arena). At Legendary on the arena it is 5.8%, so revisit the arena's spawn safety (`world/spawns.js`) first |
+
+## Pass four: map heat in every mode
+
+`tools/tune.js` with `HEAT=1` records where pilots stand, die and kill from in every mode, and `tools/heat-report.js` reads it per callout zone. The method and every number are in [TUNING.md](TUNING.md), "Every mode, every rule". It reports:
+
+- **use**: the zone's share of pilot time against its share of the walkable floor. Under 0.3 is a dead zone; over 2 is crowding.
+- **k/d**: kills made from the zone against deaths in it. Well over 1 is a dominant spot.
+- **spawn traps**: spawn points by deaths within 3 s of spawning.
+
+### What the heat showed (Normal vs Normal, before this pass)
+
+| Map | Dead zones | Crowded or dominant | Spawn traps |
+|---|---|---|---|
+| Proving Grounds | All four corners in Slayer (1.4 to 2% of the time each on 9.7% of the floor) and Oddball's west (west lane 4.5%, NW and SW corners 1%); the four corner platforms everywhere (0.4 to 0.6%); the balconies are never reached (the AI can't climb them) | the core in Slayer (24.5% of the time on 6% of the floor); the core's roof kills slightly more than it dies (k/d 1.1 to 1.15) | free-for-all: the open east and west lane spots (±22, 0), 35% of spawn deaths |
+| Twin Foundry | both catwalks in every mode but Oddball (0.0 to 0.3%); in free-for-all, the whole middle (mid 0.3%, top of mid 0%) | the mid lanes in Slayer (20% each); in free-for-all, the bases (46%); top of mid in CTF (k/d 1.8 to 2.0) | free-for-all: the base spawns (4.1% of deaths) |
+
+### M11. Oddball skull spots (shipped)
+
+Each drop, the first included, comes down on one of three spots the same distance from both teams, picked at random and never the same twice running:
+
+- **Arena:** the core's roof and the alcoves behind the east and west pillars.
+- **Twin Foundry:** the mid tower's roof and both catwalks.
+
+The AI's "wait for the skull" goal follows the spot (`CTF.BALL_HOME`). A skull is rarely left long enough to reset, so the first spot does most of the work: matches open in different places.
+
+- **Arena:** skill share +0.011, +0.016, +0.011. The west lane goes from 4.5% to 8.6% of the time, the western corners from 1% to 4%, and lead changes go up from 1.9 and 2.1 to 2.0 and 2.3.
+- **Twin Foundry:** skill share +0.002, +0.006, +0.021. Lead changes go down (1.8 to 1.3): a catwalk start favours whoever holds that side.
+
+**Open questions:**
+
+- Should a pod show where the next skull lands a few seconds early?
+- An online client's intro still names the default spot (the host's pod and snapshot are right).
+
+### M12. Spread free-for-all spawns (shipped)
+
+**Twin Foundry** gets twelve free-for-all spots over the bases, wings, catwalks and mid; before, free-for-all used the two bases' team spawns:
+
+- bases go from 46% of the time to 11%;
+- the unused floor goes from 31% to 18%;
+- spawn deaths 4.1% → 1.5% (three seed sets);
+- skill share +0.032 to +0.034.
+
+**The arena** drops the two lane spots and adds the alcoves behind the pillars and four quiet corners (15 spots, up from 11). Spawn deaths fall 5.4% → 3.4%, and skill share is unchanged. A first version with only the corners just moved the deaths there: what helps is having more spots to choose from, not where they are.
+
+**Open question:** free-for-all at 8 pilots on the arena is still 3.4%; 6 pilots measured 2% even before the new spawns.
+
+### M13. Spawn fronts (dropped)
+
+**What:** the arena's team spawn sides turn a quarter every 60 s: north and south, then east and west, so the fight moves round the map. **Result:** Oddball −0.017 and −0.019 (clear); Slayer −0.001 to +0.002. A front change drops a team's spawns next to wherever the skull is. Dropped, along with the rules support.
+
+### M14 to M17 (not built: the heat's open problems)
+
+| Idea | Problem it answers | Sketch |
+|---|---|---|
+| M14. Catwalk routes on Twin Foundry | The catwalks are dead outside Oddball | Something to fight over up there: the scattergun pads (M3) are the measured way to draw fights to the wings, or a jump-down into the enemy wing that makes the catwalk a flank route |
+| M15. Corner reasons on the arena | The corners and corner platforms are dead in team modes; 43% of the floor sees little play in Slayer | Move the grenade and ammo drops' weight there, or put a second power spawn (the rockets) on a corner platform: M2's split power raised rocket use without much skill cost on Twin Foundry |
+| M16. Reachable balconies | The AI never reaches the arena's balconies (2.4 m, above its 2.15 m climb) | A step box at each balcony's end, then re-measure; players can climb them today, so the AI misses a route players have |
+| M17. A back entrance to each flag room (M7 above) | CTF is decided by its first capture (lead changes 0.06 to 0.1 a match; the half-time leader wins 95%), and captures fall with skill | Stairs from the outer wing to the back of each base; measure the capture rate and lead changes. A 2 s longer CTF respawn raised the capture rate 10 points |
 
 ## What shipping any of these needs
 
