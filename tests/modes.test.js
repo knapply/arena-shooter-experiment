@@ -197,6 +197,7 @@ const until = (p, fn, arg, timeout = 30000) =>
       const r = await p.evaluate(() => ({
         title: document.getElementById("postWin").textContent,
         mode: document.getElementById("postMode").textContent,
+        note: document.getElementById("postNote").textContent,
       }));
       await p.click("#postChange");
       await until(p, () => !document.getElementById("menu").hidden);
@@ -288,6 +289,24 @@ const until = (p, fn, arg, timeout = 30000) =>
       rc && rc.title === "Victory" && /Capture the Flag · Twin Foundry/.test(rc.mode),
       "the capture wins and the results show",
       rc
+    );
+    /* adaptive bots (on by default offline): the win makes them a little harder, and the menu says so */
+    check(
+      rc && /Bots next match: Recruit\+ \(up from Recruit\)/.test(rc.note),
+      "after a win the adaptive bots step up, and the results say so",
+      rc && rc.note
+    );
+    check(
+      /Recruit\+, adapting/.test((await text(p, "#modeSum")) || ""),
+      "the menu shows where the adaptive bots are",
+      await text(p, "#modeSum")
+    );
+    check(
+      await p.evaluate(() => {
+        const m = KA.STORE.load("aiMaps");
+        return !!(m && m.maps["twin-foundry"] && m.maps["twin-foundry"].n >= 1);
+      }),
+      "the AI remembers the map after the match (saved per map)"
     );
     /* Team Slayer and free-for-all: kills score, the score limit wins */
     for (const [id, name] of [

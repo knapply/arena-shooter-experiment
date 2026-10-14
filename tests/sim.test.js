@@ -313,4 +313,47 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     check(a.sig === b.sig, `${rules} on ${map}: the same seed replays the same match`, a.sig.length);
   }
 }
+/* a map memory (what the AI learned on the map before) keeps matches deterministic: the same memory and
+   seed replay the same match */
+{
+  const learn = () => {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const T = CTF.Game({ mode: "sim", render: false, seed: 41, rules: "slayer", map: "arena" });
+    const mem = (T.mem = new CTF.MapMemory(CTF.MAP, null));
+    T.start();
+    for (let i = 0; i < 90 * 30 && !T.over; i++) T.step(1 / 30);
+    mem.commit();
+    return mem.toJSON();
+  };
+  const saved = learn();
+  check(saved.f.length > 10 && saved.s.length > 10, "a match teaches the map memory", {
+    fights: saved.f.length / 2,
+    seen: saved.s.length / 2,
+  });
+  const run = () => {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const G = CTF.Game({
+      mode: "sim",
+      render: false,
+      seed: 42,
+      rules: "slayer",
+      map: "arena",
+      memory: new CTF.MapMemory(K.MAPS.arena, saved),
+    });
+    const log = [];
+    G.onEvent = (t, d) =>
+      t === "kill" &&
+      log.push([
+        G.t.toFixed(3),
+        d.killer && d.killer.team + "." + d.killer.idx,
+        d.victim.team + "." + d.victim.idx,
+      ]);
+    G.start();
+    for (let i = 0; i < 60 * 30 && !G.over; i++) G.step(1 / 30);
+    return JSON.stringify([log, G.agents.map(a => a.body.pos.toArray().map(v => v.toFixed(4)))]);
+  };
+  const a = run(),
+    b = run();
+  check(a === b, "with a map memory, the same seed replays the same match", a.length);
+}
 finish("sim");

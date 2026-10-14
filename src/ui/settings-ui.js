@@ -519,6 +519,7 @@ function extStop() {
   }
   showWorld();
   $("menu").hidden = false;
+  MENU.refresh();
   camera.fov = 78;
   camera.updateProjectionMatrix();
   camera.rotation.z = 0;

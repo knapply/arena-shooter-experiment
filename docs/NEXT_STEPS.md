@@ -26,9 +26,11 @@ Done: Team Slayer, free-for-all with AI that fights everyone, Team Oddball and c
 
 ## AI
 
-1. **Learned positions per map:** danger maps are already learned per match. Saving per-map hot spots would let bots pre-aim common routes on maps they've seen.
-2. **Difficulty that adapts:** start at Recruit and step up after wins (the skill table is data, so interpolating between levels is easy).
-3. **Use the magnum's perfect-kill rhythm at Legendary:** Legendary bots could pace their shots to the fire rate exactly when they're landing hits, and hold fire when they're not.
+Done: learned positions per map (`modes/ctf/memory.js`), adaptive difficulty (Settings → Gameplay) and the magnum's rhythm at Legendary; measured in [TUNING.md](TUNING.md) (AI pass).
+
+1. **Memory online:** the host's AI remembers the maps it has played on, but a client's never learns (it only mirrors). Sharing the host's memory in the room, or learning from mirrored kills, would make a host migration keep it.
+2. **Adaptive difficulty per mode:** one level covers every mode today; free-for-all against eight bots is harder than a 4 v 4 at the same level. A level per mode (or a handicap by mode) would settle each one separately.
+3. **Movement skill by level:** levels differ in aim, reaction and dodging, not in movement tech (slide jumps, clambers to high ground). Giving Legendary the movement a good player uses would show more of the skill ceiling in the simulations.
 
 ## Graphics
 

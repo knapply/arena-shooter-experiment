@@ -345,8 +345,10 @@
       if (died) this.G.kill(this, attacker, type, head);
       return { died, sh: had, brk, name: this.name };
     }
+    /** the team's skill: a level name, or a number 0 (Recruit) to 3 (Legendary) between them (adaptive) */
     skill() {
-      return DIFF[this.G.diff[this.team]] || DIFF.legendary;
+      const d = this.G.diff[this.team];
+      return typeof d === "number" ? CTF.skillAt(d) : DIFF[d] || DIFF.legendary;
     }
     brain() {
       return this.G.teams[this.team].brain;
@@ -404,6 +406,7 @@
       if (best !== this.target) {
         if (best) this.acqT = G.t + this.skill().react * (0.8 + K.rand() * 0.5);
         this.target = best;
+        this.magHit = null;
       }
       if (this.target && (!this.target.alive || G.t - (this.lastSeen.get(this.target.id) || -9) > 0.6))
         this.target = null;
@@ -439,13 +442,21 @@
           const th = this.nearestThreat(this.pos, 60);
           if (th) {
             g.copy(th.pos);
-            this.mustMove = true;
+            /* once fighting, the fight decides the range (charging in made every fight a melee) */
+            this.mustMove = !(CTF.AI.holdRange && this.target && G.t >= this.acqT);
             break;
           }
           if (!this.huntPt || this.pos.distanceTo(this.huntPt) < 3 || G.t > this.huntUntil) {
             const pts = G.spawnList(me).map(p => new V3(p[0], p[1], p[2]));
             for (const p of G.pickups || []) pts.push(p.pos.clone());
-            this.huntPt = pts[(K.rand() * pts.length) | 0];
+            /* a map it knows: the places fights happen are worth a look too, and more likely */
+            const mem = CTF.AI.memory && G.mem && G.mem.n ? G.mem : null;
+            if (mem) for (const c of mem.hot("fight", 6)) pts.push(mem.at(c, new V3()));
+            const w = pts.map(p => 1 + (mem ? 3 * mem.heat("fight", p.x, p.z) : 0));
+            let r = K.rand() * w.reduce((a, b) => a + b, 0),
+              k = 0;
+            while (k < pts.length - 1 && (r -= w[k]) > 0) k++;
+            this.huntPt = pts[k];
             this.huntUntil = G.t + 12;
           }
           g.copy(this.huntPt);
@@ -704,7 +715,9 @@
         let mates = 0;
         for (const a of G.teams[this.team].agents)
           if (a !== this && a.alive && a.pos.distanceTo(p) < 12) mates++;
-        const sc = near + mates * 4 - this.pos.distanceTo(p) * 0.35 + (p.y > 1.5 ? 3 : 0);
+        /* on a map it knows, away from where the fights usually are */
+        const hot = CTF.AI.memory && G.mem && G.mem.n ? G.mem.heat("fight", p.x, p.z) * 10 : 0;
+        const sc = near + mates * 4 - this.pos.distanceTo(p) * 0.35 + (p.y > 1.5 ? 3 : 0) - hot;
         if (sc > bs) {
           bs = sc;
           best = s;
@@ -714,6 +727,37 @@
       if (best) this.holdPt.set(best[0], best[1], best[2]);
       else this.holdPt.copy(this.pos);
       this.holdUntil = G.t + 5 + K.rand() * 3;
+    }
+    /** a known sight line to watch while moving (map memory: where enemies were seen most), ahead of
+        the way it is going, in the open, between 6 and 35 m; re-picked twice a second */
+    preAim(dt, dir) {
+      const G = this.G,
+        mem = G.mem;
+      if (!CTF.AI.preAim || !CTF.AI.memory || !mem || !mem.n || this.carrying) return null;
+      /* not attackers or escorts: watching corners slows a push (captures fell by a third) */
+      if (!/^(hunt|defend|mid)$/.test(this.role)) return null;
+      this.preT = (this.preT || 0) - dt;
+      if (this.preT > 0) return this.prePt;
+      this.preT = 0.5;
+      this.prePt = null;
+      const eye = this.eye(new V3()),
+        fy = dir ? Math.atan2(-dir.x, -dir.z) : this.body.yaw;
+      let best = -1;
+      for (const c of mem.hot("seen", 40)) {
+        const p = mem.at(c, _v),
+          dx = p.x - eye.x,
+          dz = p.z - eye.z,
+          d = Math.hypot(dx, dz);
+        if (d < 6 || d > 35 || Math.abs(angDiff(Math.atan2(-dx, -dz), fy)) > 1.0) continue;
+        const sc = mem.heat("seen", p.x, p.z) / (1 + d / 20);
+        if (sc <= best) continue;
+        _w.set(dx, p.y + 1.2 - eye.y, dz);
+        const L = _w.length();
+        if (K.rayWorld(eye, _w.multiplyScalar(1 / L), L) < L - 0.5) continue;
+        best = sc;
+        this.prePt = (this.prePt || new V3()).copy(p);
+      }
+      return this.prePt;
     }
     nearestThreat(p, r) {
       let best = null,
@@ -923,7 +967,15 @@
             inp.sprint = true;
         }
       } else {
-        if (dir) {
+        /* on a map it knows: watch where enemies usually show up, instead of sprinting past it */
+        const pre = this.preAim(dt, dir);
+        if (pre) {
+          const eye = this.eye(_thEye),
+            dx = pre.x - eye.x,
+            dz = pre.z - eye.z;
+          lookYaw = Math.atan2(-dx, -dz);
+          lookPitch = Math.atan2(pre.y + 1.2 - eye.y, Math.hypot(dx, dz));
+        } else if (dir) {
           inp.sprint = true;
           if (b.sprint && this.path && this.mustMove && K.rand() < dt * 0.15) inp.crouchP = true;
         }
@@ -1021,8 +1073,10 @@
         const err = Math.abs(angDiff(lookYaw, b.yaw)) + Math.abs(lookPitch - b.pitch);
         /* precision weapons wait for the reticle to settle */
         const careful = (this.sniper > 0 && tgt.pos.distanceTo(this.pos) > 6) || this.magnum;
+        /* the magnum's rhythm (Legendary): after a miss, hold fire until the reticle is right on them */
+        const hold = this.magnum && CTF.AI.rhythm && (S.rhythm || 0) >= 0.5 && this.magHit === false;
         /* a burst in progress finishes wherever the reticle is */
-        if (this.burstLeft > 0 || err < (careful ? 0.05 : 0.09)) this.shoot(tgt);
+        if (this.burstLeft > 0 || err < (hold ? 0.02 : careful ? 0.05 : 0.09)) this.shoot(tgt);
       } else if (!engaged || this.reloadT > 0 || this.switchT > 0) this.burstLeft = 0;
       if (this.mag <= 0 && this.reloadT <= 0) this.startReload();
       this.nadeCD -= dt;
@@ -1364,7 +1418,11 @@
         }
       } else {
         this.mag--;
-        this.fireCD = late + W.rate + (this.magnum ? this.skill().magPace : 0);
+        /* the magnum's perfect-kill rhythm (Legendary): while it lands, it fires at the weapon's rate
+           exactly; otherwise with a pause to re-aim (magPace) */
+        const S = this.skill(),
+          rhythm = this.magnum && CTF.AI.rhythm && (S.rhythm || 0) >= 0.5 && this.magHit === true;
+        this.fireCD = late + W.rate + (this.magnum && !rhythm ? S.magPace : 0);
       }
       /* burst weapons: the rounds of a burst at its gap, the next burst at its rate */
       if (W.burst && !pw) {
@@ -1394,6 +1452,8 @@
         const h = K.rayTarget(eye, d, e.body.pos, e.body.h, wt);
         if (h && (!best || h.t < best.h.t)) best = { e, h };
       }
+      /* the magnum's rhythm: did this shot land on who it was meant for */
+      if (this.magnum) this.magHit = !!best && best.e === tgt;
       const end = eye.clone().addScaledVector(d, best ? best.h.t : Math.min(wt, R));
       if (G.render) {
         const mz = eye

@@ -358,6 +358,8 @@
     callSpot(G, from, e) {
       const fresh = this.observeEnemy(G, e, from);
       if (!fresh) return;
+      /* the map memory: where enemies show up */
+      if (G.mem) G.mem.add("seen", e.body.pos, 0.2);
       const near = [...this.enemyMem.values()].filter(
         m => G.t - m.t < 1.5 && m.pos.distanceTo(e.body.pos) < 9
       ).length;

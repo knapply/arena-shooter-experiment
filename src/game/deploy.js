@@ -63,6 +63,8 @@ function leaveGame() {
   $("touch").hidden = true;
   $("dead").hidden = true;
   $("menu").hidden = false;
+  /* the menu says what's next (the room's match, adaptive bots) as soon as it shows */
+  MENU.refresh();
   try {
     document.exitPointerLock();
   } catch (e) {}

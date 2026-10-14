@@ -949,6 +949,14 @@ const SCHEMA = [
   },
   { k: "hitSounds", tab: T_GAME, label: "Hit marker sounds", type: "toggle", def: true },
   {
+    k: "adaptBots",
+    tab: T_GAME,
+    label: "Adaptive bot skill",
+    type: "toggle",
+    def: true,
+    desc: "Offline matches against AI pilots start at the bot skill you pick in the menu. After each match the bots get a little better if you won and a little easier if you lost, a third of a skill level at a time, so they settle where the fights are even. The menu and the results screen show where they are now; picking a bot skill starts over from it. Online matches always use the host's pick.",
+  },
+  {
     k: "friendlyFire",
     tab: T_GAME,
     label: "Friendly fire",

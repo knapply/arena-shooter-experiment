@@ -194,6 +194,32 @@ Capture the flag at normal skill has the longest lives and the most shooting, so
 
 With the finite reserves in place the same capture-the-flag runs come out within noise of before (kills per minute 15.0 against 15.4, skill share 0.848 against 0.854), and the arena is unchanged: a normal life very rarely runs out.
 
+## AI pass: the skill ladder per mode, and the AI's new habits
+
+Every mode measured with `MODE=… node tools/tune.js` (capture the flag on Twin Foundry, Team Slayer, free-for-all and oddball on the arena), both pairings, seed sets 100 and 700, 16 matches of each kind (4 minutes), with 4 null controls (run speed nudged by ±0.0001 to ±0.0002 m/s). Effects are against the mean of the baseline and its controls. Free-for-all has eight pilots with the two levels alternating, so its "skill" is the better half's share of the kills.
+
+**The skill ladder** (share of kills the better level takes; oddball also the better team's share of the time holding the skull):
+
+| Mode | Legendary vs Normal | Normal vs Recruit | Normal vs Normal |
+|---|---|---|---|
+| Capture the flag | 0.854, 0.850 (null ±0.010, ±0.005) | 0.695, 0.699 (±0.020) | time to kill 2.6 to 3.0 s, 15 kills a minute, 0.8 to 1.1 captures in 4 minutes |
+| Team Slayer | 0.847, 0.847 (±0.011, ±0.009) | 0.740, 0.743 (±0.016, ±0.004) | 3.2 to 3.3 s, 22 a minute |
+| Free-for-all | 0.769, 0.768 (±0.008, ±0.012) | 0.654, 0.653 (±0.017, ±0.021) | 3.8 to 3.9 s, 25 a minute |
+| Oddball | 0.909, 0.921 (±0.011, ±0.005); holding 0.96 to 0.98 | 0.749, 0.730 (±0.014, ±0.015); holding 0.81 to 0.82 | 2.1 s, 26 a minute, the skull changes hands 27 to 29 times |
+
+Oddball shows skill the most: the better team both wins the fights and keeps the skull (a carrier can't shoot, so the fight around them decides who holds it). Free-for-all shows it the least: with eight pilots, who is fighting whom is more luck.
+
+**The AI's new habits** (`CTF.AI`, each turned off with a knob to measure it):
+
+| Habit | Knob | Effect on skill share (L/N; N/R, two seed sets each) | Other effects | Decision |
+|---|---|---|---|---|
+| A hunter in a fight keeps its range instead of charging in (`holdRange`) | `aiHoldRange 0` | Team Slayer **+0.052, +0.053; +0.095, +0.110**, free-for-all **+0.037, +0.032; +0.055, +0.054** (with it on) | without it 38 to 42% of kills were melee (15 to 17% with it), time to kill 2.0 to 2.8 s (3.2 to 3.9 s with it) | **On.** The same sign in all 8 cells and well clear of the noise: fights are decided by aim instead of everyone running into melee range. Capture the flag has no hunters (identical runs); oddball is within noise. |
+| The magnum's perfect-kill rhythm at Legendary (`rhythm`, `AI_SKILL.rhythm`) | `aiRhythm 0` | capture the flag +0.007, −0.011; Slayer −0.002, −0.008; free-for-all +0.018, +0.010; oddball −0.002, +0.003 (with it on) | Legendary only, so Normal vs Recruit is unchanged | **On.** Within about one null spread: the AI already lands most magnum shots at Legendary, so pacing to the exact rate when landing and holding a moment after a miss shows little. It is the behaviour a good player has, and costs nothing. |
+| Map memory (`memory`): hunting where fights happen, the skull carrier holding away from them | `aiMemory 1` (two earlier matches on the map learned first) | capture the flag +0.002, −0.005; **+0.030, +0.020**; Slayer +0.013, +0.002; −0.036, +0.004; free-for-all +0.012, −0.007; +0.023, −0.006; oddball **−0.027, −0.056; −0.024, −0.012** | oddball: the better team holds the skull a little less (0.95 against 0.96 to 0.98) | **On in rendered matches** (both teams use it). Mixed elsewhere; in oddball it helps the weaker team more (the carrier stays away from where fights were, which is where the better team wins them). |
+| Watching known sight lines while moving (`preAim`, needs memory) | `aiPreAim 0` (with `AIMEM=1`) | capture the flag 0.000, Slayer −0.001, free-for-all −0.008, oddball +0.003 | first version (attackers and escorts too): captures in capture the flag fell from 1.5 to 0.88 a match (they stopped sprinting to look around) | **On for hunters, defenders and mid only.** Re-measured on seed sets 1300 and 1900: captures 1.13 and 1.06 a match, inside the null range (0.88 to 1.31), skill share within noise. |
+
+Adaptive difficulty (`adaptBots`) is a player setting, not a simulation knob: offline matches move the bots a third of a level after each result, so a player who wins two in a row from Normal meets Heroic−. The levels in between interpolate `AI_SKILL` (`CTF.skillAt`).
+
 ## Limits of the method
 
 The AI's skill levels differ in reaction time and aim error, so the simulations measure how much **aim and reaction** decide fights. Movement skill (strafe timing, thrust dodges, slide jumps) is something the AI only partly expresses, so movement settings are better judged by playtesting with the sliders. The sandbox tab exists for exactly that.
