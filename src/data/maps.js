@@ -301,6 +301,264 @@ MAPS.ctf = {
   lanes: { split: 9.5, x: [-18, 0, 18] },
 };
 
+/* Hadal Station: a deep-trench research station, 4 v 4. Red holds -z (the pieces below are Red's half;
+   twin pieces make Blue's). Three heights: the floor, ledges at 2.1 (porch, low tree, scuba ledge,
+   street cube; one jump-clamber) and 4.2 (the tree tops, bridges and the two Top Mid decks). Top Mid
+   is split by Bottom Mid, a trench at floor level with the power weapon, overlooked from both decks.
+   Each team reaches Top Mid three ways: its bridge from its tree, the scuba ledge, the street cube. */
+MAPS.hadal = {
+  schema: 1,
+  id: "hadal",
+  name: "Hadal Station",
+  symmetry: "rotate180",
+  /* under the sea: the water-column sky, marine snow, the hull frame and moon pools (world/deep.js) */
+  look: "deep",
+  bounds: { x0: -26.4, x1: 26.4, z0: -48, z1: 48 },
+  pieces: [
+    { id: "floor", type: "box", mat: "floor", p: [0, -1, 0], s: [57.6, 1, 100.8] },
+    { id: "wallN", type: "box", mat: "wall", p: [0, 0, -49.2], s: [57.6, 7, 2.4], twin: true },
+    { id: "wallE", type: "box", mat: "wall", p: [27.6, 0, 0], s: [2.4, 7, 100.8], twin: true },
+    /* the base: open to the sky, a window and a door toward mid, the elbow door on the tree side,
+       a low east wall the porch drops over, and the engine block inside (a ledge to hold the flag on) */
+    {
+      id: "baseW",
+      type: "box",
+      mat: "redBase",
+      p: [-11.4, 0, -44.4],
+      s: [1.2, 4.5, 7.2],
+      twin: true,
+      twinMat: "blueBase",
+    },
+    {
+      id: "baseE",
+      type: "box",
+      mat: "redBase",
+      p: [11.4, 0, -42.6],
+      s: [1.2, 4.5, 10.8],
+      twin: true,
+      twinMat: "blueBase",
+    },
+    {
+      id: "baseEl",
+      type: "box",
+      mat: "redBase",
+      p: [11.4, 0, -36],
+      s: [1.2, 2.1, 2.4],
+      twin: true,
+      twinMat: "blueBase",
+    },
+    {
+      id: "frontW",
+      type: "box",
+      mat: "redBase",
+      p: [-9, 0, -34.2],
+      s: [6, 4.5, 1.2],
+      twin: true,
+      twinMat: "blueBase",
+    },
+    {
+      id: "window",
+      type: "box",
+      mat: "redBase",
+      p: [-3.6, 0, -34.2],
+      s: [4.8, 1.1, 1.2],
+      twin: true,
+      twinMat: "blueBase",
+    },
+    {
+      id: "frontE",
+      type: "box",
+      mat: "redBase",
+      p: [7.8, 0, -34.2],
+      s: [8.4, 4.5, 1.2],
+      twin: true,
+      twinMat: "blueBase",
+    },
+    { id: "engine", type: "box", mat: "core", p: [-6, 0, -43.2], s: [3.6, 2.1, 3.6], twin: true },
+    {
+      id: "porch",
+      type: "box",
+      mat: "redBase",
+      p: [15.6, 0, -32.4],
+      s: [7.2, 2.1, 9.6],
+      twin: true,
+      twinMat: "blueBase",
+    },
+    {
+      id: "porchUp",
+      type: "stairs",
+      p: [15.6, -27.6],
+      dir: [0, 1],
+      steps: 5,
+      top: 2.1,
+      width: 3,
+      twin: true,
+    },
+    { id: "pillar", type: "box", mat: "wall", p: [21.6, 0, -39.6], s: [1.92, 4.2, 1.92], twin: true },
+    { id: "silo", type: "box", mat: "wall", p: [22.2, 0, -21.6], s: [3.6, 5, 3.6], twin: true },
+    /* the tree: a low deck, a high deck with the bridge to Top Mid, stairs up from the pit side */
+    {
+      id: "treeTop",
+      type: "box",
+      mat: "redBase",
+      p: [-15, 0, -13.2],
+      s: [8.4, 4.2, 4.8],
+      twin: true,
+      twinMat: "blueBase",
+    },
+    {
+      id: "treeLow",
+      type: "box",
+      mat: "redBase",
+      p: [-15, 0, -18.6],
+      s: [8.4, 2.1, 6],
+      twin: true,
+      twinMat: "blueBase",
+    },
+    {
+      id: "treeUpLow",
+      type: "stairs",
+      p: [-15, -21.6],
+      dir: [0, -1],
+      steps: 5,
+      top: 2.1,
+      width: 3,
+      twin: true,
+    },
+    {
+      id: "treeUp",
+      type: "stairs",
+      p: [-10.8, -13.2],
+      dir: [1, 0],
+      steps: 10,
+      top: 4.2,
+      width: 3,
+      twin: true,
+    },
+    { id: "bridge", type: "box", mat: "base", p: [-10.5, 3.7, -8.4], s: [3, 0.5, 4.8], twin: true },
+    /* Top Mid: two decks with the Bottom Mid trench between them */
+    { id: "deck", type: "box", mat: "core", p: [-6.12, 0, 0], s: [9.36, 4.2, 12], twin: true },
+    { id: "scuba", type: "box", mat: "step", p: [5.4, 0, -7.2], s: [3.6, 2.1, 2.4], twin: true },
+    { id: "streetCube", type: "box", mat: "step", p: [12, 0, -2.4], s: [2.4, 2.1, 3.6], twin: true },
+
+    /* the sub in its moon pool, with its sail on top */
+    { id: "hull", type: "box", mat: "core", p: [16.8, 0, -8.4], s: [3, 1.6, 9.6], twin: true },
+    { id: "sail", type: "box", mat: "core", p: [16.8, 1.6, -9.6], s: [1.4, 1.3, 2.6], twin: true },
+    /* trim */
+    {
+      id: "porchEdge",
+      type: "strip",
+      mat: "redStrip",
+      p: [15.6, 2.1, -27.66],
+      s: [7.2, 0.12],
+      twin: true,
+      twinMat: "blueStrip",
+    },
+    {
+      id: "sill",
+      type: "strip",
+      mat: "redStrip",
+      p: [-3.6, 1.1, -33.66],
+      s: [4.8, 0.12],
+      twin: true,
+      twinMat: "blueStrip",
+    },
+    {
+      id: "treeEdge",
+      type: "strip",
+      mat: "redStrip",
+      p: [-15, 4.2, -10.86],
+      s: [8.4, 0.12],
+      twin: true,
+      twinMat: "blueStrip",
+    },
+    { id: "deckEdge", type: "strip", mat: "stripB", p: [-1.5, 4.2, 0], s: [0.12, 12], twin: true },
+    /* destructible cover */
+    { id: "pitCrate", type: "box", mat: "cover", p: [4.2, 0, -14.4], s: [1.68, 1.4, 1.68], twin: true },
+
+    { id: "yardCrate1", type: "box", mat: "cover", p: [12, 0, -16.8], s: [1.92, 1.6, 1.92], twin: true },
+
+    { id: "elbowCrate1", type: "box", mat: "cover", p: [-19.2, 0, -39.6], s: [1.92, 1.6, 1.92], twin: true },
+
+    { id: "garageCrate", type: "box", mat: "cover", p: [-22.8, 0, -26.4], s: [1.92, 1.6, 1.92], twin: true },
+    { id: "flagBar", type: "box", mat: "cover", p: [4.8, 0, -38.4], s: [2.88, 1.1, 0.72], twin: true },
+    { id: "yardCrate3", type: "box", mat: "cover", p: [18, 0, -43.2], s: [1.68, 1.4, 1.68], twin: true },
+    { id: "deckCrate", type: "box", mat: "cover", p: [-6, 4.2, -3.6], s: [1.68, 1.1, 1.68], twin: true },
+  ],
+  spawns: {
+    teams: [
+      [
+        [-1.2, 0, -46.8],
+        [-14.4, 0, -46.8],
+        [13.2, 0, -40.8],
+        [-18, 0, -45.6],
+        [-22.8, 0, -36],
+        [15.6, 0, -45.6],
+        [24, 0, -44.4],
+        [15.6, 2.1, -34.8],
+      ],
+      [
+        [1.2, 0, 46.8],
+        [14.4, 0, 46.8],
+        [-13.2, 0, 40.8],
+        [18, 0, 45.6],
+        [22.8, 0, 36],
+        [-15.6, 0, 45.6],
+        [-24, 0, 44.4],
+        [-15.6, 2.1, 34.8],
+      ],
+    ],
+    ffa: [
+      [-1.2, 0, -45.6],
+      [1.2, 0, 45.6],
+      [-22.8, 0, -36],
+      [22.8, 0, 36],
+      [24, 0, -44.4],
+      [-24, 0, 44.4],
+      [-6, 4.2, 2.4],
+      [6, 4.2, -2.4],
+      [24, 0, -10.8],
+      [-24, 0, 10.8],
+      [-15, 4.2, -13.2],
+      [15, 4.2, 13.2],
+    ],
+  },
+  flags: [
+    [1.2, 0, -40.8],
+    [-1.2, 0, 40.8],
+  ],
+  /* the power weapon sits in Bottom Mid, under both decks' guns; lab rifles in each base and tree */
+  pickups: [
+    { id: "hadal-power", weapon: "sniper", rotate: true, p: [0, 0, 0], respawn: 120 },
+    { id: "burst-r", weapon: "burst", lab: "burst", p: [-3.6, 0, -36.6], respawn: 30 },
+    { id: "burst-b", weapon: "burst", lab: "burst", p: [3.6, 0, 36.6], respawn: 30 },
+    { id: "beam-r", weapon: "beam", lab: "beam", p: [-16.8, 4.2, -13.2], respawn: 45 },
+    { id: "beam-b", weapon: "beam", lab: "beam", p: [16.8, 4.2, 13.2], respawn: 45 },
+  ],
+  lanes: { split: 11.4, x: [-19.2, 0, 19.2] },
+  /* callouts: [name, x0, z0, x1, z1, lowest y] in Red's half ("our"/"their" by half; a zone across
+     the middle has no side), first match wins */
+  zones: [
+    ["top mid", -10.8, -6, 10.8, 6, 3],
+    ["bottom mid", -1.44, -6, 1.44, 6],
+    ["flag room", -10.8, -48, 10.8, -33.6],
+    ["porch", 12, -37.2, 19.2, -22.8, 1.8],
+    ["courtyard", 12, -48, 26.4, -37.2],
+    ["elbow", -26.4, -48, -12, -31.2],
+    ["tree", -19.2, -26.4, -2.16, -10.8, 1.8],
+    ["garage", -26.4, -31.2, -10.8, -10.8],
+    ["street", 10.8, -37.2, 26.4, 0],
+    ["pit", -10.8, -33.6, 10.8, -6],
+  ],
+};
+
+/* ---- picking a map: menus and the network name maps by their MAPS key ---- */
+const ownMap = k => typeof k === "string" && Object.prototype.hasOwnProperty.call(MAPS, k);
+/** a MAPS key for the team modes (a map with team spawns); anything else is Twin Foundry */
+const teamMap = k => (ownMap(k) && MAPS[k].spawns.teams ? k : "ctf");
+/** a MAPS key for free-for-all (a map with free-for-all spawns); anything else is the arena */
+const ffaMap = k => (ownMap(k) && MAPS[k].spawns.ffa ? k : "arena");
+
 /* ---- validation: everything a map file could get wrong, checked before any of it is used ---- */
 const MAP_MATS = [
   "floor",
@@ -413,11 +671,23 @@ function validateMap(doc) {
       });
   }
   if (doc.symmetry !== undefined && doc.symmetry !== "rotate180") bad("symmetry can only be rotate180");
+  if (doc.look !== undefined && doc.look !== "deep") bad("look can only be deep");
   if (
     doc.lanes !== undefined &&
     (!doc.lanes || !num(doc.lanes.split, 0, 200) || !vec(doc.lanes.x, 3, -500, 500))
   )
     bad("lanes must be { split, x: [left, mid, right] }");
+  const zone = z =>
+    Array.isArray(z) &&
+    (z.length === 5 || z.length === 6) &&
+    typeof z[0] === "string" &&
+    /^[a-z ]{1,20}$/.test(z[0]) &&
+    z.slice(1).every(v => num(v, -500, 500));
+  if (
+    doc.zones !== undefined &&
+    (!Array.isArray(doc.zones) || doc.zones.length > 32 || !doc.zones.every(zone))
+  )
+    bad("zones must be at most 32 [name, x0, z0, x1, z1, lowest y?]");
   return { ok: !errors.length, errors };
 }
 /** pieces with their 180° twins expanded, in build order (a twin right after its original) */

@@ -146,6 +146,27 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     flags
   );
 }
+/* Hadal Station: capture the flag gets pulls and runs, and team deathmatch on it (flags off) finishes */
+{
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 5, map: "hadal" });
+  let grabs = 0;
+  G.onEvent = t => {
+    if (t === "flagTaken") grabs++;
+  };
+  G.start();
+  for (let i = 0; i < 30 * 180 && !G.over; i++) G.step(1 / 30);
+  check(!G.tdm && grabs > 0, "capture the flag on Hadal Station pulls flags", grabs);
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const H = CTF.Game({ mode: "sim", render: false, seed: 5, map: "hadal", tdm: true, scoreLimit: 25 });
+  H.start();
+  while (!H.over && H.t < 900) H.step(1 / 30);
+  check(
+    H.tdm && H.flags.length === 0 && Math.max(H.teams[0].score, H.teams[1].score) === 25,
+    "team deathmatch on Hadal Station: kills score and the match finishes",
+    { score: H.teams.map(t => t.score), t: H.t | 0 }
+  );
+}
 /* the AI fires at the weapon's real rate even though it thinks in 30 Hz steps (the carbine's 0.1 s
    interval used to round up to 4 steps: 7.5 rounds a second) */
 {

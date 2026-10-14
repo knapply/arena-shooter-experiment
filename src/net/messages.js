@@ -15,7 +15,7 @@
    Bump PROTOCOL whenever an existing message changes shape; players on different versions are
    told so when they join instead of receiving garbage. */
 const MSG = (() => {
-  const PROTOCOL = 5;
+  const PROTOCOL = 6;
   const TWO_PI = Math.PI * 2;
   const BAD = /[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g;
   const enc = new TextEncoder(),

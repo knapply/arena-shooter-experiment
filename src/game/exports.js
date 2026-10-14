@@ -92,6 +92,8 @@ const KA_API = {
   falloffAt,
   pulseBody,
   mapDoc,
+  teamMap,
+  ffaMap,
   MAP_MODS,
   GATES,
   GATE_CYCLE,

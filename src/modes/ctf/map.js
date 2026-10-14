@@ -1,4 +1,4 @@
-/* ===== CTF map: "Twin Foundry", 180° rotationally symmetric. Team 0 (Red) holds -z, Team 1 (Blue) holds +z ===== */
+/* ===== Team maps (Twin Foundry and the others), 180° rotationally symmetric. Team 0 (Red) holds -z, Team 1 (Blue) holds +z ===== */
 (function () {
   const K = window.KA,
     T = K.THREE;
@@ -13,15 +13,16 @@
   /* everything about a map's layout comes from its data document (data/maps.js). CTF.useMap(id) picks
      the map the next match is built on: Twin Foundry (flags, team spawns, lanes) for capture the flag,
      or the arena (no flags: both teams use its free-for-all spawns, kept apart by spawn safety) for the
-     team deathmatch simulations. Everything below reads CTF.MAP, so it follows the choice. */
-  CTF.useMap = function (id, mods) {
+     team deathmatch simulations. noFlags plays team deathmatch on a map that has flags. Everything
+     below reads CTF.MAP, so it follows the choice. */
+  CTF.useMap = function (id, mods, noFlags) {
     /* lab map mods (data/maps.js MAP_MODS) make their own document, with its own id */
     const doc = K.mapDoc(id, mods);
     if (!doc) throw new Error("no map " + id);
+    CTF.FLAG_HOME = (noFlags ? [] : doc.flags || []).map(p => new T.Vector3(p[0], p[1], p[2]));
     if (CTF.MAP === doc) return;
     if (CTF.MAP && CTF.MAP !== doc) CTF.exitMap();
     CTF.MAP = doc;
-    CTF.FLAG_HOME = (doc.flags || []).map(p => new T.Vector3(p[0], p[1], p[2]));
     CTF.SPAWNS = doc.spawns.teams
       ? doc.spawns.teams.map(t => t.map(p => p.slice()))
       : [0, 1].map(() => doc.spawns.ffa.map(p => p.slice()));
@@ -77,10 +78,13 @@
     K.GATES.onNav = b => CTF.NAV.patch(b);
     if (K.sun) {
       const c = K.sun.shadow.camera;
-      c.left = -34;
-      c.right = 34;
-      c.top = 58;
-      c.bottom = -58;
+      const B = CTF.MAP.bounds,
+        hx = Math.max(-B.x0, B.x1) + 8,
+        hz = Math.max(-B.z0, B.z1) + 8;
+      c.left = -hx;
+      c.right = hx;
+      c.top = hz;
+      c.bottom = -hz;
       c.updateProjectionMatrix();
     }
     m.arena = K.SOLID.splice(0);
@@ -195,7 +199,6 @@
     stand.position.y = 0.06;
     ring.position.y = 0.13;
     home.add(stand, ring);
-    home.position.copy(CTF.FLAG_HOME[team]);
     K.scene.add(home);
     K.scene.add(g);
     return {
