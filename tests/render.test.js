@@ -98,6 +98,11 @@ const stats = async p => {
         drops: true,
         init: ["seeded-random.js"],
       });
+      /* CPU_SLOW=8 throttles the page, to see this scene as a slow CI machine runs it */
+      if (process.env.CPU_SLOW)
+        await (
+          await ctx.newCDPSession(q)
+        ).send("Emulation.setCPUThrottlingRate", { rate: +process.env.CPU_SLOW });
       await q.waitForTimeout(1500);
       await q.evaluate(() => {
         Object.assign(KA.SET, { intros: false, dropIn: true, killCam: false });
@@ -114,7 +119,18 @@ const stats = async p => {
           KA.PODS.filter(p => p.landed).length >= 8;
         for (let i = 0; i < 400 && !down(); i++) await new Promise(r => setTimeout(r, 50));
         KA.CON.run("timescale 0");
-        return { down: down(), pods: KA.PODS.filter(p => p.landed).length };
+        /* (what the match looked like, if the drop never came down) */
+        return {
+          down: down(),
+          pods: KA.PODS.filter(p => p.landed).length,
+          all: KA.PODS.length,
+          myPod: !!KA.myPod,
+          podding: document.body.classList.contains("podding"),
+          dead: KA.me.dead,
+          game: !!CTF.UI.game(),
+          t: +KA.now.toFixed(2),
+          wall: +(performance.now() / 1000).toFixed(1),
+        };
       });
       let c = { calls: 0, tris: 0 };
       const spots = await q.evaluate(() => CTF.SPAWNS.flat());
