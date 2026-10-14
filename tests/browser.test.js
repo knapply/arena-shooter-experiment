@@ -1,7 +1,7 @@
 /* global WheelEvent, PointerEvent */
 /* Browser tests: arena weapons and pickups, settings and rebinding, destruction, online rooms and CTF over a simulated peer network. */
 const { check, finish } = require("./lib/check.js");
-const { launch, open, text, visible, roster, closeTab } = require("./lib/browser.js");
+const { launch, open, text, visible, roster, closeTab, until } = require("./lib/browser.js");
 const pad = (btns = {}, axes = [0, 0, 0, 0]) => ({
   connected: true,
   axes,
@@ -1209,7 +1209,7 @@ const podSeats = map => {
     await B.fill("#callsign", "Friend");
     await B.fill("#p2pCode", "ZZZZZ");
     await B.click("#p2pJoin");
-    await B.waitForTimeout(1000);
+    await until(B, () => /No room/.test(document.getElementById("p2pMsg").textContent), null, 15000);
     check(/No room/.test(await text(B, "#p2pMsg")), "bad code is rejected");
     await B.fill("#p2pCode", code.toLowerCase());
     await B.click("#p2pJoin");
@@ -1583,7 +1583,7 @@ const podSeats = map => {
       await B.waitForTimeout(100);
     }
     await B.keyboard.up("KeyE");
-    await B.waitForTimeout(1000);
+    await until(B, () => KA.wi === 2, null, 15000);
     check((await B.evaluate(() => KA.wi)) === 2, "friend picks up the CTF sniper", [
       await B.evaluate(() => ({
         wi: KA.wi,
@@ -1623,7 +1623,7 @@ const podSeats = map => {
     });
     const C = await open(ctx, { tag: "C", init: ["fake-peer.js"], hash: "#join=" + code.toLowerCase() });
     pages.push(C);
-    await C.waitForTimeout(1500);
+    await until(C, () => /Connected/.test(document.getElementById("p2pMsg").textContent), null, 15000);
     check(/Connected/.test(await text(C, "#p2pMsg")), "invite link joins automatically");
     await closeTab(A);
     await B.bringToFront();
@@ -1758,7 +1758,12 @@ const podSeats = map => {
     pages.push(S);
     await S.waitForTimeout(600);
     await S.click("#watchAI");
-    await S.waitForTimeout(2500);
+    await until(
+      S,
+      () => /\d:\d\d/.test((document.getElementById("cClock") || {}).textContent || ""),
+      null,
+      20000
+    );
     check(/\d:\d\d/.test((await text(S, "#cClock")) || ""), "AI vs AI runs", await text(S, "#cClock"));
     /* spectating: big moments cut in slow motion; the tactical camera turns and zooms */
     const spec = await S.evaluate(async () => {
@@ -1895,7 +1900,12 @@ const podSeats = map => {
       shots: KA.INTRO.shots.length,
       total: KA.INTRO.shots.reduce((a, s) => a + s.dur, 0),
     }));
-    await I.waitForTimeout(3500);
+    await until(
+      I,
+      () => !KA.INTRO.active && /First to/.test(document.querySelector("#cine .card").textContent),
+      null,
+      20000
+    );
     const after = await I.evaluate(() => ({
       active: KA.INTRO.active,
       card: document.querySelector("#cine .card").textContent,

@@ -4,13 +4,7 @@
    fighting each other, and an online room playing the host's mode. Waits are on game state, not
    time, so a slow machine only takes longer. */
 const { check, finish } = require("./lib/check.js");
-const { launch, open, text, visible } = require("./lib/browser.js");
-/** wait for fn(arg) in the page to be true (false after the timeout) */
-const until = (p, fn, arg, timeout = 30000) =>
-  p.waitForFunction(fn, arg, { timeout, polling: 50 }).then(
-    () => true,
-    () => false
-  );
+const { launch, open, text, visible, until } = require("./lib/browser.js");
 (async () => {
   const b = await launch();
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
