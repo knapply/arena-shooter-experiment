@@ -10,7 +10,11 @@ let cur = 0,
   semiLatch = false,
   zoomLvl = 0,
   descoped = false,
-  flinch = 0;
+  flinch = 0,
+  /* the zoom on screen as it eases in and out (game/loop.js), and how far into the first zoom level it
+     is (0 at the hip, 1 scoped): the overlays, the viewmodel and look speed follow it */
+  zoomNow = 1,
+  adsP = 0;
 const ammo = WEAPONS.map(w => w.mag),
   reserve = WEAPONS.map(w => w.reserve);
 const W = () => WEAPONS[wi];
@@ -18,6 +22,8 @@ const zoomK = () => {
   const z = W().zoom;
   return zoomLvl > 0 ? z[Math.min(zoomLvl, z.length) - 1] : 1;
 };
+/* look speed while scoped, eased with the zoom so the first frames of a scope don't lurch */
+const lookSens = ads => 1 + (ads * Math.min(1, 1.8 / zoomNow) - 1) * adsP;
 function showVM() {
   VMW.forEach((v, i) => (v.g.visible = i === wi));
   const V = VMW[wi];

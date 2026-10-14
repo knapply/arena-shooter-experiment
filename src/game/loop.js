@@ -21,7 +21,31 @@ let last = performance.now(),
   camRoll = 0,
   slideDustT = 0,
   jetOn = false,
-  jetPuff = 0;
+  jetPuff = 0,
+  fovX = 0;
+/* scoping eases in over ADS_IN seconds and out over ADS_OUT (in log zoom, so 5x to 10x takes as long as
+   1x to 2x): quick enough to keep up with a duel, slow enough to read as the gun coming up to the eye */
+const ADS_IN = 0.15,
+  ADS_OUT = 0.1,
+  zEase = { from: 0, to: 0, at: 0, t: 1, w: -1 };
+function easeZoom(dt) {
+  const to = aiming ? Math.log(zoomK()) : 0,
+    z = zEase;
+  if (wi !== z.w) {
+    z.w = wi;
+    z.at = z.to = z.from = 0;
+  }
+  if (to !== z.to) {
+    sfx(to > z.to ? (z.to ? "zstep" : "zin") : "zout", to > z.to ? 0.6 : 0.4);
+    z.from = z.at;
+    z.to = to;
+    z.t = 0;
+  }
+  z.t = Math.min(1, z.t + dt / (to > z.from ? ADS_IN : ADS_OUT));
+  z.at = z.from + (to - z.from) * (1 - Math.pow(1 - z.t, 3));
+  zoomNow = Math.exp(z.at);
+  adsP = clamp(z.at / Math.log(W().zoom[0]), 0, 1);
+}
 function meEvent(type, d) {
   if (type === "thrust") {
     sfx("thrust");
@@ -330,7 +354,8 @@ function frameBody(t) {
     renderFrame();
     return;
   }
-  vmRoot.visible = !me.dead && !(aiming && wi === 2);
+  /* the sniper's own scope takes over once it is most of the way to the eye */
+  vmRoot.visible = !me.dead && !(wi === 2 && adsP > 0.6);
   vmCarry(!!(EXT && EXT.carrying && EXT.carrying()));
   if (SET.aimMode === "toggle") {
     if (P("aim")) aimLatch = !aimLatch;
@@ -457,7 +482,7 @@ function frameBody(t) {
       crouchP: P("crouch"),
       jumpP: P("jump"),
       aim: aimHeld,
-      aimMul: W().zoom[0] >= 3 ? 0.72 : 0.9,
+      scoped: W().zoom[0] >= 3,
       meleeP: P("melee"),
     };
     if (touch.sprint && inp.f < 0.3) touch.sprint = false;
@@ -517,6 +542,7 @@ function frameBody(t) {
       fireCD <= 0 &&
       switchT <= 0 &&
       !me.sprint &&
+      me.raiseT <= 0 &&
       me.chargeT <= 0 &&
       me.pound === 0 &&
       !me.clamber &&
@@ -566,9 +592,10 @@ function frameBody(t) {
   camera.rotation.z = camRoll + (me.stabbing ? Math.sin(now * 6) * 0.01 : 0);
   fovK = Math.max(0, fovK - dt * 3);
   const fb = SET.fov;
-  const zf = aiming ? zoomK() : 1;
-  const tf = fb / zf + (aiming ? 0 : (me.sprint ? 7 : 0) + (me.slideT > 0 ? 5 : 0) + fovK * 10);
-  camera.fov += (tf - camera.fov) * Math.min(1, dt * (zf > 3 ? 30 : 12));
+  easeZoom(dt);
+  /* the motion widening (sprint, slide, thrust, pound) gives way as the scope comes up */
+  fovX += ((me.sprint ? 7 : 0) + (me.slideT > 0 ? 5 : 0) + fovK * 10 - fovX) * Math.min(1, dt * 12);
+  camera.fov = fb / zoomNow + fovX * (1 - adsP);
   if (!(camera.fov > 1 && camera.fov < 170)) camera.fov = fb;
   camera.updateProjectionMatrix();
   /* riding your pod down, from inside (game/pod-view.js); then stepping out of it */
@@ -579,6 +606,7 @@ function frameBody(t) {
   if (pd !== podding) document.body.classList.toggle("podding", (podding = pd));
   updVM(dt, {
     aim: aiming,
+    aimK: adsP,
     sprint: me.sprint && me.ground,
     reload: reloadT > 0 ? 1 - reloadT / W().reload : -1,
     melee: me.meleeT > 0 ? 1 - me.meleeT / 0.4 : me.chargeT > 0 ? 0.5 : -1,

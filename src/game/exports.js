@@ -6,6 +6,10 @@ const KA_API = {
   get aiming() {
     return aiming;
   },
+  /** how far the scope has eased in (0 at the hip, 1 scoped) */
+  get adsP() {
+    return adsP;
+  },
   updPickups,
   giveWeapon,
   refill,

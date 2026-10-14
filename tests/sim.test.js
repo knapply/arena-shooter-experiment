@@ -138,7 +138,8 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     if (t === "flagTaken") flags++;
   };
   H.start();
-  for (let i = 0; i < 30 * 150 && !H.over; i++) H.step(1 / 30);
+  /* up to 4 of the match's 8 minutes, until the first grab (this seed's first comes at 3 minutes) */
+  for (let i = 0; i < 30 * 240 && !H.over && !flags; i++) H.step(1 / 30);
   check(
     !H.tdm && H.flags.length === 2 && flags > 0,
     "capture the flag after it still has its flags and pulls them",

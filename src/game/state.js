@@ -331,7 +331,8 @@ function hurtMe(n, src) {
     n = meleeDamage(me.shield, behind);
   }
   rumble(Math.min(1, n / 40), Math.min(1, n / 25), 120);
-  if (aiming && W().zoom[0] >= 1.5) {
+  /* a hit knocks you out of any scope (hold aim again to come back in); at the hip it only nudges the aim */
+  if (aiming) {
     zoomLvl = 0;
     descoped = true;
     aimLatch = false;

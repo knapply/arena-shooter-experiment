@@ -59,6 +59,13 @@ const podSeats = map => {
       (await p.evaluate(() => document.getElementById("scope").className)) === "sc-smart",
       "pistol aims with the smart scope"
     );
+    check(
+      await p.evaluate(
+        () => KA.adsP === 1 && Math.abs(KA.camera.fov - KA.SET.fov / KA.WEAPON_DATA[KA.wi].zoom[0]) < 0.5
+      ),
+      "the scope eases all the way in",
+      await p.evaluate(() => [KA.adsP, KA.camera.fov])
+    );
     await p.mouse.up({ button: "right" });
     await p.evaluate(() => {
       KA.me.pos.set(1.25, 3.25, 0);

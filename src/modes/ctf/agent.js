@@ -633,6 +633,7 @@
         crouchP: false,
         jumpP: false,
         aim: false,
+        scoped: false,
         meleeP: false,
       };
       this.seeT -= dt;
@@ -701,6 +702,8 @@
             wish.copy(dir).addScaledVector(side, 0.5);
           }
           inp.aim = (range > 8 || this.sniper > 0) && !this.carrying && !this.mustMove && b.ground;
+          /* the same move speed while aiming as a player with that optic */
+          inp.scoped = this.sniper > 0;
           // movement tech
           this.jinkT -= dt;
           if (this.jinkT <= 0 && b.ground) {
@@ -836,6 +839,7 @@
         this.switchT <= 0 &&
         this.fireCD <= 0 &&
         !b.sprint &&
+        b.raiseT <= 0 &&
         b.pound === 0 &&
         !b.clamber &&
         b.chargeT <= 0

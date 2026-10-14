@@ -68,6 +68,11 @@ const KNOBS = {
   sbReverse: { set: v => (K.TUNE.reverse = v), def: 95, try: [70, 120] },
   sbThrustCD: { set: v => (K.TUNE.thrustCD = v), def: 2.2, try: [1.8, 2.6] },
   sbSlide: { set: v => (K.TUNE.slideBoost = v), def: 3.2, try: [2.4, 4] },
+  /* speed while aiming a low-zoom optic (0.72 is how the AI moved before it used the player's rule) */
+  sbAdsMove: { set: v => (K.TUNE.adsMove = v), def: 0.9, try: [0.72, 1] },
+  /* time to raise the gun after a sprint before it can fire */
+  sbRaise: { set: v => (K.TUNE.raise = v), def: 0, try: [0.15, 0.3] },
+  sbStab: { set: v => (K.TUNE.stab = v), def: 1.3, try: [2] },
   sbCarbDmg: {
     set: v => Object.assign(W("carbine"), { body: v, head: Math.round(v * (11 / 9)) }),
     def: 9,
@@ -158,6 +163,9 @@ for (const [k, f] of [
   ["sbReverse", "reverse"],
   ["sbThrustCD", "thrustCD"],
   ["sbSlide", "slideBoost"],
+  ["sbAdsMove", "adsMove"],
+  ["sbRaise", "raise"],
+  ["sbStab", "stab"],
 ])
   KNOBS[k].def = K.TUNE_DEF[f];
 KNOBS.sbNadeThrow.def = K.NADE_TUNE.throw;

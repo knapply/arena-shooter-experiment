@@ -101,6 +101,57 @@ Every knob was swept on both maps with three seed sets (100, 700, 1300), 48 matc
 
 **Recruit on the arena:** Normal takes 66 to 68% of the kills against Recruit (Legendary 94%, measured on Twin Foundry).
 
+## Movement and scoping, compared with reference arena shooters
+
+The reference arena shooters this game's kit follows (thrust, slide, clamber, ground pound, charge, stabilize, sprint, precision pistols and rifles) were studied for how their movement and scoping feel and why they play competitively. What their developers and competitive players describe:
+
+- **Scoping is a view, not a stance.** No move-speed penalty while zoomed and no hip-fire penalty; zoom tightens automatic weapons a little and precision weapons not at all. The point is to make scoping a choice you flick in and out of, not a commitment.
+- **Getting shot always knocks you out of the scope, and there is no aim flinch.** The descope is the readable "you are being shot" cue, and your aim is never moved for you.
+- **Small gap between walking and sprinting; sprint has a cost.** Sprinting holds back shield recharge and lowers the gun, so arriving in a fight sprinting is a disadvantage. Strafe acceleration was deliberately raised for quicker, more responsive strafing.
+- **Thrust is a read-and-punish dodge**, on a long cooldown (around twice this game's), and it adds to your momentum rather than replacing it.
+- **Stabilize** (aiming in the air) hovers you for a few seconds.
+- **Competitive structure:** equal starts (the same loadout for everyone), power weapons and power-ups on fixed timers you can control, perfect kills of four or five trigger pulls (about 1.0 to 1.5 s) that don't vary with luck, and cues you can read (red reticle in range, shield pop, the descope, thrust sounds).
+
+Most of this already holds here: no spread on the precision weapons, a fixed perfect kill (the magnum's 5 shots in 1.04 s), timed power spawns, equal starts, sprint holding back shield recharge, and a descope on damage for the magnum, sniper and rockets.
+
+### What changed
+
+**Presentation (no simulation needed; the feel tests pass unchanged):**
+
+- **The zoom eases** in over 0.15 s and out over 0.1 s (cubic ease-out, in log zoom so the sniper's 5x to 10x step takes as long as 1x to 2x). It used to chase the target at a fixed rate, which never quite settled and felt soft at the end. The sprint, slide and thrust widening of the view gives way as the scope comes up instead of popping off.
+- **The gun comes up to the eye with the zoom.** The viewmodel's hip-to-aim pose follows the same ease, a little ahead of it, so the sights are at the eye before the optic finishes. The sniper's model gives way to its scope once the zoom is 60% in.
+- **The optic overlay fades in** over the last three quarters of the zoom and settles from slightly large; it fades out the same way, so a descope reads as being knocked out. The crosshair fades and tightens as it goes. A soft click plays on scoping in, stepping a zoom level and dropping out.
+- **Look speed follows the zoom** as it eases, so the first frames of a scope don't lurch (mouse and controller).
+- **Every scope descopes on damage,** the carbine's 1.4x included (it used to flinch the aim instead). That makes it one rule for every weapon: shot while scoped, you're out. At the hip a hit still nudges the aim slightly.
+
+**Simulation:**
+
+- **The AI moves at the player's speed while aiming.** It aimed at 72% of run speed with every weapon (the sniper-scope rate) while players move at 90% with low-zoom optics. Now both use `TUNE.adsMove` (0.9) and `TUNE.scopeMove` (0.72, sniper). This is a fix, like the fire-rate fix; its effect is the reverse of the `sbAdsMove=0.72` row below (within noise).
+- New sweepable knobs, all at their old values so nothing else moved: `sbAdsMove` (low-zoom aim speed), `sbStab` (stabilize hover time, `TUNE.stab`), and `sbRaise` (`TUNE.raise`, time to bring the gun up after a sprint before it can fire, players and AI alike; 0 = off).
+
+### Measured
+
+Both maps (team deathmatch on the arena, capture the flag on Twin Foundry), both pairings (Legendary vs Normal, Normal vs Recruit), with 4 null controls each run. Round one: seed sets 100 and 700, 24 matches per kind, null spread ±0.010 to ±0.023. Round two: seed sets 1300 and 1900, 48 matches per kind, null spread ±0.004 to ±0.015. Baselines with the AI fix: Legendary takes 79% of the kills against Normal on the arena and 85% on Twin Foundry; Normal takes 69% against Recruit on the arena and 71% on Twin Foundry. Normal vs Normal time to kill 2.0 s and 3.0 s.
+
+| Setting | Round one (8 cells) | Round two (8 cells) | Decision |
+|---|---|---|---|
+| Raise time 0.15 s after a sprint | −0.006 on average, 6 of 8 negative | −0.004, 6 of 8 negative (5 clear of the noise) | **Not adopted.** The reference cost of entering a fight sprinting lowers skill share here. 0.3 s was worse (−0.013, 8 of 8 negative). Kept in the code at 0 for later playtests. |
+| Raise time 0.3 s | −0.013, 8 of 8 negative | not run | Not adopted. |
+| Aim speed 1.0 (no scoping penalty, as in the references) | −0.005, 2 of 8 positive | −0.003, 2 of 8 positive, mixed signs | **Kept at 0.9.** No consistent effect, a slight lean negative. |
+| Aim speed 0.72 (the AI's old rule) | −0.003, mixed | not run | Kept at 0.9 (the fix). |
+| Stabilize 2 s (references: a few seconds) | +0.006, 6 of 8 positive, none clear | 1.8 and 2.4: +0.0003, identical rows | **Kept at 1.3.** The AI stops hovering after about a second, so the knob can't be measured: anything above 1.8 s plays the same. A playtest question. |
+| Thrust cooldown 3 s (references: about twice ours) | −0.002, mixed | not run | Kept at 2.2, as in earlier passes. |
+
+Time to kill, kills per minute, grenade self-kills and teamkills moved within their noise for every row.
+
+### Not done, and why
+
+- **Thrust that adds to your momentum** instead of replacing it: a change to what the dodge is, and the AI's dodge only partly expresses it. Worth prototyping behind a Labs flag and playtesting.
+- **A longer thrust cooldown:** within noise in every pass. The references' longer cooldown makes thrust easier to read and punish; try 3 to 4 s in the Sandbox tab before changing it.
+- **Removing the hip flinch:** the references have none. Ours is small (at most 0.06 rad, gone within about a third of a second) and only applies at the hip. A playtest question.
+- **Red reticle range growing while scoped** (the references extend aim assist range when zoomed): only a cue here, since this game's precision weapons don't fall off. Left alone.
+- **A sprint-to-fire delay** (above): measured, and it costs skill share.
+
 ## Earlier results (before the AI carried magnums)
 
 Baseline skill share was 0.716 to 0.728 depending on the seed set, with a median time to kill of about 3.5 s for Normal AI (Normal AI misses a lot; humans kill faster).
