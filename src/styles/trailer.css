@@ -84,6 +84,62 @@
     0 0 28px #ffb34733,
     0 0 90px #62cdff22;
 }
+/* the stats card: words top left, the skill ladder's bars under them */
+#trCard.stats {
+  top: 19vh;
+  left: 6vw;
+  right: auto;
+  transform: none;
+  text-align: left;
+  transform-origin: left top;
+}
+#trCard.stats .big {
+  font-size: clamp(26px, 4.4vw, 66px);
+}
+#trStats {
+  position: absolute;
+  left: 6vw;
+  top: 49vh;
+  width: min(46vw, 620px);
+  opacity: 0;
+  color: #eef4f6;
+  text-shadow: 0 2px 18px #000c;
+}
+#trStats p {
+  margin: 0 0 1.1vh;
+  font: 600 clamp(10px, 1.1vw, 14px) var(--f-mono);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #ffb347;
+}
+#trStats div {
+  display: grid;
+  grid-template-columns: 34% 1fr 4.2em;
+  align-items: center;
+  gap: 1vw;
+  margin: 0.9vh 0;
+  font: 600 clamp(11px, 1.35vw, 19px) var(--f-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+#trStats i {
+  height: 0.55em;
+  background: #ffffff1c;
+  overflow: hidden;
+}
+#trStats s {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ffb347, #ffd08a);
+  transform-origin: left;
+  transform: scaleX(0);
+  box-shadow: 0 0 18px #ffb34788;
+}
+#trStats em {
+  font: 700 clamp(12px, 1.5vw, 21px) var(--f-mono);
+  font-style: normal;
+  text-align: right;
+}
 #trTitle {
   position: absolute;
   left: 0;

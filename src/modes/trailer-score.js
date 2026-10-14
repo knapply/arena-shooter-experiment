@@ -1,7 +1,8 @@
 /* ===== Trailer score: an original piece synthesized live with Web Audio (no samples), scored to the
    picture in modes/trailer.js: a cold open on a drone and a heartbeat, a hit on each black card,
-   slow motion answered by sub drops and bells, a full-band drop for the action montage, a lighter
-   lift for the live match, a frozen-time climax and a choir on the title.
+   slow motion answered by sub drops and bells, a full-band drop for the action montage, the band
+   an octave up for the modes, a plucked breakdown for the numbers, a frozen-time climax and a choir
+   on the title.
    score(ctx, out, t0) schedules everything on any AudioContext, including OfflineAudioContext for rendering to a file. ===== */
 (function () {
   const BPM = 120,
@@ -16,7 +17,7 @@
     );
   };
   const hz = n => 440 * Math.pow(2, ((typeof n === "string" ? midi(n) : n) - 69) / 12);
-  const LENGTH = 72;
+  const LENGTH = 88;
   /* chord tones for each bar of the drop and theme (D minor: i - VI - III - VII) */
   const PROG = [
     ["D3", "F3", "A3"],
@@ -875,60 +876,102 @@
         [40.875, "D3"],
       ])
         tom(at(x), n, 0.9);
-      /* ===== live capture the flag (41-57) ===== */
-      hit(41, 0.8);
+      /* ===== every mode, live (41-60) ===== */
+      /* the mode picker: a lift, and a bell on each card picked */
+      crash(at(41), 0.6);
+      whoosh(at(40.7), 0.3);
+      choir(at(41), "D4", 2, 0.06, "ah");
+      choir(at(41), "A3", 2, 0.05, "oh");
+      pad(at(41), ["D4", "F4", "A4"], 2, 0.035);
       for (const [x, n] of [
-        [41, "D4"],
-        [43, "Bb3"],
-        [45, "F4"],
-        [47, "E4"],
-      ]) {
-        choir(at(x), n, 1.9, 0.07, "ah");
-        choir(at(x), midi(n) - 12, 1.9, 0.05, "oh");
+        [41.15, "D5"],
+        [41.6, "F5"],
+        [42.05, "A5"],
+        [42.5, "D6"],
+      ])
+        ping(at(x), n, 0.06);
+      riser(at(42), 1, 0.3);
+      /* capture the flag, Slayer, oddball, free-for-all: the full band, the lead an octave up */
+      hit(43, 0.8);
+      groove(43, 6, { lift: 1 });
+      boom(at(45.5), 0.6);
+      crash(at(47.5), 0.7);
+      boom(at(47.5), 0.7);
+      /* the skull coming down from orbit: a swell into its landing */
+      whoosh(at(50.5), 0.35);
+      riser(at(51.3), 2, 0.34);
+      boom(at(53.35), 1.2);
+      subdrop(at(53.35), 0.6, 1.4);
+      crash(at(53.5), 0.6);
+      crash(at(55.5), 0.6);
+      groove(55, 2, { leadOn: false, lift: 1 });
+      /* the supply pod: a riser into its impact, a bell as the lid blows */
+      riser(at(58), 1.5, 0.36);
+      for (let x = 58.5; x < 59.5; x += 0.125) snare(at(x), 0.15 + (x - 58.5) * 0.5);
+      boom(at(59.5), 1.25);
+      crash(at(59.5), 0.8);
+      ping(at(59.75), "A5", 0.07);
+      /* ===== under the hood (60-73) ===== */
+      /* the numbers: pulses and plucked arpeggios over a held chord, a soft kick */
+      drone(at(60), "D2", 4, 0.06);
+      pad(at(60), ["D4", "F4", "A4", "C5"], 4, 0.035);
+      for (let x = 60; x < 64; x += 0.125) {
+        const s = Math.round((x - 60) * 8);
+        pulse(at(x), ["D3", "A3", "F3", "C4"][s % 4], 0.035);
+        if (s % 8 === 0) kick(at(x), 0.55);
+        if (s % 4 === 2) hat(at(x), 0.22);
+        if (s % 2 === 0) pluck(at(x), ["D5", "F5", "A5", "C6", "A5", "F5"][(s / 2) % 6], 0.045);
       }
-      groove(41, 2, { kickOn: false, leadOn: false });
-      groove(45, 4, { lift: 1 });
-      for (const x of [49.5, 50.5, 51.5, 52.25]) boom(at(x), 0.9);
-      groove(53, 2, { leadOn: false });
-      for (let x = 55; x < 57; x += x < 56 ? 0.125 : 0.0625) snare(at(x), 0.2 + (x - 55) * 0.35);
-      for (let x = 55; x < 57; x += 0.5)
-        tom(at(x), ["D3", "F3", "A3", "C4"][Math.round((x - 55) * 2) % 4], 0.8);
-      riser(at(55), 2, 0.38);
-      /* ===== climax (57-63): drive, then a leap frozen in time ===== */
-      hit(57, 1);
-      for (let x = 57; x < 59; x += 0.125) {
-        pulse(at(x), ["D3", "F3", "A3", "D4"][Math.round((x - 57) * 8) % 4], 0.045);
-        if (Math.round((x - 57) * 8) % 4 === 0) kick(at(x), 0.9);
-        if (Math.round((x - 57) * 8) % 2 === 0) bass(at(x), midi("D2"), 0.1, 0.9);
+      /* online, the AI, destruction: the drive comes back */
+      hit(64, 0.75);
+      groove(64, 3);
+      for (const x of [67.5, 68.5, 69.5]) boom(at(x), 0.9);
+      /* the armor at night: the floor falls away, a choir and a bell for the shooting star */
+      subdrop(at(70), 0.5, 2);
+      drone(at(70), "D2", 3, 0.07);
+      choir(at(70), "D4", 3, 0.06, "oo");
+      choir(at(70), "A4", 3, 0.05, "oo");
+      ping(at(70.6), "A5", 0.07);
+      ping(at(71.4), "E6", 0.06);
+      for (let x = 71; x < 73; x += x < 72 ? 0.125 : 0.0625) snare(at(x), 0.2 + (x - 71) * 0.35);
+      for (let x = 71; x < 73; x += 0.5)
+        tom(at(x), ["D3", "F3", "A3", "C4"][Math.round((x - 71) * 2) % 4], 0.8);
+      riser(at(71), 2, 0.38);
+      /* ===== climax (73-79): drive, then a leap frozen in time ===== */
+      hit(73, 1);
+      for (let x = 73; x < 75; x += 0.125) {
+        pulse(at(x), ["D3", "F3", "A3", "D4"][Math.round((x - 73) * 8) % 4], 0.045);
+        if (Math.round((x - 73) * 8) % 4 === 0) kick(at(x), 0.9);
+        if (Math.round((x - 73) * 8) % 2 === 0) bass(at(x), midi("D2"), 0.1, 0.9);
       }
-      choir(at(57), "A4", 2, 0.07, "ah");
-      whoosh(at(58.55), 0.3);
-      subdrop(at(59), 0.35, 2.4);
-      choir(at(59), "D5", 3, 0.05, "oo");
-      choir(at(59), "A4", 3, 0.045, "oo");
-      for (const x of [59.3, 60.3, 61.3]) heart(at(x), 0.5);
-      ping(at(59.55), "A5", 0.08);
-      ping(at(60.25), "C6", 0.08);
-      ping(at(60.95), "D6", 0.09);
-      riser(at(60.6), 1.42, 0.5);
-      hit(62.02, 1.1);
-      subdrop(at(62.02), 0.6, 2.2);
-      boom(at(63), 0.9);
-      /* ===== title (63.6-75) ===== */
-      drone(at(63.4), "D2", 7.5, 0.08);
-      for (const n of ["D3", "A3", "D4", "F4", "E4"]) choir(at(63.6), n, 6.4, 0.05, "ah");
-      pad(at(63.6), ["D4", "F4", "A4", "E5"], 6.6, 0.04);
+      choir(at(73), "A4", 2, 0.07, "ah");
+      whoosh(at(74.55), 0.3);
+      subdrop(at(75), 0.35, 2.4);
+      choir(at(75), "D5", 3, 0.05, "oo");
+      choir(at(75), "A4", 3, 0.045, "oo");
+      for (const x of [75.3, 76.3, 77.3]) heart(at(x), 0.5);
+      ping(at(75.55), "A5", 0.08);
+      ping(at(76.25), "C6", 0.08);
+      ping(at(76.95), "D6", 0.09);
+      riser(at(76.6), 1.42, 0.5);
+      hit(78.02, 1.1);
+      subdrop(at(78.02), 0.6, 2.2);
+      boom(at(79), 0.9);
+      /* ===== title (79.6-88) ===== */
+      drone(at(79.4), "D2", 7.5, 0.08);
+      for (const n of ["D3", "A3", "D4", "F4", "E4"]) choir(at(79.6), n, 6.4, 0.05, "ah");
+      pad(at(79.6), ["D4", "F4", "A4", "E5"], 6.6, 0.04);
       for (const [x, n] of [
-        [64.8, "D5"],
-        [65.05, "F5"],
-        [65.3, "A5"],
-        [65.55, "E6"],
-        [65.8, "D6"],
+        [80.8, "D5"],
+        [81.05, "F5"],
+        [81.3, "A5"],
+        [81.55, "E6"],
+        [81.8, "D6"],
       ])
         pluck(at(x), n, 0.06);
-      ping(at(66), "D5", 0.07);
-      ping(at(67.2), "A5", 0.05);
-      braam(at(63.6), 5, 0.1);
+      ping(at(82), "D5", 0.07);
+      ping(at(83.2), "A5", 0.05);
+      braam(at(79.6), 5, 0.1);
     }
     if (live) {
       queue.sort((x, y) => x[0] - y[0]);

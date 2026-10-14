@@ -529,7 +529,8 @@ let SKULL_GEO = null;
 function carriedSkull() {
   if (!SKULL_GEO) {
     const cran = new THREE.SphereGeometry(0.15, 14, 10);
-    cran.scale(1, 1.05, 1.15);
+    /* (as a matrix: the headless three.js stand-in treats .scale as a property) */
+    cran.applyMatrix4(new THREE.Matrix4().makeScale(1, 1.05, 1.15));
     const face = new THREE.BoxGeometry(0.18, 0.1, 0.14);
     face.translate(0, -0.09, -0.07);
     SKULL_GEO = mergeGeos([

@@ -92,6 +92,22 @@ interface KAExtensions {
     BAR: number;
     LENGTH: number;
   };
+  /** the trailer's first-person stretches (game/trailer-fp.js, trailer build only) */
+  trailerFP: {
+    on: boolean;
+    keep: any;
+    begin(o: any): void;
+    step(dt: number, inp?: { hold?: string[]; press?: string[]; yaw?: number; pitch?: number }): void;
+    end(): void;
+    readonly me: any;
+    held: ((dt: number) => void)[] | null;
+    capture(on: boolean): void;
+    hooks(dt: number): void;
+    supply(p: number[], dur: number): any;
+    clearSupply(): void;
+    sky(t: number): void;
+    gatesAt(t: number, on: boolean): void;
+  };
   trailer: {
     active: boolean;
     recording: boolean;

@@ -31,7 +31,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/data/anim-clips.js` | 135 | `ANIM_CLIPS` |
 | `src/characters/anim.js` | 771 | `ANIM` |
 | `src/weapons/models.js` | 280 | `GUN_MODELS` `gunParts` `gunGeo` |
-| `src/characters/rig.js` | 1520 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+46) |
+| `src/characters/rig.js` | 1521 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+46) |
 | `src/characters/look.js` | 132 | `RIG_LOOK` `_rh` `_rh2` `CHAR_GLSL` `charPatch` `applyCharLook` `teamPattern` `HEX_FRAG` `styleRig` |
 | `src/game/recorder.js` | 226 | `REC` |
 | `src/game/pilot.js` | 81 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |
@@ -83,6 +83,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/exports.js` | 300 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
+| `src/game/trailer-fp.js` | 147 | `TFP` |
 | `src/data/map-check.js` | 147 | `MAP_MATS` `MAP_LIMIT` `validateMap` |
 | `src/modes/ctf/map.js` | 253 |  |
 | `src/modes/ctf/nav.js` | 349 |  |
@@ -94,5 +95,5 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/net/ctf-host.js` | 769 |  |
 | `src/net/ctf-client.js` | 753 |  |
 | `src/modes/ctf/modes.js` | 1192 |  |
-| `src/modes/trailer-score.js` | 956 |  |
-| `src/modes/trailer.js` | 1824 |  |
+| `src/modes/trailer-score.js` | 999 |  |
+| `src/modes/trailer.js` | 2242 |  |

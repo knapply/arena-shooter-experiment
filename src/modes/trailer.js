@@ -1,20 +1,29 @@
 /* ===== Trailer: a scripted cinematic cut of the game, synced to the score in modes/trailer-score.js.
    Shots drive real pilots (engine physics, rigs and effects) with scripted input: pilots follow
    routes that are steered every physics step, so they run where the shot needs them and never into
-   walls (any collision at speed is logged in TR.diag.bumps, and the tests fail on one). The third act
-   cuts to a live AI-vs-AI capture-the-flag match. The camera and lighting are graded per shot
-   (depth of field, split-tone grade, lens fringing, anamorphic streaks, a dusk or daylight mood).
+   walls (any collision at speed is logged in TR.diag.bumps, and the tests fail on one). A few
+   seconds here and there are first person, played the way the game is played: the player's own
+   pilot, viewmodel and HUD from the real game loop, fed scripted input (game/trailer-fp.js). The
+   fourth act cuts between live AI-vs-AI matches of every mode. The camera and lighting are graded
+   per shot (depth of field, split-tone grade, lens fringing, anamorphic streaks, a lighting mood).
    The timeline is a pure function of trailer time, so the same cut can play live (clocked by the
    music) or be stepped frame by frame for video capture.
 
    Structure (120 BPM, a bar is 2 s):
-     0-10   cold open: a dolly past cover to the squad at dusk, a visor close-up, boots hitting the floor
-     10-28  three rules, each on a black card then shown: speed (dodge and slide under fire), height
-            (stairs, a ledge clamber and a ground pound), nothing is safe (a frag through cover)
-     28-40  the drop: one shot per bar (charge, duel, sniper, air shots, melee, plasma)
-     40-56  live capture the flag: crane, chase, destruction, a tilt-shift overview
-     56-62  the climax: a leap frozen in time while the camera circles, then time snaps back
-     62-74  title */
+     0-10   cold open: a dolly past cover to the squad at dusk; the squad burns in from orbit in drop
+            pods, then you ride yours down from inside the cockpit
+     10-28  three rules, each on a black card then shown: speed (first person: sprint, thrust and fire;
+            then a slide under fire), height (first person over a blast gate, then a ground pound),
+            nothing is safe (a frag through cover)
+     28-41  the drop: one shot per bar (charge, rocket, a scoped sniper shot in first person, air
+            shots, melee, plasma)
+     41-60  every mode, live: the mode picker, capture the flag (and a flag carry in first person),
+            Team Slayer, oddball (the skull drops in by pod, then a carry in first person),
+            free-for-all, and a power weapon arriving in a supply pod
+     60-73  under the hood: thousands of simulated matches tune every number, online play with
+            lag compensation, AI that learns each map, the armor at night
+     73-79  the climax: a leap frozen in time while the camera circles, then time snaps back
+     79-88  title */
 (function () {
   const K = window.KA,
     THREE = K.THREE,
@@ -36,7 +45,7 @@
     get t() {
       return T;
     },
-    END: 72,
+    END: 88,
     diag,
     sfxLog,
   }));
@@ -409,6 +418,69 @@
     CINE.apply({ p, l, fov }, smooth, dt, roll);
   }
   const LOOK0 = { dof: 0, focus: 10, range: 6, near: 1, grade: 0.9, ca: 0.006, streak: 0.4 };
+  /* first person is the game's own look, lightly graded */
+  const LOOK_FP = { dof: 0, grade: 0.45, ca: 0.003, streak: 0.15 };
+
+  /* ---------------- first person: the player's own pilot, viewmodel and HUD (game/trailer-fp.js) ---------------- */
+  const F = K.trailerFP;
+  /** what the player can shoot (the shot's actors), what the tracker shows and what they carry */
+  let fpTargets = [],
+    fpCarry = "",
+    fpTeam = 0;
+  function asTarget(a) {
+    return {
+      kind: "ext",
+      pos: a.body.pos,
+      h: a.body.h,
+      ref: {
+        body: a.body,
+        onHit(n) {
+          const had = a.body.shield > 0;
+          const died = !a.dead && a.body.damage(n, K.now);
+          a.rig.S.sh = a.body.shield;
+          a.rig.flashHit(K.camera.position);
+          if (had && a.body.shield <= 0) K.shieldPop(chest(a));
+          if (died) kill(a, K.camera.position, 2.4);
+          return { died, brk: had && a.body.shield <= 0, sh: a.body.shield > 0 };
+        },
+      },
+    };
+  }
+  const EXT_HOOKS = {
+    targets: () => fpTargets.filter(a => a.on && !a.dead).map(asTarget),
+    radar: () =>
+      G
+        ? G.agents
+            .filter(a => a.alive && !a.human)
+            .map(a => ({ pos: a.body.pos, ally: !G.ffa && a.team === fpTeam, body: a.body }))
+        : actors.filter(a => a.on && !a.dead).map(a => ({ pos: a.body.pos, ally: false, body: a.body })),
+    carrying: () => fpCarry,
+    respawn() {},
+  };
+  /** aim the player toward a point: returns the yaw and pitch to look along (k eases toward it) */
+  function lookAt(p, k = 1) {
+    const m = F.me,
+      e = _a.copy(m.pos).setY(m.pos.y + 1.62);
+    const dx = p.x - e.x,
+      dy = p.y - e.y,
+      dz = p.z - e.z;
+    return {
+      yaw: m.yaw + angD(m.yaw, Math.atan2(-dx, -dz)) * k,
+      pitch: lerp(m.pitch, Math.atan2(dy, Math.hypot(dx, dz)), k),
+    };
+  }
+  /* the menu shot picks mode cards as a player would; the player's own pick is put back after */
+  let menuKeep = null;
+  function menuRestore() {
+    if (menuKeep == null) return;
+    const el = document.getElementById("mode-" + menuKeep);
+    menuKeep = null;
+    if (el) el.click();
+  }
+  /** simulate actors ahead without drawing (a shot that starts partway into its action) */
+  function preroll(list, secs) {
+    for (let t = 0; t < secs - 1e-6; t += 0.1) for (const a of list) drive(a, Math.min(0.1, secs - t));
+  }
   /** depth of field focused on a point (distance from the camera this frame) */
   const af = (p, range = 2, extra = {}) =>
     Object.assign({ dof: 1, focus: K.camera.position.distanceTo(p), range }, extra);
@@ -510,33 +582,61 @@
     { t: 10, d: 0.95, big: "Speed is armor", kind: "black" },
     { t: 15.5, d: 0.95, big: "Height is power", kind: "black" },
     { t: 23, d: 0.95, big: "Nothing is safe", kind: "black" },
-    { t: 41.4, d: 3.1, eb: "4 v 4", big: "Capture the flag", kind: "lower" },
-    { t: 45.4, d: 3.1, eb: "Adaptive AI", big: "They learn", sub: "how you play", kind: "lower" },
+    { t: 43.4, d: 1.9, eb: "4 v 4", big: "Capture the flag", sub: "Carriers walk", kind: "lower" },
+    { t: 47.9, d: 2.2, eb: "Kill to win", big: "Team Slayer", kind: "lower" },
+    { t: 51.0, d: 2.1, eb: "Hold the skull", big: "Oddball", sub: "It drops in from orbit", kind: "lower" },
+    { t: 55.9, d: 1.7, eb: "Eight pilots", big: "Free for all", kind: "lower" },
+    { t: 58.3, d: 1.4, eb: "Power weapons", big: "Supply drops", kind: "lower" },
     {
-      t: 49.4,
-      d: 3.1,
+      t: 60.4,
+      d: 3.3,
+      eb: "Tuned by simulation",
+      big: "Thousands of matches",
+      sub: "Headless AI matches measure every number",
+      kind: "stats",
+    },
+    {
+      t: 64.4,
+      d: 2.3,
       eb: "Peer to peer",
       big: "Bring friends",
-      sub: "No install. No accounts.",
+      sub: "Lag-compensated hits, checked by the host",
       kind: "lower",
     },
-    { t: 53.4, d: 3.1, eb: "Destructible arenas", big: "No match", sub: "plays out the same", kind: "lower" },
+    {
+      t: 67.4,
+      d: 2.3,
+      eb: "Adaptive AI",
+      big: "It learns every map",
+      sub: "and how you play",
+      kind: "lower",
+    },
+  ];
+  /* the stats card: the skill ladder from docs/TUNING.md (share of kills Legendary AI takes against
+     Normal, in headless matches of each mode) */
+  /** @type {[string, number][]} */
+  const STATS = [
+    ["Capture the flag", 0.85],
+    ["Team Slayer", 0.85],
+    ["Free for all", 0.77],
+    ["Oddball", 0.91],
   ];
   /* [start, end, from, to] opacity of the black layer */
   const FADES = [
     [0, 1.6, 1, 0],
     [28.5, 29, 1, 1],
-    [63, 63.6, 1, 1],
-    [63.6, 65.5, 1, 0.62],
-    [65.5, 70.4, 0.62, 0.62],
-    [70.4, 72, 0.62, 1],
+    [79, 79.6, 1, 1],
+    [79.6, 81.5, 1, 0.62],
+    [81.5, 86.4, 0.62, 0.62],
+    [86.4, 88, 0.62, 1],
   ];
   const FLASH = [
     [29, 0.5],
-    [57, 0.35],
-    [62.02, 0.8],
+    [41, 0.3],
+    [73, 0.35],
+    [78.02, 0.8],
   ];
-  const TITLE = 63.6;
+  const TITLE = 79.6;
   function updOverlay() {
     let i = -1;
     for (let k = 0; k < CARDS.length; k++) {
@@ -573,9 +673,28 @@
         el.style.opacity = o.toFixed(3);
         el.style.filter = `blur(${((1 - pin) * 8 + pout * 6).toFixed(1)}px)`;
         el.style.letterSpacing = `${(0.13 + (1 - pin) * 0.3).toFixed(3)}em`;
-        el.style.transform = `${c.kind === "low" || c.kind === "lower" ? "" : "translateY(-50%) "}scale(${(1 + 0.02 * (T - c.t)).toFixed(4)})`;
+        el.style.transform = `${c.kind === "low" || c.kind === "lower" || c.kind === "stats" ? "" : "translateY(-50%) "}scale(${(1 + 0.02 * (T - c.t)).toFixed(4)})`;
       }
     } else el.style.opacity = "0";
+    /* the stats card's bars fill one after another */
+    const sc = i >= 0 && CARDS[i].kind === "stats" ? CARDS[i] : null,
+      st = $("trStats");
+    if (sc) {
+      if (st.childElementCount < 2)
+        for (const [name] of STATS) {
+          const r = document.createElement("div");
+          r.innerHTML = "<b></b><i><s></s></i><em></em>";
+          /** @type {HTMLElement} */ (r.firstElementChild).textContent = name;
+          st.appendChild(r);
+        }
+      st.style.opacity = el.style.opacity;
+      STATS.forEach(([, v], k) => {
+        const row = /** @type {HTMLElement} */ (st.children[k + 1]),
+          g = ease((T - sc.t - 0.5 - k * 0.22) / 0.9);
+        /** @type {HTMLElement} */ (row.querySelector("s")).style.transform = `scaleX(${(g * v).toFixed(3)})`;
+        row.querySelector("em").textContent = `${Math.round(g * v * 100)}%`;
+      });
+    } else st.style.opacity = "0";
     for (const [t0, t1, a, b] of FADES)
       if (T >= t0 && T < t1) black = Math.max(black, lerp(a, b, ease((T - t0) / (t1 - t0))));
     if (shot && shot.black) black = 1;
@@ -583,9 +702,9 @@
     let f = 0;
     for (const [t, s] of FLASH) if (T >= t) f = Math.max(f, s * (1 - (T - t) / 0.5));
     $("trFlash").style.opacity = Math.max(0, f).toFixed(3);
-    /* letterbox: 2.39:1 throughout, opening out for the title */
+    /* letterbox: 2.39:1 throughout, opening out for the title (first person and the menu are full frame) */
     const tt = T - TITLE,
-      lb = 12.8 * (1 - ease(tt / 1.2));
+      lb = shot && (shot.fp || shot.nolb) ? 0 : 12.8 * (1 - ease(tt / 1.2));
     for (const x of /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll("#trailer .lb")))
       x.style.height = Math.max(0, lb).toFixed(2) + "vh";
     /* title: the logo resolves out of blur, a light sweep crosses it, then the lines below */
@@ -609,6 +728,15 @@
     [-35.4, -6],
     [-10, -6],
   ];
+  /* the arena's north blast gate: a clock time at which it is shut, where the run to it starts and
+     where the jump is pressed */
+  const GATE_SHUT = 14,
+    GATE_RUN = [-5.8, 13.9],
+    GATE_JUMP = -1.7;
+  /* where the supply pod comes down: the arena's power weapon pad, on top of the core */
+  const SUPPLY_AT = [0, 4.5, 0];
+  /* the sky's clock for the night shot: a shooting star crosses during it */
+  const STAR_T = 5.5 * 7 - 0.4;
   /* the trailer's pods take a little less than the game's fall, to keep the cut on the music */
   const DROP_FALL = 2.3;
   const SHOTS = [
@@ -725,69 +853,100 @@
         return lt < 2.2 ? { dof: 0.3, focus: 60, range: 60 } : af(chest(hero), 2.2);
       },
     },
+    /* ===== then you: your own pod, ridden down from inside the cockpit, and the step out by the squad ===== */
     {
-      t: 9,
-      name: "boots",
+      t: 7.6,
+      name: "cockpit",
+      fp: true,
       mood: "cool",
       setup() {
-        clearStage();
-        put(hero, [-25.2, 0, -6], -PI / 2);
-        hero.ctl = (a, st) => steer(a, LANE_S, { ...NO, sprint: true });
+        const at = [-16.8, 0, -1.8];
+        F.begin({
+          pos: at,
+          yaw: yawTo(V(at[0], 0, at[2]), V(-23, 0, -6)),
+          w: 0,
+          pod: { at, h: 170, dur: 1.85 },
+        });
       },
       update(lt, dt) {
-        drive(hero, dt);
-        const x = hero.body.pos.x;
-        cam(V(Math.min(x + 1.2, -19.6), 0.28, -8.6), V(x + 0.3, 0.45, -6), 30, 0, dt);
+        for (const a of [hero, ally, ally2]) drive(a, dt);
+        F.step(dt, {});
       },
-      look: () => af(_c.copy(hero.body.pos).setY(0.3), 1.1),
     },
     { t: 10, name: "card-speed", black: true, setup: clearStage, update() {} },
-    /* ===== speed is armor: dodge a burst with a thrust, slide under the next ===== */
+    /* ===== speed is armor, in first person: sprint on the suit's thrusters, thrust aside from a burst,
+       then the carbine down the lane ===== */
     {
       t: 11,
+      name: "fp-run",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        seed = 11;
+        put(foe1, [-11.2, 0, -6.4], PI / 2, 0, 30);
+        foe1.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 2.4) * 0.35 });
+        fpTargets = [foe1];
+        F.begin({ pos: [-34.6, 0, -6], yaw: -PI / 2, w: 0 });
+        this.th = false;
+      },
+      update(lt, dt, st) {
+        const m = F.me,
+          eye = V(m.pos.x, m.pos.y + 1.5, m.pos.z);
+        if (!foe1.dead) {
+          aimAt(foe1, eye, 0.3);
+          if (st > 0.25 && rnd() < dt * 8)
+            shoot(foe1, null, { at: eye, miss: 1.5, color: 0x9fdcff, snd: "shot" });
+        }
+        drive(foe1, dt);
+        const hold = [],
+          press = [];
+        let look = lookAt(chest(foe1), 0.04);
+        if (st < 0.72) hold.push("forward", "sprint");
+        else if (st < 0.95) {
+          hold.push("forward", "left");
+          if (!this.th) {
+            this.th = true;
+            press.push("thrust");
+          }
+        } else {
+          hold.push("forward", "fire");
+          if (st > 1.25) hold.push("aim");
+          look = lookAt(chest(foe1), 0.22);
+        }
+        F.step(dt, { hold, press, yaw: look.yaw, pitch: look.pitch });
+      },
+    },
+    /* ===== ...and from outside: a slide under the next burst ===== */
+    {
+      t: 13.2,
       name: "dodge",
       mood: "hot",
       setup() {
-        seed = 11;
-        put(hero, [-35.4, 0, -6], -PI / 2);
+        clearStage();
+        seed = 13;
+        put(hero, [-27.6, 0, -6], -PI / 2);
         hero.ctl = (a, st) => {
           const inp = steer(a, LANE_S, { ...NO });
-          if (st > 1.12 && once(a, "dodge")) {
-            inp.thrust = true;
-            inp.f = 0;
-            inp.s = 1;
-          }
-          if (st > 2.75 && st < 3.55) {
+          if (st > 1.12 && st < 1.95) {
             inp.crouch = true;
             if (once(a, "slide")) inp.crouchP = true;
           }
           return inp;
         };
+        preroll([hero], 0.6);
       },
-      ts: lt =>
-        curve(
-          [
-            [0, 1],
-            [1.08, 1],
-            [1.2, 0.16],
-            [1.95, 0.16],
-            [2.2, 1],
-          ],
-          lt
-        ) * (hero.body.slideT > 0 ? 0.45 : 1),
+      ts: () => (hero.body.slideT > 0 ? 0.42 : 1),
       update(lt, dt, st) {
         drive(hero, dt);
-        /* a burst from off screen ahead: the shot that would have hit lands where the pilot was */
+        /* the burst from up the lane: high, where the pilot's head was before the slide */
         const src = V(hero.body.pos.x + 26, 1.5, -8.5);
         for (const [at, dz, dy] of [
-          [0.7, 0.9, 0.6],
-          [0.86, -0.7, 0.4],
-          [1.13, 0, 0],
-          [1.22, 0.2, -0.1],
-          [2.55, 0.5, 0.4],
-          [2.82, -0.3, 0.55],
-          [2.95, 0.1, 0.45],
-          [3.1, 0.6, 0.6],
+          [0.42, 0.5, 0.4],
+          [0.55, -0.3, 0.55],
+          [0.66, 0.1, 0.45],
+          [0.8, 0.6, 0.6],
+          [0.95, -0.2, 0.5],
         ])
           if (st > at && once(hero, "b" + at))
             shoot(foe1, null, {
@@ -804,12 +963,41 @@
       look: () => af(chest(hero), 2.6),
     },
     { t: 15.5, name: "card-height", black: true, setup: clearStage, update() {} },
-    /* ===== height is power: up the stairs, onto the pylon, ground pound into two pilots ===== */
+    /* ===== height is power, in first person: a blast gate rises across the lane, and you go over it ===== */
     {
       t: 16.5,
+      name: "fp-gate",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        K.resetDestruction();
+        /* the north gate, shut (world/gates.js: a pure function of the clock) */
+        F.gatesAt(GATE_SHUT, true);
+        F.begin({ pos: [GATE_RUN[0], 0, GATE_RUN[1]], yaw: -PI / 2, pitch: 0.12, w: 1 });
+        this.j = false;
+      },
+      update(lt, dt, st) {
+        const m = F.me,
+          hold = ["forward", "sprint"],
+          press = [];
+        /* a crouch-jump at the wall: tucking the legs in the air reaches the top */
+        if (!this.j && m.pos.x > GATE_JUMP) {
+          this.j = true;
+          press.push("jump");
+        }
+        if (this.j && !m.ground) hold.push("crouch");
+        F.step(dt, { hold, press, pitch: lerp(m.pitch, 0.04, Math.min(1, dt * 4)) });
+        void st;
+      },
+    },
+    /* ===== up the stairs, onto the pylon, ground pound into two pilots ===== */
+    {
+      t: 17.7,
       name: "stairs",
       mood: "hot",
       setup() {
+        F.gatesAt(0, false);
         K.resetDestruction();
         seed = 16;
         put(hero, [0, 0, 15.4], 0);
@@ -855,11 +1043,13 @@
           return inp;
         };
         for (const f of [foe1, foe2]) face(f, hero.body.pos);
+        /* the climb started 1.2 s ago (the first person shot came first) */
+        preroll([hero], 1.2);
       },
       update(lt, dt) {
         drive(hero, dt);
         const p = hero.body.pos,
-          k = ease(lt / 1.9);
+          k = ease((lt + 1.2) / 1.9);
         cam(V(2.7 - k * 0.6, lerp(0.45, 3.9, k), lerp(14.2, 9.6, k)), V(p.x, p.y + 1.1, p.z), 44, 6, dt);
       },
       look: () => af(chest(hero), 3),
@@ -1124,12 +1314,14 @@
       },
       look: lt => (hero.once.has("rk") ? af(V(1.5, 1, -14.6), 7, { near: 0 }) : af(chest(hero), 2.8)),
     },
+    /* ===== in first person: the scope eases up to 5x, then 10x, onto a pilot crossing far below ===== */
     {
       t: 33,
-      name: "sniper",
+      name: "fp-sniper",
+      fp: true,
       mood: "cool",
-      aim: new V3(),
       setup() {
+        clearStage();
         seed = 32;
         put(foe1, [16, 0, -21.5], PI / 2);
         foe1.ctl = (a, st) =>
@@ -1142,7 +1334,10 @@
             { ...NO },
             { stop: false }
           );
-        $("trScope").hidden = false;
+        fpTargets = [foe1];
+        F.begin({ pos: [0.6, 3.23, -3.6], yaw: yawTo(V(0.6, 0, -3.6), V(12, 0, -21.5)), pitch: -0.18, w: 2 });
+        this.z = 0;
+        this.fired = false;
       },
       ts: lt =>
         curve(
@@ -1155,21 +1350,25 @@
           ],
           lt
         ),
-      update(lt, dt) {
+      update(lt, dt, st) {
         drive(foe1, dt);
-        const eye = V(0.6, 4.85, -3.6),
-          hp = head(foe1);
-        if (lt >= 1 && once(foe1, "snipe")) {
-          K.tracer(V(eye.x + 0.25, eye.y - 0.25, eye.z), hp, 0x9fd8ff, 0.6);
-          K.sfx("sshot", 1);
-          K.spark(hp, 12, 0xff7a6a);
-          kill(foe1, eye, 2.8);
-          CINE.shake(0.25);
+        const press = [],
+          hold = [];
+        /* two clicks of the scope: 5x, then 10x */
+        if ((this.z === 0 && st > 0.04) || (this.z === 1 && st > 0.42)) {
+          press.push("aim");
+          this.z++;
         }
-        if (lt < 1) this.aim.copy(hp).add(_a.set(Math.sin(lt * 3) * 0.16, Math.cos(lt * 2.3) * 0.08, 0));
-        cam(eye, this.aim, 6.5, 0, dt);
+        /* tracking the head, a little behind it, then on it for the shot */
+        const hp = head(foe1);
+        let look = lookAt(hp, 0.3);
+        if (lt >= 1 && !this.fired) {
+          this.fired = true;
+          hold.push("fire");
+          look = lookAt(hp, 1);
+        }
+        F.step(dt, { hold, press, yaw: look.yaw, pitch: look.pitch });
       },
-      look: () => ({ dof: 0, grade: 1, ca: 0.012 }),
     },
     {
       t: 35,
@@ -1326,70 +1525,189 @@
       },
       look: () => af(chest(foe1), 3),
     },
-    /* ===== live AI capture the flag ===== */
+    /* ===== every mode, live: the mode picker over the arena ===== */
     {
       t: 41,
+      name: "menu",
+      nolb: true,
+      mood: "dusk",
+      setup() {
+        clearStage();
+        menuKeep = K.MENU.sel.mode;
+        $("menu").hidden = false;
+        /* the mode cards in view */
+        const card = document.getElementById("mode-ctf");
+        if (card) card.scrollIntoView({ block: "center" });
+        this.picks = ["ctf", "slayer", "ffa", "oddball"];
+        this.i = 0;
+      },
+      update(lt) {
+        /* the cards are picked one after another, as a player would */
+        while (this.i < this.picks.length && lt >= 0.15 + this.i * 0.45) {
+          const el = document.getElementById("mode-" + this.picks[this.i++]);
+          if (el) el.click();
+        }
+        const a = 0.6 + lt * 0.09;
+        cam(V(Math.sin(a) * 30, 14, Math.cos(a) * 30), V(0, 2, 0), 50);
+      },
+      look: () => ({ dof: 0 }),
+    },
+    /* capture the flag on Twin Foundry, AI against AI */
+    {
+      t: 43,
       name: "ctf-crane",
       ctf: true,
       mood: null,
       setup() {
-        clearStage();
-        startCTF();
+        $("menu").hidden = true;
+        menuRestore();
+        startCTF("ctf");
       },
       update(lt, dt) {
         const c = action(),
-          e = ease(lt / 4);
-        cam(V(lerp(-44, -30, e), lerp(30, 22, e), lerp(-30, -6, e)), _c.copy(c).setY(0), 50, 2, dt);
+          e = ease(lt / 2.5);
+        cam(V(lerp(-44, -32, e), lerp(30, 21, e), lerp(-30, -10, e)), _c.copy(c).setY(0), 50, 2, dt);
       },
       look: () => ({ dof: 0 }),
     },
+    /* in first person: their flag in both hands, walking it home (carriers walk) */
     {
-      t: 45,
-      name: "ctf-chase",
+      t: 45.5,
+      name: "fp-flag",
+      fp: true,
       ctf: true,
       setup() {
+        const h = CTF.FLAG_HOME[1],
+          to = CTF.FLAG_HOME[0];
+        const d = _a.copy(to).sub(h).setY(0).normalize();
+        fpTeam = 0;
+        fpCarry = "flag";
+        F.begin({ pos: [h.x + d.x * 4, h.y + 0.05, h.z + d.z * 4], yaw: yawTo(h, to), w: 1 });
+      },
+      update(lt, dt) {
+        F.step(dt, { hold: ["forward"] });
+      },
+    },
+    /* Team Slayer on the arena: the camera rides with whoever is in the fight */
+    {
+      t: 47.5,
+      name: "slayer",
+      ctf: true,
+      setup() {
+        startCTF("slayer", "arena");
         pickFocus(true);
       },
       update(lt, dt) {
         pickFocus();
         if (!focus) return;
-        const s = CINE.track(focus, 4.6, 1.5, 2.0, 4, 54)();
-        CINE.apply(s, 4, dt);
+        CINE.apply(CINE.track(focus, 4.4, 1.5, 1.9, 4, 54)(), 4, dt);
       },
       look: () => (focus ? af(chest(focus), 3.5) : {}),
     },
+    /* oddball: the skull burns in from orbit in its own pod */
     {
-      /* the east lane's cover comes apart on the beat */
-      t: 49,
-      name: "ctf-destruction",
+      t: 50.5,
+      name: "oddball",
       ctf: true,
       setup() {
-        K.resetDestruction();
-        this.hits = [
-          { at: 0.5, p: V(13.5, 0.6, 2), r: 3.2 },
-          { at: 1.5, p: V(20, 0.6, 5), r: 3 },
-          { at: 2.5, p: V(21.6, 0.6, 6.2), r: 3.2 },
-          { at: 3.25, p: V(18.6, 0.6, 3.6), r: 4.2 },
-        ];
-        for (const h of this.hits) h.done = false;
+        startCTF("oddball", "arena", g => g.ball && g.t >= g.ball.landAt - K.POD_TIME + 0.2);
+        this.aim = null;
       },
       update(lt, dt) {
-        for (const h of this.hits)
-          if (!h.done && lt >= h.at) {
-            h.done = true;
-            boom(h.p, 0xffa040, h.r, 6000);
-          }
-        const k = ease(lt / 4);
-        cam(V(9.5 + k * 1.5, 2.6 - k * 0.4, -4.5 + k * 1.2), V(18.5, 0.9, 4.4), 46, 0, dt);
+        /* low and wide, the lens on the burning pod all the way down, then on the skull */
+        const home = CTF.BALL_HOME,
+          pod = K.PODS.find(p => !p.landed);
+        this.pod = pod || this.pod;
+        const tgt = pod ? pod.g.position.clone() : V(home.x, home.y + 0.6, home.z);
+        this.aim = this.aim || tgt.clone();
+        this.aim.lerp(tgt, pod ? 1 : Math.min(1, dt * 6));
+        const h = hand(lt, 0.02),
+          up = pod ? clamp((pod.g.position.y - home.y) / 200, 0, 1) : 0;
+        cam(V(home.x + 5.5 + h.x, home.y + 2.5 + h.y, home.z + 9.5), this.aim, lerp(46, 26, up), 0, dt);
       },
-      look: () => af(V(18.5, 0.9, 4.4), 6),
+      look: () => (K.PODS.some(p => !p.landed) ? { dof: 0 } : af(CTF.BALL_HOME, 6)),
     },
+    /* in first person: the skull in hand (a carrier can't shoot; the team fights around them) */
     {
-      /* tilt-shift: high and steep, a thin band of focus makes the match look like a model */
-      t: 53,
-      name: "ctf-tilt",
+      t: 53.5,
+      name: "fp-skull",
+      fp: true,
       ctf: true,
       setup() {
+        const h = CTF.BALL_HOME;
+        fpTeam = 0;
+        fpCarry = "skull";
+        F.begin({ pos: [h.x + 2.4, h.y + 0.05, h.z + 1.2], yaw: yawTo(h, V(0, 0, 20)), w: 1 });
+      },
+      update(lt, dt) {
+        F.step(dt, { hold: ["forward", "sprint"] });
+      },
+    },
+    /* free-for-all: eight pilots, every one for themself, seen from high and steep */
+    {
+      t: 55.5,
+      name: "ffa",
+      ctf: true,
+      setup() {
+        startCTF("ffa", "arena");
+        pickFocus(true);
+      },
+      update(lt, dt) {
+        pickFocus();
+        const c = focus ? focus.body.pos : action(),
+          a = 0.6 + lt * 0.1;
+        cam(V(c.x + Math.sin(a) * 12, 19, c.z + Math.cos(a) * 12), V(c.x, 0, c.z), 34, 2, dt);
+      },
+      look: () => af(focus ? focus.body.pos : action(), 5, { near: 0.5 }),
+    },
+    /* a power weapon arrives in a supply pod: the crate punches into its pad and the lid blows */
+    {
+      t: 58,
+      name: "supply",
+      mood: "hot",
+      setup() {
+        stopCTF();
+        K.resetDestruction();
+        F.clearSupply();
+        clearStage();
+        this.sent = false;
+      },
+      ts: lt =>
+        curve(
+          [
+            [0, 1],
+            [1.38, 1],
+            [1.45, 0.3],
+            [1.8, 0.3],
+            [1.95, 1],
+          ],
+          lt
+        ),
+      update(lt, dt, st) {
+        if (!this.sent && st > 0.05) {
+          this.sent = true;
+          this.pod = F.supply(SUPPLY_AT, 1.4);
+        }
+        /* the lens rides the crate down out of the sky onto its pad */
+        const pad = V(SUPPLY_AT[0], SUPPLY_AT[1] + 0.9, SUPPLY_AT[2]),
+          c = this.pod && !this.pod.landed ? this.pod.g.position : pad;
+        const up = clamp((c.y - pad.y) / 140, 0, 1);
+        cam(V(SUPPLY_AT[0] + 2.3, SUPPLY_AT[1] + 1.2, SUPPLY_AT[2] + 8.7), c, lerp(44, 22, up), 0, dt);
+      },
+      look() {
+        return this.pod && !this.pod.landed
+          ? { dof: 0 }
+          : af(V(SUPPLY_AT[0], SUPPLY_AT[1] + 0.9, SUPPLY_AT[2]), 5);
+      },
+    },
+    /* ===== under the hood: thousands of headless matches tune every number ===== */
+    {
+      t: 60,
+      name: "sim-tilt",
+      ctf: true,
+      mood: null,
+      setup() {
+        startCTF("ctf");
         pickFocus(true);
       },
       update(lt, dt) {
@@ -1400,9 +1718,79 @@
       },
       look: () => af(focus ? focus.body.pos : action(), 5, { near: 0.5 }),
     },
+    /* online: lag-compensated hits, checked by the host */
+    {
+      t: 64,
+      name: "online",
+      ctf: true,
+      setup() {
+        pickFocus(true);
+      },
+      update(lt, dt) {
+        pickFocus();
+        if (!focus) return;
+        CINE.apply(CINE.track(focus, 4.6, 1.5, 2.0, 4, 54)(), 4, dt);
+      },
+      look: () => (focus ? af(chest(focus), 3.5) : {}),
+    },
+    /* the AI that learns: the east lane's cover comes apart on the beat */
+    {
+      t: 67,
+      name: "learn",
+      ctf: true,
+      setup() {
+        K.resetDestruction();
+        this.hits = [
+          { at: 0.5, p: V(13.5, 0.6, 2), r: 3.2 },
+          { at: 1.5, p: V(20, 0.6, 5), r: 3 },
+          { at: 2.5, p: V(21.6, 0.6, 6.2), r: 3.2 },
+        ];
+        for (const h of this.hits) h.done = false;
+      },
+      update(lt, dt) {
+        for (const h of this.hits)
+          if (!h.done && lt >= h.at) {
+            h.done = true;
+            boom(h.p, 0xffa040, h.r, 6000);
+          }
+        const k = ease(lt / 3);
+        cam(V(9.5 + k * 1.5, 2.6 - k * 0.4, -4.5 + k * 1.2), V(18.5, 0.9, 4.4), 46, 0, dt);
+      },
+      look: () => af(V(18.5, 0.9, 4.4), 6),
+    },
+    /* the armor at night: a slow push in from low, a shooting star over the ringed planet */
+    {
+      t: 70,
+      name: "armor",
+      mood: "night",
+      setup() {
+        stopCTF();
+        K.resetDestruction();
+        put(hero, [-6.6, 5.2, 0], -0.5, 0.18);
+        hero.ctl = () => ({ ...NO, aim: true });
+        /* the sky's clock where a shooting star crosses (render/renderer.js: every 5.5 s, some of them) */
+        F.sky(STAR_T);
+      },
+      update(lt, dt) {
+        drive(hero, dt);
+        const p = hero.body.pos,
+          k = ease(lt / 3),
+          a = lerp(2.25, 2.85, k),
+          r = lerp(3.6, 2.6, k);
+        /* from low in front, looking up past the visor into the night */
+        cam(
+          V(p.x + Math.sin(a) * r, p.y + lerp(0.35, 0.6, k), p.z + Math.cos(a) * r),
+          V(p.x, p.y + lerp(2.1, 1.6, k), p.z),
+          lerp(40, 34, k),
+          0,
+          dt
+        );
+      },
+      look: () => af(head(hero), 1.6, { streak: 0.8 }),
+    },
     /* ===== climax: a leap frozen in time ===== */
     {
-      t: 57,
+      t: 73,
       name: "run-up",
       mood: "dusk",
       setup() {
@@ -1456,7 +1844,7 @@
       look: () => af(chest(hero), 3),
     },
     {
-      t: 59,
+      t: 75,
       name: "freeze",
       mood: "dusk",
       setup() {
@@ -1506,7 +1894,7 @@
       look: () => af(chest(hero), 2.4, { streak: 0.7 }),
     },
     {
-      t: 62.2,
+      t: 78.2,
       name: "aftermath",
       mood: "dusk",
       ts: lt =>
@@ -1527,7 +1915,7 @@
     },
     /* ===== title over a slow aerial ===== */
     {
-      t: 63,
+      t: 79,
       name: "title",
       mood: "dusk",
       setup() {
@@ -1545,17 +1933,23 @@
   TR.shots = SHOTS.map(s => ({ t: s.t, name: s.name }));
 
   /* ---------------- CTF montage support ---------------- */
-  function startCTF() {
-    if (G) return;
+  /**
+   * a live AI-vs-AI match of any mode (rules: ctf, slayer, ffa or oddball; map: a MAPS key), fast-
+   * forwarded silently into the action: until(G) stops the fast-forward early, at most 1150 steps
+   */
+  function startCTF(rules = "ctf", map = undefined, until = null) {
+    if (G && G.rules === rules && G.mapKey === (map || "ctf")) return;
+    stopCTF();
+    clearStage();
     setMood(null);
-    G = CTF.Game({ mode: "sim", render: true, diff: ["legendary", "legendary"] });
+    G = CTF.Game({ mode: "sim", render: true, diff: ["legendary", "legendary"], rules, map });
     CTF.UI.attach(G, "sim");
     CTF.UI.quiet = true;
     $("ctfHud").hidden = true;
-    /* fast-forward into the match silently (the minute of play before the cut isn't heard) */
+    /* fast-forward into the match silently (the play before the cut isn't heard) */
     K.sfxTap(() => {});
     G.start();
-    for (let i = 0; i < 1150; i++) G.step(1 / 30);
+    for (let i = 0; i < 1150 && !(until && until(G)); i++) G.step(1 / 30);
     CTF.UI.frame(1 / 30);
     K.sfxTap(TR.recording ? tap : null);
   }
@@ -1672,9 +2066,16 @@
     while (i > 0 && T < SHOTS[i].t) i--;
     if (i !== shotI) {
       shotI = i;
+      const was = shot;
       shot = SHOTS[i];
       shotSim = 0;
       CINE.cut();
+      /* out of first person: back to the trailer's own cameras */
+      if (was && was.fp && !shot.fp) {
+        F.end();
+        fpTargets = [];
+        fpCarry = "";
+      }
       if (shot.setup) shot.setup();
       if (shot.mood !== undefined) setMood(shot.mood);
     }
@@ -1692,9 +2093,18 @@
       }
       CTF.UI.frame(sdt);
     }
+    if (S.fp) {
+      /* first person: the game loop moves the player, places the camera, runs the effects and the
+         HUD, and renders (S.update calls F.step) */
+      CINE.look(Object.assign({}, LOOK0, LOOK_FP, S.look ? S.look(lt) : null));
+      S.update(lt, sdt, shotSim);
+      updOverlay();
+      return;
+    }
     S.update(lt, sdt, shotSim);
     if (!S.black) unclip(S);
     K.updFX(sdt);
+    if (TR.recording) F.hooks(sdt);
     updOverlay();
     if (!render || S.black) return;
     CINE.look(Object.assign({}, LOOK0, S.look ? S.look(lt) : null));
@@ -1717,7 +2127,8 @@
     TR.recording = !!record;
     sfxLog.length = 0;
     K.sfxTap(record ? tap : null);
-    K.extFull({ full: liveFrame, exit: cleanup });
+    K.extFull(Object.assign({ full: liveFrame, exit: cleanup }, EXT_HOOKS));
+    F.capture(!!record);
     K.vmRoot.visible = false;
     const ov = $("trailer");
     ov.hidden = false;
@@ -1778,6 +2189,13 @@
       } catch (e) {}
       music = null;
     }
+    F.end();
+    F.capture(false);
+    F.gatesAt(0, false);
+    F.clearSupply();
+    fpTargets = [];
+    fpCarry = "";
+    menuRestore();
     clearStage();
     stopCTF();
     setMood(null);

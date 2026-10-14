@@ -1825,8 +1825,31 @@ const podSeats = map => {
       await T.evaluate(() => +getComputedStyle(document.getElementById("trCard")).opacity > 0.5),
       "trailer shows its opening title card"
     );
-    await T.evaluate(() => KA.trailer.seek(41.5));
-    check(await T.evaluate(() => !!CTF.UI.game()), "trailer cuts to the live CTF montage");
+    /* a first-person stretch: the player's own pilot with the game's HUD and viewmodel (read in the same
+       call as the seek: live, the music's clock moves the trailer on the next frame) */
+    const fp = await T.evaluate(() => {
+      KA.trailer.seek(12.3);
+      return {
+        on: KA.trailerFP.on,
+        hud: !document.getElementById("hud").hidden,
+        vm: KA.vmRoot.visible,
+        wi: KA.wi,
+      };
+    });
+    check(
+      fp.on && fp.hud && fp.vm && fp.wi === 0,
+      "trailer plays a first-person stretch with the HUD and the carbine",
+      fp
+    );
+    const ctfCut = await T.evaluate(() => {
+      KA.trailer.seek(43.5);
+      return { game: !!CTF.UI.game(), fp: KA.trailerFP.on, hud: !document.getElementById("hud").hidden };
+    });
+    check(
+      ctfCut.game && !ctfCut.fp && !ctfCut.hud,
+      "trailer cuts to the live CTF montage, out of first person",
+      ctfCut
+    );
     await T.keyboard.press("Escape");
     await T.waitForTimeout(300);
     check(
