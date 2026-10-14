@@ -1,4 +1,5 @@
 /* Shared Playwright setup. Env:
+   CPU_SLOW     throttle every page's CPU by this factor (find timing-sensitive tests)
    CHROME_PATH  use a specific Chromium build
    THREE_PATH   serve a real three.min.js (r128) from disk instead of the stub (enables render tests) */
 const fs = require("fs"),
@@ -59,6 +60,11 @@ async function open(
 ) {
   if (http) await serveRepo(ctx);
   const p = await ctx.newPage();
+  /* CPU_SLOW=4 throttles every page's CPU, to run the tests the way a slow CI machine does */
+  if (process.env.CPU_SLOW)
+    await (
+      await ctx.newCDPSession(p)
+    ).send("Emulation.setCPUThrottlingRate", { rate: +process.env.CPU_SLOW });
   p.errors = [];
   p.on("pageerror", e => p.errors.push(tag + " " + e.message));
   p.on("console", m => {

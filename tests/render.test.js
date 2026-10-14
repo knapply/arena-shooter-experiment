@@ -98,11 +98,6 @@ const stats = async p => {
         drops: true,
         init: ["seeded-random.js"],
       });
-      /* CPU_SLOW=8 throttles the page, to see this scene as a slow CI machine runs it */
-      if (process.env.CPU_SLOW)
-        await (
-          await ctx.newCDPSession(q)
-        ).send("Emulation.setCPUThrottlingRate", { rate: +process.env.CPU_SLOW });
       await q.waitForTimeout(1500);
       await q.evaluate(() => {
         Object.assign(KA.SET, { intros: false, dropIn: true, killCam: false });

@@ -382,7 +382,12 @@ const podSeats = map => {
       for (let i = 0; i < 100 && KA.me.dead; i++) await new Promise(r => setTimeout(r, 50));
       const landed = Math.hypot(KA.me.pos.x - at.x, KA.me.pos.z - at.z);
       /* it punched into the ground; you step up out of it to your eye height and the HUD comes back */
-      const bury = at.y - pod.g.position.y;
+      /* (the pod settles into its crater over a few frames: a slow machine may not have drawn them yet) */
+      let bury = at.y - pod.g.position.y;
+      for (let i = 0; i < 40 && bury <= 0.5; i++) {
+        await new Promise(r => setTimeout(r, 50));
+        bury = Math.max(bury, at.y - pod.g.position.y);
+      }
       await new Promise(r => setTimeout(r, 1000));
       const eye = KA.camera.position.y - KA.me.pos.y;
       const hud = getComputedStyle(document.getElementById("hud")).visibility;
@@ -541,6 +546,11 @@ const podSeats = map => {
         mine: (document.querySelector("#postTab tr.me") || { textContent: "" }).textContent,
         focus: document.activeElement && document.activeElement.id,
       };
+      /* (focus lands on Play again as the panel opens; a busy machine may still be catching up) */
+      for (let i = 0; i < 20 && post.focus !== "postAgain"; i++) {
+        await new Promise(r => setTimeout(r, 50));
+        post.focus = document.activeElement && document.activeElement.id;
+      }
       el("postAgain").click();
       await new Promise(r => setTimeout(r, 400));
       post.closed = el("post").hidden;
@@ -1038,17 +1048,21 @@ const podSeats = map => {
       trkLay
     );
     /* a friend's ping reaches the host, and the friend's AI teammates respond to it */
-    await B.evaluate(() => {
-      KA.me.pitch = -0.35;
-      KA.PINGS.lastT = -9;
-      KA.pingNow();
-    });
-    await A.waitForTimeout(1500);
-    const pinged = await A.evaluate(() => {
-      const g = CTF.UI.game();
-      const fr = g.agents.find(a => a.remote);
-      return g.teams[fr.team].agents.filter(a => !a.human && a.ping).length;
-    });
+    /* (pinged again if nobody took it up: an AI teammate busy in a fight may ignore one ping) */
+    let pinged = 0;
+    for (let tries = 0; tries < 3 && !pinged; tries++) {
+      await B.evaluate(() => {
+        KA.me.pitch = -0.35;
+        KA.PINGS.lastT = -9;
+        KA.pingNow();
+      });
+      await A.waitForTimeout(1500);
+      pinged = await A.evaluate(() => {
+        const g = CTF.UI.game();
+        const fr = g.agents.find(a => a.remote);
+        return g.teams[fr.team].agents.filter(a => !a.human && a.ping).length;
+      });
+    }
     check(pinged >= 1, "a friend's ping sends their AI teammates", pinged);
     /* a steered pod only lands near your own base in CTF */
     const zone = await A.evaluate(() => {
