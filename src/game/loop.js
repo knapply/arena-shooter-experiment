@@ -251,6 +251,13 @@ function respawnMe(at) {
    the arena drones' too; CTF's agents start out the same way (G.start(true)). While the intro
    plays the drop waits, then everyone launches together and the clock starts as they land ---- */
 let dropHold = false;
+/** what you carry in both hands in a mode: "" (nothing), "flag" or "skull" (EXT.carrying) */
+const carried = () => {
+  const c = EXT && EXT.carrying ? EXT.carrying() : "";
+  return c === true ? "flag" : c || "";
+};
+/** you wanted to sprint last frame (a carrier's fresh sprint press drops the flag) */
+let carryRunPrev = false;
 const dropsOn = () => podsOn() && SET.dropIn;
 /**
  * open a match with a drop: you (and the arena drones, with bots) are out until your pods land.
@@ -356,7 +363,7 @@ function frameBody(t) {
   }
   /* the sniper's own scope takes over once it is most of the way to the eye */
   vmRoot.visible = !me.dead && !(wi === 2 && adsP > 0.6);
-  vmCarry(!!(EXT && EXT.carrying && EXT.carrying()));
+  vmCarry(carried());
   if (SET.aimMode === "toggle") {
     if (P("aim")) aimLatch = !aimLatch;
   } else aimLatch = false;
@@ -486,6 +493,16 @@ function frameBody(t) {
       meleeP: P("melee"),
     };
     if (touch.sprint && inp.f < 0.3) touch.sprint = false;
+    /* carrying the flag (EXT.carryNoRun): a fresh press of sprint, or a thrust, lets it go; otherwise
+       a carrier walks (auto-sprint or a sprint held since the pickup just doesn't happen) */
+    const wantRun = inp.sprint && inp.f >= 0.3;
+    if (carried() && EXT.carryNoRun && EXT.carryNoRun()) {
+      if ((wantRun && !carryRunPrev) || inp.thrust) {
+        if (EXT.dropFlag) EXT.dropFlag();
+        toast("Sprinting or thrusting drops the flag");
+      } else inp.sprint = false;
+    }
+    carryRunPrev = wantRun;
     // fixed 120 Hz movement with interpolation: identical feel at any frame rate
     pend.j = pend.j || inp.jumpP;
     pend.c = pend.c || inp.crouchP;
@@ -521,11 +538,12 @@ function frameBody(t) {
     prevReload = reloadT;
     switchT = Math.max(0, switchT - dt);
     nadeCD = Math.max(0, nadeCD - dt);
-    if (P("grenade")) throwNade();
+    /* both hands are on the flag or the skull: no grenades either */
+    if (P("grenade") && !carried()) throwNade();
     if (P("swapNade")) swapNade();
     if (P("reload") && !pkNear) startReload();
     /* carrying the flag: both hands are on it, so no shooting, and switching weapons lets it go */
-    const carrying = !!(EXT && EXT.carrying && EXT.carrying());
+    const carrying = !!carried();
     if (carrying && (P("weapon1") || P("weapon2") || P("swapWeapon"))) {
       if (EXT.dropFlag) EXT.dropFlag();
     } else {

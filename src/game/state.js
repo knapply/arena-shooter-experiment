@@ -397,10 +397,11 @@ function hurtMe(n, src) {
 /* the kill feed is a subscriber; spectator modes keep it quiet */
 EVENTS.on("kill", e => {
   if (!/spectate|trailer/.test(e.mode))
-    pushFeed(e.killerName, e.victimName, e.killer === "local", e.victim === "local");
+    pushFeed(e.killerName, e.victimName, e.killer === "local", e.victim === "local", e.zone || "");
 });
-function pushFeed(a, b, mine, victim) {
-  feed.unshift({ a, b, mine, victim, t: now });
+/** zone: where it happened (the map's callout zones), shown small after the names */
+function pushFeed(a, b, mine, victim, zone) {
+  feed.unshift({ a, b, mine, victim, z: zone || "", t: now });
   if (feed.length > 5) feed.pop();
   renderFeed();
 }
@@ -419,6 +420,12 @@ function renderFeed() {
     Bn.textContent = f.b;
     if (f.victim) Bn.className = "me";
     d.append(A, X, Bn);
+    if (f.z) {
+      const Z = document.createElement("small");
+      Z.className = "z";
+      Z.textContent = f.z;
+      d.appendChild(Z);
+    }
     el.appendChild(d);
   }
 }

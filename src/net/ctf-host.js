@@ -73,6 +73,13 @@
       .peers()
       .filter(p => !p.sameTab && p.kind === "viewer" && p.presence && p.presence.m === "ctf");
   };
+  /** the modes and maps a host can say it is playing (anything else is read as capture the flag) */
+  const MODES = ["ctf", "slayer", "ffa", "oddball"];
+  NET.modeOf = H => (MODES.includes(H.md) ? H.md : "ctf");
+  NET.mapOf = (H, md) => {
+    const P = K.PLAY_MODES.find(p => p.id === md);
+    return P && P.maps.includes(H.mp) ? H.mp : P ? P.maps[0] : "ctf";
+  };
   NET.liveHost = function () {
     for (const p of NET.ctfPeers()) {
       const pr = p.presence;
@@ -87,6 +94,8 @@
           peer: p.peer,
           name: K.cleanName(pr.n),
           mid: pr.H.id.slice(0, 24),
+          mode: NET.modeOf(pr.H),
+          map: NET.mapOf(pr.H, NET.modeOf(pr.H)),
           players:
             1 + NET.ctfPeers().filter(q => q.presence.ph === "client" && q.presence.mid === pr.H.id).length,
         };
@@ -156,7 +165,7 @@
       if (d > 95) return false;
       return K.losClear(_s, _t) || d < 4;
     }
-    if (w === "melee" || w === "charge") return d < 4.5;
+    if (w === "melee" || w === "charge" || w === "flag" || w === "skull") return d < 4.5;
     return d < 14;
   };
   /* ---------------- host ---------------- */
@@ -221,7 +230,7 @@
         if (H.cm.length > 5) H.cm.shift();
       };
       G.netHit = (e, n, src) => {
-        const by = src.by ? src.by.id : myId;
+        const by = src.by ? src.by.id : src.world ? "" : myId;
         const k = e.id + "|" + by;
         const a = H.agg.get(k);
         if (a) {
@@ -233,14 +242,32 @@
     H.onEvent = function (t, d) {
       const id = x => (x && x.id ? x.id : "");
       let e = null;
-      if (t === "kill") e = ["k", id(d.killer), id(d.victim), d.type || "rifle", d.head ? 1 : 0];
+      /* a kill also says what the victim carried (1 the flag, 2 the skull) and whether it denied a capture */
+      if (t === "kill")
+        e = [
+          "k",
+          id(d.killer),
+          id(d.victim),
+          d.type || "rifle",
+          d.head ? 1 : 0,
+          d.carried === "flag" ? 1 : d.carried === "ball" ? 2 : 0,
+          d.denial ? 1 : 0,
+        ];
       else if (t === "flagTaken") e = ["t", d.flag.team, id(d.by)];
       else if (t === "flagDrop") e = ["d", d.flag.team, id(d.by)];
-      else if (t === "flagReturn") e = ["r", d.flag.team, id(d.by)];
+      else if (t === "flagReturn") e = ["r", d.flag.team, id(d.by), d.clutch ? 1 : 0];
       else if (t === "flagReset") e = ["x", d.flag.team];
       else if (t === "capture") e = ["c", d.team, id(d.by)];
       else if (t === "end") e = ["e", d.winner];
       else if (t === "pod") e = ["p", d.a.team, r2(d.pos.x), r2(d.pos.y), r2(d.pos.z)];
+      /* the skull: taken, dropped (by, killer), its pod launched, landed, reset */ else if (
+        t === "ballTaken"
+      )
+        e = ["bt", id(d.by)];
+      else if (t === "ballDrop") e = ["bd", id(d.by), id(d.killer)];
+      else if (t === "ballPod") e = ["bp", r2(d.pos.x), r2(d.pos.y), r2(d.pos.z)];
+      else if (t === "ballSpawn") e = ["bs"];
+      else if (t === "ballReset") e = ["br"];
       else if (t === "nade")
         e = [
           "n",
@@ -272,12 +299,32 @@
         H.rosterKey = key;
         H.rv = (H.rv + 1) & 255;
       }
+      const B = G.ball;
       return {
         id: H.mid,
         rv: H.rv,
+        /* the mode and map (what joiners build), the score limit, each team's score (every pilot's
+           in free-for-all) and held time (oddball) */
+        md: G.rules,
+        mp: H.mapKey || "ctf",
+        sl: G.scoreLimit,
+        fr: G.flagReset,
+        rr: G.ballReset,
         t: r1(G.t),
         tl: G.timeLimit,
-        sc: [G.teams[0].score, G.teams[1].score],
+        sc: G.teams.map(tm => tm.score),
+        ho: B ? G.teams.map(tm => r1(tm.held)) : undefined,
+        /* the skull: [state 0 incoming 1 home 2 carried 3 dropped, x, y, z, carrier, seconds on the floor] */
+        bl: B
+          ? [
+              ["incoming", "home", "carried", "dropped"].indexOf(B.state),
+              r1(B.pos.x),
+              r1(B.pos.y),
+              r1(B.pos.z),
+              B.carrier ? B.carrier.id : "",
+              r1(G.t - B.dropT),
+            ]
+          : undefined,
         ov: G.over ? G.winner : null,
         fl: G.flags.map(f => [
           ST[f.state],
@@ -291,10 +338,12 @@
           const b = a.body,
             loc = a.local;
           let sp = 0;
-          for (const t of [0, 1]) {
-            const m = G.teams[t].brain.enemyMem.get(a.id);
-            if (m && G.t - m.t < 2.5) sp |= 1 << t;
-          }
+          /* spotted by each team (team modes: what shows on a player's minimap) */
+          if (!G.ffa)
+            for (const t of [0, 1]) {
+              const m = G.teams[t].brain.enemyMem.get(a.id);
+              if (m && G.t - m.t < 2.5) sp |= 1 << t;
+            }
           const fire = loc ? K.now - K.lastFireT < 0.12 : a.remote ? !!a.firing : G.t - a.firedT < 0.12;
           const rl = loc ? K.reloadT > 0 : a.remote ? !!a.reloading : a.reloadT > 0;
           return [
@@ -449,10 +498,13 @@
     };
     H.ingest = function (peer, pr) {
       let a = H.remote.get(peer);
-      const team = pr.tm === 1 ? 1 : 0;
+      const want = pr.tm === 1 ? 1 : 0;
       const name = K.cleanName(pr.n);
       if (!a) {
         if (H.remote.size >= 7) return;
+        /* free-for-all: a pilot slot of their own (no slot left: they can't join) */
+        const team = G.openTeam(want);
+        if (team < 0) return;
         a = new CTF.Agent(G, team, 0, name, true, true, "h:" + peer);
         a.peer = peer;
         a.seenHs = -1;
@@ -464,13 +516,13 @@
         a.fastAt = -9;
         G.addHuman(a, team);
         H.remote.set(peer, a);
-        CTF.UI.line("sys", `${name} joined ${CTF.TEAM_NAMES[team]}`);
+        CTF.UI.line("sys", `${name} joined ${G.ffa ? "the match" : CTF.TEAM_NAMES[team]}`);
         K.sfx("stinger", 0.4);
       }
       a.name = name;
-      if (a.team !== team) {
-        G.moveHuman(a, team);
-        CTF.UI.line("sys", `${name} switched to ${CTF.TEAM_NAMES[team]}`);
+      if (!G.ffa && a.team !== want) {
+        G.moveHuman(a, want);
+        CTF.UI.line("sys", `${name} switched to ${CTF.TEAM_NAMES[want]}`);
       }
       /* presence movement only when the fast channel is quiet */
       if (performance.now() / 1000 - a.fastAt > 0.6) {
@@ -574,6 +626,11 @@
           H.hitStats.bad++;
           continue;
         }
+        /* a one-hit flag or skull melee only from someone carrying it */
+        if ((w === "flag" || w === "skull") && (!a.carrying || (w === "skull") !== (a.carrying === G.ball))) {
+          H.hitStats.bad++;
+          continue;
+        }
         /* hitscan claims: the shot's ray must start near where we have the shooter and pass
            within reach of the target's body where the shooter saw it */
         if (h.length >= 12 && !NET.rayOk(h.slice(6, 12), a.body.pos, at || tgt.pos, tgt.body.h)) {
@@ -666,7 +723,7 @@
     K.tracer(
       _o.clone().addScaledVector(_d, 0.7),
       end,
-      a.wpn === 2 ? 0x9fd8ff : CTF.TEAM_INT[a.team],
+      a.wpn === 2 ? 0x9fd8ff : CTF.teamInt(a.team),
       a.wpn === 2 ? 0.6 : 0.1
     );
     if (L < 80) K.spark(end);

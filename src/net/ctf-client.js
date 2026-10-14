@@ -49,8 +49,10 @@
       return { died: false, sh: this.body.shield > 0, name: this.name };
     }
   }
-  CTF.Mirror = function (hostPeer, mid, myId, team) {
-    if (!CTF.NAV.ok) CTF.NAV.build(CTF.buildMap().solids);
+  /** rules and mapKey: the host's mode and map (the map is already in use: CTF.useMap) */
+  CTF.Mirror = function (hostPeer, mid, myId, team, rules, mapKey) {
+    rules = rules || "ctf";
+    if (CTF.NAV.mapId !== CTF.MAP.id) CTF.NAV.build(CTF.buildMap().solids);
     K.DESTR.locked = true;
     const stub = t => ({
       team: t,
@@ -87,9 +89,18 @@
         return (out || new V3()).copy(K.me.pos).add(new V3(0, K.me.h * 0.68, 0));
       },
     };
+    const MD = K.MODE_DATA[CTF.RULES_DATA[rules] || "ctf"];
     const M = {
       t: 0,
-      timeLimit: 480,
+      timeLimit: MD.timeLimit,
+      scoreLimit: MD.scoreLimit,
+      rules,
+      mapKey: mapKey || "ctf",
+      ffa: rules === "ffa",
+      tdm: rules === "ffa" || rules === "slayer",
+      flagReset: K.MODE_DATA.ctf.flagReset || 15,
+      ballReset: MD.ballReset || 15,
+      dropT: 0,
       mode: "play",
       render: true,
       over: false,
@@ -101,16 +112,21 @@
       onComms: null,
       nades: new K.NadeWorld(true),
       teams: [
-        { team: 0, score: 0, agents: [], brain: stub(0) },
-        { team: 1, score: 0, agents: [], brain: stub(1) },
+        { team: 0, score: 0, held: 0, agents: [], brain: stub(0) },
+        { team: 1, score: 0, held: 0, agents: [], brain: stub(1) },
       ],
-      flags: [0, 1].map(t => ({
+      flags: (rules === "ctf" ? [0, 1] : []).map(t => ({
         team: t,
         state: "home",
         pos: CTF.FLAG_HOME[t].clone(),
         carrier: null,
         dropT: 0,
       })),
+      /** oddball: the skull as the host last said */
+      ball:
+        rules === "oddball"
+          ? { ball: true, team: -1, state: "incoming", pos: CTF.BALL_HOME.clone(), carrier: null, dropT: 0 }
+          : null,
       agents: [me],
       map: new Map(),
       seenEv: -1,
@@ -218,6 +234,13 @@
       }
     };
     M.byId = id => (id === myId ? me : M.map.get(id) || null);
+    /** a team by index (free-for-all teams appear as the host lists them) */
+    const teamAt = t => {
+      while (M.teams.length <= t)
+        M.teams.push({ team: M.teams.length, score: 0, held: 0, agents: [], brain: stub(M.teams.length) });
+      return M.teams[t];
+    };
+    M.teamAt = teamAt;
     /* hits carry the host-clock time we were seeing the target at, so the host can check the shot
        against where they were on our screen (lag compensation) */
     M.queueHit = function (id, n, w, hd) {
@@ -258,9 +281,9 @@
     M.spawnPoint = function (t) {
       /* the same spawn safety as the host (world/spawns.js), from what this client sees */
       const foes = [...M.map.values()].filter(a => a.team !== t && a.alive).map(a => a.body);
-      let pts = CTF.SPAWNS[t];
+      let pts = M.ffa ? CTF.FFA_SPAWNS : CTF.SPAWNS[t];
       /* joining as the match opens: the host's AI are dropping onto their own spots (CTF.dropSpots) */
-      if ((M.t || 0) < K.POD_TIME + 1) {
+      if ((M.t || 0) < K.POD_TIME + 1 && !M.ffa) {
         const held = CTF.dropSpots(t, [...M.map.values()].filter(a => a.team === t && !a.human).length);
         const free = pts.filter(p => !held.includes(p));
         if (free.length) pts = free;
@@ -294,7 +317,11 @@
       if (Math.abs(ht - M.t) > 1) M.t = ht;
       else M.t += (ht - M.t) * 0.2;
       M.timeLimit = num(Hs.tl, 60, 3600, 480);
-      if (Array.isArray(Hs.sc)) for (const t of [0, 1]) M.teams[t].score = num(Hs.sc[t], 0, 99) | 0;
+      M.scoreLimit = num(Hs.sl, 1, 1e4, M.scoreLimit);
+      M.flagReset = num(Hs.fr, 1, 600, M.flagReset);
+      M.ballReset = num(Hs.rr, 1, 600, M.ballReset);
+      if (Array.isArray(Hs.sc)) Hs.sc.slice(0, 16).forEach((s, t) => (teamAt(t).score = num(s, 0, 9999) | 0));
+      if (Array.isArray(Hs.ho)) Hs.ho.slice(0, 2).forEach((s, t) => (teamAt(t).held = num(s, 0, 1e4)));
       const ag = Array.isArray(Hs.ag) ? Hs.ag.slice(0, 16) : [];
       M.rv = Hs.rv | 0;
       M.roster = ag.map(e => (Array.isArray(e) ? String(e[0]) : ""));
@@ -307,6 +334,14 @@
         if (id === myId) {
           me.k = num(e[16], 0, 9999) | 0;
           me.d = num(e[17], 0, 9999) | 0;
+          /* free-for-all: the host says which pilot slot is yours */
+          if (M.ffa) {
+            const mt = num(e[1], 0, 15) | 0;
+            if (me.team !== mt) {
+              me.team = mt;
+              roster = true;
+            }
+          }
           continue;
         }
         let a = M.map.get(id);
@@ -316,7 +351,7 @@
           roster = true;
           a.body.pos.set(num(e[3], -200, 200), num(e[4], -50, 100), num(e[5], -200, 200));
         }
-        const tm = e[1] === 1 ? 1 : 0;
+        const tm = M.ffa ? num(e[1], 0, 15) | 0 : e[1] === 1 ? 1 : 0;
         if (a.team !== tm) {
           a.team = tm;
           roster = true;
@@ -349,16 +384,25 @@
           roster = true;
         }
       if (roster) {
-        M.teams[0].agents = [];
-        M.teams[1].agents = [];
-        me.team = M.human.team;
-        M.teams[me.team].agents.push(me);
-        for (const a of M.map.values()) M.teams[a.team].agents.push(a);
+        for (const tm of M.teams) tm.agents = [];
+        teamAt(me.team).agents.push(me);
+        for (const a of M.map.values()) teamAt(a.team).agents.push(a);
         M.agents = [me, ...M.map.values()];
         if (M.onEvent) M.onEvent("roster", {});
       }
+      if (M.ball && Array.isArray(Hs.bl)) {
+        const b = Hs.bl,
+          B = M.ball;
+        B.state = ["incoming", "home", "carried", "dropped"][b[0] | 0] || "home";
+        B.pos.set(num(b[1], -200, 200), num(b[2], -50, 100), num(b[3], -200, 200));
+        const c = B.state === "carried" && NET.okId(b[4]) ? M.byId(b[4]) : null;
+        if (B.carrier && B.carrier !== c) B.carrier.carrying = null;
+        B.carrier = c;
+        if (c) c.carrying = B;
+        B.dropT = M.t - num(b[5], 0, 600);
+      }
       const STS = ["home", "carried", "dropped"];
-      if (Array.isArray(Hs.fl))
+      if (Array.isArray(Hs.fl) && M.flags.length)
         for (const t of [0, 1]) {
           const f = Hs.fl[t],
             F = M.flags[t];
@@ -451,7 +495,7 @@
       }
       if (Hs.ov != null && !M.over) {
         M.over = true;
-        M.winner = Hs.ov === 0 || Hs.ov === 1 ? Hs.ov : -1;
+        M.winner = Number.isInteger(Hs.ov) && Hs.ov >= 0 && Hs.ov < 16 ? Hs.ov : -1;
       }
     };
     M.event = function (e) {
@@ -465,21 +509,36 @@
           victim = evObj(e[3]);
         const w = String(e[4] || "rifle").slice(0, 8);
         if (killer === me && victim !== me) K.addKill(w, !!e[5], victim.name);
-        emit("kill", { killer, victim, type: w, head: !!e[5] });
+        emit("kill", {
+          killer,
+          victim,
+          type: w,
+          head: !!e[5],
+          carried: e[6] === 1 ? "flag" : e[6] === 2 ? "ball" : "",
+          denial: e[7] === 1,
+        });
       } else if (k === "t") emit("flagTaken", { flag: fl(e[2]), by: evObj(e[3]) });
       else if (k === "d") emit("flagDrop", { flag: fl(e[2]), by: evObj(e[3]) });
-      else if (k === "r") emit("flagReturn", { flag: fl(e[2]), by: evObj(e[3]) });
+      else if (k === "r") emit("flagReturn", { flag: fl(e[2]), by: evObj(e[3]), clutch: e[4] === 1 });
       else if (k === "x") emit("flagReset", { flag: fl(e[2]) });
       else if (k === "c")
         emit("capture", { flag: fl(1 - (e[2] === 1 ? 1 : 0)), by: evObj(e[3]), team: e[2] === 1 ? 1 : 0 });
       else if (k === "e") {
         M.over = true;
-        M.winner = e[2] === 0 || e[2] === 1 ? e[2] : -1;
+        M.winner = Number.isInteger(e[2]) && e[2] >= 0 && e[2] < 16 ? e[2] : -1;
         emit("end", { winner: M.winner });
       } else if (k === "p") {
         const p = K.vec(e.slice(3, 6), new V3());
-        if (p) K.dropPod(p, CTF.TEAM_HEX[e[2] === 1 ? 1 : 0]);
-      } else if (k === "n") {
+        if (p) K.dropPod(p, CTF.teamHex(num(e[2], 0, 15) | 0));
+      } else if (k === "bt" && M.ball) emit("ballTaken", { by: evObj(e[2]) });
+      else if (k === "bd" && M.ball)
+        emit("ballDrop", { by: evObj(e[2]), killer: NET.okId(e[3]) ? M.byId(e[3]) : null });
+      else if (k === "bp" && M.ball) {
+        const p = K.vec(e.slice(2, 5), new V3());
+        if (p) emit("ballPod", { pos: p });
+      } else if (k === "bs" && M.ball) emit("ballSpawn", { pos: M.ball.pos });
+      else if (k === "br" && M.ball) emit("ballReset", {});
+      else if (k === "n") {
         const p = K.vec(e.slice(3, 6), new V3()),
           v = K.vec(e.slice(6, 9), new V3());
         if (p && v) {

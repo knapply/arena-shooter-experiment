@@ -57,6 +57,32 @@
   const DIFF = K.AI_SKILL;
   CTF.DIFF = DIFF;
   let NEXT_ID = 1;
+  /** oddball: places a skull carrier can hold, per map: the middle of each callout zone and each spawn,
+      within 32 m of where the skull comes down (so the fight stays in the middle, not in a base), on
+      walkable ground */
+  const HOLDS = new Map();
+  function holdSpots() {
+    const doc = CTF.MAP;
+    if (HOLDS.has(doc.id)) return HOLDS.get(doc.id);
+    const out = [];
+    for (const z of doc.zones || []) {
+      const x = (z.b[0] + z.b[2]) / 2,
+        zz = (z.b[1] + z.b[3]) / 2,
+        y = K.groundBelow(x, zz, z.y ? Math.min(z.y[1], z.y[0] + 4) : 2, 0.05);
+      out.push([x, y, zz]);
+    }
+    for (const s of CTF.FFA_SPAWNS) out.push(s.slice());
+    const ok = [];
+    for (const p of out) {
+      const c = NAV.nearest(p[0], p[2], p[1]);
+      if (c < 0 || !NAV.ok[c] || Math.hypot(p[0] - CTF.BALL_HOME.x, p[2] - CTF.BALL_HOME.z) > 32) continue;
+      const q = NAV.pos(c);
+      ok.push([q.x, q.y, q.z]);
+    }
+    const list = ok.length ? ok : out;
+    HOLDS.set(doc.id, list);
+    return list;
+  }
   class Agent {
     constructor(G, team, idx, name, human, remote, id) {
       this.G = G;
@@ -206,7 +232,8 @@
       const b = this.body;
       b.reset();
       b.pos.set(p[0] + rnd(-0.6, 0.6), p[1] + 0.02, p[2] + rnd(-0.6, 0.6));
-      b.yaw = this.team === 0 ? Math.PI : 0;
+      /* facing the enemy base in capture the flag, the middle of the map otherwise */
+      b.yaw = this.G.rules === "ctf" ? (this.team === 0 ? Math.PI : 0) : Math.atan2(b.pos.x, b.pos.z);
       b.pitch = 0;
       b.spawnT = this.G.t;
       this.dead = false;
@@ -264,7 +291,8 @@
       const had = b.shield > 0;
       const died = b.damage(n, this.G.t);
       if (!died && this.G.t < b.spawnT + 1.2) return { died: false, sh: had, name: this.name };
-      attacker = attacker || this.G.human;
+      /* false: nobody's doing (a skull pod); no attacker at all means the local player */
+      attacker = attacker === false ? null : attacker || this.G.human;
       K.noteFight(this.G.fights, b.pos, this.G.t);
       if (attacker && attacker.pos) K.noteFight(this.G.fights, attacker.pos, this.G.t);
       this.lastAttacker = attacker;
@@ -299,7 +327,7 @@
       const fwdYaw = this.body.yaw;
       let best = null,
         bs = -1e9;
-      for (const e of G.teams[1 - this.team].agents) {
+      for (const e of G.foes(this.team)) {
         if (!e.alive) continue;
         const c = e.chest(_v);
         const d = eye.distanceTo(c);
@@ -329,7 +357,7 @@
         let s = -d;
         if (e.carrying) s += 40;
         if (this.role === "escort") {
-          const c = G.flags[1 - this.team].carrier;
+          const c = G.mateCarrier(this.team);
           if (c && e.pos.distanceTo(c.pos) < 14) s += 18;
         }
         if (br.focus === e) s += 25;
@@ -354,15 +382,27 @@
         br = this.brain(),
         me = this.team,
         them = 1 - me;
-      const of = G.flags[me],
-        tf = G.flags[them];
+      const ctf = G.rules === "ctf",
+        of = ctf ? G.flags[me] : null,
+        tf = ctf ? G.flags[them] : null,
+        B = G.ball;
       const g = this.goal;
       /* where to fall back to: the flag stand, or (no flags) the nearest of the team's spawns */
-      const home = CTF.FLAG_HOME[me] || this.nearestSpawn();
+      const home = (ctf && CTF.FLAG_HOME[me]) || this.nearestSpawn();
       const sign = me === 0 ? 1 : -1;
       this.mustMove = false;
       switch (this.role) {
         case "hunt": {
+          /* oddball: hunt around the skull (the fight is there) */
+          if (B) {
+            const mine = G.mateCarrier(me),
+              th = this.nearestThreat(mine ? mine.pos : B.pos, 26);
+            if (th) g.copy(th.pos);
+            else if (mine) g.copy(mine.pos).add(_v.set(this.idx % 2 ? 5 : -5, 0, this.idx % 3 ? 4 : -4));
+            else g.copy(B.state === "incoming" ? CTF.BALL_HOME : B.pos);
+            this.mustMove = this.pos.distanceTo(g) > 4;
+            break;
+          }
           /* team deathmatch: go where the team last saw someone, else sweep the map's spawns and power spawn */
           const th = this.nearestThreat(this.pos, 60);
           if (th) {
@@ -371,7 +411,7 @@
             break;
           }
           if (!this.huntPt || this.pos.distanceTo(this.huntPt) < 3 || G.t > this.huntUntil) {
-            const pts = CTF.SPAWNS[me].map(p => new V3(p[0], p[1], p[2]));
+            const pts = G.spawnList(me).map(p => new V3(p[0], p[1], p[2]));
             for (const p of G.pickups || []) pts.push(p.pos.clone());
             this.huntPt = pts[(K.rand() * pts.length) | 0];
             this.huntUntil = G.t + 12;
@@ -380,6 +420,12 @@
           this.mustMove = true;
           break;
         }
+        case "skull":
+          /* oddball: hold somewhere quiet, away from the enemies the team knows about */
+          this.holdSpot();
+          g.copy(this.holdPt);
+          this.mustMove = this.pos.distanceTo(g) > 2.5;
+          break;
         case "carry":
           if (of.state === "home") {
             g.copy(home);
@@ -390,21 +436,21 @@
           }
           break;
         case "escort": {
-          const c = tf.carrier;
+          const c = G.mateCarrier(me);
           if (c) {
             const th = this.nearestThreat(c.pos, 18);
             if (th) g.copy(c.pos).lerp(th.pos, 0.35);
             else g.copy(c.pos).add(_v.set(this.idx % 2 ? 2.5 : -2.5, 0, -4 * sign));
-          } else g.copy(tf.pos);
+          } else g.copy(B ? B.pos : tf.pos);
           this.mustMove = true;
           break;
         }
         case "chase": {
-          const c = of.carrier;
+          const c = G.foeCarrier(me);
           if (c) {
             const lead = Math.min(2.2, this.pos.distanceTo(c.pos) / 10);
             g.copy(c.pos).addScaledVector(c.body.vel, lead);
-          } else g.copy(of.pos);
+          } else g.copy(B ? B.pos : of.pos);
           this.mustMove = true;
           break;
         }
@@ -413,7 +459,7 @@
           this.mustMove = true;
           break;
         case "grab":
-          g.copy(tf.pos);
+          g.copy(B ? (B.state === "incoming" ? CTF.BALL_HOME : B.pos) : tf.pos);
           this.mustMove = true;
           break;
         case "mid":
@@ -443,7 +489,11 @@
           break;
         }
         default: {
-          // attack
+          // attack (capture the flag; anywhere else there is no flag to go for: regroup)
+          if (!tf) {
+            g.copy(home);
+            break;
+          }
           const p = br.plan;
           if (tf.state === "carried" && tf.carrier && tf.carrier.team === me) {
             g.copy(tf.carrier.pos);
@@ -488,7 +538,10 @@
         !this.mustMove &&
         !this.carrying &&
         !(this.sniper > 0) &&
-        (this.role === "mid" || this.role === "attack" || this.role === "defend") &&
+        (this.role === "mid" ||
+          this.role === "attack" ||
+          this.role === "defend" ||
+          (G.ffa && this.role === "hunt")) &&
         G.pickups
       ) {
         for (const p of G.pickups) {
@@ -496,6 +549,8 @@
           const c = G.claims[me];
           const d = this.pos.distanceTo(p.pos);
           if (c && c.a !== this && c.a.alive && G.t - c.t < 5) continue;
+          /* free-for-all: everyone hunts, so anyone near the power weapon goes for it */
+          if (G.ffa && d > 26) continue;
           if (d > (this.role === "mid" ? 40 : 22) || G.sniperFor(me)) continue;
           G.claims[me] = { a: this, t: G.t };
           g.copy(p.pos);
@@ -552,7 +607,7 @@
     nearestSpawn() {
       let best = null,
         bd = 1e9;
-      for (const s of CTF.SPAWNS[this.team]) {
+      for (const s of this.G.spawnList(this.team)) {
         const d = Math.hypot(s[0] - this.pos.x, s[2] - this.pos.z);
         if (d < bd) {
           bd = d;
@@ -560,6 +615,37 @@
         }
       }
       return new V3(best[0], best[1], best[2]);
+    }
+    /** oddball: where the skull carrier holds out. Every few seconds (sooner if someone shows up near
+        it) it picks the spawn point furthest from the enemies the team knows about, near teammates and
+        not too far to reach */
+    holdSpot() {
+      const G = this.G;
+      if (this.holdPt && (G.t < this.holdUntil || G.t - this.holdAt < 1.5)) {
+        /* someone close to where it is holding: move on (at most every 1.5 s) */
+        if (G.t - this.holdAt < 1.5 || !this.nearestThreat(this.holdPt, 12)) return;
+      }
+      this.holdAt = G.t;
+      const mem = [...this.brain().enemyMem.values()].filter(m => G.t - m.t < 6);
+      let best = null,
+        bs = -1e9;
+      for (const s of holdSpots()) {
+        const p = _t.set(s[0], s[1], s[2]);
+        let near = 40;
+        for (const m of mem) near = Math.min(near, m.pos.distanceTo(p));
+        let mates = 0;
+        for (const a of G.teams[this.team].agents)
+          if (a !== this && a.alive && a.pos.distanceTo(p) < 12) mates++;
+        const sc = near + mates * 4 - this.pos.distanceTo(p) * 0.35 + (p.y > 1.5 ? 3 : 0);
+        if (sc > bs) {
+          bs = sc;
+          best = s;
+        }
+      }
+      this.holdPt = this.holdPt || new V3();
+      if (best) this.holdPt.set(best[0], best[1], best[2]);
+      else this.holdPt.copy(this.pos);
+      this.holdUntil = G.t + 5 + K.rand() * 3;
     }
     nearestThreat(p, r) {
       let best = null,
@@ -700,6 +786,19 @@
           } else wish.copy(toT).multiplyScalar(push).addScaledVector(side, 0.95);
           if (this.fallback && dir) {
             wish.copy(dir).addScaledVector(side, 0.5);
+          }
+          /* carrying the flag or the skull: no guns, but up close the melee kills in one hit */
+          if (this.carrying && range < 5) wish.copy(toT).addScaledVector(side, 0.2);
+          /* hunting a carrier who can't shoot back (and, with the flag, can't run): close in fast,
+             thrust in and finish with the melee */
+          if (tgt.carrying && !this.carrying && this.role !== "skull") {
+            if (range > 14) {
+              wish.copy(toT).addScaledVector(side, 0.25);
+              inp.sprint = true;
+            } else if (range < 7 && range > 2.5 && b.thrustCD <= 0 && K.rand() < dt * 3 * S.dodge) {
+              inp.thrust = true;
+              wish.copy(toT);
+            }
           }
           inp.aim = (range > 8 || this.sniper > 0) && !this.carrying && !this.mustMove && b.ground;
           /* the same move speed while aiming as a player with that optic */
@@ -862,6 +961,11 @@
         const plan = this.nadePlan();
         if (plan) this.throwNade(plan.type, plan.at);
       }
+      /* the flag carrier never sprints or thrusts: either would let the flag go */
+      if (this.carrying && this.carrying !== G.ball) {
+        inp.sprint = false;
+        inp.thrust = false;
+      }
       b.speedMul = 1;
       return inp;
     }
@@ -961,7 +1065,7 @@
         },
         onExplode: (c, type, stuck) => {
           const w = type === "plasma" ? "stick" : type === "pulse" ? "pulse" : "frag";
-          for (const e of G.ff ? G.agents : G.teams[1 - me.team].agents) {
+          for (const e of G.ff ? G.agents : G.foes(me.team)) {
             if (!e.alive) continue;
             const ch = e.body.pos.clone();
             ch.y += e.body.h * 0.6;
@@ -1058,9 +1162,7 @@
         team: me.team,
         targets: () => me.hitList().map(e => ({ ref: e, pos: e.body.pos, h: e.body.h })),
         onExplode: (c, direct) => {
-          const list = G.ff
-            ? G.agents.filter(a => a.alive)
-            : G.teams[1 - me.team].agents.filter(a => a.alive);
+          const list = G.ff ? G.agents.filter(a => a.alive) : G.foes(me.team).filter(a => a.alive);
           for (const e of list) {
             const ch = e.body.pos.clone();
             ch.y += e.body.h * 0.5;
@@ -1127,7 +1229,7 @@
         out = this._hits || (this._hits = []);
       out.length = 0;
       /* (reused each call: callers read it straight away) */
-      for (const a of G.ff ? G.agents : G.teams[1 - this.team].agents) if (a !== this && a.alive) out.push(a);
+      for (const a of G.ff ? G.agents : G.foes(this.team)) if (a !== this && a.alive) out.push(a);
       return out;
     }
     /** with friendly fire on, hold fire while a teammate is in the line of fire */
@@ -1218,7 +1320,7 @@
           .clone()
           .addScaledVector(d, 0.7)
           .add(_v.set(Math.cos(b.yaw) * 0.18, -0.28, -Math.sin(b.yaw) * 0.18));
-        K.tracer(mz, end, CTF.TEAM_INT[this.team]);
+        K.tracer(mz, end, CTF.teamInt(this.team));
         if (best) K.spark(end, 2, best.e.body.shield > 0 ? 0xffd36b : 0xff7a6a);
         else if (wt < 90) K.spark(end);
         K.sfx(W.snd, K.distVol(eye, 55) * 0.7);
@@ -1261,7 +1363,7 @@
         }
         if (G.render && p < 5) {
           const end = eye.clone().addScaledVector(d, best ? best.h.t : Math.min(wt, W.range));
-          K.tracer(eye.clone().addScaledVector(d, 0.7), end, CTF.TEAM_INT[this.team]);
+          K.tracer(eye.clone().addScaledVector(d, 0.7), end, CTF.teamInt(this.team));
           if (best) K.spark(end, 2, best.e.body.shield > 0 ? 0xffd36b : 0xff7a6a);
         }
         if (best) hits.set(best.e, (hits.get(best.e) || 0) + W.body * K.falloffAt(W, best.h.t));
@@ -1283,7 +1385,7 @@
     onEvent(type, d) {
       const G = this.G;
       if (type === "slam") {
-        for (const e of G.teams[1 - this.team].agents) {
+        for (const e of G.foes(this.team)) {
           if (!e.alive) continue;
           const dd = e.body.pos.distanceTo(d.pos);
           if (dd < 5) {
@@ -1302,7 +1404,9 @@
         const r = type === "charge" ? 1.8 : 2.3;
         const f = this.body.fwd();
         let landed = false;
-        for (const e of G.teams[1 - this.team].agents) {
+        /* swinging the flag or the skull: a one-hit kill (and the kill is credited to it) */
+        const held = type === "melee" && this.carrying ? (this.carrying === G.ball ? "skull" : "flag") : "";
+        for (const e of G.foes(this.team)) {
           if (!e.alive) continue;
           const dx = e.body.pos.x - this.pos.x,
             dz = e.body.pos.z - this.pos.z,
@@ -1313,8 +1417,9 @@
             (dx * f.x + dz * f.z) / Math.max(dist, 0.01) > 0.4
           ) {
             /* the melee rule (data/weapons.js); the charge keeps its own numbers */
-            const dmg =
-              type === "charge"
+            const dmg = held
+              ? 999
+              : type === "charge"
                 ? e.body.shield <= 0
                   ? 999
                   : 85
@@ -1322,9 +1427,10 @@
                     e.body.shield,
                     K.meleeBehind(this.pos.x, this.pos.z, e.body.pos.x, e.body.pos.z, e.body.yaw)
                   );
-            const sh = e.body.shield;
-            if (e.human) G.hurtHuman(e, dmg, { name: this.name, agent: this, w: type });
-            else e.onHit(dmg, type, false, this);
+            const sh = e.body.shield,
+              w = held || type;
+            if (e.human) G.hurtHuman(e, dmg, { name: this.name, agent: this, w });
+            else e.onHit(dmg, w, false, this);
             /* the impact, heard by everyone near (K.meleeFx sends it to the room) */
             if (G.render) {
               const M = K.MFX;

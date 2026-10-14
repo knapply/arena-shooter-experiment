@@ -910,11 +910,11 @@ const podSeats = map => {
     await B.click("#p2pJoin");
     await B.waitForTimeout(1200);
     check(/Connected/.test(await text(B, "#p2pMsg")), "friend joins with the code");
-    await A.click("#ctfPlay");
+    await A.click("#play");
     await A.waitForTimeout(2500);
-    check(/hosting/.test(await text(B, "#ctfNet")), "friend sees the CTF match", await text(B, "#ctfNet"));
+    check(/hosting/.test(await text(B, "#lobby")), "friend sees the CTF match", await text(B, "#lobby"));
     await B.click("#ctfBlue");
-    await B.click("#ctfPlay");
+    await B.click("#play");
     await B.waitForTimeout(3500);
     const ra = await roster(A),
       rb = await roster(B);
@@ -1320,7 +1320,7 @@ const podSeats = map => {
       const C = await open(ctx, { tag: "killcam-ctf" });
       pages.push(C);
       await C.waitForTimeout(600);
-      await C.click("#ctfPlay");
+      await C.click("#play");
       await C.waitForTimeout(3000);
       await C.evaluate(watch);
       let ck = null;
@@ -1348,7 +1348,7 @@ const podSeats = map => {
     const S = await open(ctx, { tag: "S" });
     pages.push(S);
     await S.waitForTimeout(600);
-    await S.click("#ctfSim");
+    await S.click("#watchAI");
     await S.waitForTimeout(2500);
     check(/\d:\d\d/.test((await text(S, "#cClock")) || ""), "AI vs AI runs", await text(S, "#cClock"));
     /* spectating: big moments cut in slow motion; the tactical camera turns and zooms */
@@ -1583,7 +1583,7 @@ const podSeats = map => {
     pages.push(C2);
     await C2.waitForTimeout(600);
     await C2.evaluate(() => Object.assign(KA.SET, { intros: false, dropIn: true }));
-    await C2.click("#ctfPlay");
+    await C2.click("#play");
     await C2.waitForTimeout(500);
     const ctfDrop = await C2.evaluate(() => {
       const g = CTF.UI.game();

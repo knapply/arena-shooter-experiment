@@ -10,10 +10,29 @@
   CTF.TEAM_NAMES = ["Red", "Blue"];
   CTF.TEAM_HEX = ["#ff6a5c", "#5aa9ff"];
   CTF.TEAM_INT = [0xff6a5c, 0x5aa9ff];
+  /* free-for-all: every pilot is a team of one with a color of their own (the first two are the teams') */
+  const PALETTE = [
+    "#ff6a5c",
+    "#5aa9ff",
+    "#7ddc6a",
+    "#ffc94a",
+    "#c48bff",
+    "#4fe0d2",
+    "#ff8fc8",
+    "#e2e8ec",
+    "#ff9a3c",
+    "#9fb4ff",
+    "#b8e04a",
+    "#ff5fa0",
+  ];
+  /** a team's color (any team index: in free-for-all every pilot is a team) */
+  CTF.teamHex = t => PALETTE[(t | 0) % PALETTE.length];
+  CTF.teamInt = t => parseInt(CTF.teamHex(t).slice(1), 16);
+  /** the armor color of a team's k-th pilot: shades of the team color for red and blue */
+  CTF.rigColor = (t, k) => (t < 2 ? CTF.TEAM_COLORS[t][k % 4] : CTF.teamHex(t));
   /* everything about a map's layout comes from its data document (data/maps.js). CTF.useMap(id) picks
-     the map the next match is built on: Twin Foundry (flags, team spawns, lanes) for capture the flag,
-     or the arena (no flags: both teams use its free-for-all spawns, kept apart by spawn safety) for the
-     team deathmatch simulations. Everything below reads CTF.MAP, so it follows the choice. */
+     the map the next match is built on: Twin Foundry (flags, team spawns, lanes) or the arena (team
+     spawns on opposite halves, no flags). Everything below reads CTF.MAP, so it follows the choice. */
   CTF.useMap = function (id, mods) {
     /* lab map mods (data/maps.js MAP_MODS) make their own document, with its own id */
     const doc = K.mapDoc(id, mods);
@@ -21,10 +40,16 @@
     if (CTF.MAP === doc) return;
     if (CTF.MAP && CTF.MAP !== doc) CTF.exitMap();
     CTF.MAP = doc;
+    /** the map's MAPS key (for the event stream) */
+    CTF.MAP_KEY = id;
     CTF.FLAG_HOME = (doc.flags || []).map(p => new T.Vector3(p[0], p[1], p[2]));
     CTF.SPAWNS = doc.spawns.teams
       ? doc.spawns.teams.map(t => t.map(p => p.slice()))
       : [0, 1].map(() => doc.spawns.ffa.map(p => p.slice()));
+    /* free-for-all: the map's free-for-all spawns, or both teams' */
+    CTF.FFA_SPAWNS = doc.spawns.ffa ? doc.spawns.ffa.map(p => p.slice()) : CTF.SPAWNS.flat();
+    /* oddball: where the skull comes down (the map's ball point, else the middle) */
+    CTF.BALL_HOME = new T.Vector3(...(doc.ball || [0, 0, 0]));
     /* the opening drop's spots for a team's n AI pilots (the last of its spawns; on a map without team
        spawns the two teams take alternate ones), so no two pods come down on one spot; the players
        pick from the rest */
@@ -64,6 +89,8 @@
     return (BUILT[id] = { group: g, solids, arena: null });
   };
   CTF.enterMap = function () {
+    /* pings and the kill feed name places from this map's callout zones */
+    if (K.setPlayMap) K.setPlayMap(CTF.MAP);
     const m = CTF.buildMap();
     if (m.home) {
       /* the arena: nothing to swap, but the AI's grid follows its destruction */
@@ -89,6 +116,7 @@
     m.group.visible = true;
   };
   CTF.exitMap = function () {
+    if (K.setPlayMap) K.setPlayMap(null);
     const m = BUILT[CTF.MAP.id];
     K.GATES.onNav = null;
     if (m && m.home) {

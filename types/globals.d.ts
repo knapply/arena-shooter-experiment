@@ -5,7 +5,9 @@
 declare const THREE: any;
 
 /** Element lookup by id: the game's markup uses inputs, selects, buttons, text areas and the canvas. */
-type El = HTMLInputElement & Pick<HTMLSelectElement, "selectedIndex" | "options"> & Pick<HTMLCanvasElement, "getContext" | "toDataURL">;
+type El = HTMLInputElement &
+  Pick<HTMLSelectElement, "selectedIndex" | "options"> &
+  Pick<HTMLCanvasElement, "getContext" | "toDataURL">;
 
 /** Presence room provided by the host page (peer-to-peer transport or an embedding host). */
 interface PresencePeer {
@@ -19,7 +21,15 @@ interface PresencePeer {
 interface PresenceRoom {
   presence(patch: Record<string, any>): Promise<void>;
   peers(): PresencePeer[];
-  onPeers(cb: (change: { peers: PresencePeer[]; joined: PresencePeer[]; left: PresencePeer[]; updated: PresencePeer[] }) => void, onClose?: () => void): () => void;
+  onPeers(
+    cb: (change: {
+      peers: PresencePeer[];
+      joined: PresencePeer[];
+      left: PresencePeer[];
+      updated: PresencePeer[];
+    }) => void,
+    onClose?: () => void
+  ): () => void;
   connected(): boolean;
   onConnection(cb: (connected: boolean) => void): () => void;
   join(name: string): Promise<PresenceRoom>;
@@ -30,7 +40,19 @@ interface PresenceRoom {
   fast?(buf: ArrayBuffer, to?: string): void;
   onFast?(cb: (from: string, buf: ArrayBuffer) => void): () => void;
 }
-interface NetLinkStats { peer: string; name: string; fast?: boolean; rtt: number; jitter: number; loss: number; inBps: number; outBps: number; inMsgs: number; outMsgs: number; age: number }
+interface NetLinkStats {
+  peer: string;
+  name: string;
+  fast?: boolean;
+  rtt: number;
+  jitter: number;
+  loss: number;
+  inBps: number;
+  outBps: number;
+  inMsgs: number;
+  outMsgs: number;
+  age: number;
+}
 interface NetStats {
   role: "offline" | "host" | "client";
   code: string | null;
@@ -48,7 +70,13 @@ interface NetStats {
 interface HostServices {
   /** network protocol version the game speaks; set by the game, read by the transport during the join handshake */
   protocol?: number;
-  net?: { stats(): NetStats; sim: { latency: number; jitter: number; loss: number }; setSim(o: Partial<{ latency: number; jitter: number; loss: number }>): void; handover?(to?: string): boolean; hub?(): { me: boolean; id: string | null } };
+  net?: {
+    stats(): NetStats;
+    sim: { latency: number; jitter: number; loss: number };
+    setSim(o: Partial<{ latency: number; jitter: number; loss: number }>): void;
+    handover?(to?: string): boolean;
+    hub?(): { me: boolean; id: string | null };
+  };
   use(name: "room"): Promise<PresenceRoom | null>;
   use(name: "downloads"): Promise<{ save(o: { filename: string; data: string }): Promise<void> } | null>;
   use(name: string): Promise<any>;
@@ -56,7 +84,14 @@ interface HostServices {
 
 /** Members modes attach to KA after the engine loads. */
 interface KAExtensions {
-  trailerScore: { score(ctx: BaseAudioContext, out: AudioNode, t0: number): number; stop(): void; BPM: number; BEAT: number; BAR: number; LENGTH: number };
+  trailerScore: {
+    score(ctx: BaseAudioContext, out: AudioNode, t0: number): number;
+    stop(): void;
+    BPM: number;
+    BEAT: number;
+    BAR: number;
+    LENGTH: number;
+  };
   trailer: {
     active: boolean;
     recording: boolean;
@@ -94,7 +129,10 @@ interface NetApi {
   send(extra: Record<string, any>): void;
   myPeer(): string | null;
   ctfPeers(): PresencePeer[];
-  liveHost(): { peer: string; name: string; mid: string; players: number } | null;
+  liveHost(): { peer: string; name: string; mid: string; players: number; mode: string; map: string } | null;
+  /** a host snapshot's mode and map, checked against what can be played */
+  modeOf(H: any): string;
+  mapOf(H: any, mode: string): string;
   okId(id: unknown): boolean;
   bitsOf(body: any, o: { reload?: boolean; fire?: boolean; wpn?: number; carry?: boolean }): number;
   applyBits(body: any, bits: number): void;

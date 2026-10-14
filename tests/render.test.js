@@ -104,7 +104,7 @@ const stats = async p => {
         /* (nobody can take you out before the freeze) */
         KA.CON.run("god on");
       });
-      await q.click("#ctfPlay");
+      await q.click("#play");
       const landed = await q.evaluate(async () => {
         /* the opening pods down and you out of yours (a pilot taken out meanwhile may already be
            falling again in a respawn pod, so count landed pods rather than wait for every pod) */

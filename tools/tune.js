@@ -17,6 +17,12 @@
      DIFF=recruit node tools/tune.js            the even matches use this difficulty (default normal)
      MAP=arena node tools/tune.js               team deathmatch on the arena instead of capture the flag
                                                  on Twin Foundry (the arena's own combat, 4 v 4)
+     MODE=ffa MAP=arena node tools/tune.js      the rules to play: ctf, slayer, ffa (eight pilots, every
+                                                 one for themselves; the skill match alternates the two
+                                                 levels, so "skill" is the better half's share of kills)
+                                                 or oddball (also reports the better team's share of the
+                                                 time holding the skull). Default: ctf on a map with
+                                                 flags, slayer otherwise
      PAIR=normal,recruit node tools/tune.js     the skill matches' better and worse levels
                                                  (default legendary,normal)
      TEAM=1 MAP=arena node tools/tune.js        pilots per team (1 on the arena: one-on-one duels, the
@@ -43,8 +49,10 @@ const SEED = +(process.env.SEED || 100),
   MATCHES = +(process.env.MATCHES || 4),
   MINUTES = +(process.env.MINUTES || 3),
   EVEN = process.env.DIFF || "normal",
-  /* the map (and with it the mode): ctf (capture the flag on Twin Foundry) or arena (team deathmatch) */
+  /* the map: ctf (Twin Foundry) or arena */
   MAPID = process.env.MAP || "ctf",
+  /* the rules: ctf, slayer, ffa or oddball (default: capture the flag where the map has flags) */
+  RULES = process.env.MODE || (MAPID === "arena" ? "slayer" : "ctf"),
   /* the skill matches: the better level first */
   PAIR = (process.env.PAIR || "legendary,normal").split(","),
   TEAM = +(process.env.TEAM || 4);
@@ -177,7 +185,8 @@ function resetAll() {
 /** one match: returns kills by team, captures, times to kill and grenade outcomes */
 function match(diff, seed, lock) {
   K.STORE.setBackend(K.STORE.memoryBackend());
-  /* team deathmatch plays the full time (a score limit would end matches at different lengths) */
+  /* everything but capture the flag plays the full time (a score limit would end matches at different
+     lengths) */
   const G = CTF.Game({
     mode: "sim",
     render: false,
@@ -185,9 +194,12 @@ function match(diff, seed, lock) {
     diff,
     lock,
     map: MAPID,
-    scoreLimit: MAPID === "arena" ? 1e9 : 0,
+    rules: RULES,
+    scoreLimit: RULES === "ctf" ? 0 : 1e9,
     perTeam: TEAM,
   });
+  /* free-for-all: the two skill levels alternate between pilots, so "team" below is the pilot's half */
+  const side = a => (G.ffa ? a.team % 2 : a.team);
   const out = {
     k: [0, 0],
     cap: [0, 0],
@@ -204,6 +216,9 @@ function match(diff, seed, lock) {
     grabs: 0,
     ttc: [],
     lanes: [0, 0, 0],
+    /* oddball: seconds each side held the skull, and how often it changed hands */
+    hold: [0, 0],
+    turns: 0,
   };
   const takenAt = new Map();
   G.onEvent = (t, d) => {
@@ -214,10 +229,10 @@ function match(diff, seed, lock) {
       const w = d.type || "?";
       if (k && k.team !== v.team) {
         out.wk[w] = (out.wk[w] || 0) + 1;
-        if (k.team === 0) out.wk0[w] = (out.wk0[w] || 0) + 1;
+        if (side(k) === 0) out.wk0[w] = (out.wk0[w] || 0) + 1;
       }
       if (v.__sp != null && G.t - v.__sp < 3) out.spawnDeaths++;
-      if (k && k.team !== v.team) out.k[k.team]++;
+      if (k && k.team !== v.team) out.k[side(k)]++;
       if (k && k.team === v.team) out.team++;
       if (/frag|stick|plasma|nade/.test(d.type || "")) {
         out.nadeKills++;
@@ -235,6 +250,7 @@ function match(diff, seed, lock) {
       if (!takenAt.has(d.flag) && d.flag.pos.distanceTo(CTF.FLAG_HOME[d.flag.team]) < 2)
         takenAt.set(d.flag, G.t);
     } else if (t === "flagReset" || t === "flagReturn") takenAt.delete(d.flag);
+    else if (t === "ballTaken") out.turns++;
   };
   G.start();
   for (const a of G.agents) {
@@ -265,6 +281,7 @@ function match(diff, seed, lock) {
   }
   /* minutes actually played (a capture limit can end a match early) */
   out.min = G.t / 60;
+  if (G.ball) out.hold = [G.teams[0].held, G.teams[1].held];
   return out;
 }
 
@@ -323,7 +340,7 @@ function main() {
   const nWorkers = Math.max(1, Math.min(jobs.length, +(process.env.JOBS || os.availableParallelism())));
   const t0 = Date.now();
   console.log(
-    `${variants.length} variants x ${MATCHES * 2} matches (${MINUTES} min each, ${MAPID}, ${TEAM} v ${TEAM}), seed ${SEED}, ${nWorkers} workers` +
+    `${variants.length} variants x ${MATCHES * 2} matches (${MINUTES} min each, ${RULES} on ${MAPID}, ${TEAM} v ${TEAM}), seed ${SEED}, ${nWorkers} workers` +
       (locks.length ? `, lock ${locks.join(",")}` : "")
   );
   const base = new Map(); /* lock → baseline result */
@@ -392,6 +409,7 @@ function main() {
           DIFF: EVEN,
           PAIR,
           MAP: MAPID,
+          MODE: RULES,
           TEAM,
         },
         null,
@@ -429,6 +447,8 @@ const extra = r => ({
   wSkill: r.wSkill,
   spawnDeaths: r.spawnDeaths,
   caps: r.capsPerMatch,
+  hold: r.holdSkill,
+  turns: r.turnsPerMatch,
   ttc: r.ttc,
   lanes: r.lanes,
 });
@@ -438,6 +458,9 @@ function summarize(vr) {
     kN = 0,
     capL = 0,
     capN = 0,
+    holdL = 0,
+    holdN = 0,
+    turns = 0,
     ttk = [],
     nk = 0,
     self = 0,
@@ -464,6 +487,8 @@ function summarize(vr) {
       kN += r.k[1 - L];
       capL += r.cap[L];
       capN += r.cap[1 - L];
+      holdL += (r.hold || [0, 0])[L];
+      holdN += (r.hold || [0, 0])[1 - L];
       add(swk, r.wk);
       /* r.wk0 counts team 0's kills; the better team is team L */
       for (const [w, n] of Object.entries(r.wk || {})) {
@@ -478,6 +503,7 @@ function summarize(vr) {
       spawnDeaths += r.spawnDeaths || 0;
       caps += r.cap[0] + r.cap[1];
       grabs += r.grabs || 0;
+      turns += r.turns || 0;
       ttc.push(...(r.ttc || []));
       ttk = ttk.concat(r.ttk);
       nk += r.nadeKills;
@@ -491,6 +517,9 @@ function summarize(vr) {
     /* the share of kills the better team gets: higher means skill shows more */
     skill: +(kL / Math.max(1, kL + kN)).toFixed(3),
     capGap: capL - capN,
+    /* oddball: the better team's share of the time holding the skull, and changes of hands a match */
+    holdSkill: holdL + holdN ? +(holdL / (holdL + holdN)).toFixed(3) : null,
+    turnsPerMatch: +(turns / Math.max(1, nEven)).toFixed(1),
     /* for everyone: the median time from first hit to the kill, and grenade outcomes */
     ttk: +median(ttk).toFixed(2),
     kpm: +(kills / Math.max(0.01, minutes)).toFixed(1),

@@ -183,10 +183,10 @@ function analyze(truth, seen) {
       await B.fill("#p2pCode", await text(A, "#p2pCodeShow"));
       await B.click("#p2pJoin");
       await B.waitForTimeout(2500);
-      await A.click("#ctfPlay");
+      await A.click("#play");
       await A.waitForTimeout(2500);
       await B.click("#ctfBlue");
-      await B.click("#ctfPlay");
+      await B.click("#play");
       await B.waitForTimeout(4000);
       /* the host drives one enemy AI along a known path (in the open, in front of where the client
          will stand); the client records where it draws it */
@@ -368,11 +368,11 @@ function analyze(truth, seen) {
         await p.click("#p2pJoin");
       }
       await A.waitForTimeout(2500);
-      await A.click("#ctfPlay");
+      await A.click("#play");
       await A.waitForTimeout(2500);
       await B.click("#ctfBlue");
-      await B.click("#ctfPlay");
-      await C.click("#ctfPlay");
+      await B.click("#play");
+      await C.click("#play");
       await C.waitForTimeout(3500);
       await A.evaluate(() => (CTF.UI.game().teams[0].score = 2));
       await A.waitForTimeout(800);

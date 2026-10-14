@@ -1,4 +1,5 @@
-/* Headless CTF: two full AI-vs-AI matches with destruction and the sniper pickup. */
+/* Headless matches: capture the flag (two full AI-vs-AI matches with destruction and the sniper pickup),
+   then every other mode on every map it plays on, each replayed from its seed. */
 const { check, finish } = require("./lib/check.js");
 const CTF = require("./lib/headless.js");
 const K = window.KA;
@@ -244,5 +245,61 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
   check(r1.inside === 0, "no pilot is ever inside a raised gate", r1.inside);
   check(r1.crossed > 0, "the AI goes through the mid gate while it is open", r1.crossed);
   K.gatesAt(0, false);
+}
+/* every mode on every map it plays on: a full match headless that ends with a winner, and the same
+   seed replaying the same match */
+{
+  const MODES = [
+    ["slayer", "arena"],
+    ["slayer", "ctf"],
+    ["ffa", "arena"],
+    ["ffa", "ctf"],
+    ["oddball", "arena"],
+    ["oddball", "ctf"],
+  ];
+  const play = (rules, map, seed, cap) => {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const G = CTF.Game({ mode: "sim", render: false, seed, rules, map });
+    const ev = {},
+      log = [];
+    G.onEvent = (t, d) => {
+      ev[t] = (ev[t] || 0) + 1;
+      /* pilots by team and slot (ids count up across matches) */
+      const who = a => (a ? a.team + "." + a.idx : "-");
+      if (t === "kill") log.push([G.t.toFixed(3), who(d.killer), who(d.victim), d.type]);
+      if (t === "ballTaken") log.push([G.t.toFixed(3), "ball", who(d.by)]);
+    };
+    G.start();
+    for (let n = 0; n < cap * 30 && !G.over; n++) G.step(1 / 30);
+    return {
+      G,
+      ev,
+      sig: JSON.stringify([
+        log,
+        G.teams.map(t => [t.score, +t.held.toFixed(3)]),
+        G.agents.map(a => a.body.pos.toArray().map(v => v.toFixed(4))),
+      ]),
+    };
+  };
+  for (const [rules, map] of MODES) {
+    const t0 = Date.now();
+    const r = play(rules, map, 21, 900);
+    const G = r.G;
+    const scores = G.teams.map(t => (G.ball ? Math.round(t.held) : t.score));
+    check(
+      G.over && (G.winner >= 0 || G.t >= G.timeLimit - 0.1) && (r.ev.kill || 0) > 20,
+      `${rules} on ${map} plays a whole match headless`,
+      `winner ${G.winner}, ${scores.join("-")} in ${G.t | 0}s, ${r.ev.kill} kills, ${Date.now() - t0}ms`
+    );
+    if (G.ball)
+      check(
+        (r.ev.ballTaken || 0) >= 2 && (r.ev.ballPod || 0) >= 1,
+        `${rules} on ${map}: the skull comes down by pod and changes hands`,
+        { taken: r.ev.ballTaken, pods: r.ev.ballPod, drops: r.ev.ballDrop }
+      );
+    const a = play(rules, map, 31, 60),
+      b = play(rules, map, 31, 60);
+    check(a.sig === b.sig, `${rules} on ${map}: the same seed replays the same match`, a.sig.length);
+  }
 }
 finish("sim");

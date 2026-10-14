@@ -164,16 +164,14 @@
     K.STORE.remove("ctfBrain");
   };
 
-  /* ---------- zone names for callouts (team-relative) ---------- */
+  CTF.freshModel = freshModel;
+  /* ---------- zone names for callouts: the map's zones (data/maps.js), "our" / "their" to a team ---------- */
   CTF.zoneName = function (team, p) {
-    const z = team === 0 ? p.z : -p.z;
-    const lane = CTF.relLane(team, p.x);
-    if (z < -34) return p.y > 1.8 ? "our flag stand" : "our base";
-    if (z > 34) return p.y > 1.8 ? "their flag stand" : "their base";
-    if (Math.abs(z) < 6 && lane === 1) return p.y > 2.5 ? "top of mid" : "under mid";
-    const side = z < 0 ? "our " : "their ";
-    if (lane !== 1 && Math.abs(p.x) > 22 && p.y > 2) return CTF.LANE_NAMES[lane] + " catwalk";
-    return side + CTF.LANE_NAMES[lane];
+    const z = K.zoneLabel(CTF.MAP, p, team);
+    if (z) return z;
+    /* outside every zone (or a map without them): which half, from the team's side */
+    const zz = team === 0 ? p.z : team === 1 ? -p.z : 0;
+    return zz < -4 ? "our side" : zz > 4 ? "their side" : "the middle";
   };
 
   /* ---------- TeamBrain ---------- */
@@ -218,6 +216,12 @@
     }
     /* Thompson sampling over (my strategy | their observed strategy) */
     chooseStrategy(G, why) {
+      /* plans are about flags: the other modes give roles from the situation alone (assign) */
+      if (G.rules && G.rules !== "ctf") {
+        this.segStart = G.t;
+        this.plan.staging = false;
+        return this.plan.strat;
+      }
       const theirs = this.enemyStratGuess;
       let best = null,
         bv = -1;
@@ -339,7 +343,8 @@
     }
     /* ---------- comms ---------- */
     say(G, from, type, text, force) {
-      if (!from) return;
+      /* no team chat in free-for-all: every pilot is on their own */
+      if (!from || G.ffa) return;
       const key = from.id + type;
       const last = this.lastSay.get(key) || -99;
       if (!force && G.t - last < 4) return;
@@ -385,6 +390,8 @@
       for (const [id, m] of this.enemyMem) if (G.t - m.t > 8) this.enemyMem.delete(id);
       if (this.focus && (G.t - this.focusT > 3 || this.focus.dead)) this.focus = null;
       this.obsT -= dt;
+      /* reading the other team's plan is about capture the flag */
+      if (this.obsT <= 0 && G.rules && G.rules !== "ctf") this.obsT = 1e9;
       if (this.obsT <= 0) {
         this.obsT = 3;
         const prev = this.enemyStratGuess;
@@ -407,6 +414,7 @@
         them = 1 - me;
       const team = G.teams[me].agents;
       const bots = team.filter(a => !a.human);
+      if (G.ball) return this.assignBall(G, bots);
       /* team deathmatch: no flags to carry or defend, everyone hunts */
       if (G.tdm) {
         for (const a of bots) {
@@ -483,6 +491,44 @@
           else if (r === "escort")
             this.say(G, a, "escort", `Escorting ${theirFlag.carrier ? theirFlag.carrier.name : "carrier"}`);
           else if (r === "return") this.say(G, a, "ret", "Going for our flag");
+        }
+        a.role = r;
+      }
+      this.roles = roles;
+    }
+    /* oddball: the carrier holds somewhere safe with up to two escorts, the rest hunt nearby; when they
+       have the skull everyone hunts its carrier; when it is loose the two nearest go for it */
+    assignBall(G, bots) {
+      const B = G.ball,
+        roles = new Map(),
+        free = new Set(bots);
+      const take = (role, n) => {
+        const arr = [...free].sort(
+          (a, b) => (a.dead ? 999 : a.pos.distanceTo(B.pos)) - (b.dead ? 999 : b.pos.distanceTo(B.pos))
+        );
+        for (let i = 0; i < n && i < arr.length; i++) {
+          roles.set(arr[i], role);
+          free.delete(arr[i]);
+        }
+      };
+      const c = B.state === "carried" ? B.carrier : null;
+      if (c && c.team === this.team) {
+        if (!c.human) {
+          roles.set(c, "skull");
+          free.delete(c);
+        }
+        take("escort", Math.min(2, free.size));
+      } else if (c) take("chase", free.size);
+      else take("grab", 2);
+      for (const a of free) roles.set(a, "hunt");
+      for (const [a, r] of roles) {
+        const old = this.roles.get(a);
+        if (old !== r) {
+          a.roleSince = G.t;
+          a.path = null;
+          if (r === "chase" && old !== "chase") this.say(G, a, "chase", `On ${c ? c.name : "their carrier"}`);
+          else if (r === "escort" && c) this.say(G, a, "escort", `Covering ${c.name}`);
+          else if (r === "grab") this.say(G, a, "grab", "Going for the skull");
         }
         a.role = r;
       }

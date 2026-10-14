@@ -16,16 +16,19 @@ const STAT_COLS = [
   { k: "medals", h: "Med", title: "Medals" },
   { k: "spree", h: "Spree", title: "Current spree" },
   { k: "power", h: "Power", title: "Power weapon held", f: v => (v ? capWord(v) : "") },
-  { k: "caps", h: "Caps", title: "Flag captures", team: true },
-  { k: "rets", h: "Ret", title: "Flag returns", team: true },
-  { k: "carries", h: "Carry", title: "Flag carries", team: true },
-  { k: "flagT", h: "Flag", title: "Time carrying the flag", team: true, f: fmtTime },
+  { k: "caps", h: "Caps", title: "Flag captures", team: true, mode: "ctf" },
+  { k: "rets", h: "Ret", title: "Flag returns", team: true, mode: "ctf" },
+  { k: "carries", h: "Carry", title: "Flag carries", team: true, mode: "ctf" },
+  { k: "flagT", h: "Flag", title: "Time carrying the flag", team: true, mode: "ctf", f: fmtTime },
+  { k: "ballT", h: "Skull", title: "Time holding the skull", team: true, mode: "oddball", f: fmtTime },
 ];
-const SUM_KEYS = ["k", "d", "a", "dmg", "hs", "medals", "caps", "rets", "carries", "flagT"];
+const SUM_KEYS = ["k", "d", "a", "dmg", "hs", "medals", "caps", "rets", "carries", "flagT", "ballT"];
 /** build the stats table into `box`; onSort re-renders after a header is chosen */
 function statsTable(box, rows, onSort) {
   const teams = rows.some(r => r.team >= 0);
-  const cols = STAT_COLS.filter(c => !c.team || teams);
+  /* objective columns only in their own mode (the event stream knows which one is playing) */
+  const md = String(EVENTS.context().mode || "").replace(/-spectate$/, "");
+  const cols = STAT_COLS.filter(c => (!c.team || teams) && (!c.mode || c.mode === md));
   const t = document.createElement("table");
   t.className = "stats";
   const hr = document.createElement("tr");

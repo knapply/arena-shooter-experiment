@@ -69,6 +69,15 @@ const MEDAL = {
   kill: ["K", "Kill", "#7f939c"],
   airborne: ["A", "Airborne", "#62cdff"],
   perfect: ["✦", "Perfect", "#ffd36b"],
+  /* mode medals: the objective and the drop pods */
+  podkill: ["▼", "Pod kill", "#ffa040"],
+  carrier: ["K", "Carrier kill", "#7dde6a"],
+  denial: ["D", "Flag denial", "#7dde6a"],
+  flagkill: ["⚑", "Flag swing", "#ffd36b"],
+  skullkill: ["☠", "Skull kill", "#f2e6c9"],
+  capture: ["⚑", "Flag capture", "#ffb347"],
+  clutch: ["!", "Clutch return", "#62cdff"],
+  lasthold: ["☠", "Last-second hold", "#ffb347"],
 };
 function medal(key) {
   const m = MEDAL[key];
@@ -93,7 +102,8 @@ let streak = 0,
   lastKillT = -99,
   firstBlood = false,
   lastKiller = null;
-function onKill(type, head, victim, perfect) {
+/** e: the kill event (what the victim carried, whether it denied a capture) */
+function onKill(type, head, victim, perfect, e) {
   streak++;
   multi = now - lastKillT < 4.5 ? multi + 1 : 1;
   lastKillT = now;
@@ -113,7 +123,13 @@ function onKill(type, head, victim, perfect) {
   else if (type === "pound") ks.push("pound");
   else if (type === "charge") ks.push("charge");
   else if (type === "melee") ks.push("melee");
+  else if (type === "pod") ks.push("podkill");
+  else if (type === "flag") ks.push("flagkill");
+  else if (type === "skull") ks.push("skullkill");
   else if (head) ks.push("head");
+  /* stopping a carrier: a denial when they were nearly home with our flag */
+  if (e && e.denial) ks.push("denial");
+  else if (e && e.carried) ks.push("carrier");
   if (perfect) ks.push("perfect");
   if (!me.ground && type === "rifle") ks.push("airborne");
   if (lastKiller && victim === lastKiller) {
@@ -123,6 +139,10 @@ function onKill(type, head, victim, perfect) {
   if (!ks.length) ks.push("kill");
   ks.forEach((k, i) => setTimeout(() => medal(k), i * 160));
   const prio = [
+    "denial",
+    "skullkill",
+    "flagkill",
+    "podkill",
     "mass",
     "quad",
     "triple",
@@ -141,6 +161,7 @@ function onKill(type, head, victim, perfect) {
     "head",
     "melee",
     "airborne",
+    "carrier",
   ];
   const top = prio.find(p => ks.includes(p));
   if (top) {
@@ -151,5 +172,14 @@ function onKill(type, head, victim, perfect) {
 /* medals and sprees follow your kills, whichever mode or network path credited them */
 EVENTS.on("kill", e => {
   if (e.killer === "local" && e.victim !== "local")
-    onKill(e.weapon, e.head, e.victimName, perfectKill(e.victim));
+    onKill(e.weapon, e.head, e.victimName, perfectKill(e.victim), e);
 });
+/* objective medals: your capture, a return that saved a capture, holding the skull to the very end */
+function objMedal(key) {
+  medal(key);
+  sfx("stinger", 0.7);
+  setTimeout(() => say(MEDAL[key][1], true), 120);
+}
+EVENTS.on("capture", e => e.pilot === "local" && objMedal("capture"));
+EVENTS.on("flagReturn", e => e.pilot === "local" && e.clutch && objMedal("clutch"));
+EVENTS.on("matchEnd", e => e.lastHold && e.holder === "local" && objMedal("lasthold"));

@@ -10,9 +10,11 @@
      pickups()             weapon pickups on the map
      scores(tbody)         fill the scoreboard;   switchTeam()   the team-switch key
      exit()                leaving the mode: clean up everything it made
-   Free-for-all is the engine's own mode (the arena with drones and online players) and is
-   registered here; capture the flag, spectating and (in the trailer build) the trailer register themselves
-   from their modules. Settings come from data/modes.js. */
+   The practice arena is the engine's own mode (the arena with drones and online players dropping in)
+   and is registered here; the four match modes (capture the flag, Team Slayer, free-for-all and
+   oddball, in modes/ctf/modes.js), spectating and (in the trailer build) the trailer register
+   themselves from their modules. Numbers come from data/modes.js, with each match mode's rules
+   (score and time limits) editable in Settings → Modes (modeRules). */
 /** @type {Map<string, { id: string, name: string, settings?: any, start: (opts?: any) => void }>} */
 const MODE_DEFS = new Map();
 function defineMode(def) {
@@ -25,12 +27,25 @@ function startMode(id, opts) {
   d.start(opts || {});
 }
 const modeList = () => [...MODE_DEFS.values()].map(d => ({ id: d.id, name: d.name }));
+/** a match mode's rules as set in Settings → Modes: { scoreLimit, timeLimit (s), respawn, ballReset } */
+function modeRules(id) {
+  const P = PLAY_MODES.find(p => p.id === id) || PLAY_MODES[0],
+    D = MODE_DATA[P.data];
+  const n = (k, d) => (Number.isFinite(+SET[k]) ? +SET[k] : d);
+  const pre = { ctf: "ctf", slayer: "slayer", ffa: "ffa", oddball: "odd" }[P.id];
+  return {
+    scoreLimit: n(pre === "odd" ? "oddWin" : pre + "Score", D.scoreLimit),
+    timeLimit: n(pre + "Time", D.timeLimit / 60) * 60,
+    respawn: D.respawn,
+    ballReset: P.id === "oddball" ? n("oddReset", D.ballReset) : 0,
+  };
+}
 
 /* ---- free-for-all: first to the score limit, or the most kills when time runs out ---- */
 const FFA = { t0: 0, over: false, overT: 0, potg: false, post: false, top: null };
 defineMode({
-  id: "ffa",
-  name: MODE_DATA.ffa.name,
+  id: "practice",
+  name: "Practice arena",
   settings: MODE_DATA.ffa,
   start: () => $("deploy").click(),
 });
@@ -62,12 +77,12 @@ function ffaTick(dt) {
       FFA.post = true;
       const top = FFA.top;
       showPost({
-        mode: `${MODE_DATA.ffa.name} · ${MAPS.arena.name || "Arena"}`,
+        mode: `Practice arena · ${MAPS.arena.name || "Arena"}`,
         title: top.me ? "Victory" : `${top.name} wins`,
         color: top.me ? "#ffb347" : "",
         sub: `${top.k} kills · ${top.d} deaths`,
         again: ffaRestart,
-        change: () => postToMenu("ctfPlay"),
+        change: () => postToMenu("play"),
         leave: () => postToMenu("deploy"),
         auto: room ? 20 : 0,
       });

@@ -180,4 +180,54 @@ for (const key of ["arena", "ctf"]) {
     hit
   );
 }
+/* callout zones: map data names places, "our" / "their" to a team and "Red" / "Blue" to anyone else */
+{
+  const V = (x, y, z) => new K.THREE.Vector3(x, y, z);
+  const ctf = K.MAPS.ctf,
+    arena = K.MAPS.arena;
+  check(
+    K.zoneLabel(ctf, V(0, 2.4, -43), 0) === "our flag stand" &&
+      K.zoneLabel(ctf, V(0, 2.4, -43), 1) === "their flag stand" &&
+      K.zoneLabel(ctf, V(0, 2.4, -43), -1) === "Red flag stand",
+    "Twin Foundry: the red stand is ours to red, theirs to blue, Red's to everyone else",
+    [0, 1, -1].map(t => K.zoneLabel(ctf, V(0, 2.4, -43), t))
+  );
+  check(
+    K.zoneLabel(ctf, V(0, 3, 0), 0) === "top of mid" &&
+      K.zoneLabel(ctf, V(-24.5, 2.6, 0), 1) === "west catwalk",
+    "shared places have one name for both teams",
+    [K.zoneLabel(ctf, V(0, 3, 0), 0), K.zoneLabel(ctf, V(-24.5, 2.6, 0), 1)]
+  );
+  check(
+    K.zoneLabel(arena, V(0, 3.2, 2), -1) === "core top" &&
+      K.zoneLabel(arena, V(24, 2.6, 24), -1) === "NE platform" &&
+      K.zoneLabel(arena, V(0, 0, 24), -1) === "north lane",
+    "the arena names its core, platforms and lanes",
+    [V(0, 3.2, 2), V(24, 2.6, 24), V(0, 0, 24)].map(p => K.zoneLabel(arena, p, -1))
+  );
+  /* every walkable spot on both maps is in some zone */
+  for (const [key, doc] of [
+    ["arena", arena],
+    ["ctf", ctf],
+  ]) {
+    const pts = [
+      ...(doc.spawns.ffa || []),
+      ...(doc.spawns.teams || []).flat(),
+      ...(doc.pickups || []).map(q => q.p),
+    ];
+    const out = pts.filter(p => !K.mapZone(doc, V(p[0], p[1], p[2])));
+    check(!out.length, `${key}: every spawn and pickup is in a callout zone`, out);
+  }
+  const bad = (z, what) => {
+    const d = clone(K.MAPS.arena);
+    d.zones = [z];
+    check(!K.validateMap(d).ok, `a zone with ${what} is rejected`, z);
+  };
+  bad({ name: "<script>", b: [0, 0, 1, 1] }, "a markup name");
+  bad({ name: "inside out", b: [5, 5, 1, 1] }, "an inside-out box");
+  bad({ name: "sided", side: 2, b: [0, 0, 1, 1] }, "a third side");
+  const d = clone(K.MAPS.arena);
+  d.ball = [0, "up", 0];
+  check(!K.validateMap(d).ok, "a skull spot that isn't a point is rejected", d.ball);
+}
 finish("maps");

@@ -850,5 +850,262 @@ const fix = v => +v.toFixed(2);
     K.gatesAt(0, false);
   }
 }
+/* ---------- mode rules: the carriers, oddball, free-for-all, team spawns ---------- */
+{
+  /** a match with everyone but the named pilots benched far away */
+  const bench = (G, keep) => {
+    for (const x of G.agents)
+      if (!keep.includes(x)) {
+        x.dead = true;
+        x.body.dead = true;
+        x.respawnAt = 1e9;
+        x.body.pos.set(0, -80, 0);
+      }
+  };
+  /** put b right in front of a, facing each other, shields full */
+  const faceOff = (a, b, gap) => {
+    const p = a.body.pos;
+    b.body.pos.set(p.x, p.y, p.z - gap);
+    a.body.yaw = 0;
+    b.body.yaw = Math.PI;
+    for (const x of [a, b]) {
+      x.body.vel.set(0, 0, 0);
+      x.body.shield = 70;
+      x.body.health = 45;
+      x.body.spawnT = -99;
+    }
+  };
+  /* capture the flag: a carrier can't shoot, never sprints or thrusts, and a melee with the flag kills */
+  {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const G = CTF.Game({ mode: "sim", render: false, seed: 11 });
+    const kills = [];
+    G.onEvent = (t, d) => t === "kill" && kills.push(d);
+    G.start();
+    for (let i = 0; i < 20; i++) G.step(1 / 30);
+    const a = G.teams[0].agents[0],
+      e = G.teams[1].agents[0];
+    bench(G, [a, e]);
+    const f = G.flags[1];
+    f.state = "carried";
+    f.carrier = a;
+    a.carrying = f;
+    /* their own flag is out, so the carrier can't score it and stays a carrier */
+    G.flags[0].state = "dropped";
+    G.flags[0].dropT = 1e9;
+    G.flags[0].pos.set(0, 0, 30);
+    faceOff(a, e, 1.4);
+    const shots = a.shots;
+    a.shoot(e);
+    check(a.shots === shots && e.body.shield === 70, "a flag carrier can't shoot", a.shots - shots);
+    let ran = 0;
+    const think = a.think.bind(a);
+    a.think = dt => {
+      const inp = think(dt);
+      if (inp.sprint || inp.thrust) ran++;
+      return inp;
+    };
+    /* three seconds heading home with an enemy in sight (who holds still): the carrier walks */
+    const eThink = e.think.bind(e);
+    e.think = () => ({
+      f: 0,
+      s: 0,
+      sprint: false,
+      thrust: false,
+      crouch: false,
+      crouchP: false,
+      jumpP: false,
+      aim: false,
+      meleeP: false,
+    });
+    e.body.pos.set(a.body.pos.x, a.body.pos.y, a.body.pos.z + 20);
+    for (let i = 0; i < 90; i++) {
+      e.body.shield = a.body.shield = 70;
+      G.step(1 / 30);
+    }
+    e.think = eThink;
+    check(a.carrying === f && ran === 0, "the AI flag carrier never sprints or thrusts", ran);
+    a.think = think;
+    faceOff(a, e, 1.4);
+    a.onEvent("melee", {});
+    const k = kills.find(x => x.victim === e);
+    check(
+      !!k && k.killer === a && k.type === "flag",
+      "a melee by the flag carrier kills in one hit, with the flag",
+      k && { type: k.type, shield: e.body.shield }
+    );
+    /* the same blow from an empty-handed pilot only takes the shield */
+    a.carrying = null;
+    f.state = "home";
+    f.carrier = null;
+    const e2 = G.teams[1].agents[1];
+    e2.dead = false;
+    e2.body.dead = false;
+    faceOff(a, e2, 1.4);
+    a.onEvent("melee", {});
+    check(
+      !e2.dead && e2.body.shield === 0,
+      "without the flag the same melee only breaks the shield",
+      e2.body.shield
+    );
+    /* a carrier killed near their own stand is a denial */
+    const b = G.teams[1].agents[2];
+    b.dead = false;
+    b.body.dead = false;
+    b.body.pos.copy(CTF.FLAG_HOME[1]);
+    const f0 = G.flags[0];
+    f0.state = "carried";
+    f0.carrier = b;
+    b.carrying = f0;
+    G.kill(b, a, "rifle", false);
+    const dk = kills.find(x => x.victim === b);
+    check(
+      !!dk && dk.carried === "flag" && dk.denial,
+      "killing a carrier at their own stand is a flag denial",
+      dk && dk.denial
+    );
+  }
+  /* oddball: the skull drops in, the carrier's team scores while holding it, no guns, a one-hit melee */
+  {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const G = CTF.Game({
+      mode: "sim",
+      render: false,
+      seed: 12,
+      rules: "oddball",
+      map: "arena",
+      ballFirst: 1,
+    });
+    const ev = [],
+      kills = [];
+    G.onEvent = (t, d) => {
+      ev.push(t);
+      if (t === "kill") kills.push(d);
+    };
+    G.start();
+    const a = G.teams[0].agents[0],
+      e = G.teams[1].agents[0];
+    bench(G, [a, e]);
+    a.body.pos.set(10, 0, 10);
+    e.body.pos.set(-10, 0, -10);
+    check(G.ball.state === "incoming", "the skull starts on its way down", G.ball.state);
+    for (let i = 0; i < 45; i++) G.step(1 / 30);
+    check(
+      G.ball.state === "home" && ev.includes("ballPod") && ev.includes("ballSpawn"),
+      "it comes down by pod onto the middle of the map",
+      { state: G.ball.state, at: G.ball.pos.toArray().map(v => +v.toFixed(1)) }
+    );
+    a.body.pos.copy(G.ball.pos);
+    a.body.vel.set(0, 0, 0);
+    G.step(1 / 30);
+    check(G.ball.carrier === a && a.carrying === G.ball, "touching the skull picks it up", G.ball.state);
+    const h0 = G.teams[0].held;
+    for (let i = 0; i < 60; i++) {
+      a.body.shield = 70;
+      G.step(1 / 30);
+    }
+    check(
+      Math.abs(G.teams[0].held - h0 - 2) < 0.1 && G.teams[0].score === Math.floor(G.teams[0].held),
+      "every second held scores for the carrier's team",
+      G.teams[0].held
+    );
+    faceOff(a, e, 1.4);
+    const shots = a.shots;
+    a.shoot(e);
+    check(a.shots === shots, "the skull carrier can't shoot", a.shots - shots);
+    a.onEvent("melee", {});
+    const k = kills.find(x => x.victim === e);
+    check(!!k && k.type === "skull" && e.dead, "a melee with the skull kills in one hit", k && k.type);
+    e.respawnAt = 1e9;
+    check(G.ball.carrier === a, "and the carrier keeps it", G.ball.state);
+    /* the carrier dies: it drops; left alone it goes away and a fresh pod brings it back */
+    G.kill(a, null, "rifle", false);
+    a.respawnAt = 1e9;
+    check(
+      G.ball.state === "dropped" && ev.includes("ballDrop"),
+      "the carrier's death drops the skull",
+      G.ball.state
+    );
+    for (let i = 0; i < (G.ballReset + 0.5) * 30 && G.ball.state === "dropped"; i++) G.step(1 / 30);
+    check(
+      G.ball.state === "incoming" && ev.includes("ballReset"),
+      "a skull left on the floor resets",
+      G.ball.state
+    );
+    for (let i = 0; i < (K.POD_TIME + 1.5) * 30 && G.ball.state === "incoming"; i++) G.step(1 / 30);
+    check(G.ball.state === "home", "and drops into the middle again by pod", G.ball.state);
+    /* holding it long enough wins */
+    const w = G.teams[1].agents[1];
+    w.dead = false;
+    w.body.dead = false;
+    w.body.pos.copy(G.ball.pos);
+    G.scoreLimit = G.teams[1].held + 1;
+    for (let i = 0; i < 60 && !G.over; i++) {
+      w.body.shield = 70;
+      w.body.pos.copy(G.ball.state === "carried" ? w.body.pos : G.ball.pos);
+      G.step(1 / 30);
+    }
+    check(G.over && G.winner === 1, "the first team to hold it for the time to win wins", {
+      over: G.over,
+      w: G.winner,
+    });
+  }
+  /* free-for-all: every pilot is their own team, and the AI fights everyone */
+  {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const G = CTF.Game({ mode: "sim", render: false, seed: 13, rules: "ffa", map: "arena", pilots: 6 });
+    const killers = new Set();
+    let same = 0;
+    G.onEvent = (t, d) => {
+      if (t !== "kill" || !d.killer || d.killer === d.victim) return;
+      killers.add(d.killer.team);
+      if (d.killer.team === d.victim.team) same++;
+    };
+    G.start();
+    check(
+      G.teams.length === 6 && G.teams.every(t => t.agents.length === 1),
+      "free-for-all: six pilots, each a team of one",
+      G.teams.map(t => t.agents.length)
+    );
+    check(
+      G.foes(0).length === 5 && !G.foes(0).includes(G.teams[0].agents[0]),
+      "everyone else is an enemy",
+      G.foes(0).length
+    );
+    for (let i = 0; i < 90 * 30 && !G.over; i++) G.step(1 / 30);
+    check(killers.size >= 4 && same === 0, "the AI pilots fight each other, not just you", {
+      killers: killers.size,
+      same,
+    });
+    const top = Math.max(...G.teams.map(t => t.score));
+    check(
+      top > 0 && G.teams.every(t => t.score === t.agents[0].k),
+      "each pilot's kills are their score",
+      top
+    );
+  }
+  /* Team Slayer on the arena: each team spawns on its own half */
+  {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const G = CTF.Game({ mode: "sim", render: false, seed: 14, rules: "slayer", map: "arena" });
+    G.start();
+    const zs = [0, 1].map(t => Array.from({ length: 8 }, () => G.spawnPoint(t)[2]));
+    check(
+      zs[0].every(z => z < 0) && zs[1].every(z => z > 0),
+      "Team Slayer: red spawns on the south half, blue on the north",
+      zs
+    );
+  }
+  /* every rule set ends: a time limit decides by score, a tie is a draw */
+  {
+    K.STORE.setBackend(K.STORE.memoryBackend());
+    const G = CTF.Game({ mode: "sim", render: false, seed: 15, rules: "slayer", map: "arena", timeLimit: 2 });
+    G.start();
+    bench(G, []);
+    for (let i = 0; i < 90 && !G.over; i++) G.step(1 / 30);
+    check(G.over && G.winner === -1, "a level match at the time limit is a draw", G.winner);
+  }
+  K.STORE.setBackend(K.STORE.memoryBackend());
+}
 check(Date.now() - t0 < 15000, "scenarios run in seconds", Date.now() - t0 + " ms");
 finish("scenarios");

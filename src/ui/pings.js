@@ -38,7 +38,9 @@ function pingTarget(origin, dir) {
         pos: p.pos.clone(),
       };
   if (wall >= 150) return null;
-  return { kind: "place", label: "Here", pos: hit };
+  /* a place is called by the map's callout zone when it has one ("Red base", "north lane") */
+  const z = zoneAt(hit);
+  return { kind: "place", label: z ? z[0].toUpperCase() + z.slice(1) : "Here", pos: hit };
 }
 /** add a ping (yours or a teammate's): { by, byName, kind, label, pos, ref? } */
 function addPing(p) {

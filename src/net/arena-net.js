@@ -27,6 +27,9 @@ const DMG_CAP = {
   frag: 105,
   stick: 999,
   rocket: 999,
+  /* a melee by a flag or skull carrier kills in one hit */
+  flag: 999,
+  skull: 999,
 };
 const budgets = new Map();
 /* every remote shooter gets a refilling damage budget, so a modified client cannot delete you instantly */
@@ -41,7 +44,14 @@ function allowDamage(peer, n, w) {
   b.t = t;
   const cap = DMG_CAP[w] != null ? DMG_CAP[w] : 16;
   n = Math.min(n, cap);
-  if (w === "stick" || w === "sniper" || w === "rocket" || (w === "charge" && n > 85)) {
+  if (
+    w === "stick" ||
+    w === "sniper" ||
+    w === "rocket" ||
+    w === "flag" ||
+    w === "skull" ||
+    (w === "charge" && n > 85)
+  ) {
     if (b.tok < 120) return 0;
     b.tok -= 120;
     return n;

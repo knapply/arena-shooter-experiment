@@ -346,11 +346,40 @@ vmFlag.visible = false;
   vmFlag.position.set(0.16, -0.32, -0.42);
   vmFlag.rotation.set(-0.35, 0, -0.55);
 }
-let vmFlagOn = false;
+/* the oddball skull in first person: held low in front of you in both hands */
+const vmSkull = new THREE.Group();
+vmRoot.add(vmSkull);
+vmSkull.visible = false;
+{
+  const bone = new THREE.MeshStandardMaterial({
+    color: "#cfc3a6",
+    emissive: "#ffcf6b",
+    emissiveIntensity: 0.04,
+    roughness: 0.7,
+  });
+  const dark = new THREE.MeshBasicMaterial({ color: "#1a120c" });
+  const cran = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), bone);
+  cran.scale.set(1, 1.05, 1.15);
+  const face = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.055, 0.075), bone);
+  face.position.set(0, -0.045, 0.04);
+  vmSkull.add(cran, face);
+  for (const x of [-0.026, 0.026]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), dark);
+    eye.position.set(x, -0.02, 0.075);
+    vmSkull.add(eye);
+  }
+  /* low and to the right, the face turned out toward what you're looking at */
+  vmSkull.position.set(0.09, -0.24, -0.46);
+  vmSkull.rotation.set(0.15, Math.PI + 0.7, 0.1);
+}
+/** "" (nothing), "flag" or "skull": what you carry in both hands instead of a weapon */
+let vmFlagOn = "";
 function vmCarry(on) {
-  if (on === vmFlagOn) return;
-  vmFlagOn = on;
-  vmFlag.visible = on;
-  if (on) VMW.forEach(v => (v.g.visible = false));
+  const k = on === true ? "flag" : on || "";
+  if (k === vmFlagOn) return;
+  vmFlagOn = k;
+  vmFlag.visible = k === "flag";
+  vmSkull.visible = k === "skull";
+  if (k) VMW.forEach(v => (v.g.visible = false));
   else showVM();
 }
