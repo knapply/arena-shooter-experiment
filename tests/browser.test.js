@@ -1429,6 +1429,8 @@ const podSeats = map => {
     /* (pinged again if nobody took it up: an AI teammate busy in a fight may ignore one ping) */
     let pinged = 0;
     for (let tries = 0; tries < 3 && !pinged; tries++) {
+      /* a dead pilot cannot ping, and a respawn now waits for the kill cam: wait until the friend is up */
+      await B.waitForFunction(() => !KA.me.dead, null, { timeout: 30000, polling: 100 }).catch(() => {});
       await B.evaluate(() => {
         KA.me.pitch = -0.35;
         KA.PINGS.lastT = -9;
