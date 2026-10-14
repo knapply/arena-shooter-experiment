@@ -84,10 +84,10 @@ function applyGfx() {
       const m = o.material;
       if (!m || !m.isMeshStandardMaterial) return;
       m.envMapIntensity =
-        (refl === "glossy" || refl === "ssr" ? 1.4 : 1) * (m.userData.envK != null ? m.userData.envK : 1);
+        (refl !== "off" && refl !== "env" ? 1.4 : 1) * (m.userData.envK != null ? m.userData.envK : 1);
       if (m.userData.rough != null)
         m.roughness =
-          refl === "glossy" || refl === "ssr" ? Math.max(0.25, m.userData.rough - 0.3) : m.userData.rough;
+          refl !== "off" && refl !== "env" ? Math.max(0.25, m.userData.rough - 0.3) : m.userData.rough;
       m.needsUpdate = true;
     });
   }

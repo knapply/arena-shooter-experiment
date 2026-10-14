@@ -82,15 +82,15 @@ function meEvent(type, d) {
     sw.classList.add("on");
     meleeHit(2.3, 70, "melee");
   } else if (type === "slide") {
-    sfx("slide");
+    sfx(footKind("slide", me.pos));
     fovK = 0.6;
   } else if (type === "jump") {
-    sfx("step", 0.5);
+    sfx(footKind("step", me.pos), 0.5);
     if (d.slid) fovK = 0.5;
   } else if (type === "land") {
     if (d.vy > 4) {
       landDip = Math.min(0.28, d.vy * 0.014);
-      sfx("land", clamp(d.vy / 14, 0.2, 1));
+      sfx(footKind("land", me.pos), clamp(d.vy / 14, 0.2, 1));
     }
     if (d.vy > 10) {
       dust(me.pos, 8, 2.5, 0.4);
@@ -113,7 +113,7 @@ function myFeel(dt) {
     const prev = stepAcc;
     stepAcc += (hs * dt) / stride;
     if (Math.floor(stepAcc) > Math.floor(prev) && hs > 1.2) {
-      sfx("step", me.sprint ? 0.9 : me.crouch ? 0.3 : 0.55);
+      sfx(footKind("step", me.pos), me.sprint ? 0.9 : me.crouch ? 0.3 : 0.55);
       if (me.sprint) dust(me.pos, 2, 0.6, 0.2, 0.25);
     }
   }
@@ -735,7 +735,7 @@ function updRigs(dt) {
       REC.put(r.id, root.position, st);
       if (!REC.hasMeta(r.id)) REC.setMeta(r.id, { color: r.color, name: r.name });
     }
-    rigEvents(r.rig, r.rig.update(dt, st));
+    rigEvents(r.rig, r.rig.update(dt, st), st);
     /* keep the pilot's body where it is drawn, so body-based features (kill cams, events) see it */
     r.body.pos.copy(root.position);
     r.body.yaw = root.rotation.y;
@@ -772,10 +772,14 @@ function meleeArc(rig) {
     );
   }
 }
-function rigEvents(rig, ev) {
+function rigEvents(rig, ev, st) {
   if (rig.jet > 0 || (rig.jetS && rig.jetS.on)) sprintJets(rig);
-  if (!ev) return;
   const p = rig.root.position;
+  /* someone else's slide starting, on the surface under them */
+  const sl = !!(st && st.slide);
+  if (sl && !rig.slideHeard) sfxAt("slide", p, 28, 0.8);
+  rig.slideHeard = sl;
+  if (!ev) return;
   if (ev.pop) {
     shieldPop(rig.chestWorld(new V3()));
     sfx("pop", distVol(p, 35));

@@ -31,17 +31,17 @@ Ideas for what to build next, grouped by area and roughly ordered by value for e
 
 ## Graphics
 
-1. **Screen-space reflections or planar reflections on the floor** for the arena's polished metal, with a quality setting.
-2. **Light shafts** from the sky through the arena's openings: needs the sun visible in the sky shader and a depth-aware radial pass (the bloom bright pass is the starting point).
-3. **Decals:** scorch marks under grenades and rockets, impact marks on walls, with a pooled decal mesh capped by quality.
-4. **WebGPU renderer** behind the same `render/*` boundary, when three.js's WebGPU path is stable for the shaders used here.
-5. **Character detail:** per-team armor patterns, emissive visor glows that pulse with shields, and a cloth tabard on the hips (the flag's cloth is the template).
-6. **Motion capture as reference, not data:** the CMU motion capture library is free to use. Fitting the procedural gait's curves (stride, duty factor, knee and hip angles over the cycle) to a few mocap runs would improve realism with no download cost. Shipping the clips themselves would cost hundreds of KB.
+1. **Floor reflections: done.** Screen-space reflections on the polished floor plates, the tops of decks and the wet patches, as a quality setting: Reflections "Glossy + screen-space on the floor" (High: half resolution, 20 steps) and "high quality" (Ultra: 40 steps with each hit refined by bisection). The map's surfaces leave their reflectivity in the scene target's alpha (`render/surfaces.js`); rough surfaces scatter the ray and the composite blurs them by their roughness (`render/pipeline.js`). Low and Medium have none. Planar reflections were not needed: the floor is not one plane on any map, and a second scene render would double the draw calls.
+2. **Light shafts: done** (Ultra). The rays come from the open sky near the sun, so they fan out from every edge that crosses it.
+3. **Decals: done.** Bullet holes, scorches and pod craters in one pooled instanced mesh; the ring holds 24 (Basic combat effects: pod craters only), 64 (High) or 128 (Ultra) and overwrites the oldest.
+4. **WebGPU renderer: not feasible on three.js r128.** The game ships r128 (a single CDN script), whose renderer is WebGL only; three.js's WebGPU renderer needs a much newer release, ES module imports and its node material system, which would mean porting every `onBeforeCompile` patch and post shader. Revisit only together with a three.js upgrade; `render/*` is still the only place it would touch.
+5. **Character detail: mostly done.** Per-team armor patterns (chevrons, camo, stripes) and a visor that pulses with the shield are in `characters/look.js`. Still open: a cloth tabard on the hips (the flag's cloth, `flagCloth` in `characters/rig.js`, is the template).
+6. **Motion capture: done.** CMU takes drive the locomotion as compact clips (`data/anim-clips.js`, converted by `tools/mocap/convert.js`), blended in `characters/anim.js`.
 
 ## Sound
 
-1. **Distance filtering and reverb:** a low-pass on distant shots and a short convolution reverb inside enclosed areas would add a lot of space. `sfxAt` is where both go.
-2. **Footstep surfaces:** metal versus grating versus floor plates, chosen from the material under the foot (the rig's foot raycast already finds the ground).
+1. **Distance filtering and reverb: done** (`sfxAt` in `core/audio.js`). Positional sounds lose their highs with distance (a low-pass scaled by the sound's range) and send to one shared convolution reverb with a generated impulse, by how enclosed the sound and you are; your own sounds go through a body bus that echoes where you stand. Enclosure is a roof overhead or tall walls close by on several sides (8 rays), cached per 2 m cell. Neither map has roofs yet, so only lanes and corners between tall walls echo; a roofed room would ring fully.
+2. **Footstep surfaces: done.** Floor plates, metal decks (platforms, cover, walls, gates) and gratings (stairs) each have their own step, landing and slide, picked from the collision box under the foot for you and, positionally, for every other pilot. A map piece's `mat` decides it (`FOOT_SURF` in `core/audio.js`); a `grate` material on catwalks would rattle too.
 3. **Adaptive music** for matches: the trailer's synthesized score engine could play low-key stems that intensify with the score or the flag state.
 
 ## Efficiency and engineering

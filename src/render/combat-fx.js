@@ -3,8 +3,10 @@
    - dynamic lights: three pooled point lights (only in the scene while the setting is on, so Low pays
      nothing) for muzzle flashes, explosions and pods; each flash takes the dimmest one;
    - shell casings: one instanced mesh, simple bounces, gone after a few seconds;
-   - decals: one instanced mesh of 96 quads in a ring, bullet holes, scorch marks and pod craters drawn in the
-     shader, glowing hot for a moment and fading out over half a minute;
+   - decals: one instanced mesh of quads in a ring, bullet holes, scorch marks and pod craters drawn in the
+     shader, glowing hot for a moment and fading out over half a minute. The ring's length follows Combat
+     effects (DEC_CAP): Basic keeps only pod craters (no bullet holes or scorches) in 24, then 64 and 128;
+     a full ring overwrites the oldest;
    - impacts: sparks thrown off the surface's normal and a puff of dust;
    - explosions: fireball, embers, a smoke column, tumbling debris, a scorch, a flash of light;
    - heat haze (Ultra): rockets and fresh explosions bend the picture in the composite pass.
@@ -153,7 +155,8 @@ function updTumblers(T, dt) {
   if (n) T.mesh.instanceMatrix.needsUpdate = true;
 }
 /* ---- decals ---- */
-const DEC_N = 96;
+const DEC_N = 128;
+const DEC_CAP = { low: 24, high: 64, ultra: 128 };
 const decals = (() => {
   const g = new THREE.PlaneGeometry(1, 1);
   const dd = new THREE.InstancedBufferAttribute(new Float32Array(DEC_N * 4), 4);
@@ -205,9 +208,10 @@ gl_FragColor=vec4(gc*glow*2.+vec3(.012,.01,.009)*m,m);}`,
   return { mesh: m, dd, next: 0, n: 0 };
 })();
 function decal(p, n, kind, size) {
-  const i = decals.next;
-  decals.next = (i + 1) % DEC_N;
-  decals.n = Math.min(DEC_N, decals.n + 1);
+  const cap = DEC_CAP[SET.fxDetail] || 64,
+    i = decals.next % cap;
+  decals.next = (i + 1) % cap;
+  decals.n = Math.min(cap, decals.n + 1);
   _cq.setFromUnitVectors(_cz, n);
   _cq.multiply(new THREE.Quaternion().setFromAxisAngle(_cz, rnd(0, 6.28)));
   _cf2.copy(p).addScaledVector(n, 0.012);

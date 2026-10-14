@@ -805,6 +805,56 @@ const podSeats = map => {
       "the recorder keeps every pilot's pose",
       rec
     );
+    /* sound in space: feet sound like the surface under them (yours and everyone's, positionally),
+       a roof overhead makes a place echo, and the live graph builds its one shared reverb */
+    const snd = await p.evaluate(() => {
+      const V = KA.THREE.Vector3,
+        S = KA.SOLID;
+      const top = b => new V((b.x0 + b.x1) / 2, b.y1, (b.z0 + b.z1) / 2);
+      const stair = S.find(b => b.mat === "step"),
+        deck = S.find(b => b.mat === "base" && b.y1 > 2);
+      const heard = [];
+      KA.sfxTap(k => heard.push(k));
+      KA.camera.position.copy(top(stair)).y += 1.6;
+      KA.sfxAt("step", top(stair), 30, 1);
+      KA.sfxAt("land", top(deck), 60, 1);
+      KA.sfxAt("slide", new V(-22, 0, 15), 300, 1);
+      KA.sfxTap(null);
+      const open = KA.enclosure(new V(-22, 0, 15));
+      const roof = { x0: -30, x1: -14, y0: 3, y1: 3.5, z0: 7, z1: 23, id: -77 };
+      S.push(roof);
+      const roofed = KA.enclosure(new V(-22, 0, 15));
+      S.splice(S.indexOf(roof), 1);
+      const after = KA.enclosure(new V(-22, 0, 15));
+      KA.audio();
+      let err = null;
+      try {
+        KA.camera.position.set(-22, 1.6, 15);
+        KA.sfxAt("shot", new V(-10, 0, 15), 60, 1);
+      } catch (e) {
+        err = String(e);
+      }
+      return {
+        surf: [KA.footSurf(top(stair)), KA.footSurf(top(deck)), KA.footSurf(new V(-22, 0, 15))],
+        heard,
+        open,
+        roofed,
+        after,
+        space: !!KA.audioSpace(),
+        err,
+      };
+    });
+    check(
+      snd.surf.join() === "g,m," && snd.heard.join() === "stepg,landm,slide",
+      "steps, landings and slides take the surface underfoot (grating, metal deck, floor plates)",
+      snd
+    );
+    check(
+      snd.open < 0.15 && snd.roofed > 0.45 && snd.after === snd.open,
+      "a roof overhead makes a place echo; the open arena barely does, and the cache follows the world",
+      snd
+    );
+    check(snd.space && !snd.err, "positional sound builds the shared reverb and filters without errors", snd);
     /* destruction */
     const d = await p.evaluate(() => {
       const D = KA.DESTR;

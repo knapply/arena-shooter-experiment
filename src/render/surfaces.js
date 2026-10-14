@@ -9,8 +9,11 @@
      so no two walls match.
    - Floors (SURF_FLOOR): the map's painted markings (bakeMarkings: spawn rings, pickup brackets,
      lane lines, sector letters, hazard bands at stairs) worn by foot traffic, and wet patches that go
-     dark and mirror-smooth. The scene target's alpha carries the wetness to the screen-space
-     reflection pass (render/pipeline.js) on Ultra; sky is alpha 0, everything else 1.
+     dark and mirror-smooth.
+   - Reflectivity for the screen-space reflection pass (render/pipeline.js, High and Ultra), carried in
+     the scene target's alpha as 1 - refl/2: wet patches 1, polished floor plates about a third (less
+     under paint), the tops of decks and platforms a little (none in seams or grime); walls 0. Sky is
+     alpha 0 (the light shafts' mask).
    Materials without the attributes (destructible cover, anything unbaked) read neutral defaults. */
 const SURF_MATS = [];
 /* the developer console's "bake" view */
@@ -68,7 +71,10 @@ function surfMat(m) {
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
-float sRough=0.,sMetal=-1.,sWet=0.,sH=0.;
+float sRough=0.,sMetal=-1.,sWet=0.,sH=0.,sRefl=0.;
+#if defined(SURF_FLOOR)&&!defined(SURF)
+sRefl=.3*step(.5,normalize(vWN).y);
+#endif
 #ifdef SURF
 vec3 sN=normalize(vWN);bool sTop=abs(sN.y)>.5;
 vec3 sT=sTop?vec3(1.,0.,0.):vec3(-sN.z,0.,sN.x);
@@ -81,6 +87,7 @@ sWet=wetMask(vWP.xz)*step(.5,sN.y);
 sH=dot(diffuseColor.rgb,vec3(.3,.6,.1))*(1.-sWet)*1.6;
 diffuseColor.rgb*=mix(.7,1.,smoothstep(.35,.95,vBake.a))*(.88+.24*sfbm(vWP.xz*.4))*(1.-.4*sWet);
 sRough=-.12*pa-.7*sWet;
+sRefl=max(sWet,.38*(1.-.6*pa)*(.55+.45*sfbm(vWP.xz*.7)))*step(.5,sN.y);
 #else
 #ifdef SURF_PLAIN
 vec3 pn=vec3(1.,.5,9.);
@@ -98,6 +105,9 @@ float wear=(1.-smoothstep(0.,.015+.05*sn2(sp*7.),sE))*smoothstep(.45,.6,sn2(sp*1
 wear=max(wear,(1.-smoothstep(.0,.03,pn.z))*.22*step(.7,sn2(sp*9.)));
 diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.4,.42,.44),wear*.8);
 sRough=(pn.y-.5)*.2+grime*.25-wear*.3;sMetal=wear;
+#ifndef SURF_PLAIN
+sRefl=.18*step(.5,sN.y)*smoothstep(.6,1.,pn.x)*(.5+.5*pn.y)*(1.-grime);
+#endif
 #endif
 #endif`
       )
@@ -126,7 +136,7 @@ totalEmissiveRadiance+=vBake.rgb*diffuseColor.rgb;`
       )
       .replace(
         "#include <tonemapping_fragment>",
-        "gl_FragColor.a=1.-.5*sWet;\n#include <tonemapping_fragment>"
+        "gl_FragColor.a=1.-.5*sRefl;\n#include <tonemapping_fragment>"
       );
     if (SURF_DEBUG.on)
       sh.fragmentShader = sh.fragmentShader.replace(

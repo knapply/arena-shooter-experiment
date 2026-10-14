@@ -37,7 +37,7 @@ function posePilot(p, dt, extra) {
   }
   /* during a replay the live rigs stay hidden */
   if (REPLAY.active) return;
-  rigEvents(rg, rg.update(dt, st));
+  rigEvents(rg, rg.update(dt, st), st);
 }
 
 class Pilot {
