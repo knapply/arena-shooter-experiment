@@ -1,10 +1,15 @@
 /* ============ PINGS ============
    One button marks what's under your reticle: an enemy ("Enemy", follows them), a weapon pickup
-   ("Sniper rifle"), or a place ("Here"). Markers show distance and fade after a few seconds.
-   Modes share pings with teammates (EXT.onPing): in CTF they go to teammates online over the
-   reliable channel, and AI teammates go there or hunt the marked enemy. Rate limited. */
-const PINGS = { list: [], lastT: -9, seq: 0 };
-const PING_LIFE = { enemy: 5, weapon: 8, place: 8 };
+   ("Sniper rifle"), or a place ("Here"). Double-tapping it marks danger at the reticle point, enemy
+   or not: a red warning with its own sound and callout. Markers show distance and fade after a few
+   seconds. Each player has one mark at a time: a new ping (any kind) replaces your last one, here
+   and for teammates. Modes share pings with teammates (EXT.onPing): in CTF they go to teammates
+   online over the reliable channel, and AI teammates go there or hunt the marked enemy, or keep
+   clear of a danger mark and watch it. Rate limited. */
+const PINGS = { list: [], lastT: -9, seq: 0, tapT: -9, tapDanger: false };
+const PING_LIFE = { enemy: 5, weapon: 8, place: 8, danger: 10 };
+/** a second press this soon after the first (real seconds) is a double tap: danger */
+const PING_TAP = 0.35;
 const _pgD = new V3(),
   _pgO = new V3(),
   _pgV = new V3();
@@ -40,26 +45,69 @@ function pingTarget(origin, dir) {
   if (wall >= 150) return null;
   return { kind: "place", label: "Here", pos: hit };
 }
-/** add a ping (yours or a teammate's): { by, byName, kind, label, pos, ref? } */
+/** a danger mark at the reticle point (or along any ray): the first wall or floor it meets, or 80 m
+    out when it meets nothing */
+function dangerTarget(origin, dir) {
+  const o = origin || camera.getWorldPosition(_pgO),
+    d = dir || camera.getWorldDirection(_pgD);
+  return {
+    kind: "danger",
+    label: "Danger",
+    pos: o.clone().addScaledVector(d, Math.min(rayWorld(o, d, 80), 80)),
+  };
+}
+/** the danger mark's sound: two quick falling tones */
+function dangerSfx(vol = 1) {
+  if (SFX_TAP) return SFX_TAP("danger", vol);
+  if (!AC) return;
+  const t = AC.currentTime;
+  tone(t, "square", 1180, 900, 0.09, 0.045 * vol);
+  tone(t + 0.12, "square", 1180, 900, 0.09, 0.045 * vol);
+  tone(t, "sine", 320, 220, 0.25, 0.08 * vol);
+}
+/** add a ping (yours or a teammate's): { by, byName, kind, label, pos, ref? }; it replaces that
+    player's last one */
 function addPing(p) {
   const life = PING_LIFE[p.kind] || 6;
-  PINGS.list = PINGS.list.filter(q => !(q.by === p.by && q.kind === p.kind));
-  PINGS.list.push(Object.assign({ id: ++PINGS.seq, until: now + life, el: null }, p));
+  PINGS.list = PINGS.list.filter(q => {
+    if (q.by !== p.by) return true;
+    if (q.el) q.el.remove();
+    return false;
+  });
+  PINGS.list.push(Object.assign({ id: ++PINGS.seq, t0: now, until: now + life, el: null }, p));
   while (PINGS.list.length > 8) {
     const q = PINGS.list.shift();
     if (q.el) q.el.remove();
   }
-  sfx("magin", 0.5);
+  if (p.kind === "danger") {
+    dangerSfx(p.by === "local" ? 1 : 0.8);
+    hudCallout(p.by === "local" ? "Danger marked" : `Danger · ${p.byName || "teammate"}`, true, 1.8);
+    if (p.by !== "local") say("Danger", false);
+  } else sfx("magin", 0.5);
 }
-function pingNow() {
-  if (now - PINGS.lastT < 0.6 || me.dead) return;
-  const t = pingTarget();
-  if (!t) return;
-  PINGS.lastT = now;
-  const p = Object.assign({ by: "local", byName: myName }, t);
+/** share a ping of yours: the event stream and the mode's teammates */
+function sharePing(p) {
   addPing(p);
   EVENTS.emit("ping", { pilot: "local", kind: p.kind, label: p.label, p: [p.pos.x, p.pos.y, p.pos.z] });
   if (EXT && EXT.onPing) EXT.onPing(p);
+}
+/** the ping button: a ping, or on a double tap a danger mark in its place */
+function pingNow() {
+  if (me.dead) return;
+  const t = performance.now() / 1000,
+    dbl = t - PINGS.tapT < PING_TAP && !PINGS.tapDanger;
+  PINGS.tapT = t;
+  PINGS.tapDanger = dbl;
+  if (dbl) {
+    PINGS.lastT = now;
+    sharePing(Object.assign({ by: "local", byName: myName }, dangerTarget()));
+    return;
+  }
+  if (now - PINGS.lastT < 0.6) return;
+  const tg = pingTarget();
+  if (!tg) return;
+  PINGS.lastT = now;
+  sharePing(Object.assign({ by: "local", byName: myName }, tg));
 }
 let pingLayer = null;
 function updPings() {
@@ -85,7 +133,7 @@ function updPings() {
     }
     const src = p.ref && p.ref.body ? p.ref.body.pos : p.ref && p.ref.rig ? p.ref.rig.root.position : p.pos;
     _pgV.copy(src);
-    _pgV.y += p.kind === "enemy" ? 2.3 : 0.6;
+    _pgV.y += p.kind === "enemy" ? 2.3 : p.kind === "danger" ? 1.2 : 0.6;
     const dist = _pgV.distanceTo(camera.position);
     _pgV.project(camera);
     const behind = _pgV.z > 1;

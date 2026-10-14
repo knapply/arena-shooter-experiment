@@ -25,7 +25,7 @@ check(
   env
 );
 
-/* settings v1 (the export file format) migrates to v2 */
+/* settings v1 (the export file format) migrates to the current version */
 mem.clear();
 mem.set(
   "ka-settings-v1",
@@ -40,13 +40,36 @@ mem.set(
 const s = STORE.load("settings");
 check(
   s && s.settings.fov === 95 && s.keys.jump[0] === "Space" && !("app" in s),
-  "settings migrate from v1 to v2",
+  "settings migrate from v1 to the current version",
   s
 );
 check(
-  JSON.parse(mem.get("ka-doc-settings")).version === 2,
+  JSON.parse(mem.get("ka-doc-settings")).version === 3,
   "migrated settings are saved at the current version"
 );
+/* v3: the motion tracker's default moved to bottom left; a save on the old default moves with it,
+   any other spot stays */
+for (const [from, to] of [
+  ["br", "bl"],
+  ["tc", "tc"],
+]) {
+  mem.clear();
+  mem.set(
+    "ka-doc-settings",
+    JSON.stringify({
+      app: "kinetic-arena",
+      doc: "settings",
+      version: 2,
+      data: { settings: { trackerPos: from, fov: 90 }, keys: {}, pad: {} },
+    })
+  );
+  const t = STORE.load("settings");
+  check(
+    t && t.settings.trackerPos === to && t.settings.fov === 90,
+    `a v2 save with the tracker at ${from} loads with it at ${to}`,
+    t
+  );
+}
 
 /* backup before overwrite, and restore */
 STORE.save("settings", { settings: { fov: 100 }, keys: {}, pad: {} });

@@ -707,6 +707,97 @@ const fix = v => +v.toFixed(2);
     { before: d0.map(fix), after: d1.map(fix) }
   );
 }
+/* ---------- danger marks: AI teammates keep clear of them, the nearest two watch; one mark each ---------- */
+{
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 4 });
+  G.start();
+  for (let i = 0; i < 30; i++) G.step(1 / 30);
+  const from = G.teams[0].agents[0];
+  /* a spot a little way in front of the team (between them and the middle) */
+  const c = G.teams[0].agents.reduce((s, a) => s.add(a.pos), new K.THREE.Vector3()).multiplyScalar(0.25);
+  const spot = [c.x * 0.5, c.y, c.z * 0.5];
+  const near = p => Math.hypot(p.x - spot[0], p.z - spot[2]);
+  G.ping(from, { kind: "place", pos: [spot[0] + 20, spot[1], spot[2]], label: "Here" });
+  const mates = G.ping(from, { kind: "danger", pos: spot, label: "Danger" });
+  const ai = G.teams[0].agents.filter(a => !a.human);
+  check(
+    ai.every(a => a.danger && !a.ping) && mates.every(a => a.danger.watchUntil > G.t),
+    "a danger mark replaces the same player's earlier ping, reaches every AI teammate, and the two nearest watch it",
+    ai.map(a => [!!a.danger, !!a.ping])
+  );
+  let closest = 99,
+    watched = 0;
+  for (let i = 0; i < 30 * 4; i++) {
+    G.step(1 / 30);
+    for (const a of mates) {
+      if (!a.alive) continue;
+      closest = Math.min(closest, near(a.pos));
+      if (!a.target) {
+        const want = Math.atan2(-(spot[0] - a.pos.x), -(spot[2] - a.pos.z));
+        if (Math.abs(Math.atan2(Math.sin(want - a.body.yaw), Math.cos(want - a.body.yaw))) < 0.35) watched++;
+      }
+    }
+  }
+  check(closest > 7 && watched > 30, "AI teammates watching a danger mark hold short of it and face it", {
+    closest: fix(closest),
+    watched,
+  });
+  G.ping(from, { kind: "place", pos: spot, label: "Here" });
+  check(
+    ai.every(a => !a.danger),
+    "a new ping from the same player clears their danger mark",
+    ai.map(a => !!a.danger)
+  );
+}
+/* ---------- AI ammo: finite reserves, reloads from them, a dry gun doesn't fire ---------- */
+{
+  K.STORE.setBackend(K.STORE.memoryBackend());
+  const G = CTF.Game({ mode: "sim", render: false, seed: 6 });
+  G.start();
+  for (let i = 0; i < 5; i++) G.step(1 / 30);
+  const a = G.teams[0].agents[0],
+    e = G.teams[1].agents[0];
+  const R = K.WEAPON_DATA[0],
+    M = K.WEAPON_DATA[1];
+  check(
+    K.WEAPON_DATA.every(w => Number.isFinite(w.reserve)) && a.rsv[0] === R.reserve && a.rsv[1] === M.reserve,
+    "no weapon has endless reserve ammo, and AI pilots spawn with the player's reserves",
+    a.rsv
+  );
+  a.wpn = 0;
+  a.ammo[0] = 2;
+  a.rsv[0] = 5;
+  a.reloadT = 0;
+  a.startReload();
+  a.reloadT = 0;
+  a.reloadDone();
+  check(a.ammo[0] === 7 && a.rsv[0] === 0, "AI: a reload fills the magazine from the reserve only", [
+    a.ammo[0],
+    a.rsv[0],
+  ]);
+  a.ammo[0] = 0;
+  a.reloadT = 0;
+  a.startReload();
+  check(a.reloadT === 0, "AI: nothing to reload with an empty reserve");
+  e.body.pos.copy(a.body.pos).add(new K.THREE.Vector3(0, 0, -15));
+  check(a.pickGun(e) === 1, "AI: a dry carbine means the magnum, whatever the range");
+  a.switchT = a.fireCD = 0;
+  a.shoot(e);
+  check(a.ammo[0] === 0 && a.shots === 0, "AI: a dry gun doesn't fire", [a.ammo[0], a.shots]);
+  /* a dropped carbine tops the reserve up when they walk over it */
+  G.addItems([{ type: 0, ammo: [10, 20] }], a.pos.clone());
+  for (let i = 0; i < 3; i++) G.step(1 / 30);
+  check(a.rsv[0] >= 30 || !a.alive, "AI: a dropped gun of the kind they carry gives them its rounds", a.rsv);
+  /* weapon-lock simulations keep endless ammo (a measuring tool) */
+  const L = CTF.Game({ mode: "sim", render: false, seed: 6, lock: "carbine" });
+  L.start();
+  L.step(1 / 30);
+  check(
+    L.agents.every(x => x.rsv[0] === Infinity),
+    "weapon-lock simulations keep endless ammo"
+  );
+}
 /* ---------- lab content (docs/PROPOSALS.md): off by default, usable by the AI when on ---------- */
 {
   const W = k => K.WEAPON_DATA.find(w => w.key === k);

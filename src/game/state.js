@@ -75,6 +75,23 @@ let botSkill = "normal";
 const DRONE_MAG = 24;
 const droneGun = b => WEAPON_DATA[b.wpn === 1 ? 1 : 0];
 const droneCap = w => (w === 1 ? WEAPON_DATA[1].mag : DRONE_MAG);
+/** a full load of reserve rounds for each drone gun (the player's numbers) */
+const droneRsv = () => [WEAPON_DATA[0].reserve, WEAPON_DATA[1].reserve];
+/** a drone's gun has rounds in it or to reload */
+const droneHas = (b, w) => b.ammo[w] > 0 || b.rsv[w] > 0;
+/** a drone's reload: as many rounds as the magazine takes, from what it carries */
+function droneReload(b) {
+  const take = Math.min(droneCap(b.wpn) - b.ammo[b.wpn], b.rsv[b.wpn]);
+  b.ammo[b.wpn] += take;
+  b.rsv[b.wpn] -= take;
+}
+/** start a drone's reload if it has rounds to load */
+function droneStartReload(b) {
+  if (b.rsv[b.wpn] <= 0) return false;
+  b.reloadT = droneGun(b).reload;
+  b.reloading = true;
+  return true;
+}
 const BOT_NAMES = ["Drone-04", "Drone-11", "Drone-27"];
 const BOT_COLORS = ["#8b9aa3", "#a0a8ad", "#7f8f99"];
 function makeBots() {
@@ -90,9 +107,10 @@ function makeBots() {
       strafe: 1,
       respawn: 0,
       burst: 0,
-      /* carbine and magnum, each with its own magazine */
+      /* carbine and magnum, each with its own magazine and reserve */
       wpn: 0,
       ammo: [DRONE_MAG, WEAPON_DATA[1].mag],
+      rsv: droneRsv(),
       reloadT: 0,
       reloading: false,
       switchT: 0,
@@ -143,6 +161,7 @@ function botStep(b, dt) {
         b.wpn = 0;
         b.ammo[0] = DRONE_MAG;
         b.ammo[1] = WEAPON_DATA[1].mag;
+        b.rsv = droneRsv();
         b.reloadT = 0;
         b.reloading = false;
         b.switchT = 0;
@@ -207,7 +226,7 @@ function botStep(b, dt) {
   b.reloadT = Math.max(0, b.reloadT - dt);
   if (b.reloadT === 0 && b.reloading) {
     b.reloading = false;
-    b.ammo[b.wpn] = droneCap(b.wpn);
+    droneReload(b);
   }
   b.switchT = Math.max(0, b.switchT - dt);
   if (sees && b.switchT <= 0) {
@@ -215,7 +234,8 @@ function botStep(b, dt) {
        are down; switching beats reloading when a magazine runs dry */
     const o = 1 - b.wpn;
     let w = b.wpn;
-    if (b.ammo[b.wpn] <= 0) w = b.ammo[o] > 0 && dist > 3 ? o : b.wpn;
+    if (b.ammo[b.wpn] <= 0)
+      w = (b.ammo[o] > 0 || !droneHas(b, b.wpn)) && droneHas(b, o) && dist > 3 ? o : b.wpn;
     else if (me.shield <= 0 && dist > 8) w = 1;
     else if (dist >= S.magFrom) w = 1;
     else if (dist <= S.magFrom - 6) w = 0;
@@ -228,6 +248,8 @@ function botStep(b, dt) {
       b.burst = 0;
     }
   }
+  /* an empty magazine reloads from the reserve (a drone with nothing left in either gun can't shoot) */
+  if (b.ammo[b.wpn] <= 0 && b.reloadT <= 0 && b.switchT <= 0) droneStartReload(b);
   if (sees) {
     const want = Math.atan2(-(myEye.x - eye.x), -(myEye.z - eye.z));
     let dy = want - B.yaw;
@@ -251,6 +273,7 @@ function botStep(b, dt) {
       b.fireCD <= 0 &&
       b.reloadT <= 0 &&
       b.switchT <= 0 &&
+      b.ammo[b.wpn] > 0 &&
       now >= (b.acqT || 0)
     ) {
       if (M) b.fireCD = Wd.rate + S.magPace + 0.12;
@@ -266,11 +289,7 @@ function botStep(b, dt) {
       b.firedT = now;
       B.spawnT = -1e9; /* firing ends spawn protection */
       EVENTS.emit("shot", { pilot: b.id, weapon: Wd.dmg });
-      if (b.ammo[b.wpn] <= 0) {
-        b.reloadT = Wd.reload;
-        b.reloading = true;
-        b.fireCD = Wd.reload;
-      }
+      if (b.ammo[b.wpn] <= 0 && droneStartReload(b)) b.fireCD = Wd.reload;
       /* aim error scales with skill (normal is the drones' classic spray); the magnum's with magErr */
       const sp = (S.err / 0.035) * (M ? S.magErr : 1);
       const d = B.aimDir();
@@ -306,10 +325,7 @@ function botStep(b, dt) {
     inp.f = 1;
     inp.sprint = Math.abs(dy) < 0.3 && b.reloadT <= 0;
     if (B.vel.lengthSq() < 1 && B.ground && Math.random() < 0.05) inp.jumpP = true;
-    if (b.ammo[b.wpn] < droneCap(b.wpn) && b.reloadT <= 0 && Math.random() < dt * 0.5) {
-      b.reloadT = droneGun(b).reload;
-      b.reloading = true;
-    }
+    if (b.ammo[b.wpn] < droneCap(b.wpn) && b.reloadT <= 0 && Math.random() < dt * 0.5) droneStartReload(b);
   }
   B.step(dt, inp, (t, d) => {
     if (t === "thrust") {

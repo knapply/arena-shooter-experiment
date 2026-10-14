@@ -168,25 +168,220 @@ const podSeats = map => {
       "pinging an enemy under the reticle marks them",
       pg
     );
-    /* motion tracker: a running enemy shows, a crouch-walking one doesn't */
+    /* motion tracker: an enemy shows only while sprinting, thrusting or hovering; walking, crouching
+       and firing stay off it */
     const trk = await p.evaluate(() => {
       const b = KA.bots[1];
       b.body.dead = false;
-      const place = v => {
+      const seen = ({ v = 0, vy = 0, fire = false, ...st } = {}) => {
         b.body.pos.set(KA.me.pos.x + 6, KA.me.pos.y, KA.me.pos.z - 6);
-        b.body.vel.set(v, 0, 0);
-        b.firedT = -99;
+        Object.assign(b.body, { sprint: false, thrustT: 0, stabbing: false, crouch: false }, st);
+        b.body.vel.set(v, vy, 0);
+        b.firedT = fire ? 1e9 : -99;
+        return KA.trackerShown().length;
       };
-      place(7);
-      const running = KA.trackerShown().length;
-      place(2);
-      const sneaking = KA.trackerShown().length;
-      return { running, sneaking };
+      const out = {
+        stand: seen(),
+        walk: seen({ v: 6 }),
+        crouch: seen({ crouch: true, v: 2 }),
+        fire: seen({ fire: true }),
+        jump: seen({ v: 6, vy: 6 }),
+        sprint: seen({ sprint: true, v: 9 }),
+        thrust: seen({ thrustT: 0.2, v: 17 }),
+        hover: seen({ stabbing: true }),
+      };
+      seen();
+      return out;
     });
     check(
-      trk.running >= 1 && trk.sneaking === trk.running - 1,
-      "the motion tracker shows runners but not crouch-walkers",
+      trk.sprint === trk.stand + 1 &&
+        trk.thrust === trk.stand + 1 &&
+        trk.hover === trk.stand + 1 &&
+        trk.walk === trk.stand &&
+        trk.crouch === trk.stand &&
+        trk.fire === trk.stand &&
+        trk.jump === trk.stand,
+      "the motion tracker shows enemies sprinting, thrusting or hovering, not walking, crouching or firing",
       trk
+    );
+    /* ammo: nothing is endless; a reload takes rounds from the reserve; an empty gun with nothing to
+       reload clicks and brings up the other weapon; a dropped gun gives its rounds */
+    const am = await p.evaluate(async () => {
+      const out = { finite: KA.WEAPON_DATA.every(w => Number.isFinite(w.reserve) && w.reserve > 0) };
+      KA.mag = 3;
+      KA.ammo[KA.wi] = 3;
+      KA.reserve[KA.wi] = 5;
+      KA.startReload();
+      /* (waits on the game: a reload takes 1.8 s of game time, longer on a slow machine) */
+      for (let i = 0; i < 100 && KA.mag !== 8; i++) await new Promise(r => setTimeout(r, 50));
+      out.reload = [KA.mag, KA.reserve[KA.wi]];
+      const w0 = KA.wi;
+      KA.mag = 0;
+      KA.ammo[w0] = 0;
+      KA.reserve[w0] = 0;
+      KA.fire();
+      out.dry = [w0, KA.wi];
+      for (let i = 0; i < 40 && KA.wi === w0; i++) await new Promise(r => setTimeout(r, 50));
+      out.hud = document.getElementById("weapHud").className;
+      const before = KA.reserve[w0];
+      KA.autoTake({ type: w0, ammo: [4, 6], power: false, take: () => true });
+      out.pick = KA.reserve[w0] - before;
+      out.drones = KA.bots.every(b => b.rsv.every(n => Number.isFinite(n)));
+      return out;
+    });
+    check(am.finite && am.drones, "no weapon (yours or the drones') has endless reserve ammo", am);
+    check(am.reload[0] === 8 && am.reload[1] === 0, "a reload takes its rounds from the reserve", am.reload);
+    check(am.dry[1] !== am.dry[0], "an empty gun with no reserve switches to the other weapon", am.dry);
+    check(
+      am.pick === 10,
+      "walking over a dropped gun of a kind you carry gives you the rounds it had",
+      am.pick
+    );
+    /* grenades: out of one type, the next type you still have comes up (on a throw, or a pickup) */
+    const gn = await p.evaluate(() => {
+      const out = {};
+      KA.nadeInv.frag = 1;
+      KA.nadeInv.plasma = 2;
+      KA.nadeSel = "frag";
+      KA.throwNade();
+      out.afterThrow = [KA.nadeSel, KA.nadeInv.frag];
+      out.hud = document.querySelector("#nadeList .sel")?.className;
+      KA.nadeInv.frag = 0;
+      KA.nadeInv.plasma = 0;
+      KA.nadeSel = "plasma";
+      KA.autoTake({ type: -1, nades: { frag: 1, plasma: 0 }, take: () => true });
+      out.afterPickup = KA.nadeSel;
+      KA.nadeInv.frag = 2;
+      KA.nadeInv.plasma = 2;
+      return out;
+    });
+    check(
+      gn.afterThrow[0] === "plasma" &&
+        gn.afterThrow[1] === 0 &&
+        /plasma/.test(gn.hud) &&
+        gn.afterPickup === "frag",
+      "grenades switch to the next type you have when one runs out",
+      gn
+    );
+    /* the grenade panel's hint follows the device in use and your bindings */
+    const hintOf = () => p.evaluate(() => document.getElementById("nadeHint").textContent);
+    const h0 = await hintOf();
+    await p.evaluate(() => {
+      KA.BIND.swapNade = ["KeyV"];
+    });
+    await p.waitForTimeout(150);
+    const h1 = await hintOf();
+    await p.evaluate(p => (window.__pad = p), pad({}, [0, 0, 0.6, 0]));
+    let h2 = "";
+    for (let i = 0; i < 30 && !/D-pad/.test(h2); i++) {
+      await p.waitForTimeout(100);
+      h2 = await hintOf();
+    }
+    await p.evaluate(() => {
+      window.__pad = null;
+      KA.BIND.swapNade = ["KeyT"];
+    });
+    await p.keyboard.press("KeyK");
+    await p.waitForTimeout(150);
+    const h3 = await hintOf();
+    check(
+      /T/.test(h0) && /V/.test(h1) && /D-pad/.test(h2) && /T/.test(h3) && !/D-pad/.test(h3),
+      "the grenade hint shows your key, or the D-pad when the controller is in use",
+      [h0, h1, h2, h3]
+    );
+    /* pings: one mark per player at a time; a double tap marks danger at the reticle point */
+    const mk = await p.evaluate(() => {
+      const mine = () => KA.PINGS.list.filter(q => q.by === "local");
+      const V = KA.THREE.Vector3;
+      KA.addPing({ by: "local", byName: "me", kind: "place", label: "Here", pos: new V(0, 0, 0) });
+      KA.addPing({ by: "peer:x", byName: "friend", kind: "place", label: "Here", pos: new V(3, 0, 0) });
+      KA.addPing({ by: "local", byName: "me", kind: "weapon", label: "Sniper rifle", pos: new V(1, 0, 0) });
+      const one = mine()
+        .map(q => q.kind)
+        .join();
+      const friend = KA.PINGS.list.filter(q => q.by === "peer:x").length;
+      KA.me.pitch = -0.3;
+      KA.PINGS.lastT = -9;
+      KA.PINGS.tapT = -9;
+      KA.pingNow();
+      KA.pingNow();
+      const d = mine();
+      return {
+        one,
+        friend,
+        danger: d.map(q => q.kind).join(),
+        near: d[0] && d[0].pos.distanceTo(KA.dangerTarget().pos) < 0.5,
+        callout: document.getElementById("callout").textContent,
+      };
+    });
+    /* (its marker is drawn on the next frame) */
+    for (let i = 0; i < 20 && !mk.el; i++) {
+      await p.waitForTimeout(50);
+      mk.el = await p.evaluate(() => !!document.querySelector("#pings .ping.danger"));
+    }
+    check(
+      mk.one === "weapon" && mk.friend === 1,
+      "a new ping replaces your last one and leaves teammates' alone",
+      mk
+    );
+    /* the default layout: grenades top left, shield top middle, weapons top right, tracker bottom left;
+       nothing overlaps or leaves the screen, at desktop width, at 375 px and at the largest HUD size */
+    const layout = () =>
+      p.evaluate(() => {
+        const qs = ["#nadeHud", "#vitals", "#weapHud", "#tracker", ".status"],
+          r = {},
+          bad = [];
+        for (const q of qs) {
+          const e = document.querySelector(q);
+          const b = e && !e.hidden && e.getBoundingClientRect();
+          if (!b || !b.width) bad.push(q + " missing");
+          else r[q] = b;
+        }
+        const W = innerWidth,
+          H = innerHeight;
+        for (const [q, b] of Object.entries(r)) {
+          if (b.left < 0 || b.top < 0 || b.right > W + 0.5 || b.bottom > H + 0.5) bad.push(q + " off screen");
+          for (const [q2, b2] of Object.entries(r))
+            if (
+              q < q2 &&
+              !(b.right <= b2.left || b.left >= b2.right || b.bottom <= b2.top || b.top >= b2.bottom)
+            )
+              bad.push(q + " overlaps " + q2);
+        }
+        const c = q => r[q] && (r[q].left + r[q].right) / 2;
+        const corner =
+          c("#nadeHud") < W / 3 &&
+          r["#nadeHud"].top < H / 4 &&
+          Math.abs(c("#vitals") - W / 2) < 4 &&
+          c("#weapHud") > (W * 2) / 3 &&
+          c("#tracker") < W / 3 &&
+          r["#tracker"].top > H / 2;
+        return { bad, corner, W };
+      });
+    const lay = [await layout()];
+    await p.setViewportSize({ width: 375, height: 700 });
+    await p.waitForTimeout(250);
+    lay.push(await layout());
+    await p.setViewportSize({ width: 1280, height: 800 });
+    await p.evaluate(() => {
+      KA.SET.hudScale = 1.4;
+      KA.applySettings();
+    });
+    await p.waitForTimeout(250);
+    lay.push(await layout());
+    await p.evaluate(() => {
+      KA.SET.hudScale = 1;
+      KA.applySettings();
+    });
+    check(
+      lay.every(l => !l.bad.length && l.corner),
+      "the HUD's default layout: grenades top left, shield top middle, weapons top right, tracker bottom left, clear of each other at 1280 and 375 px and the largest HUD size",
+      lay
+    );
+    check(
+      mk.danger === "danger" && mk.near && mk.el && /Danger/.test(mk.callout),
+      "double-tapping ping marks danger at the reticle point, with its own marker and callout",
+      mk
     );
     /* melee impacts: a blow on a pilot thuds (a crack when it breaks the shield, heavier from behind),
        one on a wall clanks, the charge has its own pair, and a whiff only swings */
@@ -1035,20 +1230,33 @@ const podSeats = map => {
         if (pos === "br") out.size = Math.round(t.width);
         if (t.left < 0 || t.top < 0 || t.right > innerWidth || t.bottom > innerHeight)
           out.bad.push(pos + " off screen");
-        for (const q of ["#cComms", ".vitals", ".ammo", ".kit", ".cbar", "#cPlan", "#medals"]) {
+        for (const q of [
+          "#cComms",
+          "#vitals",
+          "#weapHud",
+          "#nadeHud",
+          ".status",
+          "#feed",
+          ".kit",
+          ".cbar",
+          "#cPlan",
+          "#medals",
+        ]) {
           const b = box(q);
           if (b && hit(t, b)) out.bad.push(pos + " covers " + q);
         }
       }
+      /* the shield bar sits under the score bar */
+      if (hit(box("#vitals"), box(".cbar"))) out.bad.push("shield under the score bar");
       out.chat = Math.round(box("#cComms").height);
-      KA.SET.trackerPos = "br";
+      KA.SET.trackerPos = "bl";
       KA.applySettings();
       out.mini = getComputedStyle(document.getElementById("cMini")).display;
       return out;
     });
     check(
       trkLay.size >= 190 && trkLay.chat > 0 && trkLay.bad.length === 0 && trkLay.mini === "none",
-      "the motion tracker takes the minimap's place, and in every position it stays on screen and clear of chat, vitals, ammo and abilities",
+      "the motion tracker takes the minimap's place, and in every position it stays on screen and clear of chat, shield, weapons, grenades and abilities",
       trkLay
     );
     /* a friend's ping reaches the host, and the friend's AI teammates respond to it */
@@ -1068,6 +1276,39 @@ const podSeats = map => {
       });
     }
     check(pinged >= 1, "a friend's ping sends their AI teammates", pinged);
+    /* a friend's double tap: a danger mark that replaces their ping on the host's screen, and their AI
+       teammates keep clear of it */
+    await B.evaluate(() => {
+      KA.PINGS.lastT = -9;
+      KA.PINGS.tapT = -9;
+      KA.pingNow();
+      KA.pingNow();
+    });
+    let dz = null;
+    for (let i = 0; i < 40 && !(dz && dz.ai); i++) {
+      await A.waitForTimeout(100);
+      dz = await A.evaluate(() => {
+        const g = CTF.UI.game();
+        const fr = g.agents.find(a => a.remote);
+        const theirs = KA.PINGS.list.filter(q => q.by === fr.id);
+        return {
+          marks: theirs.map(q => q.kind).join(),
+          ai: g.teams[fr.team].agents.filter(a => !a.human && a.danger).length,
+          same: fr.team === g.human.team,
+        };
+      });
+    }
+    dz.own = await B.evaluate(() =>
+      KA.PINGS.list
+        .filter(q => q.by === "local")
+        .map(q => q.kind)
+        .join()
+    );
+    check(
+      dz.ai >= 1 && dz.own === "danger" && (!dz.same || dz.marks === "danger"),
+      "a friend's danger mark reaches the host, replaces their ping there, and their AI teammates take it up",
+      dz
+    );
     /* a steered pod only lands near your own base in CTF */
     const zone = await A.evaluate(() => {
       const t = CTF.UI.game().human.team,

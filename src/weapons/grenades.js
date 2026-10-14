@@ -224,17 +224,30 @@ function nadeRefill() {
   if (!nadeTypes().includes(nadeSel)) nadeSel = "frag";
   updNadeHud();
 }
+/** the HUD's grenade panel (ui/hud.js draws it) */
 function updNadeHud() {
-  const el = $("gnade");
-  if (!el) return;
-  const name = { frag: "Frag", plasma: "Plasma", pulse: "Pulse" };
-  el.textContent = nadeTypes()
-    .map(t => `${nadeSel === t ? "› " : ""}${name[t]} ${nadeInv[t]}`)
-    .join("   ");
+  if (typeof drawNadeHud === "function") drawNadeHud();
 }
-function swapNade() {
+/** out of the selected type: the next type in the cycle you still have comes up (none left: no change) */
+function nadeAuto() {
+  if (nadeInv[nadeSel] > 0) return false;
+  const ts = nadeTypes(),
+    i = ts.indexOf(nadeSel);
+  for (let k = 1; k < ts.length; k++) {
+    const t = ts[(i + k) % ts.length];
+    if (nadeInv[t] > 0) {
+      nadeSel = t;
+      updNadeHud();
+      return true;
+    }
+  }
+  return false;
+}
+/** the next grenade type (dir -1: the previous one; D-pad left goes back when it is bound to the swap) */
+function swapNade(dir) {
+  const d = dir || (gpDown(GPB.LEFT) && (PADB.swapNade || []).includes(GPB.LEFT) ? -1 : 1);
   const ts = nadeTypes();
-  nadeSel = ts[(ts.indexOf(nadeSel) + 1) % ts.length];
+  nadeSel = ts[(ts.indexOf(nadeSel) + d + ts.length) % ts.length];
   updNadeHud();
   sfx("hit", 0.4);
 }
@@ -286,10 +299,12 @@ const playerNadeOwner = {
 };
 function throwNade() {
   if (nadeCD > 0 || me.dead || nadeInv[nadeSel] <= 0 || me.clamber || paused) return;
-  nadeInv[nadeSel]--;
+  const type = nadeSel;
+  nadeInv[type]--;
   nadeCD = 0.9;
   me.spawnT = -1e9; /* attacking ends spawn protection */
   vmS.throwT = 0.42;
+  nadeAuto();
   updNadeHud();
   const d = new V3();
   camera.getWorldDirection(d);
@@ -299,7 +314,7 @@ function throwNade() {
   const v = d
     .multiplyScalar(NADE_TUNE.throw)
     .add(_n1.set(me.vel.x * 0.5, Math.max(0, me.vel.y * 0.3), me.vel.z * 0.5));
-  MAIN_NADES.throw(nadeSel, o, v, playerNadeOwner);
+  MAIN_NADES.throw(type, o, v, playerNadeOwner);
   sfx("swing", 0.6);
-  emitFx("nade", v3a(o), v3a(v), nadeSel === "plasma" ? 1 : nadeSel === "pulse" ? 2 : 0);
+  emitFx("nade", v3a(o), v3a(v), type === "plasma" ? 1 : type === "pulse" ? 2 : 0);
 }

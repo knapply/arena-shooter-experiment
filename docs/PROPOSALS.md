@@ -81,7 +81,7 @@ For reference (docs/TUNING.md): sniper 0.79, rockets 0.53, grenades only 0.55.
 
 ### W1. MR-3 burst rifle (prototyped)
 
-**What:** a primary (it takes the carbine's slot) firing 3-round bursts, 0.06 s between rounds, a burst every 0.36 s. Precision (no spread): every round goes where the reticle is at that instant. 8 body, 22 head once shields are down. Four bursts kill: **11 rounds, 1.14 s** if the last two are headshots; 15 rounds, 1.56 s body only. 2x zoom, 36 rounds, endless reserve. Pickups by each base (Twin Foundry) and on the arena's east and west sides, 30 s respawn.
+**What:** a primary (it takes the carbine's slot) firing 3-round bursts, 0.06 s between rounds, a burst every 0.36 s. Precision (no spread): every round goes where the reticle is at that instant. 8 body, 22 head once shields are down. Four bursts kill: **11 rounds, 1.14 s** if the last two are headshots; 15 rounds, 1.56 s body only. 2x zoom, 36 rounds, 180 in reserve. Pickups by each base (Twin Foundry) and on the arena's east and west sides, 30 s respawn.
 
 **Why:** the magnum is the skill weapon, but it is a sidearm with click timing. The burst rifle is a primary that rewards **tracking through a burst** (three chances to stay on a strafing target in 0.12 s) and burst pacing. Pick-up-and-play: hold the trigger and it keeps bursting; with no spread, what you see is what you hit.
 

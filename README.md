@@ -57,8 +57,10 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - **Results screen:** after Play of the Game, the winner and score, your match (kills by weapon, accuracy, best spree, damage, medals), awards (MVP, most damage, best accuracy, top flag runner), a timeline of the big moments, and Play again, Change mode or Leave
 - **Play of the Game:** every match ends with a cinematic replay of its best moment (multikills, sprees, clutch captures)
 - **Match intros:** a five-second flyover of the map, both teams at their spawns, the objective and the power weapon
-- **Motion tracker:** a 25 m radar showing enemies who run, jump or shoot (crouch-walking keeps you off it). It sits in whichever corner you choose, at the size you choose, and in capture the flag it takes the minimap's place while you play
-- **Pings:** mark an enemy, weapon or place for your team; AI teammates respond to them
+- **HUD:** clean, angular glass panels: grenades top left (each type's icon and count, the selected one lit, and the key or D-pad that swaps them, following the device you're using and your bindings), shield over hull top middle, both weapons and the ammo counter (magazine and reserve) top right, the motion tracker bottom left. It scales with the HUD size setting, fits a phone, and gets out of the way during pod drops and kill cams
+- **Motion tracker:** a 25 m radar showing enemies only while they sprint, thrust or hover (stabilize in the air); walking, crouching and firing keep you off it. Teammates always show, dimmer. It sits bottom left by default, or in whichever spot you choose, at the size you choose, and in capture the flag it takes the minimap's place while you play
+- **Pings:** mark an enemy, weapon or place for your team; AI teammates respond to them. You have one mark at a time: a new ping replaces your last. Double-tap ping to mark danger at your reticle, enemy or not: a red warning with its own sound and callout, and AI teammates keep clear of it while the nearest two watch it
+- **Grenades switch themselves:** run out of one type and the next type you still have comes up
 - **Medals:** multikills, sprees, Perfect (a minimum-shot kill with no misses), headshots, revenge and more, with announcer callouts
 - **AI with the full arsenal:** bots carry the carbine and the magnum like you, switch with your switch time, and pick the magnum at range and to finish a pilot whose shields are down
 - **Four bot skill levels:** Recruit (the gentle default for your first match: slow to react, loose aim, short sight, few dodges and grenades), Normal, Heroic and Legendary, for the practice drones and CTF bots alike
@@ -123,7 +125,7 @@ All bindings can be changed in **Settings → Keys / Controller**.
 | Pick up weapon (hold) | E | X (hold) |
 | Throw grenade | G / Mouse 5 | RB |
 | Swap grenade type | T | D-pad left / right |
-| Ping (enemy, weapon or place) | Z / middle click | D-pad down |
+| Ping (enemy, weapon or place; double-tap: danger) | Z / middle click | D-pad down |
 | Weapon slot 1 / 2 | 1 / 2 | |
 | Switch weapon | Mouse wheel | Y |
 | Roster (hold) | Tab | View |
@@ -137,10 +139,12 @@ Touch controls appear automatically on touchscreen devices.
 
 | Weapon | Role | Magazine | Best kill | Notes |
 |---|---|---|---|---|
-| **M9 magnum** | Default, precision | 12 | 5 shots, 1.04 s | Semi-auto, no random spread. Smart-scope zoom (1.8×). |
-| **VK-7 pulse carbine** | Automatic | 32 | 12 shots, 1.1 s | Holographic sight (1.4×). Spread and bloom; steady damage at mid range. |
+| **M9 magnum** | Default, precision | 12 + 36 reserve | 5 shots, 1.04 s | Semi-auto, no random spread. Smart-scope zoom (1.8×). |
+| **VK-7 pulse carbine** | Automatic | 32 + 96 reserve | 12 shots, 1.1 s | Holographic sight (1.4×). Spread and bloom; steady damage at mid range. |
 | **SRS-9 sniper rifle** | Power weapon | 4 + 8 reserve | 1 headshot / 2 body shots | No random spread. Two zoom levels (5× / 10×). |
 | **HX-2 rocket launcher** | Power weapon | 2 + 4 reserve | 1 direct hit, or the blast | Rockets fly at 32 m/s and burst on contact; the 4.2 m blast falls off with distance, breaks cover and can kill you too. |
+
+No weapon has endless ammo: the starting guns carry about what a pilot fires in a long life (the 95th percentile of simulated lives, [docs/TUNING.md](docs/TUNING.md)), so you rarely run dry, but drops and ammo pickups matter. An empty gun with nothing to reload clicks and brings up your other weapon.
 
 The power spawn at map center alternates between the sniper rifle and the rocket launcher: each time one is taken, the other comes back 90 s later.
 
@@ -175,8 +179,8 @@ Combat rules:
 CTF bots are built to be competitive, not scripted:
 - **Roles:** attack, defend, mid control, escort, chase, flag return, carry. Roles are reassigned dynamically as the flags change hands.
 - **Team communication:** callouts for enemy positions, cracked targets to focus, flag status, grenades and the sniper.
-- **Pings:** when a teammate pings, the two nearest AI teammates head there; a pinged enemy is shared with the whole team.
-- **Combat:** reaction time, aim error, sight range, dodging and grenade use depend on the skill level (Recruit / Normal / Heroic / Legendary). They carry the carbine and the magnum with a magazine each, take the magnum at mid and long range and to finish a cracked target, switch instead of reloading mid-fight, and aim the magnum more tightly the better they are. They lead moving targets, predict strafe reversals, dodge with thrust, ground-pound from above, throw frags at clusters and stick plasmas.
+- **Pings:** when a teammate pings, the two nearest AI teammates head there; a pinged enemy is shared with the whole team. A danger mark keeps every AI teammate's route clear of it, and the two nearest hold short of it and watch it for a few seconds.
+- **Combat:** reaction time, aim error, sight range, dodging and grenade use depend on the skill level (Recruit / Normal / Heroic / Legendary). They carry the carbine and the magnum with a magazine and a reserve each (the player's loads), take the magnum at mid and long range and to finish a cracked target, switch instead of reloading mid-fight, and aim the magnum more tightly the better they are. They lead moving targets, predict strafe reversals, dodge with thrust, ground-pound from above, throw frags at clusters and stick plasmas.
 - **Learning:** each team keeps a model of its opponent. It tracks strategy win odds (Thompson sampling), where attacks come from, how often enemies change strafe direction, and preferred fight range. Play-style traits (aggression, dodge, patience and so on) evolve between matches. What they learn is saved in your browser and carries over between sessions. Training runs on a background thread.
 - **Navigation:** grid A* pathfinding, built from the map and updated when cover is destroyed.
 
@@ -274,6 +278,12 @@ node tools/tune.js             # sandbox tuning: simulated matches on every CPU 
 THREE_PATH=three.min.js node tests/render.test.js   # every graphics preset renders a normal frame
 THREE_PATH=three.min.js node tests/visual.test.js   # compare scenes against tests/visual baselines
 VISUAL_UPDATE=1 THREE_PATH=three.min.js node tests/visual.test.js   # accept new baselines
+```
+
+Working on the HUD:
+
+```bash
+THREE_PATH=three.min.js node tools/hud-preview.js [out-dir]   # first person at desktop and phone sizes: keyboard and controller hints, low ammo, a danger mark, CTF
 ```
 
 Working on character animation:

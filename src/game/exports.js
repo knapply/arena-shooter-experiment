@@ -158,6 +158,36 @@ const KA_API = {
   addPing,
   pingNow,
   pingTarget,
+  dangerTarget,
+  /* ammo and grenades (weapons/arsenal.js, grenades.js): magazine and reserve of the gun in hand */
+  get mag() {
+    return mag;
+  },
+  set mag(v) {
+    mag = v;
+  },
+  ammo,
+  reserve,
+  slots,
+  startReload,
+  autoTake,
+  get nadeSel() {
+    return nadeSel;
+  },
+  set nadeSel(v) {
+    nadeSel = v;
+  },
+  throwNade,
+  swapNade,
+  /** the input device the HUD's hints are for: "pad", "touch" or "keys" */
+  hudDevice,
+  /** your key and controller bindings (core/settings.js) */
+  get BIND() {
+    return BIND;
+  },
+  get PADB() {
+    return PADB;
+  },
   trackerShown,
   INTRO,
   playIntro,
