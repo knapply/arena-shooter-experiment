@@ -306,25 +306,51 @@ function analyze(truth, seen) {
       check(!!m && m.jumpsPerMin <= 12, "CTF: no visible pops on the client", m && m.jumpsPerMin);
       /* hit registration: the client shoots a moving target where it sees it; the host re-checks
          every claim against where the target was at that moment */
-      for (let i = 0; i < 30; i++) {
-        await B.evaluate(id => {
-          const me = KA.me;
-          me.pos.set(-22, KA.groundBelow(-22, 0, 20), 0);
-          me.vel.set(0, 0, 0);
-          me.shield = 70;
-          me.spawnT = KA.now;
-          const a = CTF.UI.game().map.get(id);
-          if (!a) return;
-          const o = me.pos.clone();
-          o.y += 1.6;
-          const d = a.body.pos.clone();
-          d.y += 1.0;
-          d.sub(o).normalize();
+      /* the shooter plays fair, as the host checks it: stands still, keeps its view on the target
+         (its reported aim follows), fires no faster than the pistol does and reloads (a weapon swap)
+         before the magazine runs out */
+      await B.evaluate(
+        async ({ id, n }) => {
+          const me = KA.me,
+            sleep = ms => new Promise(r => setTimeout(r, ms));
+          const aimAt = () => {
+            const a = CTF.UI.game().map.get(id);
+            me.pos.set(-22, KA.groundBelow(-22, 0, 20), 0);
+            me.vel.set(0, 0, 0);
+            me.shield = 70;
+            me.spawnT = KA.now;
+            if (!a) return null;
+            const o = me.pos.clone();
+            o.y += 1.6;
+            const d = a.body.pos.clone();
+            d.y += 1.0;
+            d.sub(o).normalize();
+            me.yaw = Math.atan2(-d.x, -d.z);
+            me.pitch = Math.asin(d.y);
+            return { o, d };
+          };
+          let on = true;
+          (function f() {
+            aimAt();
+            if (on) requestAnimationFrame(f);
+          })();
           KA.refill();
-          KA.fire({ o, d, muzzle: o });
-        }, id);
-        await B.waitForTimeout(160);
-      }
+          await sleep(300);
+          for (let i = 0; i < n; i++) {
+            if (i && i % 10 === 0) {
+              KA.setWeapon(0, true);
+              await sleep(200);
+              KA.setWeapon(1, true);
+              await sleep(200);
+            }
+            const s = aimAt();
+            if (s) KA.fire({ o: s.o, d: s.d, muzzle: s.o });
+            await sleep(320);
+          }
+          on = false;
+        },
+        { id, n: 36 }
+      );
       await B.waitForTimeout(1500);
       const hs = await A.evaluate(() => Object.assign({}, CTF.NET.hitStats));
       const rate = hs.ok / Math.max(1, hs.ok + hs.bad);
