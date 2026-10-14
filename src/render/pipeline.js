@@ -20,8 +20,10 @@ const GFX = {
   ao1: null,
   ao2: null,
   sh: null,
-  /* cinematic look (trailer and cutscenes): see CINE.look */
+  /* cinematic look (the trailer): see CINE.look; its pass and shaders are render/cine-look.js, in the
+     trailer build only */
   look: null,
+  lookPass: null,
   /* the environment capture is waiting for the first frames (render/environment.js) */
   envWait: false,
   frame: 0,
@@ -44,33 +46,6 @@ const blurMat = new THREE.ShaderMaterial({
   depthWrite: false,
   fragmentShader:
     "uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb*.227027;c+=texture2D(t,vUv+dir*1.3846).rgb*.316216;c+=texture2D(t,vUv-dir*1.3846).rgb*.316216;c+=texture2D(t,vUv+dir*3.2308).rgb*.07027;c+=texture2D(t,vUv-dir*3.2308).rgb*.07027;gl_FragColor=vec4(c,1.);}",
-});
-/* depth of field: each pixel's color weighted by how out of focus it is (alpha = weight), so sharp
-   foreground subjects don't bleed into the blurred background */
-const DOF_COC =
-  "uniform sampler2D tD;uniform vec4 dof;uniform vec2 clip;float lz(vec2 uv){float d=texture2D(tD,uv).x;return clip.x*clip.y/(clip.y-d*(clip.y-clip.x));}float coc(vec2 uv){float z=lz(uv);float k=clamp(abs(z-dof.y)/dof.z,0.,1.);if(z<dof.y)k=min(1.,k*(1.+dof.w));return smoothstep(0.,1.,k);}";
-const cocMat = new THREE.ShaderMaterial({
-  uniforms: {
-    t: { value: null },
-    tD: { value: null },
-    dof: { value: new THREE.Vector4() },
-    clip: { value: new THREE.Vector2(0.1, 500) },
-  },
-  vertexShader: FSV,
-  depthTest: false,
-  depthWrite: false,
-  fragmentShader:
-    "uniform sampler2D t;varying vec2 vUv;" +
-    DOF_COC +
-    "void main(){float k=coc(vUv);gl_FragColor=vec4(texture2D(t,vUv).rgb*k,k);}",
-});
-const blur4Mat = new THREE.ShaderMaterial({
-  uniforms: { t: { value: null }, dir: { value: new THREE.Vector2() } },
-  vertexShader: FSV,
-  depthTest: false,
-  depthWrite: false,
-  fragmentShader:
-    "uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;void main(){vec4 c=texture2D(t,vUv)*.227027;c+=texture2D(t,vUv+dir*1.3846)*.316216;c+=texture2D(t,vUv-dir*1.3846)*.316216;c+=texture2D(t,vUv+dir*3.2308)*.07027;c+=texture2D(t,vUv-dir*3.2308)*.07027;gl_FragColor=c;}",
 });
 /* screen-space ambient occlusion at half resolution: view positions rebuilt from depth, normals from
    the flatter side of each pixel's neighbours, ten samples on a rotated spiral within `rad` metres */
@@ -207,14 +182,6 @@ const compMat = new THREE.ShaderMaterial({
     vig: { value: 0.3 },
     grain: { value: 0.04 },
     time: { value: 0 },
-    /* cinematic look: depth of field (needs tD and tF), split-tone grade, lens fringing, anamorphic streaks */
-    tD: { value: null },
-    tF: { value: null },
-    dof: { value: new THREE.Vector4(0, 10, 6, 0) },
-    clip: { value: new THREE.Vector2(0.1, 500) },
-    grade: { value: 0 },
-    ca: { value: 0 },
-    streak: { value: 0 },
     /* ambient occlusion, light shafts and the map's grade */
     tA: { value: null },
     aoK: { value: 0 },
@@ -234,11 +201,11 @@ const compMat = new THREE.ShaderMaterial({
   },
   fragmentShader: [
     "uniform sampler2D tS;uniform sampler2D tB;uniform vec2 texel;uniform float fx;uniform float sharp;uniform float bloom;uniform float expo;uniform float sat;uniform float vig;uniform float grain;uniform float time;varying vec2 vUv;",
-    /* the cinematic look (trailer, kill cams) is compiled in only while one is on (CINE) */
     "uniform vec4 heat[6];uniform float heatN;uniform float hT;uniform float aspect;uniform sampler2D tR;uniform float ssrK;uniform sampler2D tA;uniform float aoK;uniform sampler2D tSh;uniform float shaftK;uniform float gOn;uniform vec3 gLift;uniform vec3 gGain;uniform float gVib;",
+    /* the cinematic look (render/cine-look.js, trailer build) splices in at these markers, compiled in
+       only while a look is on (CINE) */
     "#ifdef CINE",
-    "uniform sampler2D tF;uniform float grade;uniform float ca;uniform float streak;",
-    DOF_COC,
+    "/*@cine-head*/",
     "#endif",
     "vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}",
     "float luma(vec3 c){return dot(c,vec3(.299,.587,.114));}",
@@ -254,12 +221,7 @@ const compMat = new THREE.ShaderMaterial({
     " if(sharp>.001){vec3 n=S(uv-vec2(0.,texel.y)),s=S(uv+vec2(0.,texel.y)),e=S(uv+vec2(texel.x,0.)),w=S(uv-vec2(texel.x,0.));vec3 mn=min(c,min(min(n,s),min(e,w))),mx=max(c,max(max(n,s),max(e,w)));c=clamp(c+(4.*c-n-s-e-w)*sharp*.3,mn,mx);}",
     " vec2 q=uv-.5;",
     "#ifdef CINE",
-    /* lens fringing: red and blue sampled apart toward the frame edges */
-    "  if(ca>0.){vec2 o2=q*dot(q,q)*ca;c.r=S(uv+o2).r;c.b=S(uv-o2).b;}",
-    /* depth of field: blend toward a blurred copy by circle of confusion (dof = amount, focus m, range m, near blur) */
-    "  if(dof.x>0.){vec4 F=texture2D(tF,uv);float k=coc(uv)*dof.x*smoothstep(0.,.25,F.a);c=mix(c,aces(F.rgb/max(F.a,.001)*expo),k);}",
-    /* anamorphic streaks: bloom smeared sideways, tinted cool */
-    "  if(streak>0.){vec3 s2=vec3(0.);for(int i=1;i<7;i++){float f=float(i)*.022;s2+=(texture2D(tB,uv+vec2(f,0.)).rgb+texture2D(tB,uv-vec2(f,0.)).rgb)*(1.-float(i)/7.);}c+=aces(s2*expo*.18)*vec3(.55,.8,1.)*streak;}",
+    "/*@cine-color*/",
     "#endif",
     /* occlusion darkens everything but what glows */
     " if(aoK>0.){float a=texture2D(tA,uv).r;c*=mix(1.,a,aoK*(1.-smoothstep(.75,1.,luma(c))));}",
@@ -270,9 +232,8 @@ const compMat = new THREE.ShaderMaterial({
     " float l=luma(c);c=max(mix(vec3(l),c,sat),0.);",
     " c*=1.-vig*smoothstep(.3,.95,length(q)*1.25);",
     " float g=fract(sin(dot(uv+fract(time),vec2(12.9898,78.233)))*43758.5453);vec3 o=pow(clamp(c,0.,1.),vec3(1./2.2));",
-    /* split-tone grade: cool shadows, warm highlights, a gentle S-curve */
     "#ifdef CINE",
-    " if(grade>0.){float L=luma(o);o+=grade*((1.-L)*(1.-L)*vec3(-.035,.012,.05)+L*L*vec3(.05,.012,-.045));o=mix(o,o*o*(3.-2.*o),grade*.35);}",
+    "/*@cine-grade*/",
     "#endif",
     " if(gOn>.5){o=o*gGain+gLift*(1.-o);float L=luma(o),mx=max(o.r,max(o.g,o.b)),mn=min(o.r,min(o.g,o.b));o=mix(vec3(L),o,1.+gVib*(1.-(mx-mn)));}",
     " gl_FragColor=vec4(o+(g-.5)*grain*.6,1.);}" /* grain after gamma so dark areas are not swamped by noise */,
@@ -495,33 +456,7 @@ function renderFrame() {
       else delete compMat.defines.CINE;
       compMat.needsUpdate = true;
     }
-    if (L) {
-      const dofOn = L.dof > 0 && !!GFX.b3 && !!GFX.rt.depthTexture;
-      if (dofOn) {
-        /* a half-resolution blurred copy of the out-of-focus parts of the scene */
-        const C = cocMat.uniforms;
-        C.t.value = GFX.rt.texture;
-        C.tD.value = GFX.rt.depthTexture;
-        C.dof.value.set(1, L.focus || 10, L.range || 6, L.near == null ? 1 : L.near);
-        C.clip.value.set(camera.near, camera.far);
-        fsPass(cocMat, GFX.b3);
-        for (let i = 0; i < 2; i++) {
-          blur4Mat.uniforms.t.value = GFX.b3.texture;
-          blur4Mat.uniforms.dir.value.set((1.6 + i) / GFX.b3.width, 0);
-          fsPass(blur4Mat, GFX.b4);
-          blur4Mat.uniforms.t.value = GFX.b4.texture;
-          blur4Mat.uniforms.dir.value.set(0, (1.6 + i) / GFX.b3.height);
-          fsPass(blur4Mat, GFX.b3);
-        }
-        U.tD.value = GFX.rt.depthTexture;
-        U.tF.value = GFX.b3.texture;
-      }
-      U.dof.value.set(dofOn ? L.dof : 0, L.focus || 10, L.range || 6, L.near == null ? 1 : L.near);
-      U.clip.value.set(camera.near, camera.far);
-      U.grade.value = L.grade || 0;
-      U.ca.value = L.ca || 0;
-      U.streak.value = SET.bloom > 0 ? L.streak || 0 : 0;
-    }
+    if (L && GFX.lookPass) GFX.lookPass(U, L);
     if (GPUQ) GPUQ.begin("comp");
     U.tS.value = GFX.rt.texture;
     U.tB.value = GFX.b1.texture;

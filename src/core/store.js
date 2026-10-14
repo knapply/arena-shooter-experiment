@@ -12,7 +12,7 @@
    (the AI's learned tactics), aiMaps (the AI's memory of each map), botLevel (adaptive bot skill),
    menu (the picked mode, and each mode's map and team size). Each also reads its pre-store
    localStorage key once, then moves it. */
-const STORE = (() => {
+export const STORE = (() => {
   const APP = "kinetic-arena";
   /** in-memory fallback when storage is blocked (private windows, sandboxed previews) */
   function memoryBackend() {

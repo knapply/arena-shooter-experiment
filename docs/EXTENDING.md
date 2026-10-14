@@ -6,6 +6,7 @@ Ground rules that apply to everything below:
 
 - **Engine vs modes.**
   - Engine modules (`manifest.engine`) share one scope. A new engine file goes in `src/manifest.json` after everything it uses at load time. Calls made inside functions can reach modules listed later.
+  - An engine module may be an ES module instead (`core/store.js`, `core/rng.js`, `game/frame-hooks.js`, `data/modes.js`): `import { x } from "./y.js"` from other ES modules only, and `export` on its top-level declarations. The build strips both (`tools/esm.cjs`), the lint gives it only what it imports, and `node build.mjs` regenerates `types/engine-modules.d.ts` so script modules can keep using its exports by name.
   - Mode modules (`manifest.modes`) only see `window.KA` (`game/exports.js`) and `window.CTF`. If a mode needs something new from the engine, export it from `game/exports.js`. The simulation bundle also needs it in `worker/sim-exports.js` (as a stub if it's visual).
 - **The simulation must stay deterministic.**
   - Anything that affects play (AI, rules, spawns, physics) uses the seeded `rand()` / `K.rand()`, never `Math.random`, and must restore exactly on reset.
@@ -58,7 +59,7 @@ New content can ship off by default: give a weapon `lab: "<name>"` (it appears o
    - `spawns.ffa` and/or `spawns.teams`.
 
    Optional fields: `flags` (capture the flag), `ball` (where oddball's skull comes down; default the middle), `zones` (callouts, below), `lanes` (`split`, `x`: lane hints for the AI), `pickups`, and `gates` (blast walls that rise and sink on the match clock: `leaves` `[x, z, width, depth]`, `h`, `phase` 0 to 1 of the cycle, `twin`; see `world/gates.js`).
-2. `validateMap` checks it strictly; `tests/maps.test.js` runs it, including overlap checks.
+2. `validateMap` (`data/map-check.js`, in the simulation bundle only) checks it strictly; `tests/maps.test.js` runs it on every map and mod, including overlap checks.
 3. The AI can play it straight away in every mode: `CTF.Game({ map: "<id>", rules: "slayer", mode: "sim", render: false })` (`rules`: `ctf` needs `flags`; `slayer`, `ffa` and `oddball` play anywhere; without `rules` a map with flags plays capture the flag and one without Team Slayer). The nav grid sizes itself from `bounds` and seeds reachability from the first flag or spawn. Team modes use `spawns.teams` (each team together on its own side), free-for-all `spawns.ffa` (or both teams' spawns). Check it with:
    ```bash
    MAP=<id> MODE=oddball MATCHES=8 KNOBS=none node tools/tune.js

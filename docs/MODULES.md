@@ -11,14 +11,14 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/prelude.js` | 39 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
 | `src/game/events.js` | 71 | `EVENTS` |
 | `src/game/frame-hooks.js` | 21 | `FRAME_HOOKS` `onFrame` `runFrameHooks` |
-| `src/core/settings.js` | 1434 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `T_LAB` `T_MODE` `SANDBOX_DEFS` `LAB_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` … (+16) |
+| `src/core/settings.js` | 1433 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `T_LAB` `T_MODE` `SANDBOX_DEFS` `LAB_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` … (+15) |
 | `src/render/renderer.js` | 169 | `canvas` `renderer` `scene` `camera` `resize` `hemi` `sun` `_skyP` `skyTint` `SKY_TIME` `SKY_SUN` `SKY_Q` |
-| `src/render/pipeline.js` | 680 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `DOF_COC` `cocMat` `blur4Mat` `VIEWPOS` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `MAP_GRADE` `HEAT_U` `compMat` `fsQuad` `fsScene` … (+19) |
+| `src/render/pipeline.js` | 615 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `VIEWPOS` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `MAP_GRADE` `HEAT_U` `compMat` `fsQuad` `fsScene` `UPS` `gfxScale` `gfxResize` … (+16) |
 | `src/render/environment.js` | 172 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyGfx` `pc` `scaleBoxUV` |
 | `src/render/surfaces.js` | 329 | `SURF_MATS` `SURF_DEBUG` `SURF_U` `SURF_GLSL` `surfMat` `applySurf` `bakeMarkings` |
 | `src/render/perf.js` | 118 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
 | `src/data/modes.js` | 168 | `MODE_DATA` `PLAY_MODES` `AI_SKILL` `POD_TIME` `POD_HEIGHT` `POD_EARLY` |
-| `src/data/maps.js` | 716 | `MAP_SCHEMA` `MAPS` `MAP_MATS` `MAP_LIMIT` `validateMap` `mapZone` `SIDE_NAMES` `zoneLabel` `PLAY_MAP` `setPlayMap` `zoneAt` `mapPieces` `ringPieces` `MAP_MODS` `MOD_DOCS` `mapDoc` |
+| `src/data/maps.js` | 574 | `MAP_SCHEMA` `MAPS` `mapZone` `SIDE_NAMES` `zoneLabel` `PLAY_MAP` `setPlayMap` `zoneAt` `mapPieces` `ringPieces` `MAP_MODS` `MOD_DOCS` `mapDoc` |
 | `src/world/destruction.js` | 343 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `CHIP_STAGES` `_cp` `_cv` `chipGeo` `chipBox` `unchipBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` … (+5) |
 | `src/world/dress.js` | 183 | `DRESS_MATS` `zoneMat` `dressMap` |
 | `src/world/bake.js` | 268 | `MAP_GROUPS` `BAKE` `AO_R` `BOUNCE_R` `bakeBoxGeo` `bakePrep` `boxGrid` `rayBoxes` `bakeLight` |
@@ -28,8 +28,8 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/maps/arena.js` | 279 | `floorTex` `crateTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `mergeGeos` `mergeMapGroup` `strip` `stairs` `buildMap` `SPAWNS` |
 | `src/world/physics.js` | 570 | `R` `H_STAND` `H_CROUCH` `TUNE_DEF` `TUNE` `REGEN_DELAY` `NO_PILOTS` `pilotsFn` `setPilotCollider` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
 | `src/world/spawns.js` | 107 | `SPAWN_W` `_spE` `_spD` `spawnScore` `pickSpawn` `spotTaken` `noteFight` |
-| `src/data/anim-clips.js` | 132 | `ANIM_CLIPS` |
-| `src/characters/anim.js` | 744 | `ANIM` |
+| `src/data/anim-clips.js` | 135 | `ANIM_CLIPS` |
+| `src/characters/anim.js` | 771 | `ANIM` |
 | `src/weapons/models.js` | 280 | `GUN_MODELS` `gunParts` `gunGeo` |
 | `src/characters/rig.js` | 1520 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+46) |
 | `src/characters/look.js` | 132 | `RIG_LOOK` `_rh` `_rh2` `CHAR_GLSL` `charPatch` `applyCharLook` `teamPattern` `HEX_FRAG` `styleRig` |
@@ -45,7 +45,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/grenades.js` | 321 | `NADES` `pulseBody` `NADE_TUNE` `NG` `_n1` `_n2` `fragGeo` `fragMat` `pulseMat` `plasMat` `fxPut` `losClear` `inBox` `solveThrow` `nadeDmg` `NadeWorld` `MAIN_NADES` `nadeInv` … (+9) |
 | `src/weapons/rockets.js` | 169 | `ROCKET_STATS` `_rk1` `_rk2` `rocketGeo` `rocketMat` `rocketFlame` `rocketDmg` `RocketWorld` `MAIN_ROCKETS` `playerRocketOwner` `fireRocket` `remoteProjectile` |
 | `src/game/sandbox.js` | 79 | `SB_OVERRIDE` `sandboxValues` `sandboxRules` `setSandboxOverride` `applySandbox` `applyLabs` |
-| `src/core/audio.js` | 724 | `AC` `master` `audio` `NOISE` `noise` `env` `nz` `tone` `SFX_LAST` `sfxVoices` `sfxVoiceT` `SFX_TAP` `sfxTap` `bodyThud` `sfx` `distVol` `LIVE_AC` `SPACE` … (+15) |
+| `src/core/audio.js` | 685 | `AC` `master` `audio` `NOISE` `noise` `env` `nz` `tone` `SFX_LAST` `sfxVoices` `sfxVoiceT` `SFX_TAP` `sfxTap` `bodyThud` `sfx` `distVol` `LIVE_AC` `SPACE` … (+14) |
 | `src/core/announcer.js` | 186 | `VO` `hasTTS` `pickVoice` `lastSay` `say` `MEDAL` `medal` `streak` `multi` `lastKillT` `firstBlood` `lastKiller` `onKill` `objMedal` |
 | `src/game/state.js` | 496 | `EXT` `me` `myName` `playing` `paused` `now` `kills` `deaths` `mag` `reloadT` `fireCD` `myPeer` `killedBy` `respawnAt` `lastFireT` `RELOAD_TIME` `mePilot` `hitsOut` … (+44) |
 | `src/weapons/firing.js` | 295 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `engage` `SHOT` `r3` `targetId` `engageShot` `perfectKill` `burstLeft` `fireStep` `dryT` `dryFire` `fire` `startReload` … (+4) |
@@ -80,7 +80,10 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 41 | `_sd` `RANGE` `updAim` |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 340 | `KA_API` |
+| `src/game/exports.js` | 300 | `KA_API` |
+| `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
+| `src/core/audio-offline.js` | 42 | `renderSfx` |
+| `src/data/map-check.js` | 147 | `MAP_MATS` `MAP_LIMIT` `validateMap` |
 | `src/modes/ctf/map.js` | 253 |  |
 | `src/modes/ctf/nav.js` | 349 |  |
 | `src/modes/ctf/memory.js` | 168 |  |

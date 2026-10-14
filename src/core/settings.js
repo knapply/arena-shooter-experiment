@@ -1428,6 +1428,5 @@ function keyLabel(code) {
   };
   return m[code] || code.replace(/(Left|Right)$/, "");
 }
-const bindLabel = a => (BIND[a] || []).map(keyLabel).join(" / ") || "Unbound";
 loadSettings();
 rebuildCodeMap();

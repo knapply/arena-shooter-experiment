@@ -122,4 +122,11 @@ const roster = p =>
     KA.EXT.scores(tb);
     return [...tb.rows].map(r => r.cells[0].textContent);
   });
-module.exports = { launch, open, text, visible, roster, ROOT, closeTab };
+/** wait for fn(arg) in the page to be true (false after the timeout): waits on game state, not time,
+    so a slow machine (CI's software renderer) only takes longer */
+const until = (p, fn, arg, timeout = 30000) =>
+  p.waitForFunction(fn, arg, { timeout, polling: 50 }).then(
+    () => true,
+    () => false
+  );
+module.exports = { launch, open, text, visible, roster, ROOT, closeTab, until };

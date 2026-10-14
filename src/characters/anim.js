@@ -35,10 +35,37 @@ const ANIM = (() => {
     THIGH = 0.44,
     SHIN = 0.43,
     REACH = THIGH + SHIN - 0.006;
-  /* ---- decode: 16-bit x, y, z per rotation (w >= 0 rebuilt), neighbouring keys on one hemisphere ---- */
-  const bin = atob(C.data);
-  const raw = new Int16Array(bin.length >> 1);
-  for (let i = 0; i < raw.length; i++) raw[i] = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
+  /* ---- decode: x, y, z per rotation (w >= 0 rebuilt), neighbouring keys on one hemisphere. Each channel
+     is predicted from its last two keys; the data holds the remainders (packInts, tools/mocap/convert.js) ---- */
+  const LUT = new Uint8Array(128),
+    S = C.data;
+  for (let i = 0; i < 64; i++)
+    LUT["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".charCodeAt(i)] = i;
+  let pos = 0;
+  const num = () => {
+    let z = 0,
+      m = 1,
+      c;
+    do {
+      c = LUT[S.charCodeAt(pos++)];
+      z += (c & 31) * m;
+      m *= 32;
+    } while (c & 32);
+    return z & 1 ? -(z + 1) / 2 : z / 2;
+  };
+  const NC = NB * 3 + 3,
+    raw = [];
+  for (const m of C.clips) {
+    const p1 = new Array(NC).fill(0),
+      p2 = new Array(NC).fill(0);
+    for (let k = 0; k < m.k; k++)
+      for (let j = 0; j < NC; j++) {
+        const v = (k > 1 ? 2 * p1[j] - p2[j] : p1[j]) + num();
+        p2[j] = p1[j];
+        p1[j] = v;
+        raw.push(v);
+      }
+  }
   let at = 0;
   /** @type {Record<string, { n: string, k: number, T: number, v: number[], c: number[][], up: number, down: number, d: Float32Array, speed: number, w: number[] | null }>} */
   const CL = {};
@@ -47,9 +74,9 @@ const ANIM = (() => {
     for (let k = 0; k < m.k; k++) {
       const o = k * ST;
       for (let b = 0; b < NB; b++) {
-        const x = raw[at++] / 32767,
-          y = raw[at++] / 32767,
-          z = raw[at++] / 32767;
+        const x = raw[at++] / C.q,
+          y = raw[at++] / C.q,
+          z = raw[at++] / C.q;
         let w = Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z));
         let s = 1;
         if (k > 0) {
@@ -58,7 +85,7 @@ const ANIM = (() => {
         }
         d.set([x * s, y * s, z * s, w * s], o + b * 4);
       }
-      for (let j = 0; j < 3; j++) d[o + NB * 4 + j] = raw[at++] / 4000;
+      for (let j = 0; j < 3; j++) d[o + NB * 4 + j] = raw[at++] / C.pq;
     }
     CL[m.n] = Object.assign({ v: [0, 0], c: [], up: 0, down: 0, w: null }, m, {
       d,

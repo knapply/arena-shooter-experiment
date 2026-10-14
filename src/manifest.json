@@ -94,6 +94,7 @@
     "_comment": "The cinematic trailer is not part of the game: `node build.mjs --trailer` writes out/trailer.html (the game plus these files), which tools/record-trailer.js captures to media/trailer.mp4.",
     "styles": ["styles/trailer.css"],
     "html": "html/trailer.html",
+    "engine": ["render/cine-look.js", "core/audio-offline.js"],
     "modes": ["modes/trailer-score.js", "modes/trailer.js"]
   },
   "worker": {
@@ -106,6 +107,7 @@
       "data/weapons.js",
       "data/modes.js",
       "data/maps.js",
+      "data/map-check.js",
       "world/destruction.js",
       "world/gates.js",
       "world/maps/arena.js",

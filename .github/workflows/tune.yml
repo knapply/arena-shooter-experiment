@@ -1,8 +1,12 @@
-# Sandbox tuning simulations on GitHub's runners (a backup for when no fast machine is around).
-# Each matrix job runs tools/tune.js for one knob group and seed set; the merge job combines them
-# and commits the result to the tune-results branch.
+# Sandbox tuning simulations on GitHub's runners: by hand, and weekly so balance drift from code
+# changes is caught early. Each matrix job runs tools/tune.js for one knob group and seed set (one
+# group is the null controls); the merge job combines them, writes which knobs moved skill share
+# beyond the noise as the run's job summary (tools/tune-summary.js), and commits the results and that
+# summary to the tune-results branch. It opens no issues and posts no comments.
 name: Tune
 on:
+  schedule:
+    - cron: "0 5 * * 1" # Mondays 05:00 UTC, with the defaults below
   workflow_dispatch:
     inputs:
       matches:
@@ -34,6 +38,8 @@ jobs:
           - "sbMagDmg sbMagRate"
           - "sbSnipeDmg sbSnipeRate sbRocketSplash sbRocketRadius"
           - "sbNadeThrow sbNadeBounce sbNadeFuse sbNadeRadius"
+          # null controls: run speed nudged by too little to matter, so the run measures its own noise
+          - "ctrl"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -42,13 +48,19 @@ jobs:
       - run: npm install --no-audit --no-fund
       - name: Simulate
         env:
-          MATCHES: ${{ inputs.matches }}
-          MINUTES: ${{ inputs.minutes }}
+          # a scheduled run has no inputs: the same defaults as a manual one
+          MATCHES: ${{ inputs.matches || '16' }}
+          MINUTES: ${{ inputs.minutes || '4' }}
           LOCK: ${{ inputs.lock }}
-          MAP: ${{ inputs.map }}
+          MAP: ${{ inputs.map || 'ctf' }}
           SEED: ${{ matrix.seed }}
           OUT: tune.json
-        run: node tools/tune.js ${{ matrix.group }}
+        run: |
+          if [ "${{ matrix.group }}" = ctrl ]; then
+            TRY="sbRun=6.4001,6.3999,6.4002,6.3998" node tools/tune.js sbRun
+          else
+            node tools/tune.js ${{ matrix.group }}
+          fi
       - name: Name the output
         run: |
           key=$(echo "${{ matrix.group }}" | cut -d' ' -f1)-${{ matrix.seed }}
@@ -72,13 +84,15 @@ jobs:
           merge-multiple: true
       - name: Merge
         run: node tools/tune-merge.js tune-merged.json parts/*.json
+      - name: Summary
+        run: node tools/tune-summary.js tune-merged.json | tee summary.md >> "$GITHUB_STEP_SUMMARY"
       - name: Commit to tune-results
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          mkdir -p /tmp/res && cp tune-merged.json parts/*.json /tmp/res/
+          mkdir -p /tmp/res && cp tune-merged.json summary.md parts/*.json /tmp/res/
           git fetch origin tune-results || true
           if git rev-parse --verify -q origin/tune-results; then git checkout tune-results; else git checkout --orphan tune-results && git rm -rqf .; fi
           stamp=$(date -u +%Y%m%d-%H%M)
-          mkdir -p "runs/$stamp" && cp /tmp/res/*.json "runs/$stamp/"
+          mkdir -p "runs/$stamp" && cp /tmp/res/* "runs/$stamp/"
           git add runs && git commit -m "Tuning run $stamp" && git push origin tune-results

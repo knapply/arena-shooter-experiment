@@ -53,7 +53,10 @@ interface HostSnapshot {
   pu: [string, number, number?][];
   br: number[];
   /** weapons and grenades on the floor: [id, type (-1 grenades), x, y, z], and a weapon's magazine and reserve */
-  it?: ([string, number, number, number, number] | [string, number, number, number, number, number, number])[];
+  it?: (
+    | [string, number, number, number, number]
+    | [string, number, number, number, number, number, number]
+  )[];
   /** friendly fire on (1) or off (0) */
   ff?: number;
 }
