@@ -388,7 +388,9 @@ const podSeats = map => {
       /* it punched into the ground; you step up out of it to your eye height and the HUD comes back */
       /* (the pod settles into its crater over a few frames: a slow machine may not have drawn them yet) */
       let bury = at.y - pod.g.position.y;
-      for (let i = 0; i < 40 && bury <= 0.5; i++) {
+      /* (it buries as deep as the ground there allows: a thin platform takes less) */
+      const want = pod.seat ? pod.seat.bury : 0.5;
+      for (let i = 0; i < 40 && bury < want - 0.1; i++) {
         await new Promise(r => setTimeout(r, 50));
         bury = Math.max(bury, at.y - pod.g.position.y);
       }
@@ -396,7 +398,7 @@ const podSeats = map => {
       const eye = KA.camera.position.y - KA.me.pos.y;
       const hud = getComputedStyle(document.getElementById("hud")).visibility;
       const cockpit = !document.getElementById("podView").hidden;
-      return { pod: true, moved, r: pod.steer.r, landed, bury, eye, hud, cockpit };
+      return { pod: true, moved, r: pod.steer.r, landed, bury, want, eye, hud, cockpit };
     });
     check(
       steer.pod && steer.moved > 1.5 && steer.moved <= steer.r + 0.01 && steer.landed < 0.5,
@@ -404,7 +406,10 @@ const podSeats = map => {
       steer
     );
     check(
-      steer.bury > 0.5 && Math.abs(steer.eye - 1.62) < 0.1 && steer.hud === "visible" && !steer.cockpit,
+      Math.abs(steer.bury - steer.want) < 0.15 &&
+        Math.abs(steer.eye - 1.62) < 0.1 &&
+        steer.hud === "visible" &&
+        !steer.cockpit,
       "a pod buries itself on impact, and you step up out of it into the fight",
       steer
     );

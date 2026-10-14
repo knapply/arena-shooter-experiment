@@ -73,9 +73,14 @@ addEventListener("keydown", e => {
 addEventListener("keyup", e => codesDown.delete(e.code));
 canvas.addEventListener("mousedown", e => {
   if (!playing || isTouch) return;
-  if (!locked && !lockFailed) {
+  /* not captured: every click asks again. A refused capture (the browser won't re-lock for about a
+     second after Esc, or an embedded view blocks it) leaves look following the cursor only until a
+     capture succeeds; it used to stay that way for the rest of the match, with the cursor stuck at
+     the window edge */
+  if (!locked) {
+    const first = !lockFailed;
     lock();
-    return;
+    if (first) return;
   }
   pressCode("Mouse" + e.button);
 });
@@ -83,7 +88,7 @@ addEventListener("mouseup", e => codesDown.delete("Mouse" + e.button));
 addEventListener("contextmenu", e => e.preventDefault());
 document.addEventListener("pointerlockerror", () => {
   lockFailed = true;
-  toast("Mouse lock blocked · look follows the cursor");
+  toast("Mouse capture blocked · click again to capture it");
 });
 addEventListener("mousemove", e => {
   if (!playing || paused || isTouch || (!locked && !lockFailed)) return;
@@ -116,6 +121,7 @@ function lock() {
 }
 document.addEventListener("pointerlockchange", () => {
   locked = document.pointerLockElement === canvas;
+  if (locked) lockFailed = false;
   if (!locked && playing && !isTouch) {
     paused = true;
     $("pause").hidden = false;
