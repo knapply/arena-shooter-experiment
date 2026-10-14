@@ -1,5 +1,5 @@
 /* Contact sheets of the pilot rig's animation, for working on characters/rig.js and anim.js.
-     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves|climb|carry] [out.png]
+     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves|climb|carry|react|emote] [out.png]
    gait   a run, a sprint and a jump, seen from the side, six frames each (stepped at exactly 60 Hz)
    loco   the other motion-captured gaits: a walk, a strafe (from the front), a backpedal and a crouched run
    poses  idle, aiming down sights (carbine and magnum), a melee strike, the reload's slap and bolt;
@@ -8,6 +8,10 @@
    climb  a clamber up a 1.3 m ledge (the body's own clamber state, as physics drives it), side and 3/4
    carry  the flag, then the oddball skull, in both hands: standing (close, from the front and the
           side), running, mid-swing of a carry melee
+   react  the motion-captured transitions: a run braking to a stop, a run reversing (the plant), a
+          push-off from a standstill, a drop from 3 m landing hard, hits from behind and from the
+          left, a death on open floor (the crumple) and one against a wall (the slump)
+   emote  the three captured idles, then the emotes: cheer, flex, wave, shrug (from the front)
    A pilot really travels (planted feet lock to the ground) across the largest open floor of the
    arena, with the camera keeping pace beside it; real three.js (software WebGL); needs ffmpeg on the PATH. */
 const fs = require("fs"),
@@ -32,6 +36,8 @@ if (!process.env.THREE_PATH) {
     const K = KA;
     for (const o of K.bots) o.body.pos.set(40, 0, 40);
     document.getElementById("toast").style.display = "none";
+    /* (the first-person viewmodel would sit in the shot: shrink it away; the loop keeps it "visible") */
+    for (const c of K.camera.children) c.scale.setScalar(1e-4);
     let best = null;
     for (let cx = -30; cx <= 30; cx += 2)
       for (let cz = -30; cz <= 30; cz += 2) {
@@ -85,6 +91,20 @@ if (!process.env.THREE_PATH) {
           if (k >= 1) {
             B.clamber = null;
             B.ground = true;
+          }
+        } else if (m.dropT >= 0) {
+          /* a fall from m.dropH metres, landing hard */
+          m.dropT += dt;
+          const y = m.dropH - 12 * m.dropT * m.dropT;
+          if (y <= 0) {
+            m.dropT = -1;
+            B.ground = true;
+            B.pos.y = 0;
+            B.vel.y = 0;
+          } else {
+            B.ground = false;
+            B.vel.y = -24 * m.dropT;
+            B.pos.y = y;
           }
         } else if (m.jumpT >= 0) {
           m.jumpT += dt;
@@ -149,6 +169,8 @@ if (!process.env.THREE_PATH) {
     crouch: false,
     slide: false,
     jumpT: -1,
+    dropT: -1,
+    dropH: 3,
     cam: "side",
     r: 0,
     st: {},
@@ -167,6 +189,78 @@ if (!process.env.THREE_PATH) {
         await step(n);
         await take();
       }
+  } else if (mode === "react") {
+    /* frames picked through each transition (60 Hz steps between them) */
+    const row = async (m, lead, warm, change, gaps) => {
+      await set(Object.assign({}, base, m), lead);
+      await step(warm);
+      await change();
+      for (const g of gaps) {
+        await step(g);
+        await take();
+      }
+    };
+    const to = m => () => p.evaluate(m => Object.assign(window.__m, m), m);
+    await row({ v: 6.4 }, 1.6, 70, to({ v: 0 }), [3, 6, 6, 6, 9, 15]);
+    await row({ v: 6.4 }, 1.6, 70, to({ dir: Math.PI }), [2, 4, 4, 5, 6, 8]);
+    await row({ v: 0 }, -0.6, 60, to({ v: 6.4 }), [3, 5, 5, 6, 7, 8]);
+    await row({ v: 0, keepY: true }, 0, 20, to({ dropT: 0 }), [16, 7, 5, 8, 12, 20]);
+    /* hits: from behind (thrown forward), then from its left (thrown right) */
+    const hitFrom = (dx, dz) => () =>
+      p.evaluate(
+        ([dx, dz]) => {
+          const P = window.__a.body.pos;
+          window.__a.rig.flashHit(new KA.THREE.Vector3(P.x + dx, P.y, P.z + dz), "body");
+        },
+        [dx, dz]
+      );
+    await row({ v: 0 }, 0, 50, hitFrom(5, 0), [6, 8, 14]);
+    await row({ v: 0 }, 0, 50, hitFrom(0, -5), [6, 8, 14]);
+    /* deaths: on open floor (topple, then crumple), then backed up to a wall */
+    await row({ v: 0, cam: -40 }, 0, 30, () => p.evaluate(() => window.__a.rig.die(null, 1)), [14, 30, 50]);
+    await set(Object.assign({}, base, { v: 0, cam: -60, r: 3.4 }), 0);
+    await p.evaluate(() => {
+      /* a wall: walk back (+x, behind the pilot) from the floor's centre until something solid */
+      const c = window.__c,
+        B = window.__a.body;
+      let x = c.cx;
+      while (x < c.cx + 40 && KA.freeAt(x + 0.9, 0.05, c.cz, 1.9)) x += 0.2;
+      B.pos.set(x, 0, c.cz);
+      window.__a.rig.revive();
+    });
+    await step(30);
+    await p.evaluate(() => {
+      const P = window.__a.body.pos;
+      window.__a.rig.die(new KA.THREE.Vector3(P.x - 5, P.y, P.z), 1);
+    });
+    for (const g of [14, 30, 50]) {
+      await step(g);
+      await take();
+    }
+  } else if (mode === "emote") {
+    for (const idle of ["idle", "idle2", "idle3"]) {
+      await set(Object.assign({}, base, { cam: -30 }), 0);
+      await p.evaluate(n => {
+        const lo = window.__a.rig.S.loco;
+        lo.idleA = KA.ANIM.clips[n];
+        lo.idleB = null;
+        lo.idleNext = 99;
+      }, idle);
+      await step(40);
+      await take();
+      await step(50);
+      await take();
+    }
+    for (const e of ["cheer", "flex", "wave", "shrug"]) {
+      await set(Object.assign({}, base, { cam: "front", r: 3 }), 0);
+      await step(30);
+      await p.evaluate(e => window.__a.rig.emote(e), e);
+      const n = e === "wave" ? [20, 40, 30] : [15, 25, 20];
+      for (const g of n) {
+        await step(g);
+        await take();
+      }
+    }
   } else if (mode === "climb") {
     for (const cam of ["side", -40]) {
       await set(Object.assign({}, base, { cam, v: 0, keepY: true }), 0);
