@@ -26,11 +26,10 @@
     UI.rigAll();
     if (!FLAGS) FLAGS = [CTF.makeFlag(0), CTF.makeFlag(1)];
     flagObjs = FLAGS;
-    /* the stands sit where this map puts them; team deathmatch has none */
-    FLAGS.forEach((f, t) => {
-      f.group.visible = f.home.visible = !G.tdm;
-      if (!G.tdm) f.home.position.copy(CTF.FLAG_HOME[t]);
-    });
+    for (const f of FLAGS) {
+      f.group.visible = true;
+      f.home.visible = true;
+    }
     G.onEvent = onEvent;
     G.onComms = onComms;
     const h = $("ctfHud");
@@ -142,9 +141,7 @@
       }
       o.animate(G.t, f.state === "carried");
     }
-    if (G.tdm) {
-      /* no objectives to mark */
-    } else if (mode === "play") updMarks();
+    if (mode === "play") updMarks();
     else if (mode === "sim") updCarrierMarks();
     hudT -= dt;
     if (hudT <= 0) {
@@ -302,11 +299,6 @@
     for (let t = 0; t < 2; t++) {
       $("cS" + t).textContent = G.teams[t].score;
       const el = $("cF" + t);
-      if (G.tdm) {
-        el.textContent = "Kills";
-        el.className = "";
-        continue;
-      }
       el.textContent = flagText(G.flags[t]);
       const s = G.flags[t].state;
       el.className = s === "home" ? "" : s === "dropped" ? "alert dropped" : "alert taken";
@@ -329,22 +321,15 @@
     if (UI.extraHud) UI.extraHud();
   }
   /* ---------- minimap ---------- */
-  /* the map fits the 78 x 150 canvas (MS pixels a metre, X0 / Z1 its left and top edges) */
-  let MS = 1.5,
-    X0 = -26,
-    Z1 = 50;
+  const MS = 1.5;
   function buildMini() {
     const c = $("cMini");
     mini = c.getContext("2d");
-    const B = CTF.MAP.bounds;
-    MS = Math.min(78 / (B.x1 - B.x0), 150 / (B.z1 - B.z0));
-    X0 = (B.x0 + B.x1) / 2 - 39 / MS;
-    Z1 = (B.z0 + B.z1) / 2 + 75 / MS;
     const img = mini.createImageData(78, 150);
     for (let y = 0; y < 150; y++)
       for (let x = 0; x < 78; x++) {
-        const wx = X0 + x / MS,
-          wz = Z1 - y / MS;
+        const wx = -26 + x / MS,
+          wz = 50 - y / MS;
         const cell = NAV.cell(wx, wz);
         const i = (y * 78 + x) * 4;
         if (cell < 0 || !NAV.ok[cell]) {
@@ -366,7 +351,7 @@
   function drawMini() {
     if (!mini) return;
     mini.putImageData(miniBg, 0, 0);
-    const P = p => [(p.x - X0) * MS, (Z1 - p.z) * MS];
+    const P = p => [(p.x + 26) * MS, (50 - p.z) * MS];
     const ht = G.human ? G.human.team : -1;
     const mem = ht >= 0 ? G.teams[ht].brain.enemyMem : null;
     for (const f of G.flags) {

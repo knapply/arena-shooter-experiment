@@ -19,7 +19,6 @@
     "world/dress.js",
     "world/bake.js",
     "world/props.js",
-    "world/deep.js",
     "world/gates.js",
     "render/gate-fx.js",
     "world/maps/arena.js",

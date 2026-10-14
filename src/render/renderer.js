@@ -60,12 +60,10 @@ const SKY_TIME = { value: 0 };
 /* the sun's direction (follows sun.position) and the sky's detail level (Sky detail setting: 0 or 1) */
 const SKY_SUN = { value: new THREE.Vector3(0.6, 0.6, 0.36) },
   SKY_Q = { value: 1 };
-/* 1 while a map under the sea is showing (world/deep.js): the sky is the water column instead */
-const SKY_DEEP = { value: 0 };
 {
   const g = new THREE.SphereGeometry(40, 32, 16);
   const m = new THREE.ShaderMaterial({
-    uniforms: { tint: { value: skyTint }, tm: SKY_TIME, sunD: SKY_SUN, sq: SKY_Q, deep: SKY_DEEP },
+    uniforms: { tint: { value: skyTint }, tm: SKY_TIME, sunD: SKY_SUN, sq: SKY_Q },
     side: THREE.BackSide,
     depthWrite: false,
     depthTest: false,
@@ -75,24 +73,10 @@ const SKY_DEEP = { value: 0 };
     /* dusk gradient, a ringed planet, twinkling stars, a shooting star now and then and a slowly
        drifting nebula overhead, and a distant megacity
        skyline with lit windows along the horizon (all procedural, one draw call) */
-    fragmentShader: `uniform vec3 tint;uniform float tm;uniform vec3 sunD;uniform float sq;uniform float deep;varying vec3 v;
+    fragmentShader: `uniform vec3 tint;uniform float tm;uniform vec3 sunD;uniform float sq;varying vec3 v;
 float h1(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h1(i),h1(i+vec2(1,0)),f.x),mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x),f.y);}
 void main(){vec3 d=normalize(v);float h=d.y;
-/* under the sea: black water below, teal toward the surface far above with its caustic shimmer,
-   slow shafts of light, and now and then something vast drifting past in the dark */
-if(deep>.5){float az=atan(d.z,d.x);
-vec3 c=mix(vec3(.004,.016,.026),vec3(.03,.14,.17),smoothstep(-.3,.95,h));
-vec2 sp=d.xz/(h+.35);float cau=n2(sp*5.+tm*.12)*n2(sp*9.-tm*.09);
-c+=smoothstep(.25,.95,h)*(cau*cau*.5+.04)*vec3(.25,.6,.6);
-c+=pow(n2(vec2(az*9.+sin(tm*.05)*.6,tm*.03)),4.)*smoothstep(-.05,.5,h)*(1.-smoothstep(.6,1.,h))*vec3(.08,.22,.24);
-float lt=tm/70.,lp=fract(lt),li=floor(lt);
-if(lp<.6){float la=h1(vec2(li,7.))*6.28+lp*1.3;vec3 ld=normalize(vec3(cos(la),.12+.1*h1(vec2(li,8.)),sin(la)));
-vec3 lx=normalize(cross(vec3(0.,1.,0.),ld)),ly=cross(ld,lx);vec2 q=vec2(dot(d,lx),dot(d,ly));
-if(dot(d,ld)>.95){float body=smoothstep(1.,.8,length(q*vec2(9.,30.)))+smoothstep(1.,.6,length((q-vec2(-.13,0.))*vec2(30.,22.)));
-c=mix(c,vec3(.002,.008,.012),clamp(body,0.,1.)*.85*smoothstep(0.,.1,lp)*(1.-smoothstep(.5,.6,lp)));}}
-float sd=max(dot(d,sunD),0.);
-gl_FragColor=vec4((pow(c,vec3(2.2))*1.5+vec3(.5,.9,.9)*(pow(sd,40.)*.35+pow(sd,6.)*.05))*tint,0.);return;}
 vec3 lo=vec3(.07,.10,.13),mid=vec3(.36,.26,.24),hi=vec3(.04,.06,.11);
 vec3 c=h<.08?mix(lo,mid,smoothstep(-.2,.08,h)):mix(mid,hi,smoothstep(.08,.6,h));
 float az=atan(d.z,d.x);

@@ -62,7 +62,7 @@ function ffaTick(dt) {
       FFA.post = true;
       const top = FFA.top;
       showPost({
-        mode: `${MODE_DATA.ffa.name} · ${MAPS[ffaKey].name}`,
+        mode: `${MODE_DATA.ffa.name} · ${MAPS.arena.name || "Arena"}`,
         title: top.me ? "Victory" : `${top.name} wins`,
         color: top.me ? "#ffb347" : "",
         sub: `${top.k} kills · ${top.d} deaths`,

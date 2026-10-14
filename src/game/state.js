@@ -297,17 +297,8 @@ function botStep(b, dt) {
       const s = SPAWNS[(Math.random() * SPAWNS.length) | 0];
       b.wp = new V3(s[0] + rnd(-4, 4), s[1], s[2] + rnd(-4, 4));
       b.think = 0;
-      /* off the arena, drones walk the map's nav grid (stairs, jump-ups, drops) */
-      b.path = droneRoute(B.pos, b.wp);
     }
-    let wp = b.wp;
-    if (b.path) {
-      while (b.path.length > 1 && Math.hypot(b.path[0].x - B.pos.x, b.path[0].z - B.pos.z) < 1.3)
-        b.path.shift();
-      wp = b.path[Math.min(1, b.path.length - 1)];
-      if (wp.y - B.pos.y > 0.6 && B.ground) inp.jumpP = true;
-    }
-    const want = Math.atan2(-(wp.x - B.pos.x), -(wp.z - B.pos.z));
+    const want = Math.atan2(-(b.wp.x - B.pos.x), -(b.wp.z - B.pos.z));
     let dy = want - B.yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     B.yaw += clamp(dy, -3 * dt, 3 * dt);

@@ -101,7 +101,7 @@ function bakeBoxGeo(m, cell, keepBottom) {
 }
 /** before merging: world-space gridded faces for static boxes, and the strips that light them */
 function bakePrep(group, solids, doc) {
-  MAP_GROUPS.push({ g: group, id: doc.id, look: doc.look, mark: bakeMarkings(doc, solids) });
+  MAP_GROUPS.push({ g: group, id: doc.id, mark: bakeMarkings(doc, solids) });
   const destr = new Set(DESTR.all.map(b => b.mesh));
   const floorTop = new Set(solids.filter(b => b.mat === "floor").map(b => Math.round(b.y1 * 20)));
   BAKE.lights = [];

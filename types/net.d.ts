@@ -10,9 +10,6 @@ interface HostSnapshot {
   id: string;
   /** roster version: fast ctfMove packets list agents in this snapshot's ag order */
   rv: number;
-  /** the map's key in MAPS, and 1 for team deathmatch: everyone in the match loads the same */
-  mp: string;
-  td: number;
   t: number;
   tl: number;
   sc: [number, number];

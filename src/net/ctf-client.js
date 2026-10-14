@@ -50,7 +50,7 @@
     }
   }
   CTF.Mirror = function (hostPeer, mid, myId, team) {
-    if (CTF.NAV.mapId !== CTF.MAP.id) CTF.NAV.build(CTF.buildMap().solids);
+    if (!CTF.NAV.ok) CTF.NAV.build(CTF.buildMap().solids);
     K.DESTR.locked = true;
     const stub = t => ({
       team: t,
@@ -104,8 +104,7 @@
         { team: 0, score: 0, agents: [], brain: stub(0) },
         { team: 1, score: 0, agents: [], brain: stub(1) },
       ],
-      tdm: !CTF.hasFlags(),
-      flags: (CTF.hasFlags() ? [0, 1] : []).map(t => ({
+      flags: [0, 1].map(t => ({
         team: t,
         state: "home",
         pos: CTF.FLAG_HOME[t].clone(),
@@ -363,7 +362,7 @@
         for (const t of [0, 1]) {
           const f = Hs.fl[t],
             F = M.flags[t];
-          if (!Array.isArray(f) || !F) continue;
+          if (!Array.isArray(f)) continue;
           F.state = STS[f[0] | 0] || "home";
           F.pos.set(num(f[1], -200, 200), num(f[2], -50, 100), num(f[3], -200, 200));
           const c = F.state === "carried" && NET.okId(f[4]) ? M.byId(f[4]) : null;

@@ -96,7 +96,6 @@
       <label class="tog" for="bots" title="AI pilots fill the free-for-all arena when there are not enough players online"><input type="checkbox" id="bots" checked> Practice drones</label>
       <label class="tog" for="botSkill" title="How well AI pilots aim, move and use the map: Recruit for learning, Legendary for a real fight">Bot skill <select id="botSkill"><option value="recruit" selected>Recruit</option><option value="normal">Normal</option><option value="heroic">Heroic</option><option value="legendary">Legendary</option></select></label>
       <label class="tog" for="vo" title="The announcer calls out medals, scores and flag events"><input type="checkbox" id="vo" checked> Announcer</label>
-      <label class="tog" for="ffaMap" title="The free-for-all map (online, everyone plays the room host's)">Map <select id="ffaMap"><option value="arena">Proving Grounds</option><option value="hadal">Hadal Station</option></select></label>
     </div>
     <div class="modes" id="p2p">
       <div class="eyebrow">Play with friends · peer to peer</div>
@@ -105,12 +104,11 @@
       <div class="net" id="p2pMsg" aria-live="polite">Host a room, then send friends the 5-character code. They open this same file and join with it. Everyone needs an internet connection.</div>
     </div>
     <div class="modes">
-      <div class="eyebrow">Team play · 4 on 4</div>
-      <div class="row"><label class="tog" for="ctfMode">Mode <select id="ctfMode"><option value="ctf">Capture the flag</option><option value="tdm">Team deathmatch</option></select></label><label class="tog" for="ctfMap">Map <select id="ctfMap"><option value="ctf">Twin Foundry</option><option value="hadal">Hadal Station</option></select></label></div>
+      <div class="eyebrow">Capture the flag · Twin Foundry</div>
       <div class="row teampick" role="group" aria-label="Team"><span class="tlab">Team</span><button class="tbtn r" id="ctfRed" aria-pressed="true">Red</button><button class="tbtn b" id="ctfBlue" aria-pressed="false">Blue</button></div>
-      <div class="row"><button class="go" id="ctfPlay">Play</button><button class="ghost" id="ctfSim">Watch AI vs AI</button></div>
+      <div class="row"><button class="go" id="ctfPlay">Play CTF</button><button class="ghost" id="ctfSim">Watch AI vs AI</button></div>
       <div class="net" id="ctfNet" aria-live="polite">Checking for other pilots…</div>
-      <p class="lede">4 on 4 on a mirrored map: first to 3 captures, or 50 kills in team deathmatch. Friends in your room join the same match and take a bot's slot. Switch sides any time with J, D-pad up, or the pause menu.</p>
+      <p class="lede">4 on 4, first to 3 captures on a mirrored map. Friends in your room join the same match and take a bot's slot. Switch sides any time with J, D-pad up, or the pause menu.</p>
     </div>
     <div class="net" id="netState">Solo for now · host or join a room to play with friends</div>
     <div class="keys" id="keysDesk">

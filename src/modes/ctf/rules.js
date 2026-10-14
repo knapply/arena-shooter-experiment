@@ -15,12 +15,12 @@
     ["Sol", "Brix", "Nyx", "Talon"],
   ];
   CTF.NAMES = NAMES;
-  /* opts.map picks the map (default Twin Foundry); a map without flags (or opts.tdm) plays team deathmatch: the AI
+  /* opts.map picks the map (default Twin Foundry); a map without flags plays team deathmatch: the AI
      hunts, and a kill on the other team scores a point */
   CTF.Game = function (opts) {
     /* lab content (docs/PROPOSALS.md): offline matches and simulations only, never online */
     const labs = opts.labs !== false && K.LABS.on;
-    CTF.useMap(opts.map || "ctf", labs ? K.LABS.mods : null, !!opts.tdm);
+    CTF.useMap(opts.map || "ctf", labs ? K.LABS.mods : null);
     /* the AI's walkable grid is built once per map (and patched as cover breaks) */
     if (CTF.NAV.mapId !== CTF.MAP.id) CTF.NAV.build(CTF.buildMap().solids);
     CTF.enterMap();
@@ -30,8 +30,6 @@
     const seed = K.RNG.seed(opts.seed);
     const G = {
       seed,
-      /** the map's key in MAPS (online, everyone loads the one the host picked) */
-      mapKey: opts.map || "ctf",
       t: 0,
       mode: opts.mode,
       render: !!opts.render,

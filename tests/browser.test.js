@@ -1223,57 +1223,6 @@ const podSeats = map => {
       (await visible(B, "#menu")) && !(await visible(B, "#cBanner")),
       "leaving the match returns to a clean menu"
     );
-    /* the host picks the map and mode: team deathmatch on Hadal Station; the friend who joins loads
-       the same map, both HUDs count kills instead of flags */
-    await B.selectOption("#ctfMap", "hadal");
-    await B.selectOption("#ctfMode", "tdm");
-    await B.click("#ctfPlay");
-    await B.waitForTimeout(2500);
-    await C.bringToFront();
-    for (let i = 0; i < 20 && !/hosting/.test((await text(C, "#ctfNet")) || ""); i++)
-      await C.waitForTimeout(300);
-    await C.click("#ctfPlay");
-    await C.waitForTimeout(3500);
-    const seen = P =>
-      P.evaluate(() => [CTF.MAP.id, !!CTF.UI.game().tdm, document.getElementById("cF0").textContent]);
-    const sb = await seen(B),
-      sc = await seen(C);
-    check(
-      sb.join() === "hadal,true,Kills" &&
-        sc.join() === "hadal,true,Kills" &&
-        !!(await C.evaluate(() => CTF.UI.game().map)),
-      "the host's map and mode reach the friend who joins",
-      { host: sb, friend: sc }
-    );
-    await C.evaluate(() => KA.extStop());
-    await B.evaluate(() => KA.extStop());
-    await B.waitForTimeout(400);
-    /* (the picks are remembered: back to capture the flag on Twin Foundry for the tests after this) */
-    await B.selectOption("#ctfMap", "ctf");
-    await B.selectOption("#ctfMode", "ctf");
-    /* free for all on Hadal Station: its world, spawns and power weapon; leaving brings the arena back */
-    await B.selectOption("#ffaMap", "hadal");
-    await B.click("#deploy");
-    await B.waitForTimeout(1500);
-    const ffaOn = await B.evaluate(() => [
-      CTF.MAP.id,
-      KA.ARENA_G.visible,
-      KA.SPAWNS.length === KA.MAPS.hadal.spawns.ffa.length,
-      KA.ARENA_PICKS.some(p => p.id === "hadal-power"),
-    ]);
-    await B.evaluate(() => document.getElementById("leave").click());
-    const back = await B.evaluate(
-      () => KA.ARENA_G.visible && KA.SPAWNS.length === KA.MAPS.arena.spawns.ffa.length
-    );
-    check(
-      ffaOn.join() === "hadal,false,true,true" && back,
-      "free for all plays on Hadal Station and leaves to the arena",
-      {
-        ffaOn,
-        back,
-      }
-    );
-    await B.selectOption("#ffaMap", "arena");
     /* ---------- kill cams show the kill: a drone and a CTF agent shoot you for real ---------- */
     {
       /* in the page: note every shot, and the replay frame that reaches the kill (where the camera is,

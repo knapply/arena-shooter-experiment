@@ -53,16 +53,6 @@
       CTF.NET.send({});
     }
   }
-  /* the map and mode for team matches (an online client plays the host's), remembered */
-  const pref = K.STORE.load("mapPick") || {};
-  $("ctfMap").value = K.teamMap(pref.m);
-  $("ctfMode").value = pref.t ? "tdm" : "ctf";
-  const pick = () => ({ map: K.teamMap($("ctfMap").value), tdm: $("ctfMode").value === "tdm" });
-  for (const id of ["ctfMap", "ctfMode"])
-    $(id).addEventListener("change", () => {
-      const p = pick();
-      K.STORE.save("mapPick", Object.assign({}, K.STORE.load("mapPick"), { m: p.map, t: p.tdm ? 1 : 0 }));
-    });
   $("ctfRed").onclick = () => setTeamPick(0);
   $("ctfBlue").onclick = () => setTeamPick(1);
   setTeamPick(myTeam);
@@ -71,7 +61,7 @@
     const el = $("ctfNet");
     if (!N.room) {
       el.textContent = "Host or join a room above to play CTF online. Offline matches work now.";
-      $("ctfPlay").textContent = "Play";
+      $("ctfPlay").textContent = "Play CTF";
       return;
     }
     const h = N.liveHost(),
@@ -83,7 +73,7 @@
       el.textContent = others
         ? `${others} other pilot${others > 1 ? "s" : ""} here. Start a match and they can join.`
         : "No one else here yet. Start a match and friends who open this page can join it.";
-      $("ctfPlay").textContent = "Play";
+      $("ctfPlay").textContent = "Play CTF";
     }
   }
   setInterval(() => {
@@ -147,15 +137,13 @@
   }
   function startHost() {
     const diff = $("botSkill").value;
-    const pk = pick();
-    CTF.useMap(pk.map, null, pk.tdm);
     CTF.enterMap();
     mode = "play";
     overT = 0;
     potgDone = false;
     postShown = false;
     const myId = "h:" + (CTF.NET.myPeer() || "local");
-    G = CTF.Game({ mode: "play", render: true, diff: [diff, diff], humanTeam: myTeam, humanId: myId, ...pk });
+    G = CTF.Game({ mode: "play", render: true, diff: [diff, diff], humanTeam: myTeam, humanId: myId });
     UI.attach(G, "play");
     UI.quiet = false;
     UI.onEvent = null;
@@ -168,14 +156,14 @@
     K.matchDrop();
     UI.line(
       "sys",
-      `You're on ${TN[myTeam]}. ${G.tdm ? "Every kill on the other team scores." : "Bring the enemy flag to your stand while yours is home."} J or D-pad up switches teams.`
+      `You're on ${TN[myTeam]}. Bring the enemy flag to your stand while yours is home. J or D-pad up switches teams.`
     );
     if (CTF.NET.room) UI.line("sys", "Friends in your room can join from the menu.");
-    K.say(modeName(), true);
+    K.say("Capture the flag", true);
   }
   /** the flag prompt: standing at the enemy flag, hold Interact to take it */
   function flagPrompt(me, take) {
-    if (!G || G.tdm || !me || !me.alive || me.carrying) return null;
+    if (!G || !me || !me.alive || me.carrying) return null;
     const f = G.flags[1 - me.team];
     if (f.state === "carried" || me.pos.distanceTo(f.pos) > 1.8) return null;
     return [{ label: "take the flag", hold: 0.3, go: take }];
@@ -196,15 +184,14 @@
   function ctfIntro() {
     if (!K.SET.intros) return;
     const names = [0, 1].map(t => G.teams[t].agents.map(a => (a.local ? K.myName : a.name)).slice(0, 4));
-    K.playIntro(CTF.MAP, {
-      mode: modeName(),
+    K.playIntro(K.MAPS.ctf, {
+      mode: K.MODE_DATA.ctf.name,
       limit: `First to ${G.scoreLimit}`,
       teams: names,
       teamNames: TN,
       teamColors: CTF.TEAM_HEX,
     });
   }
-  const modeName = () => (G && G.tdm ? K.MODE_DATA.tdm : K.MODE_DATA.ctf).name;
   /** everyone in the match for the stats screens (game/stats.js): stable ids, teams, score of record */
   function rosterOf(list) {
     return list.map(a => {
@@ -219,11 +206,9 @@
       };
     });
   }
-  /** a steered drop pod stays near your own base: within 26 m of your flag stand (team deathmatch:
-      your first spawn), on your half */
+  /** a steered drop pod stays near your own base: within 26 m of your flag stand, on your half */
   function podZone(team) {
-    const s = CTF.SPAWNS[team][0],
-      h = CTF.FLAG_HOME[team] || { x: s[0], z: s[2] };
+    const h = CTF.FLAG_HOME[team];
     return {
       r: 12,
       ok: (x, z) => Math.hypot(x - h.x, z - h.z) <= 26 && Math.sign(z) === Math.sign(h.z),
@@ -359,8 +344,6 @@
       diff: [diff, diff],
       humanTeam: snap.me.team,
       humanId: snap.me.id,
-      map: M.mapKey,
-      tdm: M.tdm,
     });
     G.human.name = K.myName;
     G.start();
@@ -416,8 +399,6 @@
     K.say("You are the host", true);
   }
   function startClient(h) {
-    /* the host's map and mode */
-    CTF.useMap(h.map, null, h.tdm);
     CTF.enterMap();
     mode = "play";
     overT = 0;
@@ -426,7 +407,6 @@
     const myId = "h:" + CTF.NET.myPeer();
     G = CTF.Mirror(h.peer, h.mid, myId, myTeam);
     const M = G;
-    M.mapKey = h.map;
     M.onPromote = () => {
       if (G === M) promote(M);
     };
@@ -539,7 +519,7 @@
     if (G.t < 2) ctfIntro();
     K.matchDrop();
     UI.line("sys", `Joined ${h.name}'s match on ${TN[myTeam]}. J or D-pad up switches teams.`);
-    K.say(modeName(), true);
+    K.say("Capture the flag", true);
   }
   $("swTeam").onclick = () => {
     const e = K.EXT;
@@ -554,7 +534,7 @@
     if (G) {
       UI.detach();
     }
-    G = CTF.Game({ mode: "sim", render: true, diff: ["legendary", "legendary"], ...pick() });
+    G = CTF.Game({ mode: "sim", render: true, diff: ["legendary", "legendary"] });
     UI.attach(G, "sim");
     UI.onEvent = simEvent;
     UI.quiet = speed > 2;
@@ -928,7 +908,7 @@
       }, 30);
     };
     K.showPost({
-      mode: `${modeName()} · ${CTF.MAP.name}`,
+      mode: `${K.MODE_DATA.ctf.name} · Twin Foundry`,
       title: w < 0 ? "Draw" : w === ht ? "Victory" : "Defeat",
       color: w < 0 ? "" : CTF.TEAM_HEX[w],
       sub: `${TN[0]} ${G.teams[0].score} – ${G.teams[1].score} ${TN[1]}`,

@@ -17,8 +17,6 @@
      DIFF=recruit node tools/tune.js            the even matches use this difficulty (default normal)
      MAP=arena node tools/tune.js               team deathmatch on the arena instead of capture the flag
                                                  on Twin Foundry (the arena's own combat, 4 v 4)
-     MAP=hadal node tools/tune.js               another map by its MAPS key (Hadal Station)
-     MODE=tdm MAP=hadal node tools/tune.js      team deathmatch on a map with flags
      PAIR=normal,recruit node tools/tune.js     the skill matches' better and worse levels
                                                  (default legendary,normal)
      TEAM=1 MAP=arena node tools/tune.js        pilots per team (1 on the arena: one-on-one duels, the
@@ -47,8 +45,6 @@ const SEED = +(process.env.SEED || 100),
   EVEN = process.env.DIFF || "normal",
   /* the map (and with it the mode): ctf (capture the flag on Twin Foundry) or arena (team deathmatch) */
   MAPID = process.env.MAP || "ctf",
-  /* team deathmatch: the map has no flags, or MODE=tdm */
-  TDM = process.env.MODE === "tdm" || !(K.MAPS[MAPID] || {}).flags,
   /* the skill matches: the better level first */
   PAIR = (process.env.PAIR || "legendary,normal").split(","),
   TEAM = +(process.env.TEAM || 4);
@@ -189,8 +185,7 @@ function match(diff, seed, lock) {
     diff,
     lock,
     map: MAPID,
-    tdm: TDM,
-    scoreLimit: TDM ? 1e9 : 0,
+    scoreLimit: MAPID === "arena" ? 1e9 : 0,
     perTeam: TEAM,
   });
   const out = {
@@ -328,7 +323,7 @@ function main() {
   const nWorkers = Math.max(1, Math.min(jobs.length, +(process.env.JOBS || os.availableParallelism())));
   const t0 = Date.now();
   console.log(
-    `${variants.length} variants x ${MATCHES * 2} matches (${MINUTES} min each, ${MAPID}${TDM ? " tdm" : ""}, ${TEAM} v ${TEAM}), seed ${SEED}, ${nWorkers} workers` +
+    `${variants.length} variants x ${MATCHES * 2} matches (${MINUTES} min each, ${MAPID}, ${TEAM} v ${TEAM}), seed ${SEED}, ${nWorkers} workers` +
       (locks.length ? `, lock ${locks.join(",")}` : "")
   );
   const base = new Map(); /* lock → baseline result */
@@ -397,7 +392,6 @@ function main() {
           DIFF: EVEN,
           PAIR,
           MAP: MAPID,
-          TDM,
           TEAM,
         },
         null,

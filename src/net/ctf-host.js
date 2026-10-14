@@ -87,8 +87,6 @@
           peer: p.peer,
           name: K.cleanName(pr.n),
           mid: pr.H.id.slice(0, 24),
-          map: K.teamMap(pr.H.mp),
-          tdm: !!pr.H.td,
           players:
             1 + NET.ctfPeers().filter(q => q.presence.ph === "client" && q.presence.mid === pr.H.id).length,
         };
@@ -277,9 +275,6 @@
       return {
         id: H.mid,
         rv: H.rv,
-        /* the map (its MAPS key) and mode: everyone in the match loads the same */
-        mp: G.mapKey,
-        td: G.tdm ? 1 : 0,
         t: r1(G.t),
         tl: G.timeLimit,
         sc: [G.teams[0].score, G.teams[1].score],
