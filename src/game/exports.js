@@ -136,7 +136,6 @@ const KA_API = {
   ARENA_G,
   MAPS,
   buildMap,
-  validateMap,
   mapPieces,
   mergeMapGroup,
   setMapGroup(g) {

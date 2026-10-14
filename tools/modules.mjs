@@ -29,8 +29,14 @@ export function declarations(code) {
   }
   return names;
 }
+/* every module that runs in the engine's shared scope in some build: the game's engine list, then the
+   trailer build's additions and the simulation bundle's own modules (worker-only, like data/map-check.js) */
+export function engineFiles() {
+  const m = manifest();
+  const extra = [...m.trailer.engine, ...m.worker.engine].filter(p => !m.engine.includes(p));
+  return [...m.engine, ...new Set(extra)];
+}
 /* engine modules share one scope: map each module to what it declares */
 export function engineScope() {
-  const m = manifest();
-  return m.engine.map(p => ({ path: p, names: declarations(read(p)) }));
+  return engineFiles().map(p => ({ path: p, names: declarations(read(p)) }));
 }

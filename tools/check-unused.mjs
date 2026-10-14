@@ -1,8 +1,11 @@
 /* Engine modules share one scope, so ESLint cannot see a top-level name that no module uses, or
    two modules declaring the same name (a later function silently replaces an earlier one).
    This reports engine declarations referenced nowhere else in the source, and duplicates. */
-import { engineScope, manifest, read } from "./modules.mjs";
-const all = [...manifest().engine, ...manifest().modes, "net/p2p-transport.js"].map(read).join("\n");
+import { engineFiles, engineScope, manifest, read } from "./modules.mjs";
+const man = manifest();
+const all = [...engineFiles(), ...man.modes, ...man.trailer.modes, man.worker.exports, "net/p2p-transport.js"]
+  .map(read)
+  .join("\n");
 const unused = [];
 const seen = new Map(),
   dup = [];
