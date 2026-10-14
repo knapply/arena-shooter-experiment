@@ -29,8 +29,8 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/physics.js` | 549 | `R` `H_STAND` `H_CROUCH` `TUNE_DEF` `TUNE` `NO_PILOTS` `pilotsFn` `setPilotCollider` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
 | `src/world/spawns.js` | 90 | `SPAWN_W` `_spE` `_spD` `spawnScore` `pickSpawn` `noteFight` |
 | `src/data/anim-clips.js` | 132 | `ANIM_CLIPS` |
-| `src/characters/anim.js` | 729 | `ANIM` |
-| `src/characters/rig.js` | 1340 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+39) |
+| `src/characters/anim.js` | 744 | `ANIM` |
+| `src/characters/rig.js` | 1367 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+39) |
 | `src/characters/look.js` | 132 | `RIG_LOOK` `_rh` `_rh2` `CHAR_GLSL` `charPatch` `applyCharLook` `teamPattern` `HEX_FRAG` `styleRig` |
 | `src/game/recorder.js` | 226 | `REC` |
 | `src/game/pilot.js` | 81 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |
@@ -68,7 +68,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/supply-pods.js` | 334 | `SUPPLY` `SUP_STATE` `SUPPLY_FALL` `SUPPLY_EARLY` `SUPPLY_H` `SUPPLY_BURY` `SUPPLY_N` `SUP_BEACON` `supplyAtlas` `atlasUv` `SUP_GREY` `SUP_STRIPE` `SUP_GLOW` `SUP_DRAW` `_spM` `supplyDraw` `launchSupply` `disposeSupply` … (+5) |
 | `src/game/pod-view.js` | 225 | `PV` `PV_RISE` `PV_END` `pvEl` `pvLerp` `pvBuild` `pvSet` `pvShow` `pvHide` `_pvP` `podCockpit` `podCockpitLand` `podCockpitIdle` |
 | `src/ui/pings.js` | 103 | `PINGS` `PING_LIFE` `_pgD` `_pgO` `_pgV` `pingTarget` `addPing` `pingNow` `pingLayer` `updPings` |
-| `src/game/loop.js` | 743 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `jetOn` `jetPuff` `meEvent` … (+29) |
+| `src/game/loop.js` | 747 | `pend` `prevPos` `rpos` `physAcc` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` `jetOn` `jetPuff` `meEvent` … (+29) |
 | `src/ui/settings-ui.js` | 517 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `saveSoonT` `saveSoon` `saveNow` `closeSettings` `onSetChange` `renderSettings` `searchHit` `renderSearch` `settingRow` `renderKeys` `renderPadBinds` `padCapture` … (+7) |
 | `src/weapons/pickups.js` | 430 | `PICKMAT` `PICKACC` `PICKHOT` `NADEMAT` `NADEGLOW` `NADE_CAP` `wName` `capWord` `MODEL_PARTS` `floorParts` `weaponModel` `labelSprite` `PK_VIS` `RING_GEO` `ringMat` `DROP_RING` `pkVisual` `powerSpawn` … (+17) |
 | `src/ui/power.js` | 147 | `PW_KEYS` `pwKey` `PW_TEX` `pwTex` `PW_MARKS` `pwMark` `arenaPowerHolders` `pwCallT` `powerCallout` `pwHudLast` `pwPrev` `updPower` |
