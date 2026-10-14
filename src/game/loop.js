@@ -9,6 +9,10 @@ const pend = { j: false, c: false, t: false, m: false },
   prevPos = new V3(),
   rpos = new V3();
 let physAcc = 0,
+  clWas = false,
+  /* a thrust's lurch: how much is left (1..0) and which way it rolls the view */
+  thrK = 0,
+  thrS = 0,
   eyeCur = 1.62,
   smY = 0,
   rosterShown = false;
@@ -52,7 +56,15 @@ function meEvent(type, d) {
     sfx("whoosh", 0.55);
     thrustPuff(me.pos, d.dir);
     emitFx("thrust", v3a(me.pos), v3a(d.dir));
-    fovK = 1;
+    /* the burst kicks the lens wide and lurches the view into it; the gun is thrown back against it */
+    fovK = 1.35;
+    thrK = 1;
+    const side = d.dir.x * Math.cos(me.yaw) - d.dir.z * Math.sin(me.yaw),
+      fwd = -d.dir.x * Math.sin(me.yaw) - d.dir.z * Math.cos(me.yaw);
+    thrS = side;
+    vmS.inX.v -= side * 0.9;
+    vmS.inZ.v += fwd * 0.7;
+    rumble(0.3, 0.6, 120);
     dust(me.pos, 5, 2, 0.3);
   } else if (type === "slam") {
     sfx("slam");
@@ -63,6 +75,9 @@ function meEvent(type, d) {
     emitFx("slam", v3a(d.pos), null);
     landDip = 0.35;
     shakeT = 0.45;
+    /* the impact: the lens slams wide and the view is punched down */
+    fovK = 1.9;
+    vmS.punch = 1.4;
   } else if (type === "poundCharge") {
     sfx("charge", 0.6);
   } else if (type === "poundGo") {
@@ -71,6 +86,7 @@ function meEvent(type, d) {
   } else if (type === "charge") {
     sfx("charge");
     fovK = 1.2;
+    rumble(0.35, 0.5, 140);
   } else if (type === "melee") {
     sfx("swing");
     /* make the blow felt: a camera punch and a swipe across the view */
@@ -80,6 +96,9 @@ function meEvent(type, d) {
     sw.classList.remove("on");
     void sw.offsetWidth;
     sw.classList.add("on");
+    rumble(0.2, 0.45, 70);
+    /* (the first-person blow starts now, so its impact can wait for the moment of contact) */
+    vmS.mc = 0;
     meleeHit(2.3, 70, "melee");
   } else if (type === "slide") {
     sfx("slide");
@@ -97,7 +116,7 @@ function meEvent(type, d) {
       shakeT = Math.max(shakeT, 0.12);
     }
   } else if (type === "clamber") {
-    landDip = 0.12;
+    landDip = 0.05;
     sfx("clamber");
   } else if (type === "bump") chargeWallFx(me, d);
 }
@@ -568,13 +587,28 @@ function frameBody(t) {
   const eyeH = eyeCur;
   if (me.ground && rpos.y > smY && rpos.y - smY < 0.7) smY += (rpos.y - smY) * Math.min(1, dt * 16);
   else smY = rpos.y;
+  /* clambering, the view pulls up in an eased arc (slow off the wall, slowing again over the top)
+     and nods toward the hands on the ledge; it settles once you are over */
+  const cl = me.clamber,
+    clK = cl && cl.dur ? Math.min(1, cl.t / cl.dur) : -1;
+  if (clK >= 0) {
+    const x = Math.min(1, clK * 1.6);
+    smY = cl.from.y + (cl.to.y - cl.from.y) * x * x * (3 - 2 * x) + 0.05 * Math.sin(Math.PI * clK);
+    clWas = true;
+  } else if (clWas) {
+    clWas = false;
+    landDip = Math.max(landDip, 0.13);
+  }
   landDip = Math.max(0, landDip - dt * 1.2);
   shakeT = Math.max(0, shakeT - dt);
   const bobY =
     me.ground && me.slideT <= 0
       ? Math.sin(stepAcc * Math.PI * 2) * (me.sprint ? 0.045 : 0.025) * clamp(hs / 6, 0, 1) * SET.bob
       : 0;
-  const sh = reduceMotion ? 0 : (shakeT * 0.25 + (me.pound === 1 ? 0.015 : 0)) * SET.shake;
+  /* charging a ground pound, the hover trembles harder as it builds and the view tunnels in */
+  const pk = me.pound === 1 ? Math.min(1, me.poundT / 0.55) : 0;
+  const sh = reduceMotion ? 0 : (shakeT * 0.25 + (me.pound === 1 ? 0.006 + 0.016 * pk : 0)) * SET.shake;
+  thrK = Math.max(0, thrK - dt * 4);
   camera.position.set(
     rpos.x + rnd(-sh, sh),
     smY + eyeH - landDip * SET.bob + bobY + rnd(-sh, sh),
@@ -583,18 +617,27 @@ function frameBody(t) {
   const rollT =
     (me.slideT > 0 ? 0.1 + 0.06 * Math.sin(Math.PI * slid) : 0) +
     clamp(-lr * 0.004, -0.04, 0.04) +
-    (me.thrustT > 0 ? clamp(-lr * 0.006, -0.08, 0.08) : 0) +
+    (me.thrustT > 0 ? clamp(-lr * 0.006, -0.08, 0.08) : 0) -
+    thrS * 0.06 * thrK * thrK +
     (me.sprint ? Math.sin(stepAcc * Math.PI) * 0.012 : 0);
   camRoll += (rollT - camRoll) * Math.min(1, dt * 8);
   camera.rotation.order = "YXZ";
   camera.rotation.y = me.yaw;
-  camera.rotation.x = me.pitch + recoil + flinch;
-  camera.rotation.z = camRoll + (me.stabbing ? Math.sin(now * 6) * 0.01 : 0);
+  /* (a blow that lands punches the view down and over) */
+  camera.rotation.x =
+    me.pitch +
+    recoil +
+    flinch -
+    vmS.punch * 0.04 -
+    (clK >= 0 ? 0.12 * Math.sin(Math.PI * clK) : 0) -
+    /* (a landing nods the view, and a hard one more) */
+    landDip * 0.16 * SET.bob;
+  camera.rotation.z = camRoll + (me.stabbing ? Math.sin(now * 6) * 0.01 : 0) + vmS.punch * 0.035;
   fovK = Math.max(0, fovK - dt * 3);
   const fb = SET.fov;
   easeZoom(dt);
   /* the motion widening (sprint, slide, thrust, pound) gives way as the scope comes up */
-  fovX += ((me.sprint ? 7 : 0) + (me.slideT > 0 ? 5 : 0) + fovK * 10 - fovX) * Math.min(1, dt * 12);
+  fovX += ((me.sprint ? 7 : 0) + (me.slideT > 0 ? 5 : 0) + fovK * 10 - pk * 9 - fovX) * Math.min(1, dt * 12);
   camera.fov = fb / zoomNow + fovX * (1 - adsP);
   if (!(camera.fov > 1 && camera.fov < 170)) camera.fov = fb;
   camera.updateProjectionMatrix();
@@ -610,7 +653,9 @@ function frameBody(t) {
     sprint: me.sprint && me.ground,
     reload: reloadT > 0 ? 1 - reloadT / W().reload : -1,
     melee: me.meleeT > 0 ? 1 - me.meleeT / 0.4 : me.chargeT > 0 ? 0.5 : -1,
+    charge: me.chargeT > 0,
     clamber: !!me.clamber,
+    cl: me.clamber,
     low: me.pound === 1 || !!me.clamber,
     pound1: me.pound === 1,
     thrust: me.thrustT > 0,

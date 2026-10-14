@@ -37,7 +37,7 @@ Ideas for what to build next, grouped by area and roughly ordered by value for e
 2. **Light shafts** from the sky through the arena's openings: needs the sun visible in the sky shader and a depth-aware radial pass (the bloom bright pass is the starting point).
 3. **Decals:** scorch marks under grenades and rockets, impact marks on walls, with a pooled decal mesh capped by quality.
 4. **WebGPU renderer** behind the same `render/*` boundary, when three.js's WebGPU path is stable for the shaders used here.
-5. **Character detail:** per-team armor patterns, emissive visor glows that pulse with shields, and a cloth tabard on the hips (the flag's cloth is the template).
+5. **Character detail:** per-team armor patterns and emissive visor glows that pulse with shields are done, and so is a short tabard on the hips (two spring-driven flaps); a true simulated cloth (the flag's) is still open.
 6. **Motion capture as reference, not data:** the CMU motion capture library is free to use. Fitting the procedural gait's curves (stride, duty factor, knee and hip angles over the cycle) to a few mocap runs would improve realism with no download cost. Shipping the clips themselves would cost hundreds of KB.
 
 ## Sound

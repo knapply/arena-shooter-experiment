@@ -145,7 +145,8 @@ const PIS_RELOAD = [
 const RIFLE_P = {
   hip: { p: new V3(0.2, -0.2, -0.38), r: [0, 0, 0] },
   aim: { p: new V3(-HOLO.x, -HOLO.y, -0.24), r: [0, 0, 0] },
-  sprint: { p: new V3(0.15, -0.3, -0.34), r: [-0.35, 0.55, 0.35] },
+  /* (at a sprint the gun drops and turns across the body, muzzle down) */
+  sprint: { p: new V3(0.12, -0.35, -0.31), r: [-0.55, 0.75, 0.5] },
   reload: { p: new V3(0.13, -0.22, -0.36), r: [0.18, 0.1, 0.55] },
   low: { p: new V3(0.18, -0.42, -0.3), r: [-0.6, 0.3, 0.3] },
 };
@@ -173,7 +174,7 @@ const VMW = [
       hip: { p: new V3(0.1, -0.16, -0.44), r: [0.03, 0.05, 0] },
       /* the slide sits just under the reticle, so the smart-link reticle (the aim point) stays clear */
       aim: { p: new V3(-PIS.x, -PIS.y - 0.034, -0.39), r: [0, 0, 0] },
-      sprint: { p: new V3(0.13, -0.28, -0.3), r: [-0.7, 0.2, 0.15] },
+      sprint: { p: new V3(0.12, -0.33, -0.28), r: [-0.85, 0.35, 0.25] },
       reload: { p: new V3(0.1, -0.18, -0.32), r: [0.35, 0.15, 0.5] },
       low: { p: new V3(0.15, -0.36, -0.28), r: [-0.8, 0.2, 0.2] },
     },
@@ -187,7 +188,7 @@ const VMW = [
       ...RIFLE_P,
       hip: { p: new V3(0.2, -0.21, -0.36), r: [0, 0, 0] },
       aim: { p: new V3(0.06, -0.24, -0.2), r: [0, 0, 0] },
-      sprint: { p: new V3(0.15, -0.3, -0.32), r: [-0.35, 0.55, 0.35] },
+      sprint: { p: new V3(0.12, -0.35, -0.3), r: [-0.55, 0.75, 0.5] },
     },
     glow: 0x4a9bff,
   },
@@ -227,48 +228,189 @@ const VMW = [
     glow: 0xb48cff,
   },
 ].map((o, i) => Object.assign(vmModel(i), o));
+/* the support hand under a handguard, palm up, fingers round its far side (the magnum's cups the
+   other hand instead) */
+const LQ_RIFLE = new THREE.Quaternion().setFromRotationMatrix(
+  new THREE.Matrix4().makeBasis(new V3(0, 1, 0), new V3(0, 0, -1), new V3(-1, 0, 0))
+);
+for (const V of VMW) if (!V.whip) V.lq = LQ_RIFLE;
 vmHolo(VMW[0].g, HOLO.y, HOLO.z, 0.062, 0.046);
 dot(VMW[1].g, 0x8cffb0, 0.0035, 0, PIS.y - 0.002, PIS.z + 0.001);
 vmHolo(VMW[4].g, 0.1, -0.12, 0.052, 0.04);
 vmHolo(VMW[6].g, 0.095, -0.06, 0.052, 0.04);
-/* gloved hand: palm on the grip, fingers wrapped around its front, armored back plate, suit sleeve with a
-   gauntlet over it; merged per material like the weapons */
+/* gloved hands. A hand is a palm, four fingers of three bevelled segments and a two-segment thumb,
+   with armored plates over the knuckles and the back of the hand (two draws: glove and plate); its
+   forearm (suit sleeve, gauntlet, a lit strip: three draws) runs from the wrist back to an elbow
+   below the view, so the arm follows the hand however the hand is turned. In the hand's frame the
+   grip runs along y through the origin, the palm on the hand's own side of it, the fingers wrapping
+   round its front (-z). Each grip shape is built once per side and swapped in when it changes. */
+const HAND_POSE = {
+  /* round a pistol grip, the index finger along the trigger */
+  grip: { c: [0.5, 1, 1.05, 1.1], t: 1, r: 1 },
+  /* round a handguard, or cupped over the other hand */
+  wrap: { c: [0.8, 0.85, 0.9, 0.95], t: 0.75, r: 1.45 },
+  /* planted on a ledge, palm down */
+  flat: { c: [0.08, 0.1, 0.12, 0.16], t: 0.1, r: 1 },
+};
+const HAND_GEO = {};
+const _hq = new THREE.Quaternion(),
+  _he = new THREE.Euler(),
+  _hv = new V3(),
+  _h1 = new V3(1, 1, 1);
+function handGeo(side, pose) {
+  const key = side + pose;
+  if (HAND_GEO[key]) return HAND_GEO[key];
+  const P = HAND_POSE[pose],
+    glove = [],
+    plate = [],
+    r = P.r;
+  /* palm down for the flat pose: the hand rolls over onto its palm */
+  const roll = pose === "flat" ? new THREE.Matrix4().makeRotationZ(side * 1.5708) : new THREE.Matrix4();
+  const put = (list, g, x, y, z, ry, rz = 0, rx = 0) =>
+    list.push([
+      g,
+      new THREE.Matrix4()
+        .compose(_hv.set(x, y, z), _hq.setFromEuler(_he.set(rx, ry, rz, "YXZ")), _h1)
+        .premultiply(roll),
+    ]);
+  const seg = (w, h, d) => geo(`hseg:${w}:${h}:${d}`, () => rbox(w, h, d, Math.min(w, h) * 0.42));
+  /* a finger bone: a capsule laid along the heading */
+  const bone = (rad, l) => geo(`hbone:${rad}:${l}`, () => capsule(rad, l, 7));
+  /* fingers: index to little, each a chain turning round the grip (the heading h turns toward the
+     far side as the joints bend); a plate rides the back of each first segment */
+  const LEN = [
+    [0.03, 0.023, 0.019],
+    [0.033, 0.025, 0.02],
+    [0.031, 0.023, 0.019],
+    [0.025, 0.019, 0.016],
+  ];
+  for (let i = 0; i < 4; i++) {
+    const y = 0.027 - i * 0.0205,
+      c = P.c[i];
+    let x = side * 0.026 * r,
+      z = -0.016 * r,
+      h = side * 0.35;
+    for (let j = 0; j < 3; j++) {
+      h += side * c * [0.95, 1.45, 1.1][j];
+      const l = LEN[i][j] * (pose === "wrap" ? 1.08 : 1),
+        dx = -Math.sin(h),
+        dz = -Math.cos(h);
+      put(glove, bone(0.0093 - j * 0.0008, l + 0.008), x + (dx * l) / 2, y, z + (dz * l) / 2, h, 0, 1.5708);
+      if (j === 0)
+        put(
+          plate,
+          seg(0.0075, 0.016, l * 0.75),
+          x + (dx * l) / 2 - dz * side * 0.0105,
+          y,
+          z + (dz * l) / 2 + dx * side * 0.0105,
+          h
+        );
+      x += dx * l;
+      z += dz * l;
+    }
+  }
+  /* the thumb: from the heel of the palm across the near side of the grip */
+  {
+    let x = side * 0.02 * r,
+      z = 0.012,
+      h = side * (0.75 + 0.55 * P.t);
+    for (let j = 0; j < 2; j++) {
+      const l = j ? 0.021 : 0.028,
+        dx = -Math.sin(h),
+        dz = -Math.cos(h);
+      put(
+        glove,
+        bone(0.0108 - j * 0.001, l + 0.01),
+        x + (dx * l) / 2,
+        0.034 - j * 0.006,
+        z + (dz * l) / 2,
+        h,
+        0,
+        1.5708
+      );
+      x += dx * l;
+      z += dz * l;
+      h += side * 0.45 * P.t;
+    }
+  }
+  /* palm, heel and the armored back of the hand */
+  put(
+    glove,
+    geo("hpalm", () => rbox(0.034, 0.094, 0.082, 0.016)),
+    side * 0.034 * r,
+    -0.008,
+    0.016,
+    0
+  );
+  put(
+    plate,
+    geo("hback", () => rbox(0.01, 0.062, 0.056, 0.0048)),
+    side * (0.034 * r + 0.019),
+    -0.006,
+    0.018,
+    0
+  );
+  put(
+    plate,
+    geo("hknk", () => rbox(0.012, 0.085, 0.016, 0.0058)),
+    side * (0.034 * r + 0.016),
+    0.0,
+    -0.022,
+    0
+  );
+  const out = /** @type {any} */ ([mergeGeos(glove), mergeGeos(plate)]);
+  /* the wrist, in the hand's frame, where its forearm starts */
+  out.wrist = new V3(side * 0.03 * r, -0.05, 0.06).applyMatrix4(roll);
+  return (HAND_GEO[key] = out);
+}
 function vmHand(side) {
   const g = new THREE.Group();
-  vmBox(g, 0.03, 0.085, 0.095, vmGlove, side * 0.03, -0.012, 0.005);
-  for (let i = 0; i < 4; i++) {
-    const f = vmBox(g, 0.058, 0.017, 0.024, vmGlove, side * 0.004, 0.018 - i * 0.021, -0.044);
-    f.rotation.y = side * 0.12;
-  }
-  const th = vmBox(g, 0.02, 0.02, 0.06, vmGlove, -side * 0.022, 0.032, -0.018);
-  th.rotation.set(0, side * 0.35, 0);
-  vmBox(g, 0.012, 0.062, 0.07, vmArmor, side * 0.05, -0.006, 0.008);
-  vmBox(g, 0.004, 0.04, 0.006, vmAcc, side * 0.057, -0.006, -0.022);
+  const geos = handGeo(side, "grip");
+  g.add(new THREE.Mesh(geos[0], vmGlove), new THREE.Mesh(geos[1], vmPlate));
+  g.userData = { side, pose: "grip" };
+  /* the forearm, along -y from the wrist */
+  const arm = new THREE.Group();
   const sl = new THREE.Mesh(capsule(0.043, 0.42), vmSuit);
-  sl.position.set(side * 0.05, -0.12, 0.18);
-  sl.rotation.set(-1.0, 0, side * 0.3);
-  g.add(sl);
-  const gt = new THREE.Mesh(capsule(0.052, 0.2), vmArmor);
-  gt.position.set(side * 0.045, -0.075, 0.105);
-  gt.rotation.set(-1.0, 0, side * 0.3);
-  g.add(gt);
-  const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.018, 14), vmPlate);
-  ring.position.set(side * 0.04, -0.05, 0.06);
-  ring.rotation.x = -1.0;
-  g.add(ring);
-  const by = new Map();
-  for (const o of g.children) {
-    o.updateMatrix();
-    if (!by.has(o.material)) by.set(o.material, []);
-    by.get(o.material).push(o);
-  }
-  for (const [m, list] of by) {
-    if (list.length < 2) continue;
-    for (const o of list) g.remove(o);
-    g.add(new THREE.Mesh(mergeGeos(list.map(o => [o.geometry, o.matrix])), m));
-  }
-  vmRoot.add(g);
+  sl.position.y = -0.24;
+  const gt = new THREE.Mesh(
+    mergeGeos([
+      [capsule(0.053, 0.2), new THREE.Matrix4().makeTranslation(0, -0.1, 0)],
+      [new THREE.CylinderGeometry(0.056, 0.058, 0.02, 14), new THREE.Matrix4().makeTranslation(0, -0.012, 0)],
+    ]),
+    vmArmor
+  );
+  vmBox(arm, 0.006, 0.09, 0.006, vmAcc, 0, -0.11, -0.053);
+  arm.add(sl, gt);
+  vmRoot.add(g, arm);
+  g.userData.arm = arm;
   return g;
+}
+/** set a hand's grip shape */
+function handPose(h, pose) {
+  if (h.userData.pose === pose) return;
+  h.userData.pose = pose;
+  const geos = handGeo(h.userData.side, pose);
+  h.children[0].geometry = geos[0];
+  h.children[1].geometry = geos[1];
+}
+const _hw = new V3(),
+  _he2 = new V3(),
+  _hup = new V3(0, -1, 0);
+/** lay a hand's forearm from its wrist back to the elbow (below the view, out to its side) */
+function handArm(h) {
+  const arm = h.userData.arm,
+    s = h.userData.side;
+  _hw
+    .copy(HAND_GEO[s + h.userData.pose].wrist)
+    .applyQuaternion(h.quaternion)
+    .add(h.position);
+  _he2
+    .set(s * 0.3, -0.5, 0.16)
+    .sub(_hw)
+    .normalize();
+  arm.position.copy(_hw);
+  arm.quaternion.setFromUnitVectors(_hup, _he2);
+  arm.visible = h.visible;
 }
 const vmR = vmHand(1),
   vmL = vmHand(-1);
@@ -292,6 +434,16 @@ flashSprite.position.set(0, 0.01, -0.62);
 VMW[0].g.add(flashSprite);
 const vmS = {
   lh: new V3(),
+  /* the blow's own clock (-1 at rest), its hitstop, an impact waiting for contact, the camera punch */
+  mc: -1,
+  lastM: -1,
+  stop: 0,
+  land: 0,
+  punch: 0,
+  /* clambering: how far the hands are on the ledge, which clamber, and where they plant */
+  cl: 0,
+  clOf: null,
+  clA: [new V3(), new V3()],
   lastR: -1,
   swayY: 0,
   swayP: 0,

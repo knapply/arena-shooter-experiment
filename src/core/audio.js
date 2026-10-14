@@ -73,6 +73,14 @@ let SFX_TAP = null;
 function sfxTap(fn) {
   SFX_TAP = fn;
 }
+/** a blow landing on a body: a hard knock, a deep thump through the chest and its low ring after,
+    under whatever the armor adds (k: how heavy) */
+function bodyThud(t, vol, k) {
+  nz(t, 0.012, "bandpass", 2400, 0.22 * vol, 1.2, 0.001);
+  nz(t, 0.08, "lowpass", 260, 0.75 * vol * k, 1.5, 0.002);
+  tone(t, "sine", 95 / k, 44 / k, 0.16 * k, 0.85 * vol, 0.002);
+  tone(t + 0.018, "sine", 64 / k, 38 / k, 0.26 * k, 0.5 * vol, 0.006);
+}
 function sfx(kind, vol = 1) {
   if (SFX_TAP) {
     if (vol > 0.01) SFX_TAP(kind, vol);
@@ -342,6 +350,7 @@ function sfx(kind, vol = 1) {
          clank; on the world, a hard ringing clank with grit falling after it. The charge's pair is
          heavier and leads in with a short rush of air. */
       case "mhit":
+        bodyThud(t, vol, 1);
         tone(t, "sine", 150, 55, 0.2, 0.5 * vol, 0.002);
         nz(t, 0.13, "lowpass", 650, 0.5 * vol, 1, 0.002);
         tone(t, "triangle", 420, 300, 0.08, 0.09 * vol, 0.002);
@@ -349,6 +358,7 @@ function sfx(kind, vol = 1) {
         break;
       case "mkill":
         /* the blow from behind: deeper, longer, a crunch on top */
+        bodyThud(t, vol, 1.3);
         tone(t, "sine", 120, 32, 0.42, 0.7 * vol, 0.002);
         nz(t, 0.3, "lowpass", 420, 0.6 * vol, 1, 0.002);
         nz(t, 0.12, "bandpass", 900, 0.3 * vol, 1.5);
@@ -379,6 +389,7 @@ function sfx(kind, vol = 1) {
       case "chit": {
         const f = nz(t, 0.07, "bandpass", 600, 0.16 * vol, 1.5, 0.04);
         f.frequency.exponentialRampToValueAtTime(2600, t + 0.06);
+        bodyThud(t + 0.04, vol, 1.5);
         tone(t + 0.04, "sine", 120, 34, 0.38, 0.75 * vol, 0.002);
         nz(t + 0.04, 0.26, "lowpass", 700, 0.6 * vol, 1, 0.002);
         tone(t + 0.04, "triangle", 330, 210, 0.11, 0.11 * vol, 0.002);

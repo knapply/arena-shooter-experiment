@@ -90,7 +90,8 @@ The flagless rules in `modes/ctf/rules.js` (team deathmatch on the arena, used b
 The pilot is a 32-bone rig (`characters/rig.js`) posed every frame from the body's state (`bodyState`), in two layers:
 - **Locomotion from motion capture** (`characters/anim.js`): pelvis, spine, legs and the free arm's swing. A blend space over speed and move direction (relative to facing) mixes the clips on one phase (0 is the left foot's strike), with stride, cadence and stance length warped to the game's speeds and the hips turned toward the travel. A small state machine (idle/move, crouch, air, land) cross-fades between states. Planted feet lock in the world, follow the ground and step when turning on the spot; the rig's leg IK puts them there.
 - **A fighting stance** on top of the capture (`anim.js`): the hips sit lower over wider-set feet with the knees out, narrowing with pace; jumps tuck the knees. The rig adds a forward hunch in every state, the gun carried up and out with the elbows wide, and hard leans into sprints and turns.
-- **Procedural layers** in `rig.update`: the weapon pose and hand IK, aiming down sights, reloads (`RELOAD_T`, shared with the first-person viewmodel), melee, recoil, flinch, head look-at, breathing, lean springs, the special moves (slide, ground pound, clamber, jetpack, stabilizer) and deaths.
+- **Procedural layers** in `rig.update`: the weapon pose and hand IK, aiming down sights, reloads (`RELOAD_T`, shared with the first-person viewmodel), melee, recoil, flinch, head look-at, breathing, lean springs, the special moves (slide, ground pound, clamber, jetpack, stabilizer) and deaths. A melee blow has a wind-up, a strike and a follow-through (`meleeShape`, shared with the first-person viewmodel, which runs it on its own clock with a hitstop when it lands: `meleeLand`). The clamber is driven by the body's clamber state (`clK`, `clH` in `bodyState`): a hand on the ledge, a knee up, over the top; leaving any special move eases the legs back into the capture. A tabard (two flaps on spring-driven bones) hangs from the belt.
+- **First-person hands** (`weapons/viewmodels.js`): a palm, jointed fingers and thumb, and armored plates, built once per grip shape (`HAND_POSE`: grip, wrap, flat) and merged per material; each forearm runs from the wrist to an elbow below the view (`handArm`). A weapon's support hand turns to its handguard with `lq`.
 
 The clips are generated data (`data/anim-clips.js`). To change them, download the CMU takes the converter lists (`CLIPS` in `tools/mocap/convert.js`; B. Hahne's BVH conversion, one `<take>.bvh` per take) and run:
 ```bash
@@ -104,6 +105,7 @@ THREE_PATH=three.min.js node tools/rig-preview.js gait    # run, sprint, jump
 THREE_PATH=three.min.js node tools/rig-preview.js loco    # walk, strafe, backpedal, crouched run
 THREE_PATH=three.min.js node tools/rig-preview.js poses   # idle, ADS, melee, reload
 THREE_PATH=three.min.js node tools/rig-preview.js moves   # the armor up close, crouch, ADS, sprint, slide, death
+THREE_PATH=three.min.js node tools/rig-preview.js climb   # a clamber, from the side and three-quarters
 ```
 
 ## Sounds

@@ -5,6 +5,7 @@
    poses  idle, aiming down sights (carbine and magnum), a melee strike, the reload's slap and bolt;
           the magnum held, its pistol-whip and its reload
    moves  the armor from the front, three-quarters and behind; crouch, ADS, sprint, a slide and a death
+   climb  a clamber up a 1.3 m ledge (the body's own clamber state, as physics drives it), side and 3/4
    A pilot really travels (planted feet lock to the ground) across the largest open floor of the
    arena, with the camera keeping pace beside it; real three.js (software WebGL); needs ffmpeg on the PATH. */
 const fs = require("fs"),
@@ -69,7 +70,21 @@ if (!process.env.THREE_PATH) {
         B.slideT = m.slide ? 0.5 : 0;
         B.aiming = !!m.st.aim;
         B.meleeT = m.st.melee >= 0 ? 0.4 * (1 - m.st.melee) : 0;
-        if (m.jumpT >= 0) {
+        if (B.clamber) {
+          /* as world/physics.js moves a clambering body */
+          const c = B.clamber;
+          c.t += dt;
+          const k = Math.min(1, c.t / c.dur),
+            e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+          B.pos.lerpVectors(c.from, c.to, e);
+          B.pos.y = c.from.y + (c.to.y - c.from.y) * Math.min(1, k * 1.6);
+          B.ground = false;
+          B.vel.set(0, 0, 0);
+          if (k >= 1) {
+            B.clamber = null;
+            B.ground = true;
+          }
+        } else if (m.jumpT >= 0) {
           m.jumpT += dt;
           const vy = 7.4 - 24 * m.jumpT,
             y = 7.4 * m.jumpT - 12 * m.jumpT * m.jumpT;
@@ -86,7 +101,7 @@ if (!process.env.THREE_PATH) {
         } else {
           B.ground = true;
           B.vel.y = 0;
-          B.pos.y = 0;
+          if (!m.keepY) B.pos.y = 0;
         }
         a.pose(dt, { reload: m.st.reload == null ? -1 : m.st.reload, fire: false, wpn: m.st.wpn | 0 });
       }
@@ -129,7 +144,25 @@ if (!process.env.THREE_PATH) {
     r: 0,
     st: {},
   };
-  if (mode === "moves") {
+  if (mode === "climb") {
+    for (const cam of ["side", -40]) {
+      await set(Object.assign({}, base, { cam, v: 0, keepY: true }), 0);
+      await step(20);
+      await p.evaluate(() => {
+        const B = window.__a.body;
+        B.clamber = {
+          from: B.pos.clone(),
+          to: B.pos.clone().add(new KA.THREE.Vector3(-0.95, 1.3, 0)),
+          t: 0,
+          dur: 0.239,
+        };
+      });
+      for (let i = 0; i < 6; i++) {
+        await step(i < 5 ? 3 : 12);
+        await take();
+      }
+    }
+  } else if (mode === "moves") {
     for (const [m, n] of [
       [{ cam: -40, r: 2.4 }, 40],
       [{ cam: "front", r: 2.4 }, 40],
