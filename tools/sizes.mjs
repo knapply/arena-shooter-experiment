@@ -1,20 +1,24 @@
 #!/usr/bin/env node
 /* Where the shipped bytes go: each module minified on its own (wrapped in a function, so its top-level
-   names shrink the way they do in the real bundle), the styles and the page markup.
-     node tools/sizes.mjs [--json]    largest first; totals approximate the built index.html */
+   names shrink the way they do in the real bundle), the inline scripts, the styles and the page markup.
+     node tools/sizes.mjs [--json]    largest first; the total is close to the built index.html */
 import { transformSync } from "esbuild";
-import { read, manifest } from "./modules.mjs";
+import { read, readScript, manifest } from "./modules.mjs";
 
 const man = manifest();
 const min = (code, loader = "js") =>
   transformSync(code, { loader, minify: true, target: "es2020", legalComments: "none" }).code.length;
+const page = read("html/index.html");
+const markup = s => s.replace(/<!--(?!@)[\s\S]*?-->/g, "").replace(/\n\s+/g, "\n");
 const rows = [
-  ...man.engine.map(p => [p, min(`(()=>{"use strict";${read(p)}})();`)]),
+  ...man.engine.map(p => [p, min(`(()=>{"use strict";${readScript(p)}})();`)]),
   ...man.modes.map(p => [p, min(read(p))]),
+  ...[...page.matchAll(/<!--@script ([\w./-]+)-->/g)].map(([, p]) => [p + " (inline script)", min(read(p))]),
   ["styles", min(man.styles.map(read).join("\n"), "css")],
   [
     "html/index.html (markup and partials)",
-    read("html/index.html").replace(/<!--@partial ([\w./-]+)-->/g, (_, p) => read(p)).length,
+    markup(page.replace(/<!--@partial ([\w./-]+)-->/g, (_, p) => read(p))).replace(/<!--@[^>]*-->/g, "")
+      .length,
   ],
 ];
 rows.sort((a, b) => b[1] - a[1]);
