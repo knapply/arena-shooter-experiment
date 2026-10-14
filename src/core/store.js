@@ -137,10 +137,18 @@ const STORE = (() => {
     }),
   });
   define("settings", {
-    version: 2,
+    version: 3,
     legacy: "ka-settings-v1",
-    /* v1 was the settings export file itself ({app, version, settings, keys, pad}); v2 keeps just the parts */
-    migrate: { 1: d => ({ settings: d?.settings || {}, keys: d?.keys || {}, pad: d?.pad || {} }) },
+    /* v1 was the settings export file itself ({app, version, settings, keys, pad}); v2 keeps just the parts;
+       v3 moved the motion tracker's default from bottom right to bottom left (the new HUD layout), so a
+       save still on the old default moves with it */
+    migrate: {
+      1: d => ({ settings: d?.settings || {}, keys: d?.keys || {}, pad: d?.pad || {} }),
+      2: d =>
+        d && d.settings && d.settings.trackerPos === "br"
+          ? Object.assign({}, d, { settings: Object.assign({}, d.settings, { trackerPos: "bl" }) })
+          : d,
+    },
     clean: d => (d && typeof d === "object" ? d : null),
   });
   define("ctfTeam", {

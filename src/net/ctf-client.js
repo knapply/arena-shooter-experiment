@@ -432,6 +432,11 @@
               id: e[0],
               type: t,
               pos,
+              /* a weapon's rounds, as the host has them (taking it gives you those) */
+              ammo:
+                t >= 0 && e.length >= 7
+                  ? [num(e[5], 0, K.WEAPON_DATA[t].mag) | 0, num(e[6], 0, 999) | 0]
+                  : null,
               gone: false,
               optT: 0,
               get avail() {
@@ -510,7 +515,8 @@
             M.seenPg = s;
             if (fresh || g[1] === myId) continue;
             const from = M.byId(g[1]);
-            if (!from || from.team !== me.team || !["enemy", "weapon", "place"].includes(g[2])) continue;
+            if (!from || from.team !== me.team || !["enemy", "weapon", "place", "danger"].includes(g[2]))
+              continue;
             K.addPing({
               by: g[1],
               byName: from.name,

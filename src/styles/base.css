@@ -145,41 +145,338 @@ body {
   opacity: 0;
 }
 
-/* bars */
-.vitals {
+/* ---- the HUD panels: clean, angular, semi-transparent glass with a glow ----
+   grenades top left (#hudTL, with the match status under them), shield over hull top middle
+   (#vitals), weapons and ammo top right (#hudTR, the kill feed under it), abilities bottom middle
+   (.kit), the motion tracker bottom left (#tracker, further down). Each block is scaled as a whole
+   by the HUD size setting (zoom, ui/settings-ui.js). */
+:root {
+  --hud-c: #7fdcff; /* panel glow and lines */
+  --hud-bg: #06121bb0; /* panel glass */
+  --hud-line: #7fdcff59;
+  --hud-hot: #ff4a3d; /* empty, low, danger */
+}
+.htl,
+.htr {
   position: absolute;
-  left: 24px;
-  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
-  width: min(300px, 42vw);
+  top: calc(12px + env(safe-area-inset-top, 0px));
   display: grid;
+  gap: 8px;
+}
+.htl {
+  left: calc(14px + env(safe-area-inset-left, 0px));
+  justify-items: start;
+}
+.htr {
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  justify-items: end;
+}
+.hpanel {
+  position: relative;
+  background: linear-gradient(160deg, #0b2330b8, var(--hud-bg) 60%);
+  box-shadow:
+    inset 0 0 0 1px var(--hud-line),
+    inset 0 0 18px #7fdcff1a;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  padding: 7px 12px;
+  color: var(--ink);
+}
+/* the corner accents */
+.hpanel::before,
+.hpanel::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--hud-c);
+  pointer-events: none;
+}
+.hpanel::before {
+  right: 0;
+  top: 0;
+  border-left: 0;
+  border-bottom: 0;
+}
+.hpanel::after {
+  left: 0;
+  bottom: 0;
+  border-right: 0;
+  border-top: 0;
+}
+.hpanel kbd {
+  font: 600 10px var(--f-mono);
+  color: var(--void);
+  background: var(--hud-c);
+  padding: 1px 5px;
+  margin-right: 4px;
+  clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
+}
+
+/* grenades: an icon and count per type, the selected one lit */
+.nades {
+  display: grid;
+  gap: 5px;
+}
+.nlist {
+  display: flex;
   gap: 6px;
 }
-.lbl {
-  font-family: var(--f-mono);
-  font-size: 10px;
+.nd {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 4px;
+  padding: 3px 8px 3px 5px;
+  color: #a9c6d2;
+  opacity: 0.6;
+  clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+}
+.nd svg {
+  width: 18px;
+  height: 22px;
+  fill: currentColor;
+}
+.nd b {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+}
+.nd u {
+  grid-column: 1 / 3;
+  text-decoration: none;
+  font: 500 8.5px var(--f-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.nd.sel {
+  opacity: 1;
+  color: var(--ink);
+  background: #7fdcff30;
+  box-shadow: inset 0 -2px 0 var(--hud-c);
+  text-shadow: 0 0 8px var(--hud-c);
+}
+.nd.sel svg {
+  filter: drop-shadow(0 0 4px var(--hud-c));
+}
+.nd.frag.sel {
+  color: #ffd7a0;
+}
+.nd.plasma.sel {
+  color: #a8ecff;
+}
+.nd.pulse.sel {
+  color: #d5b8ff;
+}
+.nd.empty {
+  opacity: 0.32;
+}
+.nd.empty b {
+  color: var(--hud-hot);
+}
+.nades .hint {
+  font: 500 9.5px var(--f-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.nades.tap {
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+/* weapons: the gun in hand (silhouette, magazine over reserve, a pip per round) and the holstered one */
+.weap {
+  display: grid;
+  gap: 4px;
+  min-width: 190px;
+  padding: 8px 12px 7px 14px;
+  text-align: right;
+}
+.wcur {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.wsil {
+  fill: currentColor;
+}
+.wcur .wsil {
+  width: 84px;
+  height: 26px;
+  color: var(--ink);
+  filter: drop-shadow(0 0 6px #7fdcffa0);
+}
+.ammo {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  line-height: 1;
+}
+.ammo #mag {
+  font-size: 40px;
+  font-weight: 700;
+  min-width: 2ch;
+  text-shadow: 0 0 12px #7fdcff80;
+}
+.ammo small {
+  font-size: 17px;
+  font-weight: 600;
+  color: #9fc2cf;
+}
+.ammo small::before {
+  content: "/";
+  margin-right: 4px;
+  color: var(--dim);
+}
+.pips {
+  --n: 12;
+  position: relative;
+  height: 6px;
+  background: repeating-linear-gradient(
+    90deg,
+    #7fdcff2a 0 calc(100% / var(--n) - 2px),
+    transparent calc(100% / var(--n) - 2px) calc(100% / var(--n))
+  );
+}
+.pips b {
+  position: absolute;
+  inset: 0;
+  transform-origin: right;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--hud-c) 0 calc(100% / var(--n) - 2px),
+    transparent calc(100% / var(--n) - 2px) calc(100% / var(--n))
+  );
+  filter: drop-shadow(0 0 3px var(--hud-c));
+}
+.pips.solid {
+  background: #7fdcff2a;
+}
+.pips.solid b {
+  background: var(--hud-c);
+}
+.wrow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  font: 500 10px var(--f-mono);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--dim);
+}
+.wrow .ahint {
+  color: var(--thrust);
+}
+.wrow .ahint:empty {
+  display: none;
+}
+.wnext {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid #7fdcff26;
+  font: 500 10px var(--f-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8fa9b3;
+}
+.wnext .wsil {
+  width: 46px;
+  height: 14px;
+}
+.wnext small {
+  font-size: 11px;
+  color: var(--ink);
+}
+.wnext.dry small {
+  color: var(--hud-hot);
+}
+.weap.low {
+  --hud-c: var(--thrust);
+}
+.weap.low #mag {
+  color: var(--thrust);
+}
+.weap.dry #mag,
+.weap.dry .ahint {
+  color: var(--hud-hot);
+  text-shadow: 0 0 10px var(--hud-hot);
+}
+.weap.dry .ahint {
+  animation: hudBlink 0.9s steps(2) infinite;
+}
+.weap.rl #mag {
+  color: var(--dim);
+}
+@keyframes hudBlink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* shield over hull, top middle: the shield bar leads, segmented, glowing */
+.vitals {
+  position: absolute;
+  left: 50%;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  width: min(380px, 38vw);
+  display: grid;
+  gap: 4px;
+}
+.shrow,
+.hprow {
+  display: grid;
+  grid-template-columns: auto 1fr 3ch;
+  align-items: center;
+  gap: 8px;
+}
+.vitals .lbl {
+  font: 500 9.5px var(--f-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+  width: 6ch;
+}
+.vitals .num {
+  font: 600 13px var(--f-mono);
+  text-align: right;
+  color: var(--ink);
 }
 .bar {
-  height: 9px;
-  background: #0008;
-  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  height: 14px;
+  background: #06121bb8;
+  box-shadow: inset 0 0 0 1px var(--hud-line);
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
   position: relative;
   overflow: hidden;
 }
 .bar b {
   position: absolute;
-  inset: 0;
-  transform-origin: left;
+  inset: 2px 3px;
+  transform-origin: center;
+  -webkit-mask-image: repeating-linear-gradient(
+    90deg,
+    #000 0 calc(10% - 2px),
+    transparent calc(10% - 2px) 10%
+  );
+  mask-image: repeating-linear-gradient(90deg, #000 0 calc(10% - 2px), transparent calc(10% - 2px) 10%);
 }
 #shb {
-  background: var(--shield);
+  background: linear-gradient(180deg, #c6f0ff, var(--shield) 45%, #2b9fe0);
+}
+.shrow .bar {
+  filter: drop-shadow(0 0 6px #62cdff90);
 }
 #hpb {
   background: var(--hull);
+  transform-origin: left;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 #shb.hit {
   background: var(--energy);
@@ -188,34 +485,30 @@ body {
   background: #e9f8ff;
 }
 .bar.thin {
-  height: 5px;
+  height: 6px;
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+}
+.bar.thin b {
+  inset: 1px 2px;
+}
+.vitals .hprow {
+  opacity: 0.75;
+}
+.vitals.hurt .hprow {
+  opacity: 1;
+}
+.vitals.low .shrow .bar {
+  box-shadow:
+    inset 0 0 0 1px var(--hud-hot),
+    inset 0 0 10px #ff4a3d80;
+  animation: hudBlink 0.8s steps(2) infinite;
 }
 .vitals.low #shN {
-  color: var(--hull);
+  color: var(--hud-hot);
 }
-
-.ammo {
-  position: absolute;
-  right: 24px;
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  text-align: right;
-}
-.ammo .n {
-  font-size: 44px;
-  font-weight: 700;
-  line-height: 1;
-}
-.ammo .n small {
-  font-size: 18px;
-  color: var(--dim);
-  font-weight: 500;
-}
-.ammo .w {
-  font-family: var(--f-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  color: var(--dim);
-  text-transform: uppercase;
+/* in capture the flag the score bar holds the top middle: the shield sits under it */
+body:has(#ctfHud.play:not([hidden])) .vitals {
+  top: calc(62px + env(safe-area-inset-top, 0px));
 }
 
 .kit {
@@ -256,10 +549,9 @@ body {
   color: var(--ink);
 }
 
+/* the match status sits under the grenades (in #hudTL's flow), the kill feed under the weapons */
 .status {
-  position: absolute;
-  left: 20px;
-  top: calc(16px + env(safe-area-inset-top, 0px));
+  padding-left: 4px;
   font-family: var(--f-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
@@ -286,9 +578,6 @@ body {
 }
 
 #feed {
-  position: absolute;
-  right: 18px;
-  top: calc(14px + env(safe-area-inset-top, 0px));
   display: grid;
   gap: 4px;
   justify-items: end;
@@ -678,11 +967,13 @@ input[type="text"]:focus-visible {
   background: var(--thrust);
   color: var(--void);
 }
+/* the roster button sits under the shield bar (the top corners hold grenades and weapons) */
 #tscore {
   position: absolute;
   pointer-events: auto;
-  right: 16px;
-  top: calc(56px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(52px + env(safe-area-inset-top, 0px));
   font: 600 10px var(--f-mono);
   letter-spacing: 0.1em;
   color: var(--ink);
@@ -716,39 +1007,129 @@ input[type="text"]:focus-visible {
 }
 
 @media (max-width: 640px) {
+  /* phones: compact corner panels, the shield between them */
+  .htl {
+    left: calc(8px + env(safe-area-inset-left, 0px));
+  }
+  .htr {
+    right: calc(8px + env(safe-area-inset-right, 0px));
+  }
+  .htl,
+  .htr {
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    gap: 5px;
+  }
+  .hpanel {
+    padding: 5px 8px;
+  }
+  .nlist {
+    gap: 2px;
+  }
+  .nd {
+    padding: 2px 5px 2px 3px;
+  }
+  .nd svg {
+    width: 14px;
+    height: 18px;
+  }
+  .nd b {
+    font-size: 15px;
+  }
+  .nd u {
+    display: none;
+  }
+  .weap {
+    min-width: 0;
+    padding: 5px 8px 5px 10px;
+  }
+  .wcur {
+    gap: 6px;
+  }
+  .wcur .wsil {
+    width: 50px;
+    height: 16px;
+  }
+  .ammo #mag {
+    font-size: 28px;
+  }
+  .ammo small {
+    font-size: 13px;
+  }
+  .wrow .wname,
+  .wnext .wn {
+    display: none;
+  }
+  .wnext .wsil {
+    width: 34px;
+    height: 11px;
+  }
   .vitals {
-    left: 16px;
-    width: 46vw;
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    width: calc(100vw - 2 * 136px);
+    min-width: 90px;
+  }
+  #kdGoal {
+    display: none;
+  }
+  .vitals .lbl {
+    display: none;
+  }
+  .shrow,
+  .hprow {
+    grid-template-columns: 1fr 3ch;
+    gap: 4px;
+  }
+  .vitals .num {
+    font-size: 11px;
+  }
+  .status {
+    font-size: 10px;
+    gap: 8px;
+  }
+  #feed {
+    font-size: 11px;
   }
   #medals {
     left: 16px;
     bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   }
-  .ammo {
-    right: 16px;
-  }
-  .ammo .n {
-    font-size: 32px;
-  }
   .kit {
     display: none;
-  }
-  .status {
-    left: 14px;
   }
   .medal span {
     font-size: 12px;
   }
 }
+/* the narrowest phones: the bars alone between the corner panels */
+@media (max-width: 420px) {
+  .vitals .num {
+    display: none;
+  }
+  .shrow,
+  .hprow {
+    grid-template-columns: 1fr;
+  }
+  .wcur .wsil {
+    width: 30px;
+    height: 10px;
+  }
+  .ammo #mag {
+    font-size: 24px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .medal {
+  .medal,
+  .weap.dry .ahint,
+  .vitals.low .shrow .bar,
+  .ping.danger i::after {
     animation: none;
   }
 }
+/* bottom right: the top corners belong to the HUD's grenade and weapon panels */
 #fps {
   position: fixed;
-  left: 8px;
-  top: calc(3px + env(safe-area-inset-top, 0px));
+  right: 8px;
+  bottom: calc(3px + env(safe-area-inset-bottom, 0px));
   font: 500 10px var(--f-mono);
   color: var(--dim);
   opacity: 0.75;
@@ -756,10 +1137,6 @@ input[type="text"]:focus-visible {
   z-index: 9;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
-}
-.ammo #gnade {
-  white-space: pre;
-  margin-top: 2px;
 }
 
 /* performance overlay (F3) */
@@ -900,18 +1277,21 @@ input[type="text"]:focus-visible {
   outline: none;
 }
 
-/* motion tracker (ui/tracker.js): where it sits is a setting (body[data-trk]: br, bl, bc, tr, tl,
-   tc, mr, ml) and its size is --trk. Whatever shares its spot (medals, team chat) moves aside. */
+/* motion tracker (ui/tracker.js): where it sits is a setting (body[data-trk]: bl (the default), br,
+   bc, tr, tl, tc, mr, ml) and its size is --trk. Whatever shares its spot (medals, team chat, the kill
+   feed) moves aside. --hs is the HUD size, for clearing the corner panels at the top. */
 :root {
   --trk: 200px;
+  --hs: 1;
 }
 #tracker {
   position: absolute;
   right: 22px;
-  bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
   width: var(--trk);
   height: var(--trk);
   pointer-events: none;
+  filter: drop-shadow(0 0 10px #7fdcff30);
 }
 body[data-trk="bl"] #tracker {
   right: auto;
@@ -920,14 +1300,20 @@ body[data-trk="bl"] #tracker {
 body[data-trk="tr"] #tracker,
 body[data-trk="tl"] #tracker {
   bottom: auto;
-  top: calc(150px + env(safe-area-inset-top, 0px));
+  top: calc(12px + 150px * var(--hs) + env(safe-area-inset-top, 0px));
 }
 body[data-trk="tl"] #tracker {
   right: auto;
   left: 22px;
 }
+/* under the weapons the kill feed would run into it: the feed moves left of the weapons panel */
+body[data-trk="tr"] #hudTR #feed {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 0;
+}
 body[data-trk="bl"] #medals {
-  bottom: calc(118px + var(--trk) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(40px + var(--trk) + env(safe-area-inset-bottom, 0px));
 }
 /* the centered spots: above the ability chips, below the scoreboard */
 body[data-trk="bc"] #tracker,
@@ -983,6 +1369,53 @@ body[data-trk="ml"] #tracker {
 .ping.enemy {
   color: #ff5f57;
 }
+/* a danger mark: a red warning triangle with a ring pulsing out of it */
+.ping.danger {
+  color: #ff6a3a;
+  font-weight: 700;
+}
+.ping.danger i {
+  position: relative;
+  width: 24px;
+  height: 21px;
+  border: 0;
+  transform: none;
+  filter: drop-shadow(0 0 6px #ff4a3d);
+}
+.ping.danger i::before {
+  content: "!";
+  position: absolute;
+  inset: 0;
+  padding-top: 6px;
+  background: #ff6a3a;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  font: 800 13px/1 var(--f-display);
+  font-style: normal;
+  color: #1a0604;
+  text-shadow: none;
+}
+.ping.danger i::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  animation: dangerRing 1.1s ease-out infinite;
+}
+@keyframes dangerRing {
+  from {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
 .ping.weapon {
   color: #62cdff;
 }
@@ -994,9 +1427,7 @@ body[data-trk="ml"] #tracker {
 
 /* power weapons: the spawn's next weapon and its timer, and the pickup callout */
 #powerT {
-  position: absolute;
-  left: 20px;
-  top: calc(38px + env(safe-area-inset-top, 0px));
+  padding-left: 4px;
   font-family: var(--f-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
@@ -1312,8 +1743,10 @@ table.stats tr.total td {
   }
 }
 
-/* motion tracker on small and touch screens: never wider than a third of the screen, and the
-   bottom-right corner belongs to the touch buttons, so it moves up there */
+/* motion tracker on small and touch screens: never wider than a third of the screen. On a touch
+   screen the bottom corners belong to the stick and the buttons: upright, the tracker moves up under
+   the corner panels (the kill feed steps left of the weapons for it); sideways, it sits at the bottom
+   beside the stick, or left of the buttons */
 #tracker {
   max-width: 34vw;
   max-height: 34vw;
@@ -1322,9 +1755,37 @@ table.stats tr.total td {
   body[data-trk="br"] #tracker,
   body[data-trk="bl"] #tracker {
     bottom: auto;
-    top: calc(150px + env(safe-area-inset-top, 0px));
+    top: calc(12px + 150px * var(--hs) + env(safe-area-inset-top, 0px));
   }
   body[data-trk="bl"] #medals {
     bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+  }
+  body[data-trk="br"] #hudTR #feed {
+    position: absolute;
+    right: calc(100% + 10px);
+    top: 0;
+  }
+  body:has(#ctfHud.play:not([hidden])) #tscore {
+    top: calc(102px + env(safe-area-inset-top, 0px));
+  }
+}
+@media (pointer: coarse) and (orientation: landscape) {
+  #tracker {
+    max-width: min(34vw, 46vh);
+    max-height: min(34vw, 46vh);
+  }
+  body[data-trk="br"] #tracker,
+  body[data-trk="bl"] #tracker {
+    top: auto;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+  body[data-trk="bl"] #tracker {
+    left: calc(176px + env(safe-area-inset-left, 0px));
+  }
+  body[data-trk="br"] #tracker {
+    right: calc(280px + env(safe-area-inset-right, 0px));
+  }
+  body[data-trk="br"] #hudTR #feed {
+    position: static;
   }
 }

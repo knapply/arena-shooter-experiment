@@ -89,7 +89,9 @@
       } else K.hurtMe(n, src);
     };
     G.byId = id => G.agents.find(a => a.id === id) || null;
-    /** a ping from a teammate: the two nearest AI teammates head there; an enemy ping is shared intel */
+    /** a ping from a teammate: the two nearest AI teammates head there; an enemy ping is shared intel.
+        A danger mark: every AI teammate keeps clear of it, and the two nearest hold short of it and
+        watch it for a few seconds */
     G.ping = function (from, p) {
       const team = from.team,
         pos = new K.THREE.Vector3(p.pos[0], p.pos[1], p.pos[2]);
@@ -97,7 +99,24 @@
         .filter(a => !a.human && a.alive && !a.carrying)
         .sort((a, b) => a.pos.distanceTo(pos) - b.pos.distanceTo(pos))
         .slice(0, 2);
-      for (const a of mates) a.ping = { pos: pos.clone(), until: G.t + 8 };
+      /* one mark per player: a new one replaces what the AI was doing about the last */
+      for (const a of G.teams[team].agents) {
+        if (a.danger && a.danger.by === from.id) a.danger = null;
+        if (a.ping && a.ping.by === from.id) a.ping = null;
+      }
+      if (p.kind === "danger") {
+        for (const a of G.teams[team].agents)
+          if (!a.human)
+            a.danger = {
+              by: from.id,
+              pos: pos.clone(),
+              until: G.t + 10,
+              watchUntil: mates.includes(a) ? G.t + 5 : 0,
+            };
+        if (mates[0]) G.teams[team].brain.say(G, mates[0], "ping", "Watching it", true);
+        return mates;
+      }
+      for (const a of mates) a.ping = { by: from.id, pos: pos.clone(), until: G.t + 8 };
       const t = p.target ? G.byId(p.target) : null;
       if (t && t.team !== team) G.teams[team].brain.enemyMem.set(t.id, { t: G.t, pos: t.pos.clone() });
       if (mates[0])
@@ -217,9 +236,10 @@
       const W = K.WEAPON_DATA[type],
         n = ammo ? ammo[0] + ammo[1] : W.mag + W.reserve;
       if (!W.power) {
-        /* a lab rifle takes slot 1, full */
+        /* a lab rifle takes slot 1, with the rounds it had (full from a spawn) */
         a.prim = type;
-        a.ammo[0] = W.mag;
+        a.ammo[0] = ammo ? Math.min(W.mag, ammo[0]) : W.mag;
+        a.rsv[0] = ammo ? ammo[1] : W.reserve;
         if (a.wpn === 0) a.switchT = K.SWITCH_TIME;
         return;
       }
@@ -301,10 +321,16 @@
         out.push({ type: t, ammo: [Math.min(4, a.sniper), Math.max(0, a.sniper - 4)] });
       } else if (a.pw) out.push({ type: a.pw.type, ammo: [a.pw.mag, Math.max(0, a.pw.n - a.pw.mag)] });
       else {
-        /* the gun in hand (carbine or magnum, or a lab rifle), with what was left in it */
+        /* the gun in hand (carbine or magnum, or a lab rifle), with what was left in it (a remote
+           player's is not known here: a full load) */
         const s = a.wpn === 1 ? 1 : 0,
-          t = s ? 1 : a.prim || 0;
-        out.push({ type: t, ammo: [a.remote || !a.ammo ? K.WEAPON_DATA[t].mag : a.ammo[s], Infinity] });
+          t = s ? 1 : a.prim || 0,
+          W = K.WEAPON_DATA[t],
+          known = !a.remote && a.ammo && a.rsv;
+        const am = known
+          ? [Math.min(W.mag, a.ammo[s]), Math.min(W.reserve + W.mag, a.rsv[s])]
+          : [W.mag, W.reserve];
+        if (am[0] + am[1] > 0) out.push({ type: t, ammo: am });
       }
       const nf = a.nadeInv ? a.nadeInv.frag : 0,
         np = a.nadeInv ? a.nadeInv.plasma : 0;
@@ -323,10 +349,19 @@
         a.nadeInv.plasma += pl;
       } else if (K.WEAPON_DATA[it.type].power && !a.armed && !a.carrying) {
         if (!it.take()) return;
-        G.arm(a, it.type, it.ammo && it.ammo[1] !== Infinity ? it.ammo : null);
+        G.arm(a, it.type, it.ammo);
       } else if (K.WEAPON_DATA[it.type].lab && !a.prim && !a.carrying) {
         if (!it.take()) return;
-        G.arm(a, it.type);
+        G.arm(a, it.type, it.ammo);
+      } else {
+        /* the gun they carry: its rounds top up the reserve (up to a full load) */
+        const s = it.type === 1 ? 1 : it.type === (a.prim || 0) ? 0 : -1;
+        if (s < 0 || !a.rsv) return;
+        const W = K.WEAPON_DATA[it.type],
+          room = W.mag + W.reserve - a.ammo[s] - a.rsv[s],
+          give = it.ammo ? it.ammo[0] + it.ammo[1] : W.mag;
+        if (room <= 0 || give <= 0 || !it.take()) return;
+        a.rsv[s] += Math.min(room, give);
       }
     }
     G.sniperFor = function (team) {

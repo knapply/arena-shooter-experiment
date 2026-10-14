@@ -37,13 +37,13 @@ function dealDamage(t, n, type, head) {
       kills++;
       b.d++;
       b.respawn = now + 3;
-      /* drones drop the gun in their hands, and sometimes a grenade */
-      const gun = { type: b.wpn === 1 ? 1 : 0, ammo: [WEAPON_DATA[b.wpn === 1 ? 1 : 0].mag, Infinity] };
-      dropItems(
-        Math.random() < 0.5 ? [gun, { type: -1, nades: { frag: 1, plasma: 0 } }] : [gun],
-        b.body.pos,
-        false
-      );
+      /* drones drop the gun in their hands with the rounds it had left, and sometimes a grenade */
+      const gt = b.wpn === 1 ? 1 : 0,
+        gun = { type: gt, ammo: [Math.min(WEAPON_DATA[gt].mag, b.ammo[gt]), b.rsv[gt]] };
+      /** @type {{ type: number, ammo?: number[], nades?: { frag: number, plasma: number } }[]} */
+      const drop = gun.ammo[0] + gun.ammo[1] > 0 ? [gun] : [];
+      if (Math.random() < 0.5) drop.push({ type: -1, nades: { frag: 1, plasma: 0 } });
+      dropItems(drop, b.body.pos, false);
       b.rig.die(camera.position, hitPower(type));
       spark(b.body.pos.clone().add(new V3(0, 1.1, 0)), 14);
       EVENTS.emit("kill", {
@@ -103,11 +103,22 @@ function perfectKill(id) {
 let burstLeft = 0;
 /** this frame's length (set by the loop): a shot is "on time" if the gun became ready this frame */
 let fireStep = 1 / 60;
+/** pulling the trigger on an empty gun with nothing to reload: a click, and the other weapon comes
+    up if it has rounds */
+let dryT = -9;
+function dryFire() {
+  if (now - dryT < 0.35) return;
+  dryT = now;
+  sfx("clink", 0.9);
+  const o = slots[1 - cur];
+  if (switchT <= 0 && ammo[o] + reserve[o] > 0) setSlot(1 - cur);
+}
 function fire(src) {
   if (reloadT > 0) return;
   if (mag <= 0) {
     burstLeft = 0;
-    startReload();
+    if (reserve[wi] <= 0) dryFire();
+    else startReload();
     return;
   }
   mag--;

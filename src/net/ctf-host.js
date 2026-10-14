@@ -340,11 +340,15 @@
         ev: H.ev,
         cm: H.cm,
         pu: G.pickups.map(p => [p.id, r1(p.availIn), p.type]),
-        /* weapons and grenades on the floor: [id, type, x, y, z] */
+        /* weapons and grenades on the floor: [id, type, x, y, z, magazine, reserve] (a weapon's rounds) */
         it: G.items
           .filter(i => i.avail)
           .slice(-16)
-          .map(i => [i.id, i.type, r2(i.pos.x), r2(i.pos.y), r2(i.pos.z)]),
+          .map(i => {
+            const e = [i.id, i.type, r2(i.pos.x), r2(i.pos.y), r2(i.pos.z)];
+            if (i.ammo) e.push(i.ammo[0], i.ammo[1]);
+            return e;
+          }),
         ff: G.ff ? 1 : 0,
         br: [...K.DESTR.broken.keys()].slice(0, 40),
       };
@@ -520,7 +524,7 @@
               ? { type: -1, nades: { frag: num(e[3], 0, 2) | 0, plasma: num(e[4], 0, 2) | 0 } }
               : {
                   type: Math.min(K.WEAPON_DATA.length - 1, Math.max(0, e[0] | 0)),
-                  ammo: [num(e[1], 0, 99) | 0, e[2] < 0 ? Infinity : num(e[2], 0, 99) | 0],
+                  ammo: [num(e[1], 0, 99) | 0, num(e[2], 0, 999) | 0],
                 }
           );
           G.addItems(list, at);
@@ -536,7 +540,7 @@
       } else if (pr.fd != null && !a.init) a.seenFd = num(pr.fd, 0, 1e9);
       if (Array.isArray(pr.pg) && a.init) {
         const s = num(pr.pg[0], 0, 1e9);
-        const kind = ["enemy", "weapon", "place"].includes(pr.pg[1]) ? pr.pg[1] : null;
+        const kind = ["enemy", "weapon", "place", "danger"].includes(pr.pg[1]) ? pr.pg[1] : null;
         if (s > (a.seenPg | 0) && kind) {
           a.seenPg = s;
           const pos = [num(pr.pg[2], -500, 500), num(pr.pg[3], -50, 100), num(pr.pg[4], -500, 500)];

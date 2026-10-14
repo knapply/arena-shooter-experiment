@@ -23,17 +23,26 @@
   <svg id="thrustArc" viewBox="0 0 60 60" aria-hidden="true"><path d="M8 44 A26 26 0 0 1 8 16" fill="none" stroke="#dbe6ea33" stroke-width="3"/><path id="thrustFill" d="M8 44 A26 26 0 0 1 8 16" fill="none" stroke="#ffb347" stroke-width="3" stroke-dasharray="44" stroke-dashoffset="0"/></svg>
   <div id="prompt" hidden></div>
   <svg id="pound" viewBox="0 0 84 84"><circle cx="42" cy="42" r="38" fill="none" stroke="#ffb347" stroke-width="3" stroke-dasharray="239" stroke-dashoffset="239" id="poundArc" transform="rotate(-90 42 42)"/></svg>
-  <div class="status"><span><i class="dotlive" id="liveDot"></i><b id="liveTxt">Solo</b></span><span id="kd">0 K · 0 D</span></div>
-  <div id="feed"></div>
+  <div class="htl" id="hudTL">
+    <div class="hpanel nades" id="nadeHud"><div class="nlist" id="nadeList"></div><div class="hint" id="nadeHint"></div></div>
+    <div class="status"><span><i class="dotlive" id="liveDot"></i><b id="liveTxt">Solo</b></span><span id="kd">0 K · 0 D</span><span id="kdGoal"></span></div>
+    <div id="powerT" hidden></div>
+  </div>
+  <div class="htr" id="hudTR">
+    <div class="hpanel weap" id="weapHud">
+      <div class="wcur"><svg class="wsil" id="wSil" viewBox="0 0 64 20" aria-hidden="true"><path/></svg><div class="ammo"><span id="mag">12</span><small id="rsv">36</small></div></div>
+      <div class="pips" id="pips"><b></b></div>
+      <div class="wrow"><span class="wname" id="wname">M9 magnum</span><span class="ahint" id="ammoHint"></span></div>
+      <div class="wnext" id="wNext"><svg class="wsil" viewBox="0 0 64 20" aria-hidden="true"><path/></svg><span class="wn"></span><small></small></div>
+    </div>
+    <div id="feed"></div>
+  </div>
   <div id="medals"></div>
   <div id="toast"></div>
-  <div id="powerT" hidden></div>
   <div id="callout" aria-live="assertive"></div>
   <div class="vitals" id="vitals">
-    <div class="lbl"><span>Shield</span><span id="shN">70</span></div>
-    <div class="bar"><b id="shb"></b></div>
-    <div class="lbl"><span>Hull</span><span id="hpN">45</span></div>
-    <div class="bar thin"><b id="hpb"></b></div>
+    <div class="shrow"><span class="lbl">Shield</span><div class="bar"><b id="shb"></b></div><span class="num" id="shN">70</span></div>
+    <div class="hprow"><span class="lbl">Hull</span><div class="bar thin"><b id="hpb"></b></div><span class="num" id="hpN">45</span></div>
   </div>
   <div class="kit">
     <div class="chip" id="cThrust">Thrust<u id="uThrust"></u></div>
@@ -42,7 +51,6 @@
     <div class="chip" id="cPound">Pound</div>
     <div class="chip" id="cCharge">Charge</div>
   </div>
-  <div class="ammo"><div class="n"><span id="mag">32</span><small id="rsv"> / ∞</small></div><div class="w" id="wname">VK-7 pulse carbine</div><div class="w" id="gnade">› Frag 2   Plasma 2</div></div>
 </div>
 
 <div id="dfade"></div>

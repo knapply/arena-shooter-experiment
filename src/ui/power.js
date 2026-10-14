@@ -82,15 +82,20 @@ function arenaPowerHolders() {
   }
   return out;
 }
-/** a callout when someone takes a power weapon: loud for an enemy, a line for an ally */
+/** a line across the top of the view for a few seconds (power weapons taken, danger marks); loud
+    (red) for a threat */
 let pwCallT = 0;
+function hudCallout(text, loud, t = 2.6) {
+  const el = $("callout");
+  el.textContent = text;
+  el.className = loud ? "enemy" : "";
+  el.style.opacity = "1";
+  pwCallT = t;
+}
+/** a callout when someone takes a power weapon: loud for an enemy, a line for an ally */
 function powerCallout(name, key, enemy) {
   const nm = key === "rocket" ? "rockets" : "the sniper";
-  const el = $("callout");
-  el.textContent = enemy ? `Enemy has ${nm}` : `${name} has ${nm}`;
-  el.className = enemy ? "enemy" : "";
-  el.style.opacity = "1";
-  pwCallT = 2.6;
+  hudCallout(enemy ? `Enemy has ${nm}` : `${name} has ${nm}`, enemy);
   if (enemy) {
     say(key === "rocket" ? "Enemy rockets" : "Enemy sniper", true);
     sfx("alarm", 0.5);

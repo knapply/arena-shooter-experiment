@@ -206,7 +206,7 @@ function dropItems(list, at, broadcast = true) {
     const id = o.id != null ? o.id : ++itemSeq;
     ITEMS.push(makeItem(Object.assign({}, o, { id, pos }), () => now, itemTaken));
     if (broadcast) {
-      const am = o.ammo ? [o.ammo[0], o.ammo[1] === Infinity ? -1 : o.ammo[1]] : [0, 0];
+      const am = o.ammo ? o.ammo : [0, 0];
       emitFx("drop", v3a(pos), o.type < 0 ? [-1, o.nades.frag, o.nades.plasma] : [o.type, am[0], am[1]], id);
     }
   });
@@ -223,7 +223,13 @@ function remoteItem(kind, a, b, id) {
     const o =
       t < 0
         ? { type: -1, nades: { frag: clamp(b[1] | 0, 0, NADE_CAP), plasma: clamp(b[2] | 0, 0, NADE_CAP) } }
-        : { type: t, ammo: [clamp(b[1] | 0, 0, 99), b[2] < 0 ? Infinity : clamp(b[2] | 0, 0, 99)] };
+        : {
+            type: t,
+            ammo: [
+              clamp(b[1] | 0, 0, WEAPONS[t].mag),
+              clamp(b[2] | 0, 0, WEAPONS[t].mag + WEAPONS[t].reserve),
+            ],
+          };
     ITEMS.push(makeItem(Object.assign(o, { id, pos: a }), () => now, itemTaken));
   } else if (kind === "take") {
     const it = ITEMS.find(i => i.id === id);
@@ -263,6 +269,7 @@ function autoTake(p) {
     if (!p.take(true)) return false;
     nadeInv.frag += f;
     nadeInv.plasma += pl;
+    nadeAuto();
     updNadeHud();
     sfx("pickup", 0.6);
     toast(`+${f ? f + " frag" : ""}${f && pl ? " " : ""}${pl ? pl + " plasma" : ""}`);
@@ -270,13 +277,14 @@ function autoTake(p) {
   }
   if (!slots.includes(p.type) || p.power) return false;
   const W0 = WEAPONS[p.type];
-  if (W0.reserve === Infinity) return false;
+  /* rounds go to the reserve, up to a full load (a part-empty magazine leaves room for more) */
   const max = W0.reserve + W0.mag,
-    have = reserve[p.type] + (wi === p.type ? mag : ammo[p.type]);
+    inMag = wi === p.type ? mag : ammo[p.type],
+    have = reserve[p.type] + inMag;
   if (have >= max) return false;
-  const give = p.ammo ? p.ammo[0] + (p.ammo[1] === Infinity ? 0 : p.ammo[1]) : W0.mag;
-  if (!p.take(true)) return false;
-  reserve[p.type] = Math.min(W0.reserve, reserve[p.type] + give);
+  const give = p.ammo ? p.ammo[0] + p.ammo[1] : W0.mag;
+  if (give <= 0 || !p.take(true)) return false;
+  reserve[p.type] = Math.min(max - inMag, reserve[p.type] + give);
   sfx("pickup", 0.6);
   toast(`${wName(p.type)} ammo`);
   return true;

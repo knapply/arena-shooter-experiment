@@ -168,15 +168,15 @@
     if (f.state === "carried" || me.pos.distanceTo(f.pos) > 1.8) return null;
     return [{ label: "take the flag", hold: 0.3, go: take }];
   }
-  /** motion tracker contacts: everyone but you; teammates always, enemies only when loud */
+  /** motion tracker contacts: everyone but you; teammates always, enemies only when loud (sprinting,
+      thrusting or hovering: the tracker reads that from the body, ui/tracker.js) */
   function radarOf(list) {
     const out = [];
     for (const a of list)
       if (!a.local && a.alive)
         out.push({
           pos: a.body.pos,
-          vel: a.body.vel,
-          firing: a.firing || G.t - (a.firedT || -9) < 0.5,
+          body: a.body,
           ally: a.team === G.human.team,
         });
     return out;

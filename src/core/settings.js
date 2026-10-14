@@ -857,7 +857,7 @@ const SCHEMA = [
     max: 1.4,
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
-    desc: "Size of the health and shield bars, ammo, kill feed and other on-screen information.",
+    desc: "Size of the shield and hull bars, weapons and ammo, grenades, kill feed and other on-screen information.",
   },
   {
     k: "bob",
@@ -890,14 +890,14 @@ const SCHEMA = [
     label: "Motion tracker",
     type: "toggle",
     def: true,
-    desc: "The radar in the corner shows enemies within 25 m who run, jump or shoot. Crouch-walkers stay hidden. Turn it off for a no-radar competitive game.",
+    desc: "The radar in the corner shows enemies within 25 m while they sprint, thrust or hover (stabilize in the air). Walking, crouching and firing stay off it, so moving quietly is a choice. Teammates always show, dimmer. Turn it off for a no-radar competitive game.",
   },
   {
     k: "trackerPos",
     tab: T_GAME,
     label: "Motion tracker position",
     type: "select",
-    def: "br",
+    def: "bl",
     opts: [
       ["br", "Bottom right"],
       ["bl", "Bottom left"],
@@ -908,7 +908,7 @@ const SCHEMA = [
       ["mr", "Middle right"],
       ["ml", "Middle left"],
     ],
-    desc: "Where on the screen the motion tracker sits. Bottom right keeps it next to your ammo, clear of team chat and medals; the center spots keep it close to your line of sight; anything sharing its spot moves out of its way.",
+    desc: "Where on the screen the motion tracker sits. Bottom left is the default layout, clear of your ammo and grenades at the top; the center spots keep it close to your line of sight; anything sharing its spot (team chat, medals) moves out of its way. On a touch screen the bottom corners belong to the controls, so it sits higher there.",
   },
   {
     k: "trackerSize",

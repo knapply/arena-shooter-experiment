@@ -7,7 +7,11 @@
    precision: true  → no random spread at all (hip or aimed, moving or airborne); the shot goes
                       exactly where the reticle is. Recoil is a visual kick that returns to center
                       before the next shot at full fire rate, so the rhythm can be learned.
-   recover          → how fast (per second, exponential) the recoil kick returns to center. */
+   recover          → how fast (per second, exponential) the recoil kick returns to center.
+   reserve          → rounds carried besides the magazine. Nothing is endless: the starting guns carry
+                      about what a pilot fires in a long life (the 95th percentile of rounds fired per
+                      life in simulated matches, tools/tune.js lifeShots; docs/TUNING.md), so running
+                      dry is rare but possible, and drops and ammo pickups matter. */
 const PILOT_SHIELD = 70,
   PILOT_HEALTH = 45;
 const WEAPON_DATA = [
@@ -15,7 +19,7 @@ const WEAPON_DATA = [
     key: "carbine",
     name: "VK-7 pulse carbine",
     mag: 32,
-    reserve: Infinity,
+    reserve: 96,
     rate: 0.1,
     auto: true,
     precision: false,
@@ -39,7 +43,7 @@ const WEAPON_DATA = [
     key: "pistol",
     name: "M9 magnum",
     mag: 12,
-    reserve: Infinity,
+    reserve: 36,
     rate: 0.26,
     auto: false,
     precision: true,
@@ -124,7 +128,7 @@ const WEAPON_DATA = [
     /* three-round bursts: each round goes where the reticle is at that instant, so tracking through
        the burst is the skill. Four bursts kill (the last two rounds to the head once shields drop) */
     mag: 36,
-    reserve: Infinity,
+    reserve: 180,
     rate: 0.36,
     burst: 3,
     burstGap: 0.06,
@@ -184,7 +188,7 @@ const WEAPON_DATA = [
     /* a continuous beam: no spread and no headshots, damage only while it stays on target, so
        tracking a strafing pilot is the whole skill. The cell vents (reloads) after 2.5 s of beam */
     mag: 50,
-    reserve: Infinity,
+    reserve: 300,
     rate: 0.05,
     auto: true,
     precision: true,

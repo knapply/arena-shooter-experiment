@@ -204,9 +204,19 @@ function match(diff, seed, lock) {
     grabs: 0,
     ttc: [],
     lanes: [0, 0, 0],
+    /* rounds each pilot fired with each weapon over one whole life (spawn to death) */
+    life: {},
   };
   const takenAt = new Map();
   G.onEvent = (t, d) => {
+    if (t === "shot") {
+      const a = d.by;
+      if (a && a.__life) {
+        const key = K.WEAPON_DATA[a.held()].key;
+        a.__life[key] = (a.__life[key] || 0) + 1;
+      }
+      return;
+    }
     if (t === "kill") {
       out.kills++;
       const v = d.victim,
@@ -222,6 +232,11 @@ function match(diff, seed, lock) {
       if (/frag|stick|plasma|nade/.test(d.type || "")) {
         out.nadeKills++;
         if (k === v) out.selfNade++;
+      }
+      if (v.__life) {
+        for (const w of new Set(["carbine", "pistol", ...Object.keys(v.__life)]))
+          (out.life[w] = out.life[w] || []).push(v.__life[w] || 0);
+        v.__life = null;
       }
       if (v.__first != null) out.ttk.push(G.t - v.__first);
       v.__first = null;
@@ -241,6 +256,7 @@ function match(diff, seed, lock) {
     const sp = a.spawn.bind(a);
     a.spawn = p => {
       a.__sp = G.t;
+      a.__life = {};
       return sp(p);
     };
     const on = a.onHit.bind(a);
@@ -431,6 +447,7 @@ const extra = r => ({
   caps: r.capsPerMatch,
   ttc: r.ttc,
   lanes: r.lanes,
+  lifeShots: r.lifeShots,
 });
 /** a variant's matches: skill matches (legendary on team 0, then swapped sides) and even matches */
 function summarize(vr) {
@@ -449,6 +466,7 @@ function summarize(vr) {
     grabs = 0,
     nEven = 0;
   const wk = {},
+    life = {},
     held = {},
     lanes = [0, 0, 0],
     ttc = [],
@@ -474,6 +492,7 @@ function summarize(vr) {
       nEven++;
       add(wk, r.wk);
       add(held, r.held);
+      for (const [w, a] of Object.entries(r.life || {})) (life[w] = life[w] || []).push(...a);
       for (let i = 0; i < 3; i++) lanes[i] += (r.lanes || [0, 0, 0])[i];
       spawnDeaths += r.spawnDeaths || 0;
       caps += r.cap[0] + r.cap[1];
@@ -511,6 +530,11 @@ function summarize(vr) {
     capsPerMatch: +(caps / Math.max(1, nEven)).toFixed(2),
     grabsPerMatch: +(grabs / Math.max(1, nEven)).toFixed(2),
     ttc: ttc.length ? +median(ttc).toFixed(1) : null,
+    /* rounds fired per life with each weapon (even matches, whole lives): median, 95th and 99th
+       percentiles, and how many lives */
+    lifeShots: Object.fromEntries(
+      Object.entries(life).map(([w, a]) => [w, [quart(a, 0.5), quart(a, 0.95), quart(a, 0.99), a.length]])
+    ),
     lanes:
       lanes[0] + lanes[1] + lanes[2]
         ? lanes.map(n => +(n / (lanes[0] + lanes[1] + lanes[2])).toFixed(3))

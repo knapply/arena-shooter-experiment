@@ -38,7 +38,8 @@
     _thDir = new V3(),
     _thWish = new V3(),
     _thEye = new V3(),
-    _thAim = new V3();
+    _thAim = new V3(),
+    _dz = new V3();
   const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
   function arcVel(from, to, deg, g) {
     const dx = to.x - from.x,
@@ -82,10 +83,15 @@
       this.goal = new V3();
       /** a teammate's ping to act on: { pos, until } */
       this.ping = null;
+      /** a teammate's danger mark: { pos, until, watchUntil } (keep clear of it; watchers hold and
+          cover it for a few seconds) */
+      this.danger = null;
       this.goalCell = -1;
       /** the gun in hand (0 carbine, 1 magnum; the WEAPON_DATA index) and each one's magazine */
       this.wpn = 0;
       this.ammo = [RIFLE.mag, MAGNUM.mag];
+      /** each gun's rounds besides the magazine (the player's numbers; endless in weapon-lock sims) */
+      this.rsv = [RIFLE.reserve, MAGNUM.reserve];
       /** bringing the other gun up (the player's switch time), and when they last switched */
       this.switchT = 0;
       this.lastSwitch = -9;
@@ -144,6 +150,27 @@
     gun() {
       return this.wpn === 1 ? MAGNUM : K.WEAPON_DATA[this.prim];
     }
+    /** gun w (0 or 1) has rounds in its magazine or to reload */
+    hasAmmo(w) {
+      return this.ammo[w] > 0 || this.rsv[w] > 0;
+    }
+    /** both guns down to their last magazine or less */
+    lowAmmo() {
+      return (
+        this.ammo[0] + this.rsv[0] <= K.WEAPON_DATA[this.prim].mag && this.ammo[1] + this.rsv[1] <= MAGNUM.mag
+      );
+    }
+    /** start reloading the gun in hand, if there is anything to load */
+    startReload() {
+      if (this.reloadT > 0 || this.rsv[this.wpn] <= 0 || this.mag >= this.gun().mag) return;
+      this.reloadT = this.gun().reload;
+    }
+    /** a reload finishing: the magazine fills from the reserve */
+    reloadDone() {
+      const take = Math.min(this.gun().mag - this.mag, this.rsv[this.wpn]);
+      this.mag += take;
+      this.rsv[this.wpn] -= take;
+    }
     /** the WEAPON_DATA index in hand, power weapons included (for the rig, the HUD and the host) */
     held() {
       if (this.rocket > 0) return 3;
@@ -170,10 +197,13 @@
         full = w => (w ? MAGNUM : K.WEAPON_DATA[this.prim]).mag * 0.56;
       if (!tgt)
         /* between fights: bring up the other gun to reload it if that's the one running low */
-        return this.reloadT <= 0 && this.mag >= full(this.wpn) && this.ammo[o] < full(o) ? o : this.wpn;
+        return this.reloadT <= 0 && this.mag >= full(this.wpn) && this.ammo[o] < full(o) && this.rsv[o] > 0
+          ? o
+          : this.wpn;
       const r = this.pos.distanceTo(tgt.pos);
-      /* out of rounds mid-fight: switching is faster than reloading */
-      if (this.mag <= 0) return this.ammo[o] > 0 && r > 3 ? o : this.wpn;
+      /* out of rounds mid-fight: switching is faster than reloading (and the only way once a gun is dry) */
+      if (this.mag <= 0)
+        return (this.ammo[o] > 0 || !this.hasAmmo(this.wpn)) && this.hasAmmo(o) && r > 3 ? o : this.wpn;
       if (this.ammo[o] <= 0) return this.wpn;
       const S = this.skill();
       /* a lab rifle in slot 1: the burst rifle at every range, the beam inside its falloff */
@@ -221,6 +251,8 @@
       this.ammo[0] = K.WEAPON_DATA[this.prim].mag;
       this.burstLeft = 0;
       this.ammo[1] = MAGNUM.mag;
+      this.rsv[0] = this.G.lock ? Infinity : K.WEAPON_DATA[this.prim].reserve;
+      this.rsv[1] = this.G.lock ? Infinity : MAGNUM.reserve;
       this.switchT = 0;
       this.reloadT = 0;
       this.target = null;
@@ -539,6 +571,23 @@
           this.mustMove = true;
         }
       }
+      /* running low on rounds: a dropped gun of the same kind nearby is worth a detour too */
+      if (!this.mustMove && !this.carrying && !this.target && G.items && this.lowAmmo()) {
+        let near = null,
+          nd = 22;
+        for (const it of G.items) {
+          if (!it.avail || (it.type !== 1 && it.type !== (this.prim || 0))) continue;
+          const d = this.pos.distanceTo(it.pos);
+          if (d < nd) {
+            nd = d;
+            near = it;
+          }
+        }
+        if (near) {
+          g.copy(near.pos);
+          this.mustMove = true;
+        }
+      }
       if (this.fallback && this.role !== "carry") {
         g.copy(home).lerp(this.pos, 0.6);
       }
@@ -546,6 +595,25 @@
       if (this.ping && G.t < this.ping.until && this.role !== "carry" && !this.carrying) {
         g.copy(this.ping.pos);
         this.mustMove = this.pos.distanceTo(g) > 3;
+      }
+      /* a danger mark: watchers hold short of it, everyone else keeps their goal clear of it */
+      const dz = this.danger;
+      if (dz && G.t < dz.until && !this.carrying) {
+        const R = 10;
+        if (G.t < dz.watchUntil && this.role !== "carry") {
+          const d = Math.hypot(this.pos.x - dz.pos.x, this.pos.z - dz.pos.z);
+          if (d < R + 2)
+            g.copy(dz.pos).addScaledVector(
+              _dz.set(this.pos.x - dz.pos.x, 0, this.pos.z - dz.pos.z).normalize(),
+              R + 2
+            );
+          else g.copy(this.pos);
+          this.mustMove = false;
+        } else if (Math.hypot(g.x - dz.pos.x, g.z - dz.pos.z) < R) {
+          _dz.set(g.x - dz.pos.x, 0, g.z - dz.pos.z);
+          if (_dz.lengthSq() < 0.01) _dz.set(this.pos.x - dz.pos.x, 0, this.pos.z - dz.pos.z);
+          g.copy(dz.pos).addScaledVector(_dz.normalize(), R);
+        }
       }
     }
     /** the nearest of the team's spawn points (a place to regroup on a map without flags) */
@@ -663,6 +731,13 @@
       if (dir) wish.copy(dir);
       let lookYaw = dir ? Math.atan2(-wish.x, -wish.z) : b.yaw,
         lookPitch = 0;
+      /* watching a teammate's danger mark: eyes on it while there is nobody to fight */
+      if (!tgt && this.danger && G.t < this.danger.watchUntil) {
+        const p = this.danger.pos,
+          eye = this.eye(_thEye);
+        lookYaw = Math.atan2(-(p.x - eye.x), -(p.z - eye.z));
+        lookPitch = Math.atan2(p.y + 1 - eye.y, Math.hypot(p.x - eye.x, p.z - eye.z));
+      }
       if (tgt) {
         const eye = this.eye(_thEye),
           aim = this.aimPoint(tgt, _thAim);
@@ -754,7 +829,7 @@
           if (b.sprint && this.path && this.mustMove && K.rand() < dt * 0.15) inp.crouchP = true;
         }
         if (this.reloadT <= 0 && this.mag < this.gun().mag * 0.56 && G.t - this.lastHitT > 2)
-          this.reloadT = this.gun().reload;
+          this.startReload();
       }
       if (this.poundHold > 0) {
         this.poundHold -= dt;
@@ -831,7 +906,7 @@
       this.stepDt = dt;
       if (this.reloadT > 0) {
         this.reloadT -= dt;
-        if (this.reloadT <= 0) this.mag = this.gun().mag;
+        if (this.reloadT <= 0) this.reloadDone();
       }
       if (
         engaged &&
@@ -850,7 +925,7 @@
         /* a burst in progress finishes wherever the reticle is */
         if (this.burstLeft > 0 || err < (careful ? 0.05 : 0.09)) this.shoot(tgt);
       } else if (!engaged || this.reloadT > 0 || this.switchT > 0) this.burstLeft = 0;
-      if (this.mag <= 0 && this.reloadT <= 0) this.reloadT = this.gun().reload;
+      if (this.mag <= 0 && this.reloadT <= 0) this.startReload();
       this.nadeCD -= dt;
       if (
         this.nadeCD <= 0 &&
@@ -1161,6 +1236,11 @@
         this.fireCD = 0.3;
         return;
       }
+      /* a dry gun: nothing to fire until a switch or an ammo pickup */
+      if (!pw && this.mag <= 0) {
+        this.fireCD = 0.3;
+        return;
+      }
       /* the gun in hand, with the player's numbers (data/weapons.js) */
       const W = pw ? K.WEAPON_DATA[pw.type] : this.gun();
       /* a shot fired the step the gun became ready keeps the cadence exact: what it was late by
@@ -1239,7 +1319,7 @@
         else best.e.onHit(dmg, W.dmg, best.h.head, this);
       }
       this.brain().model.acc[1]++;
-      if (this.mag <= 0) this.reloadT = W.reload;
+      if (this.mag <= 0) this.startReload();
     }
     /** a pellet weapon (the scattergun): every pellet its own ray over the cone, damage summed per
         pilot with the weapon's falloff */

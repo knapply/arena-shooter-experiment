@@ -175,6 +175,25 @@ Baseline skill share was 0.716 to 0.728 depending on the seed set, with a median
 
 The magnum's numbers were first set from the kill-time table in [SANDBOX.md](SANDBOX.md): the 5-shot, 1.04 s perfect kill is long enough to react to and short enough that landing every shot is what wins. The AI carries it too (carbine and magnum, each with its own magazine; it switches with the player's switch time and picks the magnum at mid and long range and to finish a pilot whose shields are down, with aim and trigger pace set by skill level in `AI_SKILL`, `data/modes.js`), so the simulations measure it like the carbine. The power weapons are rare enough in a match that their numbers barely move these statistics; they were set by hand (one-shot kills that reward the aim or the read, with a slow fire rate and small magazines).
 
+## Ammo: reserves from rounds fired per life
+
+No weapon has endless reserve ammo. The starting guns carry about what a pilot fires in a long life, so running dry is rare but possible, and death drops and ammo pickups matter. `tools/tune.js` reports `lifeShots`: rounds fired with each weapon over each whole life (spawn to death; lives cut off by the end of a match are left out), as the median, 95th and 99th percentile and the number of lives. Measured with the old endless reserves, 16 matches of 5 minutes per setting (4 v 4, normal skill unless named):
+
+| Setting | Carbine p50 / p95 / p99 | Magnum p50 / p95 / p99 | Lives |
+|---|---|---|---|
+| Capture the flag, seed 100 | 32 / 116 / 203 | 12 / 45 / 67 | 1102 |
+| Capture the flag, seed 700 | 32 / 106 / 162 | 12 / 43 / 74 | 1089 |
+| Capture the flag, Recruit | 32 / 102 / 160 | 10 / 42 / 69 | 815 |
+| Capture the flag, Heroic | 18 / 77 / 150 | 12 / 37 / 84 | 1302 |
+| Capture the flag, Legendary | 3 / 32 / 59 | 12 / 32 / 61 | 1728 |
+| Arena team deathmatch | 15 / 49 / 75 | 4 / 14 / 22 | 2222 |
+| Arena 2 v 2 | 18 / 55 / 76 | 3 / 12 / 21 | 990 |
+| Arena duels (1 v 1) | 21 / 52 / 63 | 4 / 13 / 16 | 360 |
+
+Capture the flag at normal skill has the longest lives and the most shooting, so its 95th percentile sets the loads, rounded to whole magazines: **carbine 32 + 96 reserve (128 rounds), magnum 12 + 36 reserve (48)**. The lab rifles were measured with `LOCK` (every pilot holds only that gun, so these overstate a life that also has the magnum): burst rifle p95 221 rounds, arc beam p95 512. They get **burst 36 + 180 (216)** and **beam 50 + 300 (350)**: the beam's reserve stays under what a dropped weapon can carry online (a weapon drop's rounds travel as fixed-point numbers up to 327), and in normal play it shares a life with the magnum. Power weapons keep their loads (sniper 4 + 8, rockets 2 + 4, scattergun 6 + 12). The practice drones and the CTF AI carry the same reserves and reload from them; a dry gun means switching, and an AI pilot down to its last magazine detours to a dropped gun of the kind it carries. The `LOCK` simulations keep endless ammo: they measure a weapon, not a life.
+
+With the finite reserves in place the same capture-the-flag runs come out within noise of before (kills per minute 15.0 against 15.4, skill share 0.848 against 0.854), and the arena is unchanged: a normal life very rarely runs out.
+
 ## Limits of the method
 
 The AI's skill levels differ in reaction time and aim error, so the simulations measure how much **aim and reaction** decide fights. Movement skill (strafe timing, thrust dodges, slide jumps) is something the AI only partly expresses, so movement settings are better judged by playtesting with the sliders. The sandbox tab exists for exactly that.

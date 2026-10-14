@@ -12,6 +12,8 @@ let hitActs = new Set(),
   aimLatch = false,
   crouchLatch = false,
   sprintLatch = false;
+/** when the keyboard or mouse was last used (performance.now ms): the HUD's hints follow the device in use */
+let keysT = 0;
 function A(a) {
   const b = BIND[a];
   if (b) for (const c of b) if (codesDown.has(c)) return true;
@@ -63,6 +65,7 @@ addEventListener("keydown", e => {
     if (CODE2ACT.has(e.code) && playing) e.preventDefault();
     return;
   }
+  keysT = performance.now();
   if (e.code === "Escape" && playing && !locked && !paused && $("settings").hidden) {
     paused = true;
     $("pause").hidden = false;
@@ -73,6 +76,7 @@ addEventListener("keydown", e => {
 addEventListener("keyup", e => codesDown.delete(e.code));
 canvas.addEventListener("mousedown", e => {
   if (!playing || isTouch) return;
+  keysT = performance.now();
   /* not captured: every click asks again. A refused capture (the browser won't re-lock for about a
      second after Esc, or an embedded view blocks it) leaves look following the cursor only until a
      capture succeeds; it used to stay that way for the rest of the match, with the cursor stuck at
