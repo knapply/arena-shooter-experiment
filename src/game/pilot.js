@@ -30,6 +30,11 @@ function posePilot(p, dt, extra) {
   rg.root.position.copy(p.body.pos);
   rg.root.rotation.y = p.body.yaw;
   const st = bodyState(p.body, extra);
+  /* (who this rig is, for gaze and gestures: characters/gaze.js) */
+  if (!rg.pid) {
+    rg.pid = pidOf(p);
+    rg.team = p.team == null ? -1 : p.team;
+  }
   if (REC.sampling) {
     const id = pidOf(p);
     REC.put(id, p.body.pos, st);

@@ -93,15 +93,16 @@ The four match modes share one implementation: `CTF.Game({ rules })` in `modes/c
 
 The pilot is a 32-bone rig (`characters/rig.js`) posed every frame from the body's state (`bodyState`), in two layers:
 - **Locomotion from motion capture** (`characters/anim.js`): pelvis, spine, legs and the free arm's swing. A blend space over speed and move direction (relative to facing) mixes the clips on one phase (0 is the left foot's strike), with stride, cadence and stance length warped to the game's speeds and the hips turned toward the travel. A small state machine (idle/move, crouch, air, land) cross-fades between states. Planted feet lock in the world, follow the ground and step when turning on the spot; the rig's leg IK puts them there.
+- **One-shots** over the gait (`play` in `anim.js`, with a body mask): chosen by the velocity's history (a braking `stop`, a `plant` on a reversal, a `start` from a standstill), the takeoff (`jumpRun` or `jump`) and the fall (`landHard`). `ANIM.hit` plays the captured stumble additively on the hips and spine, turned toward the push; `ANIM.emote` (cheer, flex, wave, shrug; `rig.emote`) plays standing and frees the arms. Each pilot idles in one of three captured idles and drifts between them. `characters/gaze.js` turns heads toward threats and pings and triggers the gestures (after a kill, at the end of a match).
 - **A fighting stance** on top of the capture (`anim.js`): the hips sit lower over wider-set feet with the knees out, narrowing with pace; jumps tuck the knees. The rig adds a forward hunch in every state, the gun carried up and out with the elbows wide, and hard leans into sprints and turns.
 - **Procedural layers** in `rig.update`: the weapon pose and hand IK, aiming down sights, reloads (`RELOAD_T`, shared with the first-person viewmodel), melee, recoil, flinch, head look-at, breathing, lean springs, the special moves (slide, ground pound, clamber, jetpack, stabilizer) and deaths. A melee blow has a wind-up, a strike and a follow-through (`meleeShape`, shared with the first-person viewmodel, which runs it on its own clock with a hitstop when it lands: `meleeLand`). The clamber is driven by the body's clamber state (`clK`, `clH` in `bodyState`): a hand on the ledge, a knee up, over the top; leaving any special move eases the legs back into the capture. A tabard (two flaps on spring-driven bones) hangs from the belt.
 - **First-person hands** (`weapons/viewmodels.js`): a palm, jointed fingers and thumb, and armored plates, built once per grip shape (`HAND_POSE`: grip, wrap, flat) and merged per material; each forearm runs from the wrist to an elbow below the view (`handArm`). A weapon's support hand turns to its handguard with `lq`.
 
 The clips are generated data (`data/anim-clips.js`). To change them, download the CMU takes the converter lists (`CLIPS` in `tools/mocap/convert.js`; B. Hahne's BVH conversion, one `<take>.bvh` per take) and run:
 ```bash
-node tools/mocap/convert.js <folder with the BVH files>
+node tools/mocap/convert.js <folder with the BVH files> [more folders]
 ```
-A new gait is a new entry in `CLIPS` (take, cycle length range, travel direction) and a place in a blend-space tier in `anim.js` (`T_STAND`, `T_CROUCH`). `tests/anim.test.js` checks every loop closes without a pop and that planted feet drift under 3 cm a stride at every speed and direction, and times the animation per pilot.
+A new gait is a new entry in `CLIPS` (take, cycle length range, travel direction) and a place in a blend-space tier in `anim.js` (`T_STAND`, `T_CROUCH`). A one-shot is an entry in `SHOTS` (take, window in seconds, how its root is kept, `air` for jumps, `mirror`); capture glitches are bridged (`despike`). `tests/anim.test.js` checks every loop closes without a pop, every one-shot is free of glitches, planted feet drift under 3 cm a stride at every speed and direction and through stops, reversals, push-offs and turns on the spot, hits lean the right way, emotes give way to moving, and jumps and landings fit; and times the animation per pilot.
 
 Preview any change with:
 ```bash
@@ -110,6 +111,8 @@ THREE_PATH=three.min.js node tools/rig-preview.js loco    # walk, strafe, backpe
 THREE_PATH=three.min.js node tools/rig-preview.js poses   # idle, ADS, melee, reload
 THREE_PATH=three.min.js node tools/rig-preview.js moves   # the armor up close, crouch, ADS, sprint, slide, death
 THREE_PATH=three.min.js node tools/rig-preview.js climb   # a clamber, from the side and three-quarters
+THREE_PATH=three.min.js node tools/rig-preview.js react   # stop, plant, push-off, hard landing, hits, deaths
+THREE_PATH=three.min.js node tools/rig-preview.js emote   # the three idles; cheer, flex, wave, shrug
 ```
 
 ## Sounds

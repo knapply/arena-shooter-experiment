@@ -798,6 +798,7 @@ function updRigs(dt) {
       REC.put(r.id, root.position, st);
       if (!REC.hasMeta(r.id)) REC.setMeta(r.id, { color: r.color, name: r.name });
     }
+    if (!r.rig.pid) r.rig.pid = r.id;
     rigEvents(r.rig, r.rig.update(dt, st), st);
     /* keep the pilot's body where it is drawn, so body-based features (kill cams, events) see it */
     r.body.pos.copy(root.position);
@@ -859,7 +860,8 @@ function rigEvents(rig, ev, st) {
   if (ev.land) sfxAt("land", p, 32, Math.min(1, ev.land / 14));
   /* footsteps: positional and loud up close (sprinting louder still) */
   if (ev.step) {
-    sfxAt("step", p, 30, ev.sprint ? 1 : 0.6);
+    /* (at the foot that came down, on the surface under it) */
+    sfxAt("step", ev.at || p, 30, ev.sprint ? 1 : 0.6);
     if (ev.sprint) dust(p, 1, 0.5, 0.2, 0.22);
   }
 }
