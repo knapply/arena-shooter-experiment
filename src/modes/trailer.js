@@ -20,8 +20,9 @@
      41-60  every mode, live: the mode picker, capture the flag (and a flag carry in first person),
             Team Slayer, oddball (the skull drops in by pod, then a carry in first person),
             free-for-all, and a power weapon arriving in a supply pod
-     60-73  under the hood: thousands of simulated matches tune every number, online play with
-            lag compensation, AI that learns each map, the armor at night
+     60-64  under the hood: thousands of simulated matches tune every number
+     64-73  motion captured: a weighted stop and pivot, a running leap and a hard landing, hits
+            that rock a pilot and a crumple, then the squad celebrates at night
      73-79  the climax: a leap frozen in time while the camera circles, then time snaps back
      79-88  title */
 (function () {
@@ -596,19 +597,19 @@
       kind: "stats",
     },
     {
-      t: 64.4,
-      d: 2.3,
-      eb: "Peer to peer",
-      big: "Bring friends",
-      sub: "Lag-compensated hits, checked by the host",
+      t: 64.3,
+      d: 2.4,
+      eb: "Real performances",
+      big: "Motion captured",
+      sub: "Every stop, leap, landing, hit and fall",
       kind: "lower",
     },
     {
-      t: 67.4,
-      d: 2.3,
-      eb: "Adaptive AI",
-      big: "It learns every map",
-      sub: "and how you play",
+      t: 71.4,
+      d: 1.5,
+      eb: "Peer to peer",
+      big: "Bring friends",
+      sub: "No install. No accounts.",
       kind: "lower",
     },
   ];
@@ -733,6 +734,8 @@
   const GATE_SHUT = 14,
     GATE_RUN = [-5.8, 13.9],
     GATE_JUMP = -1.7;
+  /* the running leap: where on the deck's run (z) the jump is pressed; its edge is at -5.5 */
+  const LEAP_Z = -4.4;
   /* where the supply pod comes down: the arena's power weapon pad, on top of the core */
   const SUPPLY_AT = [0, 4.5, 0];
   /* the sky's clock for the night shot: a shooting star crosses during it */
@@ -1561,14 +1564,33 @@
       setup() {
         $("menu").hidden = true;
         menuRestore();
-        startCTF("ctf");
+        startCTF("ctf", undefined, g => g.t > 25 && g.agents.some(a => a.carrying && a.alive), 6000);
+        this.c = G.agents.find(a => a.carrying) || null;
       },
       update(lt, dt) {
-        const c = action(),
-          e = ease(lt / 2.5);
-        cam(V(lerp(-44, -32, e), lerp(30, 21, e), lerp(-30, -10, e)), _c.copy(c).setY(0), 50, 2, dt);
+        const c = this.c && this.c.carrying && this.c.alive ? this.c : null;
+        if (!c) {
+          const m = action(),
+            e = ease(lt / 2.5);
+          cam(V(lerp(-44, -32, e), lerp(30, 21, e), lerp(-30, -10, e)), _c.copy(m).setY(0), 50, 2, dt);
+          return;
+        }
+        /* in front of the carrier, a little to the side, walking backwards with them */
+        const b = c.body,
+          fx = -Math.sin(b.yaw),
+          fz = -Math.cos(b.yaw),
+          head = _a.set(b.pos.x, b.pos.y + 1.5, b.pos.z);
+        const want = V(b.pos.x + fx * 3.4 + fz * 1.1, b.pos.y + 1.35, b.pos.z + fz * 3.4 - fx * 1.1);
+        const d = want.clone().sub(head),
+          L = d.length(),
+          hit = K.rayWorld(head, d.normalize(), L);
+        if (hit < L) want.copy(head).addScaledVector(d, Math.max(0.8, hit - 0.3));
+        cam(want, V(b.pos.x, b.pos.y + 1.1, b.pos.z), 46, 6, dt);
       },
-      look: () => ({ dof: 0 }),
+      look() {
+        const c = this.c && this.c.carrying && this.c.alive ? this.c : null;
+        return c ? af(chest(c), 1.6) : { dof: 0 };
+      },
     },
     /* in first person: their flag in both hands, walking it home (carriers walk) */
     {
@@ -1718,75 +1740,149 @@
       },
       look: () => af(focus ? focus.body.pos : action(), 5, { near: 0.5 }),
     },
-    /* online: lag-compensated hits, checked by the host */
+    /* ===== motion captured: a weighted stop, a pivot and the push-off back ===== */
     {
       t: 64,
-      name: "online",
-      ctf: true,
-      setup() {
-        pickFocus(true);
-      },
-      update(lt, dt) {
-        pickFocus();
-        if (!focus) return;
-        CINE.apply(CINE.track(focus, 4.6, 1.5, 2.0, 4, 54)(), 4, dt);
-      },
-      look: () => (focus ? af(chest(focus), 3.5) : {}),
-    },
-    /* the AI that learns: the east lane's cover comes apart on the beat */
-    {
-      t: 67,
-      name: "learn",
-      ctf: true,
-      setup() {
-        K.resetDestruction();
-        this.hits = [
-          { at: 0.5, p: V(13.5, 0.6, 2), r: 3.2 },
-          { at: 1.5, p: V(20, 0.6, 5), r: 3 },
-          { at: 2.5, p: V(21.6, 0.6, 6.2), r: 3.2 },
-        ];
-        for (const h of this.hits) h.done = false;
-      },
-      update(lt, dt) {
-        for (const h of this.hits)
-          if (!h.done && lt >= h.at) {
-            h.done = true;
-            boom(h.p, 0xffa040, h.r, 6000);
-          }
-        const k = ease(lt / 3);
-        cam(V(9.5 + k * 1.5, 2.6 - k * 0.4, -4.5 + k * 1.2), V(18.5, 0.9, 4.4), 46, 0, dt);
-      },
-      look: () => af(V(18.5, 0.9, 4.4), 6),
-    },
-    /* the armor at night: a slow push in from low, a shooting star over the ringed planet */
-    {
-      t: 70,
-      name: "armor",
-      mood: "night",
+      name: "pivot",
+      mood: "hot",
       setup() {
         stopCTF();
         K.resetDestruction();
-        put(hero, [-6.6, 5.2, 0], -0.5, 0.18);
-        hero.ctl = () => ({ ...NO, aim: true });
-        /* the sky's clock where a shooting star crosses (render/renderer.js: every 5.5 s, some of them) */
-        F.sky(STAR_T);
+        seed = 64;
+        put(hero, [-33.5, 0, -6], -PI / 2);
+        /* a sprint down the lane, a hard stop, a beat, then round and back the way it came */
+        hero.ctl = (a, st) => {
+          const b = a.body;
+          if (st < 1.15) return steer(a, LANE_S, { ...NO }, { stop: false });
+          if (st < 1.75) return { ...NO };
+          b.yaw += clamp(angD(b.yaw, PI / 2), -8 * H, 8 * H);
+          return { ...NO, f: Math.abs(angD(b.yaw, PI / 2)) < 0.5 ? 1 : 0, sprint: true };
+        };
+      },
+      ts: () => (hero.st > 1.12 && hero.st < 1.5 ? 0.45 : 1),
+      update(lt, dt) {
+        drive(hero, dt);
+        const p = hero.body.pos,
+          h = hand(lt, 0.025);
+        this.cx = this.cx == null ? p.x : lerp(this.cx, p.x, Math.min(1, dt * 3));
+        cam(V(this.cx + 1.5 + h.x, 0.7 + h.y, -11.2), V(p.x, p.y + 0.95, p.z), 34, 0, dt);
+      },
+      look: () => af(chest(hero), 2.2),
+    },
+    /* ===== a running leap off the deck, and the hard landing four metres down ===== */
+    {
+      t: 66.4,
+      name: "leap",
+      mood: "hot",
+      setup() {
+        seed = 66;
+        put(hero, [-4, 3.25, 1.4], 0);
+        hero.ctl = (a, st) => {
+          const b = a.body,
+            inp = { ...NO };
+          if (b.ground && b.pos.y > 2.5) {
+            steer(
+              a,
+              [
+                [-4, 1.4],
+                [-4, -12],
+              ],
+              inp,
+              { stop: false }
+            );
+            if (b.pos.z < LEAP_Z && once(a, "j")) {
+              inp.jumpP = true;
+              a.jT = st;
+            }
+          } else if (b.ground && once(a, "down")) a.downT = st;
+          else if (!b.ground) inp.f = 1;
+          return inp;
+        };
+        hero.downT = hero.jT = null;
+      },
+      /* slow at the takeoff and on the landing */
+      ts: () => {
+        if (hero.downT != null) return hero.st - hero.downT < 0.55 ? 0.3 : 1;
+        return hero.jT != null && hero.st - hero.jT < 0.3 ? 0.4 : 1;
       },
       update(lt, dt) {
         drive(hero, dt);
         const p = hero.body.pos,
-          k = ease(lt / 3),
-          a = lerp(2.25, 2.85, k),
-          r = lerp(3.6, 2.6, k);
-        /* from low in front, looking up past the visor into the night */
+          h = hand(lt, 0.02);
+        cam(V(-10.5 + h.x, 0.6 + h.y, -10.5), V(p.x, p.y + 0.9, p.z), 30, 6, dt);
+      },
+      look: () => af(chest(hero), 3),
+    },
+    /* ===== hits land: each one rocks the pilot the way it came, the shield goes, and they crumple ===== */
+    {
+      t: 69.3,
+      name: "hits",
+      mood: "hot",
+      setup() {
+        clearStage();
+        seed = 69;
+        put(foe1, [-8.2, 0, -9.2], PI / 2, 0, 50);
+        foe1.ctl = () => ({ ...NO });
+        this.n = 0;
+      },
+      ts: () => (foe1.dead ? 0.4 : 1),
+      update(lt, dt, st) {
+        drive(foe1, dt);
+        /* a magnum's rhythm: four on the shield and the body, from the left */
+        const T0 = [0.25, 0.6, 0.95, 1.3];
+        while (this.n < T0.length && st >= T0[this.n]) {
+          const last = ++this.n === T0.length;
+          /* from off screen down the floor, a little to the left each time */
+          shoot(foe1, foe1, {
+            from: V(-24, 1.45, -9.6 - this.n * 0.3),
+            dmg: last ? 200 : 22,
+            snd: "pshot",
+            power: 1.2,
+          });
+        }
+        const p = foe1.body.pos;
+        cam(V(p.x + 2.4, 0.95, p.z + 2.8), V(p.x, 1.05, p.z), 36, 0, dt, 0.03);
+      },
+      look: () => af(chest(foe1), 2),
+    },
+    /* ===== at night on the high ground: the squad celebrates (captured cheer, flex and wave) ===== */
+    {
+      t: 71.2,
+      name: "emotes",
+      mood: "night",
+      setup() {
+        clearStage();
+        K.resetDestruction();
+        /* in a row on the deck's edge, facing the camera */
+        put(hero, [-3.4, 3.2, -1.2], 0);
+        put(ally, [-1.6, 3.2, -2.6], 0);
+        put(ally2, [-2.2, 3.2, -0.2], 0);
+        for (const a of [hero, ally, ally2]) face(a, V(-5.6, 0, -11));
+        this.em = [
+          [ally, 0.05, "cheer"],
+          [hero, 0.2, "flex"],
+          [ally2, 0.35, "wave"],
+        ];
+        this.i = 0;
+        F.sky(STAR_T);
+      },
+      update(lt, dt, st) {
+        for (const a of [hero, ally, ally2]) drive(a, dt);
+        while (this.i < this.em.length && st >= this.em[this.i][1]) {
+          const [a, , name] = this.em[this.i++];
+          a.rig.emote(name);
+        }
+        /* low and slow, pushing in, the night sky over their heads */
+        const k = ease(lt / 1.8);
         cam(
-          V(p.x + Math.sin(a) * r, p.y + lerp(0.35, 0.6, k), p.z + Math.cos(a) * r),
-          V(p.x, p.y + lerp(2.1, 1.6, k), p.z),
-          lerp(40, 34, k),
+          V(lerp(-6.4, -5.8, k), lerp(3.7, 3.9, k), lerp(-11.4, -10.4, k)),
+          V(-2.6, 4.3, -1.4),
+          lerp(30, 26, k),
           0,
           dt
         );
       },
-      look: () => af(head(hero), 1.6, { streak: 0.8 }),
+      look: () => af(chest(hero), 5, { streak: 0.7 }),
     },
     /* ===== climax: a leap frozen in time ===== */
     {
@@ -1935,9 +2031,9 @@
   /* ---------------- CTF montage support ---------------- */
   /**
    * a live AI-vs-AI match of any mode (rules: ctf, slayer, ffa or oddball; map: a MAPS key), fast-
-   * forwarded silently into the action: until(G) stops the fast-forward early, at most 1150 steps
+   * forwarded silently into the action: until(G) stops the fast-forward early (at most max steps)
    */
-  function startCTF(rules = "ctf", map = undefined, until = null) {
+  function startCTF(rules = "ctf", map = undefined, until = null, max = 1150) {
     if (G && G.rules === rules && G.mapKey === (map || "ctf")) return;
     stopCTF();
     clearStage();
@@ -1949,7 +2045,7 @@
     /* fast-forward into the match silently (the play before the cut isn't heard) */
     K.sfxTap(() => {});
     G.start();
-    for (let i = 0; i < 1150 && !(until && until(G)); i++) G.step(1 / 30);
+    for (let i = 0; i < max && !(until && until(G)); i++) G.step(1 / 30);
     CTF.UI.frame(1 / 30);
     K.sfxTap(TR.recording ? tap : null);
   }
