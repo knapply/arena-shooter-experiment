@@ -374,6 +374,38 @@ The new AI raises every baseline:
 - **Six-pilot free-for-all** (spawn deaths 2% before the spread spawns).
 - **Movement** is still judged best by playtesting (below).
 
+## Recruit against a new player
+
+Playtest: "the bots are way too good on Recruit... they absolutely crush me." The simulations had only ever played bots against bots, so this pass adds a model of a new human player and tunes the low levels against it.
+
+**The novice** (`NOVICE=1 DIFF=recruit node tools/tune.js`): one pilot on team 0 reacts in 0.42 s, turns at 3 rad/s, aims wide (aim error 0.08), never strafes in a fight, uses no movement tech, and only melees with someone in its face. Each run reports its K/D, kills and deaths a minute, median life, how often two or more pilots hurt it in the 3 s before a death (focus), and how it dies. Every mode, 24 matches of 4 minutes per level, seed sets 100 and 700. Target: an even fight against Recruit (K/D 0.8 to 1.2), and Normal a clear but fair step up.
+
+**Why Recruit crushed a new player:**
+- **Every bot wanted a 4 m fight.** A fresh brain's preferred range ties across its distance buckets and fell to the closest one, so bots walked straight into melee range: melee was 34 to 41% of the novice's deaths against Recruit (72% in oddball).
+- **Recruit's numbers were sharp for a person:** it turned at 5 rad/s (faster than a new player tracks), reacted in 0.5 s and dodged.
+- **Recruit bots ganged up** on a cracked target at full strength ("finish him" calls).
+- **Adaptive bots could climb above the pick** after wins.
+
+**What changed** (Heroic and Legendary unchanged):
+- New `AI_SKILL` fields: `minRange` (the closest they like to fight from: Recruit 10 m, Normal 8 m), `melee` (eagerness to melee and charge: Recruit 0.5, Normal 0.5, the top levels 1) and `focus` (ganging up on a called target: Recruit 0.4, Normal 0.6).
+- Recruit: reaction 0.5 → 0.58 s, aim error 0.055 → 0.068, turn 5 → 4, sight 42 → 40 m, dodge 0.3 → 0.2, fewer grenades.
+- Normal, a step between: reaction 0.32 → 0.42 s, aim error 0.035 → 0.05, turn 7 → 5.5, sight 75 → 60 m, dodge 1 → 0.7, grenades 1 → 0.7.
+- Every level, against a flag or skull carrier: close to 5 m and shoot, outside the carrier's one-hit swing.
+- Adaptive bots: the picked skill is the ceiling. A loss eases them 0.4 of a level (down to a new Trainee level below Recruit, never offered as a pick), a win brings them back 0.25 toward the pick.
+
+**The novice's K/D, before and after** (seed sets 100 / 700):
+
+| Mode | Against Recruit, before | after | Against Normal, before | after |
+|---|---|---|---|---|
+| Team Slayer (arena) | 0.59 | **0.86 / 0.91** | 0.31 | 0.45 / 0.41 |
+| Free-for-all (arena) | 0.38 | **0.96 / 0.72** | 0.26 | 0.45 / 0.38 |
+| Capture the flag | 0.56 | **0.82 / 1.16** | 0.32 | 0.60 / 0.53 |
+| Oddball (arena) | 0.55 | **1.20 / 1.45** | 0.36 | 0.87 / 0.85 |
+
+The novice now lives longer against Recruit (median life 14 to 24 s against 9 to 17 s before), and melee is 19 to 47% of its deaths rather than 34 to 72% (oddball's skull carriers still swing). Oddball is a little easy against Recruit; it is the noisiest mode, and the novice gets the most out of the skull's one-hit melee. Focus (two or more attackers before a death) is 0.4 to 0.8 at every level, as much a property of 4 v 4 as of the bots.
+
+**The bot ladder stays ordered** (share of kills the better level takes, seed set 100, 16 matches): Normal over Recruit 0.75 / 0.68 / 0.67 / 0.74 (Slayer / free-for-all / capture the flag / oddball), Heroic over Normal 0.83 / 0.77 / 0.80 / 0.92, Legendary over Heroic 0.71 / 0.67 / 0.73 / 0.85. With Normal softer, the biggest step is now Normal to Heroic.
+
 ## Limits of the method
 
 The AI's skill levels differ in reaction time and aim error, so the simulations measure how much **aim and reaction** decide fights. Movement skill (strafe timing, thrust dodges, slide jumps) is something the AI only partly expresses, so movement settings are better judged by playtesting with the sliders. The sandbox tab exists for exactly that.

@@ -106,32 +106,60 @@ export const PLAY_MODES = [
    nades    how many grenades they carry and how keen they are to throw (1 = 2 frags + 1 plasma)
    rhythm   the magnum's perfect-kill rhythm (0.5 and up): while landing, fire at its rate exactly;
             after a miss, hold fire until the aim is right on them
+   minRange the closest they like to fight from (metres): a new player can't win a brawl, so the low
+            levels keep their distance instead of walking into melee range
+   melee    how keen they are to melee and charge (1 = every chance; below 1 they hesitate)
+   focus    how much they gang up on someone a teammate called as cracked (1 = fully)
    Recruit is the gentle start (the default for your first bot match): slow to react, loose aim,
-   short sight, few dodges and grenades. */
+   short sight, few dodges and grenades, keeps its distance and rarely melees; it was tuned against a
+   model of a new player (tools/tune.js NOVICE=1, docs/TUNING.md) to an even fight. Trainee is
+   easier still, only reached by adaptive bots after losses. */
 export const AI_SKILL = {
-  recruit: {
-    react: 0.5,
-    err: 0.055,
-    turn: 5,
-    magErr: 1.3,
-    magPace: 0.32,
-    magFrom: 22,
-    sight: 42,
-    dodge: 0.3,
-    nades: 0.4,
+  /* not a pick: the floor adaptive bots ease down to when a player keeps losing on Recruit */
+  trainee: {
+    react: 0.8,
+    err: 0.095,
+    turn: 2.6,
+    magErr: 1.5,
+    magPace: 0.6,
+    magFrom: 26,
+    sight: 30,
+    dodge: 0,
+    nades: 0,
     rhythm: 0,
+    minRange: 14,
+    melee: 0.1,
+    focus: 0.1,
+  },
+  recruit: {
+    react: 0.58,
+    err: 0.068,
+    turn: 4,
+    magErr: 1.4,
+    magPace: 0.42,
+    magFrom: 24,
+    sight: 40,
+    dodge: 0.2,
+    nades: 0.3,
+    rhythm: 0,
+    minRange: 10,
+    melee: 0.5,
+    focus: 0.4,
   },
   normal: {
-    react: 0.32,
-    err: 0.035,
-    turn: 7,
-    magErr: 1.15,
-    magPace: 0.16,
+    react: 0.42,
+    err: 0.05,
+    turn: 5.5,
+    magErr: 1.2,
+    magPace: 0.2,
     magFrom: 20,
-    sight: 75,
-    dodge: 1,
-    nades: 1,
+    sight: 60,
+    dodge: 0.7,
+    nades: 0.7,
     rhythm: 0,
+    minRange: 8,
+    melee: 0.5,
+    focus: 0.6,
   },
   heroic: {
     react: 0.24,
@@ -144,6 +172,9 @@ export const AI_SKILL = {
     dodge: 1,
     nades: 1,
     rhythm: 0,
+    minRange: 0,
+    melee: 1,
+    focus: 1,
   },
   legendary: {
     react: 0.17,
@@ -156,6 +187,9 @@ export const AI_SKILL = {
     dodge: 1,
     nades: 1,
     rhythm: 1,
+    minRange: 0,
+    melee: 1,
+    focus: 1,
   },
 };
 /* drop pods fall from POD_HEIGHT metres in POD_TIME seconds (a re-entry burn visible across the map),

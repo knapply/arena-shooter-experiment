@@ -179,11 +179,11 @@ export const STORE = (() => {
       return { maps };
     },
   });
-  /* adaptive bot skill: where the bots are now, 0 (Recruit) to 3 (Legendary), and the pick it started from */
+  /* adaptive bot skill: where the bots are now, −1 (Trainee) to 3 (Legendary), and the pick it started from */
   define("botLevel", {
     version: 1,
     clean: d => ({
-      lvl: Number.isFinite(+d?.lvl) ? Math.max(0, Math.min(3, +d.lvl)) : -1,
+      lvl: d?.lvl != null && Number.isFinite(+d.lvl) ? Math.max(-1, Math.min(3, +d.lvl)) : null,
       base: ["recruit", "normal", "heroic", "legendary"].includes(d?.base) ? d.base : "",
     }),
   });

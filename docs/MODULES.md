@@ -17,7 +17,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/render/environment.js` | 172 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyGfx` `pc` `scaleBoxUV` |
 | `src/render/surfaces.js` | 329 | `SURF_MATS` `SURF_DEBUG` `SURF_U` `SURF_GLSL` `surfMat` `applySurf` `bakeMarkings` |
 | `src/render/perf.js` | 118 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
-| `src/data/modes.js` | 168 | `MODE_DATA` `PLAY_MODES` `AI_SKILL` `POD_TIME` `POD_HEIGHT` `POD_EARLY` |
+| `src/data/modes.js` | 202 | `MODE_DATA` `PLAY_MODES` `AI_SKILL` `POD_TIME` `POD_HEIGHT` `POD_EARLY` |
 | `src/data/maps.js` | 605 | `MAP_SCHEMA` `MAPS` `mapZone` `SIDE_NAMES` `zoneLabel` `PLAY_MAP` `setPlayMap` `zoneAt` `mapPieces` `ringPieces` `MAP_MODS` `MOD_DOCS` `mapDoc` |
 | `src/world/destruction.js` | 343 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `CHIP_STAGES` `_cp` `_cv` `chipGeo` `chipBox` `unchipBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` … (+5) |
 | `src/world/dress.js` | 183 | `DRESS_MATS` `zoneMat` `dressMap` |
@@ -53,7 +53,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/input.js` | 248 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `keysT` `A` `P` `pressCode` `mouseL` `mouseR` … (+8) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 77 | `savePrefs` `leaveGame` |
-| `src/game/modes.js` | 171 | `MODE_DEFS` `defineMode` `startMode` `modeList` `BOT_LEVELS` `BOT_STEP` `botLevel` `botLevelName` `botAdapt` `botAdaptNote` `modeRules` `FFA` `ffaStandings` `ffaStart` `ffaTick` `ffaEnd` `ffaRestart` `postToMenu` |
+| `src/game/modes.js` | 178 | `MODE_DEFS` `defineMode` `startMode` `modeList` `BOT_LEVELS` `BOT_DOWN` `BOT_UP` `botLevel` `botLevelName` `botAdapt` `botAdaptNote` `modeRules` `FFA` `ffaStandings` `ffaStart` `ffaTick` `ffaEnd` `ffaRestart` … (+1) |
 | `src/net/messages.js` | 339 | `MSG` |
 | `src/net/playback.js` | 91 | `Playback` |
 | `src/net/hitcheck.js` | 465 | `MoveHist` `HITCHK` `MY_HIST` `pctOf` `median` `hitPanel` `WHY` `postHitsShown` `postHits` |
@@ -81,16 +81,16 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 41 | `_sd` `RANGE` `updAim` |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 305 | `KA_API` |
+| `src/game/exports.js` | 306 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 147 | `TFP` |
 | `src/data/map-check.js` | 147 | `MAP_MATS` `MAP_LIMIT` `validateMap` |
 | `src/modes/ctf/map.js` | 253 |  |
 | `src/modes/ctf/nav.js` | 349 |  |
-| `src/modes/ctf/memory.js` | 168 |  |
+| `src/modes/ctf/memory.js` | 169 |  |
 | `src/modes/ctf/brain.js` | 628 |  |
-| `src/modes/ctf/agent.js` | 1609 |  |
+| `src/modes/ctf/agent.js` | 1614 |  |
 | `src/modes/ctf/rules.js` | 1073 |  |
 | `src/modes/ctf/ui.js` | 763 |  |
 | `src/net/ctf-host.js` | 769 |  |

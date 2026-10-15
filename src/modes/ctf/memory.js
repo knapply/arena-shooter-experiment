@@ -140,16 +140,17 @@
     K.STORE.save("aiMaps", all);
   };
   /* ---------- skill between levels ---------- */
-  const LEVELS = ["recruit", "normal", "heroic", "legendary"];
+  /* level -1 is Trainee (adaptive bots only), 0 Recruit ... 3 Legendary */
+  const LEVELS = ["trainee", "recruit", "normal", "heroic", "legendary"];
   CTF.LEVELS = LEVELS;
   const SKILL_AT = new Map();
-  /** AI_SKILL at a level 0 (Recruit) to 3 (Legendary), every number interpolated (in steps of 0.05) */
+  /** AI_SKILL at a level −1 (Trainee) to 3 (Legendary), every number interpolated (in steps of 0.05) */
   CTF.skillAt = function (level) {
-    const L = Math.round(Math.max(0, Math.min(3, +level || 0)) * 20) / 20;
+    const L = Math.round(Math.max(-1, Math.min(3, +level || 0)) * 20) / 20;
     let s = SKILL_AT.get(L);
     if (s) return s;
-    const i = Math.min(2, Math.floor(L)),
-      u = L - i,
+    const i = Math.min(3, Math.floor(L) + 1),
+      u = L + 1 - i,
       a = K.AI_SKILL[LEVELS[i]],
       b = K.AI_SKILL[LEVELS[i + 1]];
     s = {};
