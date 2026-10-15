@@ -117,8 +117,12 @@ const KA_API = {
   LIGHT_K,
   skyTint,
   blast,
-  /* three, with the game's own vector (core/vec3.js) as its Vector3: the modes simulate with it too */
-  THREE: Object.assign(Object.create(THREE), { Vector3: Vec3 }),
+  /* three, with the game's own vector (core/vec3.js) as its Vector3: the modes simulate with it too. A
+     lookup, not Object.create: the page's THREE is an ES module namespace, and writing through one as a
+     prototype throws in current browsers (the menu then never starts a match) */
+  THREE: /** @type {typeof THREE & { Vector3: typeof Vec3 }} */ (
+    new Proxy({}, { get: (_, k) => (k === "Vector3" ? Vec3 : THREE[k]) })
+  ),
   $,
   clamp,
   rnd,

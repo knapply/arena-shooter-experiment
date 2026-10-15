@@ -82,7 +82,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 41 | `_sd` `RANGE` `updAim` |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 322 | `KA_API` |
+| `src/game/exports.js` | 326 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 147 | `TFP` |
