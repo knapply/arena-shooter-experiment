@@ -677,7 +677,7 @@ function frameBody(t) {
         Math.sin(stepAcc * Math.PI * 2) * (me.sprint ? 0.012 : 0.006) * clamp(hs / 6, 0, 1) * SET.bob
       : 0;
   /* charging a ground pound, the hover trembles harder as it builds and the view tunnels in */
-  const pk = me.pound === 1 ? Math.min(1, me.poundT / 0.55) : 0;
+  const pk = me.pound === 1 ? Math.min(1, me.poundT / TUNE.poundCharge) : 0;
   const sh = reduceMotion ? 0 : (shakeT * 0.25 + (me.pound === 1 ? 0.006 + 0.016 * pk : 0)) * SET.shake;
   thrK = Math.max(0, thrK - dt * 4);
   camera.position.set(

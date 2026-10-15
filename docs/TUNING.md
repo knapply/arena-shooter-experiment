@@ -231,19 +231,98 @@ Round two's null noise was ±0.003 to ±0.014. Effects are on skill share agains
 
 No default changes. No knob moved skill share the same way on both rounds, and the reference pacing as a whole is neutral to skill share: the simulated pilots win or lose by aim and reaction, as before. It does change the shape of a match. Fights are about 0.1 s shorter once they start, because the faster run brings opponents closer. There are about 0.8 fewer kills a minute, because the longer thrust recharge, the slide, the wind-up and the slower clamber all take time out of rotations. By this page's rule a shorter time to kill counts against accessibility, so the reference values are offered to play rather than imposed. The movement knobs are also exactly the kind of change the simulation can't judge (see "Limits of the method"), so the next step is to playtest the preset.
 
-**Settings → Sandbox → Presets** has two buttons. **Defaults** puts every Sandbox number back. **Classic feel** sets these:
+**Settings → Sandbox → Presets** has two buttons. **Defaults** puts every Sandbox number back. **Classic feel** applies the preset. The first version (run 7, wind-up 0.8 s, a floaty jump to the same apex, slide 0.5 s, clamber ×2.3, thrust recharge 4 s, sprint-to-fire 0.15 s, no scoped slowdown, magnum 0.28 s) was replaced by the version below. Online, the host's preset is the room's, like any Sandbox value.
 
-- run 7 m/s (sprint stays 9)
-- sprint wind-up 0.8 s
-- jump 3.4 m/s with gravity 5.2: the same apex, 1.33 s in the air
-- slide 0.5 s
-- clamber ×2.3
-- thrust cooldown 4 s
-- 0.15 s from sprint to fire
-- no slowdown with low-zoom optics
-- magnum interval 0.28 s
+### Pass two: the gaps, the weapons and the whole sandbox
 
-Online, the host's preset is the room's, like any Sandbox value. It is a playtest of the reference's pacing as a whole; the knobs can be mixed by hand from there.
+The first pass left movement distances and the weapons unmeasured. This pass widened the footage library and added written sources.
+
+**Footage:** 38 more videos, 468 measured rows:
+- weapon analyses whose test results are shown on screen;
+- all-weapon showcases in first and third person;
+- movement-technique tutorials, some with a static third-person camera on a full-body character;
+- third-person, Theater and cinematic footage, plus more match POVs. Their killcams are static views.
+
+**Written sources:**
+- the data-mined stat blocks a community wiki publishes for the player and some weapons (flagged by the wiki as possibly inaccurate);
+- the developer's sandbox update notes, as quoted by the press;
+- competitive guides.
+
+Body-scale quantities are in body heights (bodyH); "ours" scales them to the 1.8 m pilot. Medians are given with sample counts; C marks a rough reading.
+
+| | Reference | Ours (defaults) |
+|---|---|---|
+| Strafe reversal, full speed to full speed | 0.40 s (IQR 0.40 to 0.43, 20) at 3.5 to 3.9 bodyH/s; start or stop 0.2 to 0.3 s | about 0.14 s; start 0.08 s |
+| Run, sprint | 2.6 world units/s, sprint 1.3× (data-mined; the Forge runs agree); sprint builds over 0.83 to 0.95 s | 6.4 and 9 m/s, instant |
+| Jump | 1.30 to 1.38 s in the air (4); launch speed 3.04 world units/s (data-mined) → apex about 1.5 bodyH. Derived, not seen side-on | 0.62 s, apex 0.63 bodyH |
+| Thrust | burst 0.10 to 0.13 s, plume 0.4 to 0.5 s (9); about 1.6 bodyH (C, 1); follows the movement input, works in the air, no firing during it; gaps of at least 4 s | 17 m/s for 0.24 s, about 2.5 bodyH; 2.2 s recharge |
+| Ground pound | charge 0.64 to 0.70 s (4), dive 0.43 s (4); outer ring 1.8 bodyH, kill ring 0.6 (1) | 0.55 s; 5 m (2.8 bodyH) |
+| Spartan charge | lunge 0.40 s (5); full sprint after 0.83 to 0.95 s | 0.38 s after 0.85 s |
+| Shields and health | 70 and 45 (data-mined, the same as ours); recharge after 4 s, shield full in 2 s, health in 6 s | after 3 s; 48/s and 28/s |
+| Melee | two blows kill: one takes a full shield | three: 40 a blow |
+| Magnum | 0.300 s between shots (no gap shorter in 160 spam gaps; data-mined 0.28); 1.5× sight; reload 1.15 s; kick about 0.5°, back in 0.17 s; 5-shot kill in 1.23 s | 0.26 s; 1.8×; 1.3 s; 2.6° kick |
+| Automatic rifle (our carbine) | 0.100 s; 7.8 a round, headshots ×2 once shields are down; 36 rounds; spread 0.15 to 2.3° from the hip; reload 1.5 s; kick about 0.3° a round | 9, ×1.22; 32; 0.7° base; 1.8 s; 0.9° |
+| Burst rifle (our Labs burst rifle) | a burst every 0.40 s (A); rounds 0.033 s apart on video (audio suggests 0.075); 11 rounds take the shield, a headshot kills; reload about 1.4 s; about 0.6° of kick a burst | 0.36 s; 0.06 s; 8 and 22; 2 s; about 3.8° a burst |
+| Sniper | 0.78 s between shots (data-mined 0.75) | 0.62 s |
+
+Not measured, or not reliably: thrust distance beyond one sample, slide speed, clamber reach, the stabilize hover (1.05 to 1.78 s, C), melee lunge range, and the magnum's small bloom (0 to 0.6° data-mined; its recovery is unknown, so no knob was added).
+
+**New Sandbox settings.** Each one defaults to today's value, so the defaults don't move:
+
+- **Regeneration:** recharge delay, shield recharge and health recharge.
+- **Melee:** shield taken by a blow.
+- **Ground pound:** charge time and radius. The damage scales with the radius: it kills at the centre and falls to a light hit at the edge.
+- **Carbine:** headshot multiplier, reload and kick.
+- **Magnum:** reload, sight zoom and kick.
+- **Burst rifle:** burst interval, round gap, damage, headshot damage, reload and kick.
+- **Ranges:** ground acceleration and strafe reversal now go down to 20.
+
+The recharge numbers moved from fixed constants into `TUNE`; the ground pound's charge time and radius too.
+
+**The Classic feel preset, revised.** Every value comes from the measurements above:
+
+| Area | Values |
+|---|---|
+| Run and sprint | run 7 m/s, sprint 9.1, wind-up 0.9 s |
+| Ground grip | acceleration and reversal 35 m/s² (0.2 s to start or stop, 0.4 s to reverse a strafe at 7 m/s) |
+| Jump | 8.2 m/s with gravity 12.3: 1.33 s in the air, apex about 2.7 m |
+| Thrust, slide, clamber | thrust 12 m/s (about 2.9 m), 4 s recharge; slide 0.5 s; clamber ×2.3 |
+| Ground pound | charge 0.65 s, radius 3.2 m |
+| Sprint and scope | 0.15 s from sprint to fire; no slowdown when scoped |
+| Recharge and melee | recharge after 4 s at 35 shield/s and 7.5 health/s; 70 shield per melee blow |
+| Magnum | 0.30 s, 1.5×, reload 1.15 s, kick 0.009 rad |
+| Carbine | 7.8 damage, headshots ×2, spread 0.003, reload 1.5 s, kick 0.006 rad |
+| Burst rifle | a burst every 0.40 s, 0.035 s gap, 6.5 / 45 damage, reload 1.4 s, kick 0.0035 rad |
+| Sniper | 0.78 s |
+
+The previous pass's floatier jump to the same height is gone. The reference jump is both floaty and high, and it reaches ledges our maps were not built around: about 2.7 m by jump and about 5 m with a clamber. So the preset changes routes, which is the point of playing it. The AI's paths still assume the default jump.
+
+**Measured.** Four mode-and-map cells (capture the flag on Twin Foundry; slayer, free-for-all and oddball on the arena), both pairings, four null controls per run.
+
+- **Round one:** seed sets 100 and 700, 24 matches of each kind. Every new or changed setting was run on its own, plus the whole preset. Null noise was ±0.003 to ±0.031.
+- **Round two:** seed sets 1300 and 1900, 48 matches of each kind, for the preset and the three strongest single effects. Null noise was ±0.004 to ±0.026.
+
+| Variant | Round one, skill share | Round two, skill share | Time to kill and kills/min |
+|---|---|---|---|
+| **Revised Classic feel preset** | **−0.024**; 1 of 16 positive, 12 clear | **−0.021**; 1 of 16, 12 clear | **−0.48 s / −0.45 s** (to −1.3 s in Recruit free-for-all); kills/min about the same |
+| Recharge after 4 s | −0.010; 4 of 16 | −0.008; 2 of 16 | −0.33 / −0.29 s; +0.8 kills/min |
+| Carbine headshots ×2 | −0.012; 3 of 16 | −0.011; 2 of 16 | +0.04 / +0.09 s |
+| Melee 70 (two blows) | −0.005; 7 of 16 | +0.004; 12 of 16 | −0.25 / −0.23 s |
+| Magnum 0.30 s | −0.006; 3 of 16 | not run | small |
+| Ground grip 35 (accel, reverse) | −0.004, −0.006; 6 and 7 of 16 | not run | small |
+| Higher jump (8.2 / 12.3) | −0.004; 9 of 16 | not run | +0.09 s; −0.8 kills/min; fewer teamkills |
+| Thrust 12 m/s, shield 35/s, health 7.5/s, carbine 7.8, carbine spread 0.003, sniper 0.78 s, pound radius 3.2, wind-up 0.9 s | −0.007 to 0.000 each | not run | within ±0.1 s |
+
+**Decision: no default changes.** No setting raised skill share on both rounds, so none clears the acceptance rule. The reference sandbox as a whole lowers skill share by about 0.02 in every mode and pairing, and it shortens fights by almost half a second.
+
+Most of that comes from three rules:
+
+- **The slower recharge.** A 4 s delay with slow health recovery means pilots carry damage into their next fight.
+- **The 2× carbine headshots,** which lower skill share the most of any single setting.
+- **The two-blow melee,** which shortens fights the most.
+
+Shorter fights cost accessibility by this page's rule, so the preset stays a preset. It is the closest match to the reference that this game can express today, offered to play with. A reasonable next playtest takes the preset's movement and weapon feel but keeps today's recharge (3 s, 48/s, 28/s) and carbine headshots. That variant isn't simulated yet.
+
 
 ## Earlier results (before the AI carried magnums)
 

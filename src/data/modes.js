@@ -200,25 +200,60 @@ export const POD_TIME = 3,
    wait + fall is the same as it was with the old 1.35 s drop (an in-place spawn is unchanged) */
 export const POD_EARLY = POD_TIME - 1.35;
 /* Sandbox presets (Settings → Sandbox): named sets of Sandbox values; anything a preset leaves out goes
-   back to its default. "Classic feel" matches the pacing measured from reference arena-shooter footage
-   (docs/TUNING.md, "Classic feel"): a quicker run with a narrower gap to sprint and a sprint that winds
-   up, a floatier jump that reaches the same ledges, a shorter slide, a slower clamber, a longer thrust
-   cooldown, a short raise before firing out of a sprint, no slowdown while scoped and a slower magnum. */
+   back to its default. "Classic feel" is the reference arena shooter as measured from its footage and
+   data-mined values (docs/TUNING.md, "Classic feel"). Each line says what it reproduces. */
 export const SANDBOX_PRESETS = {
   defaults: { name: "Defaults", values: {} },
   classic: {
     name: "Classic feel",
     values: {
+      /* run 4.31 eye heights/s, sprint 1.3x run, a 0.9 s wind-up to full sprint */
       sbRun: 7,
-      sbSprintRamp: 0.8,
-      sbJump: 3.4,
-      sbGrav: 5.2,
+      sbSprint: 9.1,
+      sbSprintRamp: 0.9,
+      /* softer ground grip: 0.2 s to start or stop, 0.4 s to reverse a strafe */
+      sbAccel: 35,
+      sbReverse: 35,
+      /* a jump of about 1.5 body heights, 1.33 s in the air */
+      sbJump: 8.2,
+      sbGrav: 12.3,
+      /* a shorter thrust (about 1.6 body heights) on a 4 s recharge, a 0.5 s slide, a 0.6 s clamber */
+      sbThrust: 12,
+      sbThrustCD: 4,
       sbSlideT: 0.5,
       sbClamber: 2.3,
-      sbThrustCD: 4,
+      sbPoundCharge: 0.65,
+      sbPoundRadius: 3.2,
+      /* the gun comes up 0.15 s after a sprint; no slowdown while scoped */
       sbRaise: 0.15,
       sbAdsMove: 1,
-      sbMagRate: 0.28,
+      /* shields come back after 4 s and refill in 2 s, health in 6 s; two melee blows kill */
+      sbRegenDelay: 4,
+      sbShieldRate: 35,
+      sbHealthRate: 7.5,
+      sbMeleeShield: 70,
+      /* magnum: 0.3 s between shots, 1.5x sight, 1.15 s reload, a small kick */
+      sbMagRate: 0.3,
+      sbMagZoom: 1.5,
+      sbMagReload: 1.15,
+      sbMagRecoil: 0.009,
+      /* carbine (the automatic rifle): 7.8 a round, headshots double once shields are down, a tight
+         first shot that blooms, 1.5 s reload, a small kick */
+      sbCarbDmg: 7.8,
+      sbCarbHead: 2,
+      sbCarbSpread: 0.003,
+      sbCarbReload: 1.5,
+      sbCarbRecoil: 0.006,
+      /* burst rifle (Labs): a burst every 0.4 s, rounds 0.035 s apart, 11 rounds take the shield and a
+         headshot kills, 1.4 s reload, about 0.6 degrees of kick a burst */
+      sbBurstRate: 0.4,
+      sbBurstGap: 0.035,
+      sbBurstDmg: 6.5,
+      sbBurstHead: 45,
+      sbBurstReload: 1.4,
+      sbBurstRecoil: 0.0035,
+      /* sniper: 0.78 s between shots */
+      sbSnipeRate: 0.78,
     },
   },
 };

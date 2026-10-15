@@ -1207,7 +1207,7 @@ const podSeats = map => {
     const backDef = await p.evaluate(() => [KA.TUNE.run, KA.TUNE.grav, KA.TUNE.sprintRamp]);
     check(
       classic[0] === 7 &&
-        classic[1] < 10 &&
+        classic[1] === 12.3 &&
         classic[2] > 0 &&
         classic[3] === 7 &&
         backDef.join() === "6.4,24,0",

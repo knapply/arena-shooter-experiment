@@ -139,6 +139,32 @@ const KNOBS = {
   sbSlideT: { set: v => (K.TUNE.slideT = v), def: 0.8, try: [0.5] },
   sbClamber: { set: v => (K.TUNE.clamberK = v), def: 1, try: [2.3] },
   /* a floatier jump with the same apex: air time 1 s (8 = grav 9.1, jump 4.56) or 1.33 s (grav 5.2, jump 3.87) */
+  /* the Sandbox's recharge numbers: the simulation's recharge reads RULE (below), so set both */
+  sbRegenDelay: { set: v => (K.TUNE.regenDelay = RULE.regenDelay = v), def: 3, try: [4] },
+  sbShieldRate: { set: v => (K.TUNE.shieldRate = RULE.shieldRate = v), def: 48, try: [35] },
+  sbHealthRate: { set: v => (K.TUNE.healthRate = RULE.healthRate = v), def: 28, try: [7.5] },
+  sbMeleeShield: { set: v => (K.MELEE.shield = v), def: 40, try: [70] },
+  sbCarbHead: { set: v => (W("carbine").head = Math.round(W("carbine").body * v)), def: 11 / 9, try: [2] },
+  sbCarbReload: { set: v => (W("carbine").reload = v), def: 1.8, try: [2.1] },
+  sbMagReload: { set: v => (W("pistol").reload = v), def: 1.3, try: [1.5] },
+  sbMagZoom: { set: v => (W("pistol").zoom = [v]), def: 1.8, try: [1.5] },
+  /* view kick (the player's aim only; the AI has no recoil) */
+  sbMagRecoil: { set: v => (W("pistol").recoil = v), def: 0.045, try: [0.009] },
+  sbCarbRecoil: { set: v => (W("carbine").recoil = v), def: 0.016, try: [0.006] },
+  sbBurstRecoil: { set: v => (W("burst").recoil = v), def: 0.022, try: [0.0035] },
+  /* the reference's higher jump: about 1.5 body heights, 1.33 s in the air */
+  sbJumpHi: {
+    set: v => Object.assign(K.TUNE, v ? { jump: 8.2, grav: 12.3 } : { jump: 7.4, grav: 24 }),
+    def: 0,
+    try: [1],
+  },
+  sbPoundCharge: { set: v => (K.TUNE.poundCharge = v), def: 0.55, try: [0.65] },
+  sbPoundRadius: { set: v => (K.TUNE.poundR = v), def: 5, try: [3.2] },
+  sbBurstReload: { set: v => (W("burst").reload = v), def: 2, try: [1.4] },
+  sbBurstRate: { set: v => (W("burst").rate = v), def: 0.36, try: [0.4] },
+  sbBurstGap: { set: v => (W("burst").burstGap = v), def: 0.06, try: [0.075] },
+  sbBurstDmg: { set: v => (W("burst").body = v), def: 8, try: [6.4] },
+  sbBurstHead: { set: v => (W("burst").head = v), def: 22, try: [45] },
   /* the whole "Classic feel" Sandbox preset (data/modes.js) at once */
   sbClassic: {
     set: v => {
