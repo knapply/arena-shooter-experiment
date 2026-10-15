@@ -21,6 +21,7 @@ node tests/anim.test.js > "$LOG"/anim.log || { grep -E "FAIL|passed" "$LOG"/anim
 node tests/browser.test.js > "$LOG"/browser.log || { grep -E "FAIL|passed" "$LOG"/browser.log; exit 1; }
 node tests/modes.test.js > "$LOG"/modes.log || { grep -E "FAIL|passed" "$LOG"/modes.log; exit 1; }
 node tests/net.test.js > "$LOG"/net.log || { grep -aE "FAIL|passed" "$LOG"/net.log; exit 1; }
+node tests/netlab.test.js > "$LOG"/netlab.log || { grep -aE "FAIL|passed" "$LOG"/netlab.log; exit 1; }
 tail -1 "$LOG"/browser.log
 if [ "$1" = "render" ]; then
   node tests/render.test.js > "$LOG"/render.log || { grep -E "FAIL|passed" "$LOG"/render.log; exit 1; }

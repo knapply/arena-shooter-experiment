@@ -205,6 +205,18 @@ const KA_API = {
   /* hit checks and lag compensation (net/hitcheck.js) */
   HITCHK,
   MoveHist,
+  netProf,
+  timed,
+  /** automated input (the network lab's players, tools/net-lab.js): hold an action, or press it once */
+  input: {
+    hold(a, on) {
+      if (on) virtHeld.add(a);
+      else virtHeld.delete(a);
+    },
+    press(a) {
+      hitActs.add(a);
+    },
+  },
   pidOf,
   RNG,
   rand,

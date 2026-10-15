@@ -53,10 +53,10 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 76 | `savePrefs` `leaveGame` |
 | `src/game/modes.js` | 171 | `MODE_DEFS` `defineMode` `startMode` `modeList` `BOT_LEVELS` `BOT_STEP` `botLevel` `botLevelName` `botAdapt` `botAdaptNote` `modeRules` `FFA` `ffaStandings` `ffaStart` `ffaTick` `ffaEnd` `ffaRestart` `postToMenu` |
-| `src/net/messages.js` | 339 | `MSG` |
+| `src/net/messages.js` | 360 | `MSG` `netProf` `netT0` `timed` |
 | `src/net/playback.js` | 91 | `Playback` |
 | `src/net/hitcheck.js` | 465 | `MoveHist` `HITCHK` `MY_HIST` `pctOf` `median` `hitPanel` `WHY` `postHitsShown` `postHits` |
-| `src/net/arena-net.js` | 480 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `amHub` `hubPeer` `sbSeen` `adoptSandbox` `room` `lastSend` `lastFast` `fastSeq` `sentEv` `FAST_HZ` `myBits` … (+9) |
+| `src/net/arena-net.js` | 503 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `amHub` `hubPeer` `sbSeen` `adoptSandbox` `room` `lastSend` `lastFast` `fastSeq` `sentEv` `FAST_HZ` `myBits` … (+13) |
 | `src/ui/hud.js` | 168 | `scoresT` `renderScores` `xhEls` `hudDevice` `WEAPON_SIL` `NADE_ICON` `NADE_NAME` `hudWName` `nadeHint` `nadeKey` `drawNadeHud` `weapKey` `drawWeapHud` `hud` |
 | `src/ui/net-panel.js` | 91 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/ui/tracker.js` | 244 | `TRACK_RANGE` `TRACK_ECHO` `TRACK_PX` `trackEl` `trackT` `trackLoud` `arenaContacts` `trackerShown` `trackEcho` `trackerFace` `trackerBlip` `trackerDanger` `updTracker` `trackerGates` |
@@ -80,7 +80,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 41 | `_sd` `RANGE` `updAim` |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 300 | `KA_API` |
+| `src/game/exports.js` | 312 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 147 | `TFP` |
@@ -92,8 +92,8 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/modes/ctf/agent.js` | 1609 |  |
 | `src/modes/ctf/rules.js` | 1073 |  |
 | `src/modes/ctf/ui.js` | 763 |  |
-| `src/net/ctf-host.js` | 769 |  |
-| `src/net/ctf-client.js` | 753 |  |
-| `src/modes/ctf/modes.js` | 1192 |  |
+| `src/net/ctf-host.js` | 813 |  |
+| `src/net/ctf-client.js` | 773 |  |
+| `src/modes/ctf/modes.js` | 1200 |  |
 | `src/modes/trailer-score.js` | 999 |  |
 | `src/modes/trailer.js` | 2242 |  |

@@ -274,10 +274,20 @@ node tests/maps.test.js        # map validation and overlaps
 node tests/perf.test.js        # size, draw call and triangle budgets
 node tests/browser.test.js     # gameplay, settings and online rooms
 node tests/net.test.js         # mesh, host migration and smoothness on a simulated bad network
+node tests/netlab.test.js      # the network lab at CI size: 3 browser processes on bad links
 node tools/tune.js             # sandbox tuning: simulated matches on every CPU core (LOCK=magnum etc. for single-weapon runs)
 THREE_PATH=three.min.js node tests/render.test.js   # every graphics preset renders a normal frame
 THREE_PATH=three.min.js node tests/visual.test.js   # compare scenes against tests/visual baselines
 VISUAL_UPDATE=1 THREE_PATH=three.min.js node tests/visual.test.js   # accept new baselines
+```
+
+Working on the netcode: the network lab runs separate game instances (one browser process each) that form a room and play real matches with automated players, every mode, over simulated links, and writes a JSON and markdown report to `tools/out/net-lab/` (position error and delay, correction pops, bandwidth by message type, hit registration and false rejections, kill-to-display time, desyncs, host migration time, net code CPU and garbage). Nothing leaves the machine: a local relay simulates the links, or `--transport webrtc` uses real WebRTC with a local signalling server.
+
+```bash
+node tools/net-lab.js                                   # 4 instances, every mode, good links
+node tools/net-lab.js --n 8 --profile bad --migrate     # 8 instances on bad links, then lose the host
+node tools/net-lab.js --profile all                     # good, wifi, bad, asym (one bad player) and spikes
+node tools/net-lab.js --modes ctf,oddball --secs 90 --transport webrtc
 ```
 
 Working on the HUD:

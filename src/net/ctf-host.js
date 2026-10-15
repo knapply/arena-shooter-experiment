@@ -162,6 +162,8 @@
   /* sanity check for a remote shot: shooter alive and within range with line of sight */
   const _s = new V3(),
     _t = new V3();
+  /** how far each hitscan weapon reaches, with some slack (claims without a ray are checked by this) */
+  const HITSCAN_RANGE = { rifle: 95, pistol: 95, burst: 95, beam: 60, scatter: 45 };
   NET.plausible = function (shooterPos, target, w, at) {
     if (!target || !target.alive) return false;
     _s.copy(shooterPos);
@@ -173,12 +175,16 @@
       if (d > 225) return false;
       return K.losClear(_s, _t) || d < 4;
     }
-    if (w === "rifle" || w === "pistol") {
-      if (d > 95) return false;
+    const R = HITSCAN_RANGE[w];
+    if (R) {
+      if (d > R) return false;
       return K.losClear(_s, _t) || d < 4;
     }
     if (w === "melee" || w === "charge" || w === "flag" || w === "skull") return d < 4.5;
-    return d < 14;
+    if (w === "pound") return d < 8;
+    /* explosions (rockets, grenades) land wherever they were sent: around corners and far from the
+       thrower (the network lab caught rockets and long throws being refused at the old 14 m) */
+    return d < 150;
   };
   /* ---------------- host ---------------- */
   CTF.Host = function (G) {
@@ -205,8 +211,15 @@
       rv: 0,
       rosterKey: "",
       fastT: 0,
+      /** each agent's movement fields as last put in the snapshot, refreshed once a second (kinT) */
+      kin: new Map(),
+      kinT: 0,
+      evSent: 0,
+      sentAt: -1e9,
     };
     const myId = G.human.id;
+    /* the match knows its netcode (the network lab reads playback stats from it) */
+    G.net = H;
     const FAST = 1 / 30;
     NET.hitStats = H.hitStats;
     /* a joined player's movement arrives on the fast channel into their playback buffer */
@@ -309,6 +322,8 @@
     /** @returns {HostSnapshot} */
     H.snapshot = function () {
       const ST = { home: 0, carried: 1, dropped: 2 };
+      const kinFresh = !(NET.room && typeof NET.room.fast === "function") || H.kinT <= 0;
+      if (kinFresh) H.kinT = 1;
       const key = G.agents.map(a => a.id).join();
       if (key !== H.rosterKey) {
         H.rosterKey = key;
@@ -359,37 +374,16 @@
               const m = G.teams[t].brain.enemyMem.get(a.id);
               if (m && G.t - m.t < 2.5) sp |= 1 << t;
             }
-          const fire = loc ? K.now - K.lastFireT < 0.12 : a.remote ? !!a.firing : G.t - a.firedT < 0.12;
-          const rl = loc ? K.reloadT > 0 : a.remote ? !!a.reloading : a.reloadT > 0;
-          return [
-            a.id,
-            a.team,
-            a.idx,
-            r2(b.pos.x),
-            r2(b.pos.y),
-            r2(b.pos.z),
-            r1(b.vel.x),
-            r1(b.vel.y),
-            r1(b.vel.z),
-            r2(b.yaw),
-            r2(b.pitch),
-            NET.bitsOf(b, {
-              reload: rl,
-              fire,
-              wpn: loc ? K.wi : a.remote ? a.wpn : a.held(),
-              carry: !!a.carrying,
-            }),
-            Math.ceil(b.shield),
-            a.alive ? 0 : 1,
-            sp,
-            a.name,
-            a.k,
-            a.d,
-          ];
+          /* movement (positions to the alive flag) rides the fast channel at 30 Hz: here it is only
+             refreshed once a second, so with presence deltas an unchanged row costs nothing */
+          let kin = H.kin.get(a.id);
+          if (!kin || kinFresh) H.kin.set(a.id, (kin = kinOf(a, b, loc)));
+          return [a.id, a.team, a.idx, ...kin, sp, a.name, a.k, a.d];
         }),
         ev: H.ev,
         cm: H.cm,
-        pu: G.pickups.map(p => [p.id, r1(p.availIn), p.type]),
+        /* whole seconds while a power weapon is a while off: the countdown changes once a second */
+        pu: G.pickups.map(p => [p.id, p.availIn > 5 ? Math.ceil(p.availIn) : r1(p.availIn), p.type]),
         /* weapons and grenades on the floor: [id, type, x, y, z, magazine, reserve] (a weapon's rounds) */
         it: G.items
           .filter(i => i.avail)
@@ -407,6 +401,26 @@
       if (!NET.room) {
         H.agg.clear();
         return;
+      }
+      /* two players took over the same match at once (they saw the room differently while the old
+         host was leaving): the one with the lower peer id keeps it, the other joins them */
+      if (H.onRival && !H.yielded) {
+        const mine = NET.myPeer();
+        const rival = NET.ctfPeers().find(
+          p => p.presence.ph === "host" && p.presence.H && p.presence.H.id === H.mid && p.peer < mine
+        );
+        if (rival) {
+          H.yielded = true;
+          const pr = rival.presence;
+          H.onRival({
+            peer: rival.peer,
+            name: K.cleanName(pr.n),
+            mid: H.mid,
+            mode: NET.modeOf(pr.H),
+            map: NET.mapOf(pr.H, NET.modeOf(pr.H)),
+          });
+          return;
+        }
       }
       const seen = new Set();
       for (const p of NET.ctfPeers()) {
@@ -465,9 +479,15 @@
         );
       }
       H.sendT -= dt;
-      /* presence (events, flags, names, roster) every 1/15 s; at once when the roster changes */
-      if (H.sendT > 0 && !rosterChanged) return;
+      H.kinT -= dt;
+      /* presence (events, flags, names, roster) every 1/15 s; at once when the roster changes, and
+         (at most every 33 ms) when there is news: kills and flag events, hits on players */
+      const tn = performance.now();
+      const news = H.evS !== H.evSent || H.agg.size > 0;
+      if (H.sendT > 0 && !rosterChanged && !(news && tn - H.sentAt >= 33)) return;
       H.sendT = 1 / 15;
+      H.sentAt = tn;
+      H.evSent = H.evS;
       for (const v of H.agg.values()) {
         H.hs.push([++H.hsS, v.t, Math.round(v.d), v.w, v.hd ? 1 : 0, v.by]);
       }
@@ -636,7 +656,7 @@
           hd = !!h[4];
         if (!NET.okId(tid)) continue;
         const tgt = G.byId(tid);
-        if (!tgt || tgt === a || (tgt.team === a.team && !G.ff)) {
+        if (!tgt || tgt === a || !tgt.alive || (tgt.team === a.team && !G.ff)) {
           H.hitStats.bad++;
           continue;
         }
@@ -671,10 +691,13 @@
           const s = K.REC.sample(K.pidOf(tgt), v.t);
           if (s) at = _rw.set(s.x, s.y, s.z);
         }
-        /* range and line of sight from where we have the shooter */
-        if (v.ok && !NET.plausible(a.body.pos, tgt, w, at)) {
+        /* claims without a checked ray (melee, grenades, an old client): range and line of sight
+           from where we draw the shooter. A checked ray already had both, from where they really
+           were: we draw them a little late, and that view cut corners (the network lab measured
+           false rejections on the arena from it) */
+        if (v.ok && v.t == null && !NET.plausible(a.body.pos, tgt, w, at)) {
           v.ok = false;
-          v.why = "wall";
+          v.why = "los";
         }
         K.HITCHK.note(
           a.peer,
@@ -733,9 +756,30 @@
         }
       }
     };
+    H.tick = K.timed("ctf.host.tick", H.tick);
+    H.ingest = K.timed("ctf.host.ingest", H.ingest);
+    NET.onFast = K.timed("ctf.host.fast", NET.onFast);
     return H;
   };
   const _rw = new V3();
+  /** an agent's movement fields of a snapshot row (x, y, z, vx, vy, vz, yaw, pitch, bits, shield, dead) */
+  function kinOf(a, b, loc) {
+    const fire = loc ? K.now - K.lastFireT < 0.12 : a.remote ? !!a.firing : a.G.t - a.firedT < 0.12;
+    const rl = loc ? K.reloadT > 0 : a.remote ? !!a.reloading : a.reloadT > 0;
+    return [
+      r2(b.pos.x),
+      r2(b.pos.y),
+      r2(b.pos.z),
+      r1(b.vel.x),
+      r1(b.vel.y),
+      r1(b.vel.z),
+      r2(b.yaw),
+      r2(b.pitch),
+      NET.bitsOf(b, { reload: rl, fire, wpn: loc ? K.wi : a.remote ? a.wpn : a.held(), carry: !!a.carrying }),
+      Math.ceil(b.shield),
+      a.alive ? 0 : 1,
+    ];
+  }
   /* tracers for a player whose shots we only know as "firing" */
   const _o = new V3(),
     _d = new V3();
