@@ -323,6 +323,58 @@ Most of that comes from three rules:
 
 Shorter fights cost accessibility by this page's rule, so the preset stays a preset. It is the closest match to the reference that this game can express today, offered to play with. A reasonable next playtest takes the preset's movement and weapon feel but keeps today's recharge (3 s, 48/s, 28/s) and carbine headshots. That variant isn't simulated yet.
 
+### Pass three: footage with the inputs visible
+
+The preset's numbers matched the reference's motion, but in play it still didn't feel right. So this pass measured how the reference responds to the controller, from footage where the inputs are visible next to the game:
+
+- a top player's warm-up with an on-screen input display (stick positions and button presses frame by frame);
+- a PC capture with a controller-tracking overlay;
+- hand and claw cams in settings videos and in matches;
+- settings guides that time 90, 180 and 360-degree turns at known sensitivity and acceleration settings.
+
+That is 17 videos and about 1,000 measured rows, mostly look response, timed against the stick or measured as yaw from the image.
+
+**The look response is where it differed most:**
+
+| Controller look | Reference (default settings) | This game's defaults |
+|---|---|---|
+| Start and stop | no measurable delay; turning stops in 1 to 2 frames, with no glide | instant (no smoothing) |
+| Full tilt | from about 85 to 90% of the stick's travel (the outer dead zone) | from 94% |
+| Rate at full tilt, at once | about 105°/s (85 at 0.05 s) | 183°/s |
+| Boost | starts at once and climbs evenly: 130 / 153 / 210 / 267 / 325°/s at 0.2 / 0.3 / 0.5 / 0.75 / 1.0 s, capped at about 360°/s; it drops straight back off the edge | waits 0.18 s, then reaches 1.9× (about 350°/s) 0.3 s later |
+| Turn times | 90° in 0.60 s, 180° in 0.93 s, 360° in 1.47 s | 180° in about 0.68 s |
+| Below full tilt | very convex: almost nothing below 40%, about 20°/s at half, about 75°/s just under the edge | exponent 1.9: about 50°/s at half |
+| Vertical | about half of horizontal | 0.72 |
+
+So this game's controller look snapped to a fast turn at once and topped out quickly. The reference starts slower, keeps fine aim slow, and builds a full turn over about a second. Both stop dead. The difference is in the first half second of every flick and in how small stick movements map to aim, which is most of what aiming feels like.
+
+**New controller settings**, each defaulting to today's behaviour:
+
+- Turn acceleration delay (0.18 s)
+- Turn acceleration ramp (0.3 s)
+- Full tilt at (100%, meaning today's 94% boost threshold with no rescaling)
+- Vertical look speed (72%)
+
+Turn acceleration now goes up to 3.
+
+**The Classic feel preset now sets the controller look too.** These are the player's own settings, not the room's, applied by the Classic button and put back by Defaults:
+
+- sensitivity 0.57: about 105°/s at full tilt
+- response curve 3
+- full tilt at 88%
+- turn acceleration 2.4 over 1.05 s, with no delay: a 180° turn in about 0.86 s and a 360° turn in about 1.38 s
+- vertical 50%
+
+**Other inputs.** These matched, or couldn't be measured:
+
+- **Jump and thrust:** respond within about 2 frames of the press, as here. The jump gives full upward speed on its first frame, as here.
+- **Crouch:** lowers the camera over 6 to 10 frames, about as here.
+- **Weapon switch:** starts lowering on the frame after the press.
+- **Movement response** (stick to motion, stop, strafe reversal against the stick): no player in the input footage held the right stick still while strafing, so it couldn't be separated from turning. The third-person measurements from pass two (0.4 s reversal, 0.2 to 0.3 s start and stop) stand.
+- **Aim assist:** there was too little steady footage to measure the slowdown. The one case seen shows shots curving onto a target about 1.5° off the body.
+
+**Simulation:** the controller look is the player's own, and the AI doesn't use it. The preset's Sandbox values are unchanged from pass two, and so are its simulated effects (skill share −0.02, time to kill −0.45 s). No default changed.
+
 
 ## Earlier results (before the AI carried magnums)
 

@@ -1220,17 +1220,32 @@ const podSeats = map => {
     await p.click('.stab:has-text("Sandbox")');
     await p.click('#setBody .dbtn:has-text("Classic feel")');
     await p.waitForTimeout(100);
-    const classic = await p.evaluate(() => [KA.TUNE.run, KA.TUNE.grav, KA.TUNE.sprintRamp, KA.SET.sbRun]);
+    const classic = await p.evaluate(() => [
+      KA.TUNE.run,
+      KA.TUNE.grav,
+      KA.TUNE.sprintRamp,
+      KA.SET.sbRun,
+      KA.SET.padSens,
+      KA.SET.padAccelTime,
+    ]);
     await p.click('#setBody .dbtn:has-text("Defaults")');
     await p.waitForTimeout(100);
-    const backDef = await p.evaluate(() => [KA.TUNE.run, KA.TUNE.grav, KA.TUNE.sprintRamp]);
+    const backDef = await p.evaluate(() => [
+      KA.TUNE.run,
+      KA.TUNE.grav,
+      KA.TUNE.sprintRamp,
+      KA.SET.padSens,
+      KA.SET.padAccelTime,
+    ]);
     check(
       classic[0] === 7 &&
         classic[1] === 12.3 &&
         classic[2] > 0 &&
         classic[3] === 7 &&
-        backDef.join() === "6.4,24,0",
-      "Sandbox presets: Classic feel applies, Defaults restores",
+        classic[4] === 0.57 &&
+        classic[5] === 1.05 &&
+        backDef.join() === "6.4,24,0,1,0.3",
+      "Sandbox presets: Classic feel applies (with its controller look), Defaults restores",
       [classic, backDef]
     );
     await p.click('.stab:has-text("Controller")');

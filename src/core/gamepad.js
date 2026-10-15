@@ -120,13 +120,20 @@ function padGame(dt) {
     ry = GP.ax[3],
     m = Math.min(1, Math.hypot(rx, ry));
   if (m > 0) {
-    GP.hold = m > 0.94 ? GP.hold + dt : 0;
-    const curve = Math.pow(m, SET.padCurve) / m;
-    const accel = 1 + Math.min(1, Math.max(0, GP.hold - 0.18) / 0.3) * SET.padAccel;
+    /* full tilt: the stick past padEdge (by default the old 94% threshold, with no rescaling) */
+    const edge = SET.padEdge,
+      me2 = Math.min(1, m / edge);
+    GP.hold = m > Math.min(0.94, edge * 0.99) ? GP.hold + dt : 0;
+    const curve = Math.pow(me2, SET.padCurve) / m;
+    const accel = 1 + Math.min(1, Math.max(0, GP.hold - SET.padAccelDelay) / SET.padAccelTime) * SET.padAccel;
     const fr = 1 - (1 - aimFriction()) * SET.aimAssist;
     const sens = 3.2 * SET.padSens * lookSens(SET.padAdsSens) * accel * fr;
     me.yaw -= rx * curve * sens * dt;
-    me.pitch = clamp(me.pitch - ry * curve * sens * 0.72 * dt * (SET.padInvertY ? -1 : 1), -1.5, 1.5);
+    me.pitch = clamp(
+      me.pitch - ry * curve * sens * SET.padVertical * dt * (SET.padInvertY ? -1 : 1),
+      -1.5,
+      1.5
+    );
   } else GP.hold = 0;
   const at = SET.aimAssist > 0 && m > 0.06 ? assistTarget() : null;
   if (at && GP.lastAt && GP.lastAt.ref === at.ref) {

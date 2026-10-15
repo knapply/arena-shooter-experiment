@@ -255,5 +255,17 @@ export const SANDBOX_PRESETS = {
       /* sniper: 0.78 s between shots */
       sbSnipeRate: 0.78,
     },
+    /* the controller's look response, measured from input-display footage (your own settings, applied
+       with the preset): about 105 deg/s at full tilt (from 88% of the stick's travel), a steep curve
+       below it, then a boost that ramps evenly with no wait to about 360 deg/s over about 1 s; vertical at half */
+    look: {
+      padSens: 0.57,
+      padCurve: 3,
+      padEdge: 0.88,
+      padAccel: 2.4,
+      padAccelDelay: 0,
+      padAccelTime: 1.05,
+      padVertical: 0.5,
+    },
   },
 };
