@@ -149,13 +149,13 @@ const PIS_RELOAD = [
   [1, "F"],
 ];
 /* rifles sit low on the right, muzzle turned a touch in toward the reticle. At a sprint the gun drops
-   to the lower corner, canted across the body and mostly out of view; a reload tips it up and over so
-   the magazine well faces you */
+   to the lower corner, canted across the body and mostly out of view; a reload swings it up nearly on
+   end, muzzle up in front of the right of the view, the well toward you (in about 0.12 s, then back) */
 const RIFLE_P = {
   hip: { p: new V3(0.2, -0.2, -0.38), r: [0, 0.04, 0] },
   aim: { p: new V3(-HOLO.x, -HOLO.y, -0.24), r: [0, 0, 0] },
   sprint: { p: new V3(0.17, -0.42, -0.3), r: [-0.75, 0.6, 0.45] },
-  reload: { p: new V3(0.11, -0.17, -0.36), r: [0.32, 0.22, 0.85] },
+  reload: { p: new V3(0.14, -0.11, -0.28), r: [1.0, 0.55, 0.5] },
   low: { p: new V3(0.18, -0.42, -0.3), r: [-0.6, 0.3, 0.3] },
 };
 /* lab rifles share the carbine's poses but for ADS, which lines up their own sight */
@@ -186,8 +186,8 @@ const VMW = [
     keys: VM_RELOAD,
     P: RIFLE_P,
     glow: 0x5ad2ff,
-    kr: 0.08,
-    kj: 0.012,
+    kr: 0.06,
+    kj: 0.02,
     fl: 0.15,
     fc: 0xffd28a,
   },
@@ -223,7 +223,8 @@ const VMW = [
     keys: VM_RELOAD,
     P: {
       ...RIFLE_P,
-      hip: { p: new V3(0.2, -0.21, -0.36), r: [0, 0.035, 0] },
+      /* (higher than the rifles: the scope rides at the right of the view, its lens big) */
+      hip: { p: new V3(0.19, -0.16, -0.33), r: [0, 0.05, 0] },
       aim: { p: new V3(0.06, -0.24, -0.2), r: [0, 0, 0] },
     },
     glow: 0x4a9bff,
@@ -264,8 +265,9 @@ const VMW = [
   {
     grip: new V3(0, -0.1, 0.06),
     fore: new V3(0, -0.08, -0.37),
-    /* the pump racks after each shot, the support hand riding it */
+    /* the pump racks after each shot, the support hand riding it, and the muzzle climbs hard */
     pump: true,
+    flip: 2,
     keys: VM_RELOAD,
     P: labP(0.085, -0.3),
     glow: 0xffb347,
