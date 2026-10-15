@@ -1480,12 +1480,18 @@ const podSeats = map => {
         KA.PINGS.lastT = -9;
         KA.pingNow();
       });
-      await A.waitForTimeout(1500);
-      pinged = await A.evaluate(() => {
-        const g = CTF.UI.game();
-        const fr = g.agents.find(a => a.remote);
-        return g.teams[fr.team].agents.filter(a => !a.human && a.ping).length;
-      });
+      /* wait on the host's game, not the clock: on a slow machine the ping takes a while to arrive */
+      pinged = await A.waitForFunction(
+        () => {
+          const g = CTF.UI.game();
+          const fr = g && g.agents.find(a => a.remote);
+          return fr ? g.teams[fr.team].agents.filter(a => !a.human && a.ping).length : 0;
+        },
+        null,
+        { timeout: 8000, polling: 100 }
+      )
+        .then(h => h.jsonValue())
+        .catch(() => 0);
     }
     check(pinged >= 1, "a friend's ping sends their AI teammates", pinged);
     /* a friend's double tap: a danger mark that replaces their ping on the host's screen, and their AI
