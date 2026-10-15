@@ -2044,7 +2044,16 @@ const podSeats = map => {
         limit: KA.MODE_DATA.ctf.timeLimit,
       };
     });
-    await C2.waitForTimeout(3200);
+    /* (until the opening pods are down: a slow machine takes longer to play the fall) */
+    await until(
+      C2,
+      () => {
+        const g = CTF.UI.game();
+        return !!g && g.agents.every(a => a.human || a.alive) && !KA.me.dead;
+      },
+      null,
+      30000
+    );
     const ctfDown = await C2.evaluate(() => {
       const g = CTF.UI.game();
       const ai = g.agents.filter(a => !a.human);
