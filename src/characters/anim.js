@@ -553,9 +553,12 @@ const ANIM = (() => {
       if (mode === 0 && L.mode === 1) {
         /* touchdown: the landing plays out, harder for a harder fall */
         L.landT = 0;
-        L.landW = clamp(-L.vyLast * 0.11, 0.2, 1);
+        /* (how hard by how far it fell, whatever the gravity: the same drop lands the same on a floaty
+           preset as on the defaults) */
+        const drop = (L.vyLast * L.vyLast) / (2 * Math.max(1, TUNE.grav));
+        L.landW = clamp(0.2 + drop * 0.45, 0.2, 1);
         /* a long drop lands deep, from the capture of a jump off a ledge */
-        L.landH = smooth(9, 15, -L.vyLast);
+        L.landH = smooth(1.6, 4, drop);
         L.fade = L.fadeD = 0.06;
       }
       L.mode = mode;
@@ -563,7 +566,12 @@ const ANIM = (() => {
     }
     L.vyLast = I.vy;
     const a = I.spd > 0.05 ? Math.atan2(I.lr, I.lf) : 0;
-    L.sprintW += ((I.sprint && !I.crouch ? 1 : 0) - L.sprintW) * Math.min(1, dt * 8);
+    /* the sprint gait builds with the speed (a sprint that winds up takes its time to reach the full stride) */
+    const sprT =
+      I.sprint && !I.crouch
+        ? clamp(0.25 + (0.75 * (I.spd - TUNE.run)) / Math.max(0.1, TUNE.sprint - TUNE.run), 0.25, 1)
+        : 0;
+    L.sprintW += (sprT - L.sprintW) * Math.min(1, dt * 8);
     P.fill(0);
     let rate = 0,
       kStride = 1,
@@ -574,7 +582,11 @@ const ANIM = (() => {
       L.airT += dt;
       const J = L.J;
       const v0 = Math.max(L.v0, 4);
-      let u = L.v0 > 1 ? clamp((L.v0 - I.vy) / (2 * v0), 0, 0.92) : clamp(0.5 + L.airT * 0.8, 0.5, 0.85);
+      /* (a fall: by its speed against what a 1.5 m drop reaches under this gravity) */
+      let u =
+        L.v0 > 1
+          ? clamp((L.v0 - I.vy) / (2 * v0), 0, 0.92)
+          : 0.5 + 0.35 * clamp(-I.vy / Math.sqrt(3 * Math.max(1, TUNE.grav)), 0, 1);
       if (I.vy < -3 && I.gd < 1.6) u = Math.max(u, 0.92);
       sample(J, J.up + u * (J.down - J.up), 1, P, false);
       finish(P);
@@ -628,7 +640,7 @@ const ANIM = (() => {
            cadence and a shorter stance (more of the cycle in the air, as runners do); slower: a
            shorter stride and a slower cadence */
         const r = I.spd / Math.max(0.2, sp);
-        kStride = clamp(Math.pow(r, 0.3), 0.6, 1.15);
+        kStride = clamp(Math.pow(r, 0.5), 0.6, 1.4);
         /* a crouched run (the jog on bent knees) takes short, quick steps */
         if (I.crouch) {
           let run = 0;
@@ -751,7 +763,7 @@ const ANIM = (() => {
     if (I.crouch && mode === 0) {
       let own = 0;
       for (let i = 0; i < L.B.n; i++) if (L.B.c[i].n.startsWith("crouch")) own += L.B.w[i];
-      sink = -0.17 * (1 - own);
+      sink = -0.24 * (1 - own);
     }
     /* a fighting stance on top of the capture: on the ground the hips sit lower over wider-set
        feet with the knees pushed out (narrowing as the pace picks up, less of it at a sprint); in
@@ -868,7 +880,7 @@ const ANIM = (() => {
             F.sx = F.lx;
             F.sz = F.lz;
             F.syaw = F.lyaw;
-          } else if (dev > (L.plantT > 0 ? 0.65 : 0.45)) {
+          } else if (dev > (L.plantT > 0 ? 0.5 : 0.45)) {
             F.lock = false;
             F.skip = 0.18;
           }
