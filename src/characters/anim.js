@@ -598,17 +598,27 @@ const ANIM = (() => {
       const wvx = I.lr * Math.cos(I.yaw) - I.lf * Math.sin(I.yaw),
         wvz = -I.lr * Math.sin(I.yaw) - I.lf * Math.cos(I.yaw);
       const pm = Math.sqrt(L.pvx * L.pvx + L.pvz * L.pvz);
-      if (I.spd > 2.5 && pm > 2.5 && wvx * L.pvx + wvz * L.pvz < -0.5 * I.spd * pm && L.plantT <= 0) {
-        L.plantT = 0.09;
+      /* (the old velocity is remembered for about a third of a second, so a reversal ramped through
+         zero, as a slower acceleration makes it, still reads as one) */
+      if (
+        I.spd > 2.5 &&
+        pm > 1.5 &&
+        wvx * L.pvx + wvz * L.pvz < -0.3 * I.spd * pm &&
+        L.plantT <= 0 &&
+        L.sc !== CL.plant
+      ) {
+        /* (an instant flip holds the stride so the planted foot takes it; a ramped one has eased already) */
+        L.plantT = pm > 4 ? 0.09 : 0.001;
         play(L, "plant", 0.12, UPPER, 0.4, 0.05, 0.22, 0.8);
       }
-      if (!I.crouch && L.fast > 3.5 && I.spd < 0.6 && L.sc !== CL.stop)
+      /* (a stop: the body stays still a moment; passing through zero on the way back is not one) */
+      if (!I.crouch && L.fast > 3.5 && I.spd < 0.6 && L.stillT > 0.06 && L.sc !== CL.stop)
         play(L, "stop", 0.3, null, 0.6, 0.08, 0.3, 1);
       if (L.stillT > 0.3 && I.spd > 1.5) play(L, "start", 0.1, UPPER, 0.45, 0.06, 0.25, 0.8);
       L.stillT = I.spd < 0.5 ? L.stillT + dt : 0;
       L.fast = Math.max(I.spd, L.fast - dt * 6);
-      L.pvx += (wvx - L.pvx) * Math.min(1, dt * 8);
-      L.pvz += (wvz - L.pvz) * Math.min(1, dt * 8);
+      L.pvx += (wvx - L.pvx) * Math.min(1, dt * 3);
+      L.pvz += (wvz - L.pvz) * Math.min(1, dt * 3);
       L.plantT -= dt;
       /* on the ground: the idle and the blend space, all loops on one phase */
       crouchAs = L.crouchAs;

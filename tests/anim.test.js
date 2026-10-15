@@ -237,6 +237,24 @@ for (const c of cases) {
     "reversing a run: a plant, planted feet hold",
     `played ${[...flip.played].join(", ")}; drift ${fix(flip.drift * 100)} cm`
   );
+  /* a strafe reversal ramped through zero over 0.4 s (as the Classic feel preset's slower acceleration
+     does): 7 m/s one way, then the other */
+  const strafe = run({
+    secs: 7,
+    plan: t => {
+      const p = t % 2.4,
+        v = p < 0.8 ? 7 : p < 1.2 ? 7 - 35 * (p - 0.8) : p < 2 ? -7 : -7 + 35 * (p - 2);
+      return { s: Math.abs(v), a: v >= 0 ? Math.PI / 2 : -Math.PI / 2 };
+    },
+  });
+  check(
+    strafe.played.has("plant") &&
+      !strafe.played.has("stop") &&
+      strafe.drift < 0.03 &&
+      strafe.reachMiss < 0.02,
+    "a ramped strafe reversal: a plant (not a stop), planted feet hold",
+    `played ${[...strafe.played].join(", ") || "none"}; drift ${fix(strafe.drift * 100)} cm`
+  );
   const go = run({ secs: 6, plan: t => ({ s: t % 2 < 1 ? 0 : TUNE.run, a: 0 }) });
   check(
     go.played.has("start") && go.drift < 0.03,
