@@ -94,8 +94,10 @@ function updVM(dt, c) {
     _c.y += Math.abs(Math.cos(ph)) * 0.035;
     _e1.z += Math.sin(ph) * 0.08;
   } else if (c.moving && !c.aim) {
-    _c.x += Math.sin(ph) * 0.012;
-    _c.y += Math.abs(Math.cos(ph)) * 0.012;
+    /* walking, the gun sways in a figure eight (the camera itself does not bob) */
+    _c.x += Math.sin(ph) * 0.013;
+    _c.y += 0.006 - Math.cos(2 * ph) * 0.006;
+    _e1.z += Math.sin(ph) * 0.012;
   } else if (c.moving) {
     _c.y += Math.abs(Math.cos(ph)) * 0.0025;
   }
@@ -176,9 +178,12 @@ function updVM(dt, c) {
     _e1.x += b * 0.002 * (ads ? 0.3 : 1);
   }
   if (switchT > 0) {
-    const s = Math.sin(Math.min(1, switchT / 0.36) * Math.PI);
-    _c.y -= 0.22 * s;
-    _e1.x -= 0.6 * s;
+    /* a new weapon comes up from the lower right, turning in as it rises, and settles */
+    const s = Math.pow(Math.min(1, switchT / SWITCH_TIME), 2);
+    _c.x += 0.1 * s;
+    _c.y -= 0.3 * s;
+    _e1.x -= 0.7 * s;
+    _e1.z -= 0.45 * s;
   }
   /* the gun's part in the reload: tilt to the hand, the slap's jolt, the bolt's tug (rig.js) */
   if (c.reload >= 0) reloadGunMotion(c.reload, _c, _e1);
@@ -189,11 +194,45 @@ function updVM(dt, c) {
   vmS.lastPitch = me.pitch;
   _e1.y += vmS.swayY;
   _e1.x += vmS.swayP;
-  vmS.kick = Math.max(0, vmS.kick - dt * 14);
-  _c.z += vmS.kick * W().kick;
-  _e1.x += vmS.kick * W().kick * 1.5 * (ads ? 0.5 : 1) * (V.flip || 1);
+  /* each shot: the kick snaps back and up at once and recovers over the weapon's own time (kr: a
+     quick tick for automatics, a long settle for the sniper and the rocket), twisted a little at
+     random (kj); the slide or pump cycles (cyc) and a wisp of smoke leaves the muzzle */
+  if (vmS.kick === 1) {
+    vmS.shot = 0;
+    vmS.jy = rnd(-1, 1) * V.kj;
+    vmS.jz = rnd(-1, 1) * V.kj;
+    if (fxOn() && vmRoot.visible && W().key !== "beam") {
+      flashSprite.getWorldPosition(_cA);
+      ptAdd(
+        PTS.soft,
+        _cA,
+        _cB.set(rnd(-0.2, 0.2), rnd(0.3, 0.6), rnd(-0.2, 0.2)),
+        0.06,
+        0x9a9890,
+        0.25,
+        0.5,
+        {
+          grow: 3,
+          drag: 2,
+        }
+      );
+    }
+  }
+  vmS.shot += dt;
+  vmS.kick = Math.max(0, vmS.kick - dt / V.kr);
+  const kk = vmS.kick * vmS.kick * (3 - 2 * vmS.kick);
+  _c.z += kk * W().kick;
+  _e1.x += kk * W().kick * 1.5 * (ads ? 0.5 : 1) * (V.flip || 1);
+  _e1.y += kk * vmS.jy * (ads ? 0.4 : 1);
+  _e1.z += kk * vmS.jz * (ads ? 0.4 : 1);
+  const u = V.cyc ? (vmS.shot - V.cyc[1]) / V.cyc[2] : -1,
+    ao = u > 0 && u < 1 ? V.cyc[0] * Math.sin(Math.PI * Math.sqrt(u)) : 0;
+  V.act.position.z = ao;
+  /* a weapon just drawn starts from where it comes up, not where it was last put away */
+  const fresh = vmS.lastV !== V;
+  vmS.lastV = V;
   /* while the zoom eases, the pose is already eased: follow it closely so the gun lands with the zoom */
-  const gk = blend ? 1 - Math.exp(-50 * dt) : ads ? Math.min(1, k * 1.4) : k;
+  const gk = fresh ? 1 : blend ? 1 - Math.exp(-50 * dt) : ads ? Math.min(1, k * 1.4) : k;
   g.position.lerp(_c, gk);
   _q2.setFromEuler(_e1);
   g.quaternion.slerp(_q2, gk);
@@ -207,7 +246,11 @@ function updVM(dt, c) {
     _lk.set(-0.2 + 0.12 * s, -0.12 + 0.2 * s, -0.25 - 0.3 * s);
   } else if (c.reload >= 0) reloadKey(V.keys, c.reload, V.fore, _lk).applyMatrix4(g.matrix);
   else if (c.clamber) _lk.set(-0.22, 0, -0.42);
-  else _lk.copy(V.fore).applyMatrix4(g.matrix);
+  else
+    _lk
+      .copy(V.fore)
+      .setZ(V.fore.z + (V.pump ? ao : 0))
+      .applyMatrix4(g.matrix);
   vmS.lh.lerp(_lk, kf);
   vmL.position.copy(vmS.lh);
   const free = c.reload >= 0 || vmS.throwT > 0 || c.clamber;

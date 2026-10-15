@@ -255,6 +255,26 @@ function onShotFx(a, b) {
     dynLight(_cf.copy(b).sub(a).normalize().multiplyScalar(0.4).add(a), 0xffc27a, 2.4, 0.07, 7);
   if (!fxOn()) return;
   const cam = camera.position;
+  /* everyone else's muzzle flash, where their shot leaves the gun (yours is on the viewmodel) */
+  if (a.distanceToSquared(cam) > 2.5) {
+    const f = fxGet(
+      "mf",
+      () =>
+        new THREE.Sprite(
+          new THREE.SpriteMaterial({
+            map: STAR,
+            color: 0xffd28a,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          })
+        )
+    );
+    f.position.copy(a);
+    f.scale.setScalar(rnd(0.32, 0.48));
+    f.material.rotation = rnd(0, 6);
+    fxPush({ m: f, key: "mf", life: 0.05, max: 0.05, fade: true, op: 1 });
+  }
   _cf.copy(b).sub(a).normalize();
   if (a.distanceToSquared(cam) < 625) ejectCasing(_cf2.copy(a).addScaledVector(_cf, -0.45), _cf);
   const n = surfNormal(b, _cn);

@@ -210,7 +210,7 @@ function fire(src) {
       if (h && (!best || h.t < best.h.t)) best = { t, h };
     }
     const end = o.clone().addScaledVector(pd, best ? best.h.t : Math.min(wt, R));
-    if (p < 5) tracer(muzzle, end, col, wi === 2 ? 0.6 : 0.1);
+    if (p < 5) tracer(muzzle, end, col, wi === 2 ? 0.6 : Wd.key === "beam" ? 0.13 : 0.1);
     if (best) {
       const shielded = best.t.ref.body ? best.t.ref.body.shield > 0 : best.t.ref.sh > 0;
       const hd = best.h.head && (Wd.headAlways || !shielded);

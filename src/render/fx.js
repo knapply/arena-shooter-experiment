@@ -186,6 +186,8 @@ function ptClearBelow(y) {
     for (let i = 0; i < P.n; i++) if (P.d[i * PT_K + 1] < y) P.d[i * PT_K + 11] = 0;
 }
 const tracerGeo = new THREE.BoxGeometry(0.035, 0.035, 1);
+/* how fast a tracer streak flies (m/s): quick enough to read as a bullet, slow enough to be seen */
+const TRACER_V = 360;
 function tracer(a, b, color, life) {
   life = life || 0.1;
   const m = fxGet(
@@ -198,10 +200,22 @@ function tracer(a, b, color, life) {
   );
   m.material.color.setHex(color);
   _fx.copy(b).sub(a);
-  m.position.copy(a).addScaledVector(_fx, 0.5);
-  m.scale.set(1, 1, _fx.length());
+  const L = _fx.length(),
+    s = Math.min(3.5, L * 0.3);
   m.lookAt(b);
-  fxPush({ m, key: "tr", life, max: life, fade: true });
+  if (life <= 0.12 && L > 2) {
+    /* a round in flight: a short bright streak flying from the muzzle to where it hits */
+    m.position.copy(a).addScaledVector(_fx, s / 2 / L);
+    m.scale.set(0.8, 0.8, s);
+    m.material.opacity = 0.95;
+    const t = (L - s) / TRACER_V;
+    fxPush({ m, key: "tr", life: t, max: t, vel: _fx.clone().multiplyScalar(TRACER_V / L) });
+  } else {
+    /* a line drawn at once that fades: the sniper's trail, the beam */
+    m.position.copy(a).addScaledVector(_fx, 0.5);
+    m.scale.set(1, 1, L);
+    fxPush({ m, key: "tr", life, max: life, fade: true });
+  }
   /* recorded for replays; while one plays, live shots elsewhere stay out of the picture */
   if (!REC.muted) {
     REC.fx(REC.TRACER, a, b, color);

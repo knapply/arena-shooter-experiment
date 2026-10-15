@@ -66,10 +66,12 @@ function dot(p, color, size, x, y, z) {
   return s;
 }
 /* draw-call budget: a weapon's parts merge into one mesh per material; the magazine is one more
-   (the reload moves it), merged around where it seats; the counter, sight glass and dots are separate */
+   (the reload moves it), merged around where it seats, and the action (slide or pump) is a group of
+   its own (it cycles on each shot); the counter, sight glass and dots are separate */
 function vmModel(i) {
   const g = new THREE.Group(),
     by = new Map(),
+    act = new Map(),
     mag = [];
   for (const p of gunParts(i)) {
     const m = new THREE.Matrix4()
@@ -81,11 +83,15 @@ function vmModel(i) {
       g.add(o);
       continue;
     }
-    const mt = VM_MAT[p.m];
-    if (!p.mag && !by.has(mt)) by.set(mt, []);
-    (p.mag ? mag : by.get(mt)).push([gunGeo(p, true), m, p]);
+    const mt = VM_MAT[p.m],
+      to = p.act ? act : by;
+    if (!p.mag && !to.has(mt)) to.set(mt, []);
+    (p.mag ? mag : to.get(mt)).push([gunGeo(p, true), m, p]);
   }
   for (const [mt, list] of by) g.add(new THREE.Mesh(mergeGeos(list), mt));
+  const ag = new THREE.Group();
+  for (const [mt, list] of act) ag.add(new THREE.Mesh(mergeGeos(list), mt));
+  g.add(ag);
   const s = mag[0][2],
     mg = new THREE.Mesh(
       mergeGeos(
@@ -95,10 +101,10 @@ function vmModel(i) {
     );
   mg.position.set(s.x, s.y, s.z);
   g.add(mg);
-  for (const [gg] of [...by.values()].flat().concat(mag)) gg.dispose();
+  for (const [gg] of [...by.values(), ...act.values()].flat().concat(mag)) gg.dispose();
   g.visible = i === 0;
   vmRoot.add(g);
-  return { g, mag: mg, slot: mg.position.clone() };
+  return { g, mag: mg, act: ag, slot: mg.position.clone() };
 }
 /* a holo sight's glass and red dot at (0, y, z); the dot is the sight line, so ADS centres it on screen
    where rounds go */
@@ -142,17 +148,37 @@ const PIS_RELOAD = [
   [RELOAD_T.release, [-0.03, 0.05, 0.03]],
   [1, "F"],
 ];
+/* rifles sit low on the right, muzzle turned a touch in toward the reticle. At a sprint the gun drops
+   to the lower corner, canted across the body and mostly out of view; a reload tips it up and over so
+   the magazine well faces you */
 const RIFLE_P = {
-  hip: { p: new V3(0.2, -0.2, -0.38), r: [0, 0, 0] },
+  hip: { p: new V3(0.2, -0.2, -0.38), r: [0, 0.04, 0] },
   aim: { p: new V3(-HOLO.x, -HOLO.y, -0.24), r: [0, 0, 0] },
-  /* (at a sprint the gun drops and turns across the body, muzzle down) */
-  sprint: { p: new V3(0.12, -0.35, -0.31), r: [-0.55, 0.75, 0.5] },
-  reload: { p: new V3(0.13, -0.22, -0.36), r: [0.18, 0.1, 0.55] },
+  sprint: { p: new V3(0.17, -0.42, -0.3), r: [-0.75, 0.6, 0.45] },
+  reload: { p: new V3(0.11, -0.17, -0.36), r: [0.32, 0.22, 0.85] },
   low: { p: new V3(0.18, -0.42, -0.3), r: [-0.6, 0.3, 0.3] },
 };
 /* lab rifles share the carbine's poses but for ADS, which lines up their own sight */
 const labP = (y, z) => ({ ...RIFLE_P, aim: { p: new V3(0, -y, z), r: [0, 0, 0] } });
-/* per weapon (WEAPON_DATA order): hand points, reload path, poses, light colour */
+/* the rocket's reload: the launcher tips nose-up so its rear comes down to the hands, the spent
+   canister pulled out of the back and a fresh one pushed in */
+const RKT_RELOAD = [
+  [0, "F"],
+  [RELOAD_T.grab, [0, -0.03, 0.34]],
+  [RELOAD_T.out, [-0.06, -0.3, 0.32]],
+  [RELOAD_T.pouch, [-0.1, -0.5, 0.2]],
+  [RELOAD_T.well, [0, -0.1, 0.46]],
+  [RELOAD_T.seat, [0, -0.02, 0.38]],
+  [RELOAD_T.slap, [0, -0.02, 0.36]],
+  [RELOAD_T.reach, [0, -0.12, 0.1]],
+  [RELOAD_T.back, [0, -0.14, -0.05]],
+  [RELOAD_T.release, [0, -0.17, -0.2]],
+  [1, "F"],
+];
+/* per weapon (WEAPON_DATA order): hand points, reload path, poses, light colour, and how a shot looks
+   from behind the gun: kr the kick's recovery (s), kj the random twist of each shot (rad), cyc the
+   slide or pump's travel (m) and when it cycles after the shot ([start, length] s), fl and fc the
+   muzzle flash's size and colour */
 const VMW = [
   {
     grip: new V3(0, -0.1, 0.08),
@@ -160,6 +186,10 @@ const VMW = [
     keys: VM_RELOAD,
     P: RIFLE_P,
     glow: 0x5ad2ff,
+    kr: 0.08,
+    kj: 0.012,
+    fl: 0.15,
+    fc: 0xffd28a,
   },
   {
     grip: new V3(0, -0.072, 0.048),
@@ -174,11 +204,18 @@ const VMW = [
       hip: { p: new V3(0.1, -0.16, -0.44), r: [0.03, 0.05, 0] },
       /* the slide sits just under the reticle, so the smart-link reticle (the aim point) stays clear */
       aim: { p: new V3(-PIS.x, -PIS.y - 0.034, -0.39), r: [0, 0, 0] },
-      sprint: { p: new V3(0.12, -0.33, -0.28), r: [-0.85, 0.35, 0.25] },
-      reload: { p: new V3(0.1, -0.18, -0.32), r: [0.35, 0.15, 0.5] },
+      /* sprinting, the pistol drops out of view at the lower right; reloading, it comes up and tips
+         toward you */
+      sprint: { p: new V3(0.17, -0.5, -0.26), r: [-1.05, 0.35, 0.3] },
+      reload: { p: new V3(0.07, -0.1, -0.34), r: [0.55, 0.25, 0.65] },
       low: { p: new V3(0.15, -0.36, -0.28), r: [-0.8, 0.2, 0.2] },
     },
     glow: 0x8cffb0,
+    kr: 0.14,
+    kj: 0.02,
+    cyc: [0.028, 0, 0.09],
+    fl: 0.2,
+    fc: 0xffc070,
   },
   {
     grip: new V3(0, -0.1, 0.12),
@@ -186,24 +223,31 @@ const VMW = [
     keys: VM_RELOAD,
     P: {
       ...RIFLE_P,
-      hip: { p: new V3(0.2, -0.21, -0.36), r: [0, 0, 0] },
+      hip: { p: new V3(0.2, -0.21, -0.36), r: [0, 0.035, 0] },
       aim: { p: new V3(0.06, -0.24, -0.2), r: [0, 0, 0] },
-      sprint: { p: new V3(0.12, -0.35, -0.3), r: [-0.55, 0.75, 0.5] },
     },
     glow: 0x4a9bff,
+    kr: 0.38,
+    kj: 0.01,
+    fl: 0.3,
+    fc: 0xd6ecff,
   },
   {
     grip: new V3(0, -0.21, 0.04),
     fore: new V3(0, -0.2, -0.3),
-    keys: VM_RELOAD,
+    keys: RKT_RELOAD,
     P: {
-      hip: { p: new V3(0.2, -0.13, -0.3), r: [0, 0, 0] },
+      hip: { p: new V3(0.2, -0.13, -0.3), r: [0, 0.03, 0] },
       aim: { p: new V3(0.1, -0.12, -0.26), r: [0, 0, 0] },
-      sprint: { p: new V3(0.16, -0.24, -0.3), r: [-0.3, 0.4, 0.25] },
-      reload: { p: new V3(0.16, -0.2, -0.32), r: [0.25, 0.1, 0.4] },
+      sprint: { p: new V3(0.2, -0.3, -0.28), r: [-0.5, 0.4, 0.3] },
+      reload: { p: new V3(0.16, -0.16, -0.46), r: [0.55, 0.15, 0.2] },
       low: { p: new V3(0.18, -0.36, -0.3), r: [-0.5, 0.3, 0.3] },
     },
     glow: 0xff7a3a,
+    kr: 0.5,
+    kj: 0.03,
+    fl: 0.42,
+    fc: 0xffa850,
   },
   /* ---- lab weapons: burst rifle (a bullpup, so its reload is further back), scattergun, arc beam ---- */
   {
@@ -212,13 +256,24 @@ const VMW = [
     keys: VM_RELOAD.map(([t, p]) => [t, p === "F" ? p : [p[0], p[1], p[2] + 0.22]]),
     P: labP(0.1, -0.24),
     glow: 0x52e0ff,
+    kr: 0.07,
+    kj: 0.008,
+    fl: 0.14,
+    fc: 0xffd28a,
   },
   {
     grip: new V3(0, -0.1, 0.06),
     fore: new V3(0, -0.08, -0.37),
+    /* the pump racks after each shot, the support hand riding it */
+    pump: true,
     keys: VM_RELOAD,
     P: labP(0.085, -0.3),
     glow: 0xffb347,
+    kr: 0.3,
+    kj: 0.025,
+    cyc: [0.075, 0.22, 0.34],
+    fl: 0.3,
+    fc: 0xffb860,
   },
   {
     grip: new V3(0, -0.1, 0.08),
@@ -226,6 +281,10 @@ const VMW = [
     keys: VM_RELOAD,
     P: labP(0.095, -0.24),
     glow: 0xb48cff,
+    kr: 0.05,
+    kj: 0.003,
+    fl: 0.1,
+    fc: 0xc8a8ff,
   },
 ].map((o, i) => Object.assign(vmModel(i), o));
 /* the support hand under a handguard, palm up, fingers round its far side (the magnum's cups the
@@ -452,6 +511,11 @@ const vmS = {
   lastYaw: 0,
   lastPitch: 0,
   kick: 0,
+  /* time since the last shot, its random twist, and the weapon posed last frame */
+  shot: 9,
+  jy: 0,
+  jz: 0,
+  lastV: null,
   throwT: 0,
   inX: spr(),
   inY: spr(),
@@ -470,6 +534,11 @@ function vmLights() {
     low = !rl && mag <= Math.max(1, Math.floor(w.mag / 4)),
     c = low ? 0xff3a1e : VMW[wi].glow;
   vmGlow.emissive.setHex(c);
+  /* the muzzle flash: the weapon's own size and colour, a little different every shot */
+  if (flashT > 0) {
+    flashSprite.scale.setScalar(VMW[wi].fl * (0.8 + Math.random() * 0.45));
+    flashSprite.material.color.setHex(VMW[wi].fc);
+  }
   vmGlow.emissiveIntensity = 1.2 + vmS.kick * 3 + (low && now % 0.5 < 0.25 ? 1.2 : 0);
   const k = (rl ? "--" : String(mag).padStart(2, "0")) + c;
   if (k === vmCtrK) return;

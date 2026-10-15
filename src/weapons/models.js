@@ -7,7 +7,8 @@
                b = back radius, c = length), v upright cylinder, s cylinder across, n the ammo counter
      material  D dark metal, P light plate, A armor (the pilot's colour), S polymer, G light (it flares
                on each shot and turns red on low ammo), C amber paint, X arc emitter
-     flags     f first person only, m the magazine (it moves through the reload)
+     flags     f first person only, m the magazine (it moves through the reload), a the action (a slide or
+               pump: it cycles after each shot in first person)
      e         the tilt about x, or a cylinder's number of sides
      *n        repeats the part n times, stepping by (dx, dy, dz) */
 const GUN_MODELS = [
@@ -54,12 +55,12 @@ const GUN_MODELS = [
   /* M9 magnum: heavy slide with a ported compensator and a counter on its side, glowing lines, armored grip
      panels, iron sights with the dot on the front post */
   [
-    "rD .042 .042 .19 0 .027 -.03",
+    "rDa .042 .042 .19 0 .027 -.03",
     "rD .044 .044 .035 0 .026 -.14",
     "bG .046 .005 .006 0 .038 -.145 *2 0 0 .014",
     "cP .009 .009 .02 0 .026 -.152 10",
-    "bP .022 .008 .17 0 .05 -.04",
-    "bPf .044 .03 .004 0 .027 .02 *5 0 0 .01",
+    "bPa .022 .008 .17 0 .05 -.04",
+    "bPfa .044 .03 .004 0 .027 .02 *5 0 0 .01",
     "bG .002 .006 .12 -.0215 .012 -.03 *2 .043 0 0",
     "nG .03 .012 0 -.0215 .027 -.02 0 -1.5708",
     "rP .036 .028 .17 0 -.006 -.035",
@@ -71,7 +72,7 @@ const GUN_MODELS = [
     "rA .04 .06 .036 0 -.065 .047 .22",
     "bDf .042 .004 .03 0 -.037 .052 .22 *5 0 -.0156 -.0035",
     "bD .006 .012 .008 0 .0525 -.135",
-    "bD .009 .012 .01 -.011 .0525 .05 *2 .022 0 0",
+    "bDa .009 .012 .01 -.011 .0525 .05 *2 .022 0 0",
     "rDm .026 .08 .034 0 -.09 .05",
     "bDm .04 .014 .06 0 -.132 .035 .22",
   ],
@@ -195,8 +196,8 @@ const GUN_MODELS = [
     "bD .008 .022 .012 -.014 .07 -.17 *2 .028 0 0",
     "cD .022 .022 .4 0 -.045 -.43",
     "cP .026 .026 .03 0 -.045 -.64",
-    "rP .08 .07 .16 0 -.05 -.37",
-    "bS .084 .008 .012 0 -.05 -.42 *4 0 0 .033",
+    "rPa .08 .07 .16 0 -.05 -.37",
+    "bSa .084 .008 .012 0 -.05 -.42 *4 0 0 .033",
     "vC .011 .011 .04 -.05 -.005 -.17 8 *4 0 0 .03",
     "nG .03 .014 0 -.0485 .02 0 0 -1.5708",
     "rD .06 .05 .2 0 .015 .17",
@@ -250,6 +251,7 @@ function gunParts(i) {
         m: h[1],
         fp: h.includes("f"),
         mag: h.includes("m"),
+        act: h.includes("a"),
         a: n[0],
         b: n[1],
         c: n[2],
