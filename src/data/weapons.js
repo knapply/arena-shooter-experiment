@@ -273,7 +273,13 @@ function killStats(w) {
    the skill-ladder pass: 40 gives new players about 0.16 s more once they're rushed and leaves the
    top of the ladder untouched (docs/TUNING.md, "The skill ladder"). The shoulder charge keeps its own
    numbers. */
-const MELEE = { shield: 40 };
+const MELEE = {
+  shield: 40,
+  /* the reach of a blow in metres, and how far round a victim's back counts as behind: the cosine of
+     the angle off their facing, so -0.35 is anything more than about 110 degrees off */
+  range: 2.3,
+  back: -0.35,
+};
 const MELEE_KILL = 999;
 /** damage for a melee blow on a pilot with `shield` left; `behind` from meleeBehind */
 function meleeDamage(shield, behind) {
@@ -286,5 +292,5 @@ function meleeBehind(ax, az, vx, vz, yaw) {
     dz = az - vz,
     L = Math.hypot(dx, dz) || 1;
   /* facing is (-sin yaw, -cos yaw) */
-  return (dx * -Math.sin(yaw) + dz * -Math.cos(yaw)) / L < -0.35;
+  return (dx * -Math.sin(yaw) + dz * -Math.cos(yaw)) / L < MELEE.back;
 }

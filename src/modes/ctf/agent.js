@@ -948,7 +948,7 @@
             this.poundHold = 0.62;
           }
           if (!b.ground && !this.poundHold && dy < -1.2 && b.stabT < 1) inp.aim = true; // stabilize over them
-          if (range < 2.3 && b.meleeCD <= 0) inp.meleeP = true;
+          if (range < K.MELEE.range && b.meleeCD <= 0) inp.meleeP = true;
           else if (range < 6 && b.sprintT > 0.85 && K.rand() < dt * 10 * genes.charge) {
             inp.meleeP = true;
           }
@@ -1541,7 +1541,7 @@
         K.damageRadius(d.pos, 5, 260, G.render);
       } else if (type === "melee" || type === "charge") {
         this.body.spawnT = -1e9; /* attacking ends spawn protection */
-        const r = type === "charge" ? 1.8 : 2.3;
+        const r = type === "charge" ? 1.8 : K.MELEE.range;
         const f = this.body.fwd();
         let landed = false;
         /* swinging the flag or the skull: a one-hit kill (and the kill is credited to it) */

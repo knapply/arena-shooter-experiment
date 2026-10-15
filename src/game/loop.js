@@ -99,7 +99,7 @@ function meEvent(type, d) {
     rumble(0.2, 0.45, 70);
     /* (the first-person blow starts now, so its impact can wait for the moment of contact) */
     vmS.mc = 0;
-    meleeHit(2.3, 70, "melee");
+    meleeHit(MELEE.range, 70, "melee");
   } else if (type === "slide") {
     sfx(footKind("slide", me.pos));
     fovK = 0.6;

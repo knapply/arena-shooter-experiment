@@ -499,6 +499,9 @@ function ringPieces() {
   return out;
 }
 const MAP_MODS = {
+  /* Twin Foundry: each base platform's sides become one-way exits (no step up beside the stand): a
+     carrier can drop off toward either wing, but attackers can only come up the front stairs */
+  dropexits: { map: "ctf", name: "One-way flag room exits", remove: ["b13", "b14"] },
   /* the arena's team spawns spread: each team also spawns in the two quiet corners of its own half
      (ten spots a team, not six), against spawn camping by a stronger team (docs/TUNING.md) */
   teamspread: {
