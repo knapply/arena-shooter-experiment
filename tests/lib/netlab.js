@@ -458,8 +458,10 @@ function pair(truth, seen) {
       if (p) err.push(Math.hypot(p[0] - x, p[1] - z));
     }
     if (err.length < 30) continue;
-    const med = pct(err, 0.5);
-    if (!best || med < best.med) best = { off, med, p95: pct(err, 0.95), n: err.length };
+    /* fit the delay on the mean squared error: a pilot that mostly stands still fits any delay by its
+       median, which then picks 0 and blames the moments it moves on the netcode */
+    const mse = err.reduce((a, e) => a + e * e, 0) / err.length;
+    if (!best || mse < best.mse) best = { off, mse, med: pct(err, 0.5), p95: pct(err, 0.95), n: err.length };
   }
   if (!best) return null;
   let pops = 0;
@@ -709,6 +711,7 @@ async function runLab(o) {
       await new Promise(r => setTimeout(r, secs * 1000));
       const D = await collect(I);
       const rep = analyze(D, secs, mode);
+      if (o.raw) rep.raw = D;
       rep.joinMs = room.joinMs;
       rep.startMs = startMs;
       rep.relay = transport === "relay" ? relay.stats() : null;

@@ -37,7 +37,7 @@ Reports (JSON and markdown) go to `tools/out/net-lab/`. `tests/netlab.test.js` r
 
 ## Results: 4 instances, 40 s per mode, every profile
 
-Before is main at 61d0299 with the lab's instrumentation; after is this branch. Values are before → after. Migration times in the before column include closing the old host's browser (the lab now times from the start of the close). "fail" in the before column was the lab clicking Play before the menu offered to join, which starts a second match (the lab now waits for Join). Delay, error, pops and desyncs move by noise between runs; the bandwidth, kill-to-display and migration changes are well outside it.
+Before is main at 61d0299 with the lab's instrumentation; after is this branch. Values are before → after. Migration times in the before column include closing the old host's browser (the lab now times from the start of the close). "fail" in the before column was the lab clicking Play before the menu offered to join, which starts a second match (the lab now waits for Join). Delay, error, pops and desyncs move by noise between runs. The capture the flag p95 errors near 1 m (before and after alike) were the lab's own: it fitted each pilot's delay on the median error, and an AI that mostly stands guard fits any delay, so the lab picked 0 and counted its moves as error; it now fits on the mean squared error (that pilot: 1.2 m → 0.09 m). the bandwidth, kill-to-display and migration changes are well outside it.
 
 | profile | mode | host up KB/s | client up KB/s | delay ms | p95 err m | pops/min | false rejects | kill→display p50 ms | desync | migration ms | GC/min (host) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -83,4 +83,3 @@ Before is main at 61d0299 with the lab's instrumentation; after is this branch. 
 - **8 players.** The fast mesh grows with the square of the players (ctfMove alone is about 8 KB/s per client from the host). Measure `--n 8` before adding interest management (lower rates for far or unseen pilots).
 - **Real WebRTC host loss.** The relay closes a gone host's links at once; WebRTC notices a dead peer only when its data channel closes, which can take seconds. Measure `--transport webrtc --migrate`.
 - **The menu join race.** Clicking Play while the menu still says Host starts a second match in the room (the lab hit it on bad links). The menu could hold Play for a moment after joining a room, or offer to join the host's match when one appears.
-- **One AI outlier.** In capture the flag one AI pilot per run is sometimes drawn up to ~1 m off at the 95th percentile (before and after alike); its fitted delay is 0, which points at a pilot standing still while its truth moves (a spawn or a carry). Worth a look with the lab's `pos.worst` list.
