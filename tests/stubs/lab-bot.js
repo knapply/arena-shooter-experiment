@@ -12,7 +12,7 @@
    Times are Date.now(): every instance runs on this machine, so they share the clock. */
 (function () {
   const LAB = window.__LAB || {};
-  const rec = { truth: [], drawn: [], pb: [], kills: [], state: [], frames: 0, ft: 0 };
+  const rec = { truth: [], drawn: [], pb: [], kills: [], state: [], hitches: [], frames: 0, ft: 0 };
   const heap = { gcs: 0, freed: 0, last: 0 };
   let lastS = 0,
     lastState = 0,
@@ -286,6 +286,8 @@
     requestAnimationFrame(frame);
     const now = performance.now();
     const dt = lastT ? Math.min(0.1, (now - lastT) / 1000) : 0;
+    /* a stalled frame (this machine, not the network): [when it ended, how long it took] */
+    if (lastT && now - lastT > 150) rec.hitches.push([Date.now(), Math.round(now - lastT)]);
     lastT = now;
     rec.frames++;
     rec.ft += dt;
@@ -332,7 +334,7 @@
     /** everything recorded since the last collect (cleared) */
     collect() {
       const out = Object.assign({}, rec, { heap: Object.assign({}, heap) });
-      for (const k of ["truth", "drawn", "pb", "kills", "state"]) rec[k] = [];
+      for (const k of ["truth", "drawn", "pb", "kills", "state", "hitches"]) rec[k] = [];
       rec.frames = rec.ft = 0;
       heap.gcs = heap.freed = 0;
       return out;

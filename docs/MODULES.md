@@ -55,7 +55,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
 | `src/game/deploy.js` | 77 | `savePrefs` `leaveGame` |
 | `src/game/modes.js` | 178 | `MODE_DEFS` `defineMode` `startMode` `modeList` `BOT_LEVELS` `BOT_DOWN` `BOT_UP` `botLevel` `botLevelName` `botAdapt` `botAdaptNote` `modeRules` `FFA` `ffaStandings` `ffaStart` `ffaTick` `ffaEnd` `ffaRestart` … (+1) |
-| `src/net/messages.js` | 360 | `MSG` `netProf` `netT0` `timed` |
+| `src/net/messages.js` | 361 | `MSG` `netProf` `netT0` `timed` |
 | `src/net/playback.js` | 91 | `Playback` |
 | `src/net/hitcheck.js` | 465 | `MoveHist` `HITCHK` `MY_HIST` `pctOf` `median` `hitPanel` `WHY` `postHitsShown` `postHits` |
 | `src/net/arena-net.js` | 503 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `amHub` `hubPeer` `sbSeen` `adoptSandbox` `room` `lastSend` `lastFast` `fastSeq` `sentEv` `FAST_HZ` `myBits` … (+13) |
@@ -94,8 +94,8 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/modes/ctf/agent.js` | 1614 |  |
 | `src/modes/ctf/rules.js` | 1073 |  |
 | `src/modes/ctf/ui.js` | 763 |  |
-| `src/net/ctf-host.js` | 813 |  |
-| `src/net/ctf-client.js` | 773 |  |
+| `src/net/ctf-host.js` | 841 |  |
+| `src/net/ctf-client.js` | 775 |  |
 | `src/modes/ctf/modes.js` | 1200 |  |
 | `src/modes/trailer-score.js` | 1009 |  |
 | `src/modes/trailer.js` | 2339 |  |

@@ -213,6 +213,8 @@
       fastT: 0,
       /** each agent's movement fields as last put in the snapshot, refreshed once a second (kinT) */
       kin: new Map(),
+      /** [wall s, match s] pairs, one a frame: gameAt(wall) maps a ctfMove stamp to match time */
+      clk: [],
       kinT: 0,
       evSent: 0,
       sentAt: -1e9,
@@ -398,6 +400,9 @@
       };
     };
     H.tick = function (dt) {
+      /* wall clock → match time, for hits whose view time is a ctfMove stamp */
+      H.clk.push(performance.now() / 1000, K.now);
+      if (H.clk.length > 600) H.clk.splice(0, 200);
       if (!NET.room) {
         H.agg.clear();
         return;
@@ -455,7 +460,11 @@
         H.snapshotRv();
         NET.room.fast(
           K.MSG.encode("ctfMove", {
-            ts: Math.round(K.now * 1000) >>> 0,
+            /* wall clock, not match time: a long frame here (a hitch) loses match time, and stamps
+               that fall behind real time made every client's playback run past its data, freeze,
+               then snap (the network lab measured 1.2 m errors and 10 pops a minute from 0.4 s
+               hitches). Hits name their view time on this clock too: see gameAt */
+            ts: Math.round(performance.now()) >>> 0,
             rv: H.rv,
             ag: G.agents.map(a => {
               const b = a.body,
@@ -503,6 +512,26 @@
         pg: H.pg,
         p: [r2(me.pos.x), r2(me.pos.y), r2(me.pos.z)],
       });
+    };
+    /** match time at a wall-clock time (seconds) of this machine; 0 stays 0 (unknown) */
+    H.gameAt = function (w) {
+      const c = H.clk,
+        n = c.length / 2;
+      if (!w || !n) return w ? K.now - (performance.now() / 1000 - w) : 0;
+      if (w >= c[(n - 1) * 2]) return c[(n - 1) * 2 + 1] + (w - c[(n - 1) * 2]);
+      if (w <= c[0]) return c[1] - (c[0] - w);
+      let lo = 0,
+        hi = n - 1;
+      while (hi - lo > 1) {
+        const m = (lo + hi) >> 1;
+        if (c[m * 2] <= w) lo = m;
+        else hi = m;
+      }
+      const w0 = c[lo * 2],
+        w1 = c[hi * 2],
+        g0 = c[lo * 2 + 1],
+        g1 = c[hi * 2 + 1];
+      return g0 + ((g1 - g0) * (w - w0)) / (w1 - w0 || 1);
     };
     H.snapshotRv = function () {
       const key = G.agents.map(a => a.id).join();
@@ -668,12 +697,11 @@
         /* lag compensation: check the shot against where the target was on the shooter's screen
            (h[5] = the host-clock time the shooter was seeing), from the match recording, rewound no
            further than the cap (net/hitcheck.js) */
-        const vt = num(h[5], 0, 4294967295) / 1000;
+        const vt = H.gameAt(num(h[5], 0, 4294967295) / 1000);
         const ray = h.length >= 12 ? h.slice(6, 12).map(Number) : null;
         const ft = h.length >= 13 && Number.isFinite(+h[12]) ? +h[12] / 1000 : null;
-        const tn = performance.now() / 1000;
-        /* when they fired, in our game clock (their clock + the playback offset) */
-        const ftG = ft != null && a.pb.ready ? K.now - (tn - (ft + a.pb.offset)) : null;
+        /* when they fired, in match time (their clock + the playback offset is ours) */
+        const ftG = ft != null && a.pb.ready ? H.gameAt(ft + a.pb.offset) : null;
         const v = K.HITCHK.check({
           w,
           o: ray && ray.slice(0, 3),
