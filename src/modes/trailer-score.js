@@ -930,12 +930,13 @@
       bass(at(66.0), midi("D2"), 0.3, 1);
       whoosh(at(67.1), 0.35);
       ping(at(67.25), "A5", 0.06);
-      boom(at(68.62), 1.25);
-      subdrop(at(68.62), 0.6, 1.2);
-      crash(at(68.62), 0.7);
-      for (const x of [69.55, 69.9, 70.25]) taiko(at(x), 0.7);
-      boom(at(70.6), 1);
-      crash(at(70.6), 0.6);
+      whoosh(at(67.75), 0.4);
+      boom(at(68.78), 1.25);
+      subdrop(at(68.78), 0.6, 1.2);
+      crash(at(68.78), 0.7);
+      for (const x of [69.92, 70.16, 70.4]) taiko(at(x), 0.7);
+      boom(at(70.64), 1);
+      crash(at(70.64), 0.6);
       /* the squad at night: the floor falls away, a choir and a bell for the shooting star */
       subdrop(at(71.2), 0.45, 1.6);
       drone(at(71.2), "D2", 1.8, 0.07);
