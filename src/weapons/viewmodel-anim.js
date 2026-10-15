@@ -219,13 +219,15 @@ function updVM(dt, c) {
     }
   }
   vmS.shot += dt;
-  vmS.kick = Math.max(0, vmS.kick - dt / V.kr);
+  /* (both fit inside the weapon's own fire interval, read at run time, so a faster rate never stacks them) */
+  const fr = Math.min(1, (W().rate * 0.9) / Math.max(V.kr, V.cyc ? V.cyc[1] + V.cyc[2] : 0));
+  vmS.kick = Math.max(0, vmS.kick - dt / (V.kr * fr));
   const kk = vmS.kick * vmS.kick * (3 - 2 * vmS.kick);
   _c.z += kk * W().kick;
   _e1.x += kk * W().kick * 1.5 * (ads ? 0.5 : 1) * (V.flip || 1);
   _e1.y += kk * vmS.jy * (ads ? 0.4 : 1);
   _e1.z += kk * vmS.jz * (ads ? 0.4 : 1);
-  const u = V.cyc ? (vmS.shot - V.cyc[1]) / V.cyc[2] : -1,
+  const u = V.cyc ? (vmS.shot / fr - V.cyc[1]) / V.cyc[2] : -1,
     ao = u > 0 && u < 1 ? V.cyc[0] * Math.sin(Math.PI * Math.sqrt(u)) : 0;
   V.act.position.z = ao;
   /* a weapon just drawn starts from where it comes up, not where it was last put away */
