@@ -70,6 +70,10 @@ const KA_API = {
   get powerMarks() {
     return PW_MARKS.filter(m => m.visible).length;
   },
+  /** the pause menu is up */
+  get paused() {
+    return paused;
+  },
   get myPod() {
     return myPod;
   },

@@ -243,6 +243,19 @@ let podding = false,
 let spawnPick = null;
 /** when your respawn starts: a pod launches POD_EARLY before respawnAt and lands when you would have */
 const respawnStart = () => respawnAt - (podsOn() && !INTRO.active ? POD_EARLY : 0);
+/** something else has the screen: the pause menu or settings, a replay (kill cam, Play of the
+    Game), the results */
+const podSuspended = () => paused || REPLAY.active || POST.open || !$("settings").hidden;
+/** leaving the match mid-drop: no pod, no cockpit, no hidden HUD, the fog back as it was */
+function podReset() {
+  if (myPod) podViewEnd(myPod);
+  myPod = null;
+  dropHold = false;
+  pvHide();
+  podMarker(null);
+  if (podding) document.body.classList.remove("podding");
+  podding = false;
+}
 /** skip the pod camera: watch from where you will land instead (you're out until it does) */
 function skipPodCam(p) {
   p.skip = true;
@@ -458,7 +471,11 @@ function frameBody(t) {
   if (me.dead) {
     if (myPod) {
       /* riding the drop pod down; Jump, Fire or Melee skips the pod camera */
-      if (!myPod.skip && !REPLAY.active && (P("jump") || P("fire") || P("melee"))) skipPodCam(myPod);
+      /* Jump cuts the opening shot to the cockpit; in the cockpit it skips the pod camera */
+      if (!myPod.skip && !podSuspended() && (P("jump") || P("fire") || P("melee"))) {
+        if (podOpening(myPod)) podEndOpening(myPod);
+        else skipPodCam(myPod);
+      }
       /* move (keys or stick) steers where it lands, relative to where you look */
       const fw = clamp(
           (A("forward") ? 1 : 0) - (A("back") ? 1 : 0) + touch.f - (pad.on ? GP.ax[1] : 0),
@@ -493,7 +510,7 @@ function frameBody(t) {
         /* you ride it down facing the way you will come out (the mouse turns it) */
         me.yaw = Math.atan2(at.x, at.z);
         me.pitch = 0;
-        myPod = dropPod(at, myColor, {
+        myPod = dropPod(at, myArmor, {
           rider: true,
           /* steering stays within the mode's zone, and off spots where someone stands or another pod
              is coming down (it may always move further away from them) */
@@ -687,8 +704,12 @@ function frameBody(t) {
   if (!(camera.fov > 1 && camera.fov < 170)) camera.fov = fb;
   camera.updateProjectionMatrix();
   /* riding your pod down, from inside (game/pod-view.js); then stepping out of it */
-  if (myPod && !myPod.skip) podCockpit(myPod, dt);
-  else podCockpitIdle(dt);
+  if (myPod && !myPod.skip && !podSuspended()) podCockpit(myPod, dt);
+  else {
+    /* paused, a replay or the results over the drop: the cockpit and its lifted fog wait */
+    if (myPod && podSuspended()) podViewEnd(myPod);
+    podCockpitIdle(dt);
+  }
   podMarker(myPod);
   const pd = !!myPod || PV.exit >= 0;
   if (pd !== podding) document.body.classList.toggle("podding", (podding = pd));

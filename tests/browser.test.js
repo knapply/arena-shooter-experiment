@@ -561,13 +561,33 @@ const podSeats = map => {
       await wait(200);
       const high = KA.camera.position.y - KA.myPod.at.y;
       const vis = id => getComputedStyle(document.getElementById(id)).visibility;
-      const cockpit = !document.getElementById("podView").hidden;
-      return { high, at: KA.myPod.at.toArray(), hud: vis("hud"), xh: vis("xh"), cockpit };
+      const pv = document.getElementById("podView");
+      const cockpit = !pv.hidden;
+      /* every drop opens with a shot of your pod from outside */
+      const outside = pv.classList.contains("outside") && KA.myPod.g.visible && !KA.myPod.inside;
+      return { high, at: KA.myPod.at.toArray(), hud: vis("hud"), xh: vis("xh"), cockpit, outside };
     });
     check(
-      skip.hud === "hidden" && skip.xh === "hidden" && skip.cockpit,
-      "the HUD and reticle are hidden while the pod falls, and you ride it down from inside its cockpit",
+      skip.hud === "hidden" && skip.xh === "hidden" && skip.cockpit && skip.outside,
+      "the HUD and reticle are hidden while the pod falls, and the drop opens on your pod from outside",
       skip
+    );
+    /* Jump cuts the opening shot into the cockpit (your pod is not drawn from inside) */
+    await p.keyboard.press("Space");
+    const podCut = await p.evaluate(async () => {
+      for (let i = 0; i < 100 && KA.myPod && !KA.myPod.inside; i++) await new Promise(r => setTimeout(r, 20));
+      const pod = KA.myPod;
+      return {
+        inside: !!(pod && pod.inside),
+        skip: !!(pod && pod.skip),
+        outside: document.getElementById("podView").classList.contains("outside"),
+        hidden: !!(pod && !pod.g.visible),
+      };
+    });
+    check(
+      podCut.inside && !podCut.skip && !podCut.outside && podCut.hidden,
+      "Jump cuts the opening shot straight into the cockpit",
+      podCut
     );
     await p.keyboard.press("Space");
     const skipped = await p.evaluate(async at => {
@@ -1598,6 +1618,8 @@ const podSeats = map => {
       await A.evaluate(() => KA.EXT.pickups().map(p => [p.id, p.avail, p.availAt, KA.now])),
       trail,
     ]);
+    /* (the friend's claim reaches the host a moment later) */
+    await until(A, () => !KA.EXT.pickups()[0].avail, null, 10000);
     check(await A.evaluate(() => !KA.EXT.pickups()[0].avail), "host marks the sniper taken");
     await A.evaluate(() => {
       for (const a of CTF.UI.game().agents) if (!a.human) a.respawnAt = 0;
@@ -2068,6 +2090,97 @@ const podSeats = map => {
       "every pilot lands on their own half and the match is on",
       ctfDown
     );
+    /* ---------- the drop gives way to the pause menu, leaving and the end of a match ---------- */
+    const Q = await open(ctx, { tag: "Q" });
+    pages.push(Q);
+    await Q.waitForTimeout(600);
+    await Q.evaluate(() => Object.assign(KA.SET, { intros: false, dropIn: false, killCam: false }));
+    await Q.click("#deploy");
+    /* die and wait for your pod, the world slowed so the drop is still on when we look */
+    const dropNow = () =>
+      Q.evaluate(async () => {
+        KA.CON.run("timescale 1");
+        KA.me.spawnT = -99;
+        KA.hurtMe(999, { w: "self", name: "test" });
+        for (let i = 0; i < 400 && !KA.myPod; i++) await new Promise(r => setTimeout(r, 25));
+        KA.CON.run("timescale 0.15");
+        return !!KA.myPod;
+      });
+    const podState = () =>
+      Q.evaluate(() => ({
+        pod: !!KA.myPod,
+        cockpit: !document.getElementById("podView").hidden,
+        podding: document.body.classList.contains("podding"),
+        paused: KA.paused,
+        pauseMenu: !document.getElementById("pause").hidden,
+        far: KA.camera.far,
+        fogFar: KA.scene.fog.far,
+        pods: KA.PODS.length,
+      }));
+    const ground = await Q.evaluate(() => ({ far: KA.camera.far, fogFar: KA.scene.fog.far }));
+    const q1 = await dropNow();
+    await Q.keyboard.press("Escape");
+    /* (a frame or two for the game to notice) */
+    await Q.evaluate(async () => {
+      for (let i = 0; i < 100 && !document.getElementById("podView").hidden; i++)
+        await new Promise(r => setTimeout(r, 20));
+    });
+    const pausedMid = await podState();
+    await Q.evaluate(() => document.getElementById("resume").click());
+    await Q.evaluate(async () => {
+      for (let i = 0; i < 100 && document.getElementById("podView").hidden; i++)
+        await new Promise(r => setTimeout(r, 20));
+    });
+    const resumed = await podState();
+    check(
+      q1 &&
+        pausedMid.paused &&
+        pausedMid.pauseMenu &&
+        pausedMid.pod &&
+        !pausedMid.cockpit &&
+        pausedMid.fogFar === ground.fogFar &&
+        resumed.pod &&
+        resumed.cockpit &&
+        !resumed.paused,
+      "pausing mid-drop hides the cockpit under the pause menu, and resuming brings the drop back",
+      { pausedMid, resumed, ground }
+    );
+    await Q.evaluate(() => document.getElementById("leave").click());
+    await Q.waitForTimeout(100);
+    const left = await podState();
+    check(
+      !left.pod &&
+        !left.cockpit &&
+        !left.podding &&
+        left.pods === 0 &&
+        left.far === ground.far &&
+        left.fogFar === ground.fogFar,
+      "leaving mid-drop cancels it cleanly: no pod, no cockpit, the HUD and the fog back as they were",
+      { left, ground }
+    );
+    /* the match ends while your pod falls: Play of the Game and the results take the screen */
+    await Q.evaluate(() => document.getElementById("deploy").click());
+    const q2 = await dropNow();
+    const ended = await Q.evaluate(async () => {
+      KA.CON.run("timescale 1");
+      for (let i = 0; i < 15; i++) KA.addKill("rifle", false, "x");
+      for (let i = 0; i < 600 && !(KA.REPLAY.active || KA.POST.open); i++)
+        await new Promise(r => setTimeout(r, 25));
+      /* (a frame or two for the game to notice) */
+      for (let i = 0; i < 100 && !document.getElementById("podView").hidden; i++)
+        await new Promise(r => setTimeout(r, 20));
+      return {
+        over: KA.FFA.over,
+        cover: KA.REPLAY.active || KA.POST.open,
+        cockpit: !document.getElementById("podView").hidden,
+      };
+    });
+    check(
+      q2 && ended.over && ended.cover && !ended.cockpit,
+      "when the match ends mid-drop, the replay and results are not covered by the cockpit",
+      ended
+    );
+    await Q.evaluate(() => KA.CON.run("timescale 1"));
     /* ---------- developer console (?dev) ---------- */
     const D = await open(ctx, { tag: "dev", hash: "#dev" });
     pages.push(D);

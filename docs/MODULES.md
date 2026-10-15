@@ -52,7 +52,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/firing.js` | 295 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `engage` `SHOT` `r3` `targetId` `engageShot` `perfectKill` `burstLeft` `fireStep` `dryT` `dryFire` `fire` `startReload` … (+4) |
 | `src/core/input.js` | 248 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `keysT` `A` `P` `pressCode` `mouseL` `mouseR` … (+8) |
 | `src/core/gamepad.js` | 250 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
-| `src/game/deploy.js` | 76 | `savePrefs` `leaveGame` |
+| `src/game/deploy.js` | 77 | `savePrefs` `leaveGame` |
 | `src/game/modes.js` | 171 | `MODE_DEFS` `defineMode` `startMode` `modeList` `BOT_LEVELS` `BOT_STEP` `botLevel` `botLevelName` `botAdapt` `botAdaptNote` `modeRules` `FFA` `ffaStandings` `ffaStart` `ffaTick` `ffaEnd` `ffaRestart` `postToMenu` |
 | `src/net/messages.js` | 339 | `MSG` |
 | `src/net/playback.js` | 91 | `Playback` |
@@ -67,11 +67,11 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/highlights.js` | 120 | `HL` `HL_KEEP` `HL_BEFORE` `HL_AFTER` `HL_POWER` `hlConsider` `hlTick` `playOfTheGame` |
 | `src/game/stats.js` | 334 | `ASSIST_WINDOW` `GUN_WEAPONS` `STATS` `WEAPON_NAMES` `endCarry` `endBall` `statRoster` `powerHeld` `statScore` |
 | `src/game/intro.js` | 126 | `INTRO` `_ic` `centroid` `playIntro` `endIntro` `introFrame` |
-| `src/game/pods.js` | 758 | `PODS` `podsOn` `podLeft` `podSpeed` `podHeat` `POD_R` `POD_NOSE` `POD_BURY` `POD_EYE` `POD_BLOW` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `inSolid` `solidDepth` `podBlocked` … (+38) |
+| `src/game/pods.js` | 770 | `PODS` `podsOn` `podLeft` `podSpeed` `podHeat` `podHidden` `POD_R` `POD_NOSE` `POD_BURY` `POD_EYE` `POD_BLOW` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `inSolid` `solidDepth` … (+39) |
 | `src/game/supply-pods.js` | 334 | `SUPPLY` `SUP_STATE` `SUPPLY_FALL` `SUPPLY_EARLY` `SUPPLY_H` `SUPPLY_BURY` `SUPPLY_N` `SUP_BEACON` `supplyAtlas` `atlasUv` `SUP_GREY` `SUP_STRIPE` `SUP_GLOW` `SUP_DRAW` `_spM` `supplyDraw` `launchSupply` `disposeSupply` … (+5) |
-| `src/game/pod-view.js` | 225 | `PV` `PV_RISE` `PV_END` `pvEl` `pvLerp` `pvBuild` `pvSet` `pvShow` `pvHide` `_pvP` `podCockpit` `podCockpitLand` `podCockpitIdle` |
+| `src/game/pod-view.js` | 292 | `PV` `PV_OPEN` `PV_RISE` `PV_END` `pvEl` `pvLerp` `pvBuild` `pvSet` `pvShow` `pvHide` `podOpening` `podEndOpening` `_pvA` `_pvB` `_pvL` `podOpeningShot` `_pvP` `podCockpit` … (+2) |
 | `src/ui/pings.js` | 153 | `PINGS` `PING_LIFE` `PING_TAP` `_pgD` `_pgO` `_pgV` `pingTarget` `dangerTarget` `dangerSfx` `addPing` `sharePing` `pingNow` `pingLayer` `updPings` |
-| `src/game/loop.js` | 871 | `pend` `prevPos` `rpos` `physAcc` `clWas` `thrK` `thrS` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` … (+41) |
+| `src/game/loop.js` | 892 | `pend` `prevPos` `rpos` `physAcc` `clWas` `thrK` `thrS` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` … (+43) |
 | `src/ui/settings-ui.js` | 530 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `saveSoonT` `saveSoon` `saveNow` `closeSettings` `onSetChange` `renderSettings` `searchHit` `renderSearch` `settingRow` `renderKeys` `renderPadBinds` `padCapture` … (+7) |
 | `src/ui/menu.js` | 255 | `MENU` `MENU_SIZES` `MODE_RULE_KEY` `menuMode` `sizeList` `mapName` `mmssM` `modeGoal` `modeLimits` `saveMenu` `MCARDS` `menuHost` `pickMode` `fillSelect` `setTeam` `menuSummary` `renderMenu` |
 | `src/weapons/pickups.js` | 405 | `PICKMAT` `PICKACC` `PICKHOT` `NADEMAT` `NADEGLOW` `NADE_CAP` `wName` `capWord` `MODEL_PARTS` `floorParts` `weaponModel` `labelSprite` `PK_VIS` `RING_GEO` `ringMat` `DROP_RING` `pkVisual` `powerSpawn` … (+17) |
@@ -81,7 +81,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 41 | `_sd` `RANGE` `updAim` |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 301 | `KA_API` |
+| `src/game/exports.js` | 305 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 147 | `TFP` |
