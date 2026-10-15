@@ -467,6 +467,381 @@ The new AI raises every baseline:
 - **Six-pilot free-for-all** (spawn deaths 2% before the spread spawns).
 - **Movement** is still judged best by playtesting (below).
 
+## The skill ladder: floor and ceiling
+
+The goal, measured end to end: a new player shouldn't be crushed, and every step up in skill should still pay. This pass played every pairing of the four AI levels:
+
+- Legendary over Heroic (L / H), Heroic over Normal (H / N), Normal over Recruit (N / R);
+- Legendary over Normal (L / N), Heroic over Recruit (H / R), Legendary over Recruit (L / R);
+- mixed teams both ways.
+
+It covered every mode, on both maps where the mode supports them, and then looked for changes that soften the floor without flattening the top.
+
+### Method
+
+- `SKILLONLY=1 PAIR=normal,recruit node tools/tune.js` plays only the skill matches, sides swapped every other match.
+- Besides the better side's kill share, each run reports a `ladder` block:
+  - the worse side's K/D;
+  - its median time to death once hit;
+  - the share of its deaths by melee (including the carriers' one-hit swing), by grenade, and within 3 s of spawning;
+  - the matches it won, and those where it touched the objective;
+  - both sides' headshot share of their kills.
+- `MIXR=1` puts one weak pilot in a strong team (`MIX=1`, from pass four, puts one strong pilot in a weak team).
+- Each cell is one pairing in one mode on one map: seed sets 100 and 700, 48 matches each, 4 minutes, four null controls. That gives 14 readings per pairing per candidate. Candidates that looked promising were run again on seed sets 1300 and 1900 with 96 matches each.
+- The AI's levels are a model of player skill (reaction, aim error, sight, dodging), not the target. `AI_SKILL` was not touched. Only the sandbox, the rules and the maps were candidates.
+
+### What the ladder looks like
+
+- **The ceiling is steep and doesn't flatten.**
+  - L / H is as steep as or steeper than H / N in every mode: the better side takes 67 to 72% of kills against 64 to 68% (Oddball: 85 to 86% against 79 to 80%).
+  - Precision is what separates the top: headshots are 59 to 76% of a Legendary side's kills, and 31 to 43% for Normal over Recruit.
+  - Oddball is the steepest mode (Legendary holds the skull 95 to 96% of the time against Heroic). Free-for-all is the gentlest.
+- **The floor is hard but not hopeless.**
+  - Recruit's K/D against Normal is 0.24 to 0.26 in Oddball, 0.32 to 0.42 in Slayer and capture the flag, and 0.58 in free-for-all.
+  - A Recruit side reaches the objective often (a flag grab in 81% of capture-the-flag matches, the skull in nearly every Oddball match), but wins only in capture the flag (5 to 9%) and almost never elsewhere.
+  - **Melee is the most common way a Recruit dies** (24 to 35% of their deaths; 54% in Oddball, mostly the skull carrier's one-hit swing). Grenades are 3 to 6%.
+- **Spawn camping on Proving Grounds in Slayer.** Within 3 s of spawning die:
+  - 20% of a Heroic side's deaths against Legendary;
+  - 39% of a Normal side's;
+  - 50% of a Recruit side's.
+
+  Every other mode and map stays under 6% (Slayer on Twin Foundry: 11% and 23% for Normal and Recruit against Legendary).
+- **Mixed teams.** One strong pilot carries a weak team far; one weak pilot drags a strong team less (better team's share of kills, null means of two seed sets):
+
+| | Four strong vs four weak | One strong + three weak vs four weak | Four strong vs three strong + one weak |
+|---|---|---|---|
+| Legendary, Recruit: CTF / Slayer arena / Slayer Twin Foundry | 0.95 / 0.95 / 0.93 | 0.72 / 0.73 / 0.72 | 0.60 / 0.57 / 0.58 |
+| Legendary, Recruit: Oddball arena / Twin Foundry (skull time) | 0.98 / 0.97 (0.99) | 0.80 / 0.81 (0.87 / 0.89) | 0.70 / 0.71 (0.82 / 0.85) |
+| Legendary, Normal: CTF / Slayer arena / Slayer Twin Foundry | 0.85 / 0.87 / 0.84 | 0.64 / 0.62 / 0.64 | 0.57 / 0.54 / 0.56 |
+| Legendary, Normal: Oddball arena / Twin Foundry (skull time) | 0.94 / 0.93 | 0.72 / 0.71 (0.80 / 0.79) | 0.67 / 0.66 (0.77 / 0.78) |
+
+### Candidates, across the whole ladder
+
+Each candidate's effect on the better side's kill share at each rung: the mean over seven mode-and-map cells and two seed sets, how many of the 14 readings went up, and how many cleared the noise. For the floor, a lower share is gentler; for the ceiling (L / H, H / N), higher is steeper.
+
+| Candidate (default) | L / H | H / N | N / R | Recruit, once engaged | Read |
+|---|---|---|---|---|---|
+| **Melee takes at most 40 shield** (all of it) | 0.000 (9 up) | +0.001 (7 up) | +0.004 (8 up) | **+0.16 s to death** (11 of 14 up, 7 clear); confirmed +0.17 s (13 of 14 up, 11 clear) on seeds 1300/1900 | **Changed.** See below |
+| Carbine headshot 14 (11) | +0.003 (11 up) | **+0.006 (11 up)** | +0.002 | 0.03 s sooner | Steepens every rung. Confirmed on seeds 1300/1900 (L / H +0.005, 12 of 14 up, 7 clear), but N / R +0.005 too, and Recruit K/D −0.009. It raises the ceiling **and** the floor's slope: not taken |
+| Carbine headshot 9 | −0.004 | −0.001 | 0.000 | +0.03 s | Flattens the top: no |
+| Magnum headshot 40 / 60 (50) | 0.000 / 0.000 | +0.004 / −0.001 | −0.006 / +0.001 | +0.03 s / +0.01 s | Within the noise |
+| Aim magnetism on spread weapons, 0.1 / 0.2 m | +0.003 / +0.002 | +0.003 / −0.001 | +0.002 / −0.002 | ±0.02 s | Within the noise. The AI's misses are wide (aim error), not near misses, so a fatter target changes little; worth a human playtest, where near misses are common |
+| Spawn protection 0.6 s / 2.4 s (1.2 s) | **+0.005 (12 up)** / −0.003 | +0.002 / +0.002 | +0.001 / 0.000 | ±0.01 s | Shorter steepens L / H a little, but not on seeds 1300/1900 (+0.002); longer cut spawn deaths only 2 points in the arena's Slayer |
+| Health 55 (45) | 0.000 | **−0.006 (2 up)** | −0.004 | +0.06 s | Softens the middle of the ladder: no |
+| Recharge delay 2.5 s (3 s) | 0.000 | +0.005 | +0.006 | Recruit K/D −0.010 | Steeper floor: no |
+| AI grenades halved | −0.001 | −0.001 | +0.005 (10 up) | Recruit K/D −0.006 | Fewer grenades make the floor steeper (H / R +0.009, 13 up): grenades are a leveller, keep them |
+| Frag radius 3.6 m (4.2) | +0.002 | +0.004 | +0.001 | 0.00 s | Within the noise |
+| Carbine spread 0.008 (0.012) | −0.003 | +0.001 | −0.002 | Recruit K/D +0.005 | Within the noise |
+| Power respawns ×0.67 | 0.000 | 0.000 | +0.001 | −0.04 s | Within the noise |
+| **Spread team spawns on Proving Grounds** (4 more a team, in its own corners; Slayer and Oddball there) | Slayer: +0.012, +0.017 (clear) | Slayer: +0.021, +0.027 | Slayer: +0.023, +0.026 | Slayer spawn deaths: L / N 39% → 30%, L / H 20% → 17% | Cuts spawn camping, but the stronger side then wins even more at every rung (a weaker team spawns more spread out and is picked off one at a time); Oddball mixed (−0.046 to +0.017). Not taken; a playtest item |
+| Spawn safety: sight weight 120, nearness 40 (60, 30) | ±0.008 | ±0.008 | ±0.019 | ±1 point of spawn deaths | Mixed signs |
+
+### What changed
+
+**A melee blow takes at most 40 of a shield**, not all of it. From the back a blow still kills, and so does a blow on a pilot with no shield left; a flag or skull carrier's swing is unchanged. In practice:
+
+- from full shields it takes three blows, not two;
+- a blow still finishes a pilot the guns have opened up.
+
+The evidence:
+
+- Recruits live 0.16 s longer once engaged (0.17 s on two more seed sets), and up to 0.33 s longer in free-for-all.
+- Normal gains 0.05 s against Heroic, and the top of the ladder doesn't move (L / H 0.000).
+- Every rung's kill share stays within the noise.
+
+It was the lab "Lighter melee" (PROPOSALS W5). Pass four found it lengthens fights by 0.08 to 0.25 s (0.44 s for Recruits) without costing skill share. It's now the rule (`MELEE.shield` in `data/weapons.js`), and the Labs toggle is gone (`ruMeleeShield` in `tools/tune.js`; 999 is the old rule).
+
+Nothing else cleared the bar: every other candidate either stayed inside the noise or steepened the floor along with the ceiling.
+
+### The ladder, before → after
+
+Null means of seed sets 100 and 700, 48 skill matches per seed set. The share is the better side's share of kills (Oddball also gives the share of time holding the skull); the other columns are about the worse side, except the last.
+
+**Capture the flag, Twin Foundry**
+
+| Pairing | Better side's kill share | Worse side's K/D | Worse side's time to death | Its deaths by melee | Its spawn deaths | Its wins | Better side's headshot kills |
+|---|---|---|---|---|---|---|---|
+| L / H | 0.719 → 0.719 | 0.39 → 0.39 | 2.62 → 2.61 s | 6% → 6% | 4% → 4% | 2% → 1% | 59% → 59% |
+| H / N | 0.679 → 0.677 | 0.47 → 0.47 | 3.05 → 3.08 s | 15% → 15% | 2% → 1% | 4% → 4% | 48% → 49% |
+| N / R | 0.703 → 0.713 | 0.42 → 0.40 | 2.69 → 2.80 s | 34% → 35% | 2% → 2% | 9% → 5% | 34% → 34% |
+| L / N | 0.851 → 0.857 | 0.17 → 0.17 | 2.51 → 2.55 s | 8% → 8% | 6% → 5% | 0% → 0% | 59% → 59% |
+| H / R | 0.843 → 0.846 | 0.19 → 0.18 | 2.71 → 2.75 s | 21% → 21% | 3% → 3% | 0% → 0% | 47% → 48% |
+| L / R | 0.940 → 0.941 | 0.06 → 0.06 | 2.30 → 2.30 s | 11% → 11% | 8% → 8% | 0% → 0% | 60% → 59% |
+
+**Slayer, Proving Grounds**
+
+| Pairing | Better side's kill share | Worse side's K/D | Worse side's time to death | Its deaths by melee | Its spawn deaths | Its wins | Better side's headshot kills |
+|---|---|---|---|---|---|---|---|
+| L / H | 0.692 → 0.694 | 0.44 → 0.43 | 2.20 → 2.22 s | 4% → 4% | 20% → 20% | 0% → 0% | 70% → 69% |
+| H / N | 0.682 → 0.684 | 0.46 → 0.45 | 3.12 → 3.16 s | 10% → 10% | 3% → 3% | 0% → 0% | 53% → 53% |
+| N / R | 0.753 → 0.751 | 0.32 → 0.33 | 3.19 → 3.31 s | 26% → 26% | 2% → 2% | 0% → 0% | 40% → 41% |
+| L / N | 0.865 → 0.867 | 0.15 → 0.15 | 1.86 → 1.88 s | 4% → 4% | 39% → 38% | 0% → 0% | 70% → 70% |
+| H / R | 0.877 → 0.880 | 0.14 → 0.14 | 2.57 → 2.63 s | 13% → 13% | 12% → 11% | 0% → 0% | 56% → 56% |
+| L / R | 0.952 → 0.955 | 0.05 → 0.05 | 1.59 → 1.61 s | 5% → 5% | 50% → 50% | 0% → 0% | 74% → 74% |
+
+**Slayer, Twin Foundry**
+
+| Pairing | Better side's kill share | Worse side's K/D | Worse side's time to death | Its deaths by melee | Its spawn deaths | Its wins | Better side's headshot kills |
+|---|---|---|---|---|---|---|---|
+| L / H | 0.695 → 0.695 | 0.43 → 0.43 | 2.48 → 2.50 s | 4% → 4% | 5% → 5% | 0% → 0% | 69% → 68% |
+| H / N | 0.679 → 0.684 | 0.46 → 0.45 | 3.16 → 3.25 s | 10% → 9% | 1% → 1% | 0% → 0% | 54% → 55% |
+| N / R | 0.726 → 0.725 | 0.37 → 0.37 | 3.16 → 3.22 s | 24% → 24% | 1% → 0% | 0% → 0% | 40% → 40% |
+| L / N | 0.837 → 0.834 | 0.19 → 0.20 | 2.23 → 2.27 s | 4% → 4% | 11% → 11% | 0% → 0% | 71% → 71% |
+| H / R | 0.852 → 0.853 | 0.17 → 0.17 | 2.65 → 2.70 s | 13% → 12% | 4% → 3% | 0% → 0% | 57% → 58% |
+| L / R | 0.931 → 0.931 | 0.07 → 0.07 | 1.79 → 1.81 s | 6% → 5% | 23% → 23% | 0% → 0% | 76% → 76% |
+
+**Free-for-all, Proving Grounds**
+
+| Pairing | Better side's kill share | Worse side's K/D | Worse side's time to death | Its deaths by melee | Its spawn deaths | Its wins | Better side's headshot kills |
+|---|---|---|---|---|---|---|---|
+| L / H | 0.669 → 0.668 | 0.62 → 0.63 | 3.42 → 3.44 s | 4% → 4% | 4% → 3% | 0% → 0% | 68% → 69% |
+| H / N | 0.639 → 0.635 | 0.68 → 0.68 | 4.17 → 4.26 s | 11% → 11% | 1% → 1% | 1% → 3% | 55% → 54% |
+| N / R | 0.676 → 0.675 | 0.58 → 0.58 | 3.93 → 4.20 s | 31% → 32% | 1% → 0% | 1% → 2% | 41% → 40% |
+| L / N | 0.775 → 0.782 | 0.40 → 0.39 | 3.45 → 3.54 s | 6% → 6% | 3% → 3% | 0% → 0% | 69% → 69% |
+| H / R | 0.775 → 0.776 | 0.39 → 0.39 | 3.88 → 4.07 s | 20% → 21% | 1% → 1% | 0% → 0% | 56% → 56% |
+| L / R | 0.863 → 0.866 | 0.23 → 0.23 | 3.22 → 3.34 s | 12% → 12% | 3% → 3% | 0% → 0% | 70% → 70% |
+
+**Free-for-all, Twin Foundry**
+
+| Pairing | Better side's kill share | Worse side's K/D | Worse side's time to death | Its deaths by melee | Its spawn deaths | Its wins | Better side's headshot kills |
+|---|---|---|---|---|---|---|---|
+| L / H | 0.672 → 0.670 | 0.61 → 0.62 | 3.32 → 3.37 s | 4% → 4% | 2% → 2% | 0% → 0% | 70% → 70% |
+| H / N | 0.641 → 0.637 | 0.67 → 0.68 | 4.15 → 4.24 s | 12% → 12% | 1% → 0% | 2% → 1% | 56% → 56% |
+| N / R | 0.674 → 0.671 | 0.58 → 0.59 | 3.87 → 4.20 s | 31% → 31% | 0% → 0% | 2% → 3% | 43% → 43% |
+| L / N | 0.777 → 0.782 | 0.40 → 0.39 | 3.39 → 3.46 s | 6% → 6% | 2% → 2% | 0% → 0% | 70% → 69% |
+| H / R | 0.772 → 0.776 | 0.40 → 0.39 | 3.83 → 4.02 s | 20% → 21% | 0% → 0% | 0% → 0% | 58% → 57% |
+| L / R | 0.858 → 0.865 | 0.24 → 0.23 | 3.15 → 3.30 s | 12% → 12% | 2% → 2% | 0% → 0% | 71% → 71% |
+
+**Oddball, Proving Grounds**
+
+| Pairing | Better side's kill share (skull time) | Worse side's K/D | Worse side's time to death | Its deaths by melee | Its spawn deaths | Its wins | Better side's headshot kills |
+|---|---|---|---|---|---|---|---|
+| L / H | 0.861 → 0.862 (0.948 → 0.948) | 0.16 → 0.16 | 2.20 → 2.20 s | 11% → 11% | 1% → 1% | 0% → 0% | 68% → 69% |
+| H / N | 0.798 → 0.793 (0.885 → 0.877) | 0.25 → 0.26 | 2.30 → 2.32 s | 28% → 28% | 0% → 0% | 0% → 0% | 52% → 52% |
+| N / R | 0.791 → 0.804 (0.862 → 0.874) | 0.26 → 0.24 | 2.19 → 2.23 s | 54% → 54% | 1% → 0% | 1% → 1% | 31% → 31% |
+| L / N | 0.940 → 0.942 (0.981 → 0.981) | 0.06 → 0.06 | 2.18 → 2.20 s | 12% → 12% | 1% → 1% | 0% → 0% | 67% → 68% |
+| H / R | 0.932 → 0.933 (0.972 → 0.971) | 0.07 → 0.07 | 2.16 → 2.15 s | 32% → 31% | 1% → 1% | 0% → 0% | 51% → 52% |
+| L / R | 0.977 → 0.976 (0.993 → 0.992) | 0.02 → 0.02 | 2.01 → 2.01 s | 15% → 15% | 2% → 2% | 0% → 0% | 66% → 66% |
+
+**Oddball, Twin Foundry**
+
+| Pairing | Better side's kill share (skull time) | Worse side's K/D | Worse side's time to death | Its deaths by melee | Its spawn deaths | Its wins | Better side's headshot kills |
+|---|---|---|---|---|---|---|---|
+| L / H | 0.848 → 0.844 (0.959 → 0.957) | 0.18 → 0.18 | 2.24 → 2.25 s | 10% → 10% | 0% → 0% | 0% → 0% | 68% → 68% |
+| H / N | 0.790 → 0.796 (0.886 → 0.894) | 0.26 → 0.25 | 2.35 → 2.38 s | 29% → 29% | 0% → 0% | 1% → 1% | 51% → 51% |
+| N / R | 0.799 → 0.794 (0.865 → 0.853) | 0.25 → 0.26 | 2.14 → 2.21 s | 54% → 54% | 0% → 0% | 3% → 3% | 31% → 31% |
+| L / N | 0.932 → 0.933 (0.986 → 0.985) | 0.07 → 0.07 | 2.22 → 2.20 s | 12% → 12% | 0% → 0% | 0% → 0% | 66% → 67% |
+| H / R | 0.923 → 0.921 (0.967 → 0.965) | 0.08 → 0.09 | 2.21 → 2.20 s | 32% → 32% | 0% → 0% | 0% → 0% | 51% → 50% |
+| L / R | 0.972 → 0.974 (0.993 → 0.993) | 0.03 → 0.03 | 2.00 → 2.01 s | 14% → 14% | 0% → 0% | 0% → 0% | 66% → 67% |
+
+
+### Restricted play: which verbs matter at which level
+
+This experiment and the ones after it, down to the score limits, ran on the AI levels as they were before the Recruit pass (next section). The ladder and the melee checks were then repeated on the retuned levels (below).
+
+One team plays with one verb or weapon taken away (`ruMinus`), against an identical team at the same level. The table shows the restricted team's kill share, then its win rate in brackets. Each figure is the mean over the seven mode and map cells and two seed sets, with 32 matches each. **Essential** means a share or win rate below 0.35. A **dud** is a share within 0.03 of the null controls (0.50).
+
+| Taken away | Recruit | Normal | Heroic | Legendary | Reading |
+|---|---|---|---|---|---|
+| melee | 0.24 (0.00) | 0.40 (0.20) | 0.44 (0.28) | 0.48 (0.38) | essential at the floor, fading with skill |
+| magnum | 0.55 (0.66) | 0.52 (0.58) | 0.49 (0.44) | 0.42 (0.13) | essential at the top only |
+| carbine | 0.44 (0.30) | 0.48 (0.42) | 0.53 (0.70) | 0.54 (0.80) | essential at the floor; at the top, doing without it helps |
+| clamber | 0.41 (0.26) | 0.46 (0.28) | 0.46 (0.31) | 0.48 (0.33) | essential everywhere (it is navigation) |
+| thrust | 0.47 (0.37) | 0.48 (0.43) | 0.48 (0.43) | 0.48 (0.40) | a small, steady edge at every level |
+| sprint | 0.49 (0.43) | 0.51 (0.48) | 0.53 (0.54) | 0.54 (0.66) | a cost at the top (sprinting lowers the gun) |
+| back melee, frag, plasma, sniper, rocket, slide, pound, charge, hover | 0.47–0.52 | | | | duds at every level |
+
+The "prefer" decoys behave as expected. Preferring the magnum gives exactly the same result as taking the carbine away, and preferring the carbine the same as taking the magnum away, because the two are one switch in the AI. Preferring grenades is a dud. Preferring melee costs as much as losing it: a Recruit team that lunges too often takes 0.37 of the kills and wins 12% of its matches.
+
+What this says about the ceiling: **the skill expression moves from melee and the carbine at the floor to the magnum at the top.** That is the intended shape. The automatic is forgiving, and the precision pistol is where a strong player pulls away.
+
+The duds are a limit of the AI, not proof that the verbs are useless. Its grenades almost never land within 3 m of an enemy (0–2% of throws at every level). It never uses the power weapons' spawns as a plan. Slide, pound, charge and hover are movement it only partly expresses. These are the verbs a human playtest has to judge.
+
+### The Recruit melee audit
+
+The targets were:
+- melee causes under half of a Recruit side's deaths;
+- Legendary over Normal (L / N) stays at 0.83 or more;
+- Normal over Recruit (N / R) sits between 0.65 and 0.75.
+
+The audit ran L / N, N / R and Recruit against Recruit (R / R) in all seven mode and map cells, on two seed sets with 48 matches each. It compared four variants: the lunge 25% and 50% shorter (2.3 m → 1.725 m / 1.15 m), the back-hit cone narrowed from ±70° to ±60° and ±40°, and the melee cooldown 0.3 s longer.
+
+Where the game stands with the 40-shield rule:
+- In Slayer and free-for-all, melee causes 0.40–0.50 of the weaker side's deaths. In capture the flag it causes 0.54–0.61, and in Oddball 0.67–0.78, where most of it is the skull carrier's one-hit swing.
+- L / N is 0.84–0.94, or 0.78 in free-for-all, where four pilots share the kills.
+- N / R is 0.67–0.75, but 0.79–0.80 in Oddball.
+- Recruit melee swings connect 75–80% of the time.
+
+| Variant | Recruit deaths to melee | Recruit time to death | N / R | L / N |
+|---|---|---|---|---|
+| lunge −25% | −0.02 to −0.10 | +0.0 to +0.3 s | +0.01 to +0.03 outside Oddball | within noise |
+| lunge −50% | −0.17 to −0.24 (Oddball −0.07 to −0.10) | +0.2 to +0.6 s | **+0.01 to +0.036** outside Oddball, −0.01 to −0.03 in Oddball | within noise |
+| back cone ±60° / ±40° | within ±0.03 | within noise | within noise | within noise |
+| cooldown +0.3 s | within ±0.04 | within noise | within noise | within noise |
+
+**Nothing changed.** Only a much shorter lunge meets the melee target. It does so by moving deaths from the fist to the gun, where the stronger side is better still. N / R rises in five of the seven cells, by more than the noise in free-for-all. Restricted play (above) says the same thing from the other side: a Recruit team without melee takes 0.24 of the kills. **Melee is the floor's equaliser**, and the 40-shield cap (shipped earlier in this pass) already took away the part of it that punished being hit first. Narrowing the back cone or lengthening the cooldown doesn't measurably change anything.
+
+The AI's competence per level: swing hit rate is flat across levels (0.75–0.87). Frags land within 3 m of an enemy 0–2% of the time at every level. The AI's skill ladder is a ladder of aim and reaction, not of melee spacing or grenade play.
+
+### A rating ladder: how many steps of skill the game can tell apart
+
+tools/tune.js adds six levels between the four real ones, for simulation only: `r33`, `r67`, `n33`, `n67`, `h33` and `h67`. Each blends the neighbouring rows of `AI_SKILL` a third and two thirds of the way. Every pair of the ten levels played each other in all seven mode and map cells. That is 45 pairs × 7 cells × 2 seed sets, with 24 matches each.
+
+The analysis fits two Bradley–Terry ratings:
+- kill share, by least squares on the logit;
+- match wins, by maximum likelihood.
+
+Depth is the number of steps up from Recruit, each step to the lowest level that beats the current one at least 60%, 65% or 75% of the time.
+
+| Cell | Legendary's rating (logit; Recruit 0) | Depth by kill share 60 / 65 / 75% | Depth by wins | Adjacent steps (kill share) |
+|---|---|---|---|---|
+| CTF, Twin Foundry | 2.66 | 4 / 3 / 2 | 9 / 9 / 7 | 0.56–0.60 |
+| Slayer, Proving Grounds | 2.93 | 5 / 3 / 2 | 9 / 9 / 8 | 0.54–0.60 |
+| Slayer, Twin Foundry | 2.58 | 4 / 3 / 2 | 9 / 9 / 9 | 0.55–0.58 |
+| Free-for-all, Proving Grounds | 1.93 | 4 / 2 / 1 | 9 / 9 / 8 | 0.54–0.57 |
+| Free-for-all, Twin Foundry | 1.96 | 4 / 2 / 1 | 9 / 9 / 7 | 0.54–0.57 |
+| Oddball, Proving Grounds | 4.07 | 7 / 6 / 3 | 9 / 9 / 8 | 0.58–0.70 |
+| Oddball, Twin Foundry | 3.90 | 7 / 5 / 3 | 9 / 8 / 8 | 0.57–0.68 |
+
+What the round robin shows:
+- **The ladder is clean.** Not one of the 120 triples per cell is intransitive. A longer step is never weaker than a shorter one inside it. No higher level ever lost a pairing on kill share.
+- **Every rung counts all the way up.** Each third of a level is worth a 54–60% kill share, about as much at the top as at the bottom. By match wins, nearly every one of the nine steps clears 60%. A small edge in aim and reaction turns into wins reliably, which is the high ceiling the pass is after.
+- **The modes agree on the ordering.** The ratings correlate at r ≥ 0.993 between every pair of cells. They differ only in how far apart the levels sit. Oddball spreads them widest, and its steps steepen toward the top (0.65–0.70 between the highest levels). Free-for-all spreads them least, because four-way kills dilute any one pilot's share.
+
+### Capture the flag: carrier mobility (simulation variants only)
+
+The carrier rules stay as they are: they were a design choice, and these were measured as simulation knobs only. Each figure is the difference from the null controls on seed sets 100 and 700, 48 matches each, on Twin Foundry. At the defaults, Legendary against Legendary captures 0.46 times a match. 14% of carries end in a capture, 34% of carriers are still alive 20 m out, and 17% are still alive 10 s after the grab.
+
+| Variant | Legendary captures a match (L / L) | Capture rate L / L | Carrier alive at 20 m | N / N captures | L / N |
+|---|---|---|---|---|---|
+| (a) sprint allowed, thrust still drops the flag | −0.05, +0.09 | −0.03, +0.03 | −0.02, +0.08 | −0.22, −0.24 | within noise |
+| (b) carrier 20% faster | **+0.07, +0.26** | +0.03, +0.09 | +0.05, +0.16 | **+0.51, +0.31** | within noise |
+| (c) carrier takes 0.8× damage | −0.03, +0.01 | 0.00, +0.02 | +0.04, 0.00 | +0.40, +0.01 | +0.014, +0.005 |
+
+The **faster carrier** is the only variant that raises captures on both seeds at every level, without moving the kill shares. It is the one to try as a Lab if captures feel too rare. Letting the carrier sprint does nothing for Legendary and costs Normal captures (−0.22 and −0.24 a match). Damage resistance helps only where the carrier was already escaping.
+
+### Spawn safety: a sight-line veto
+
+The spawn picker can drop every spot an enemy can see, or that lies within 15, 20 or 25 m of one. If every spot is vetoed, it uses the usual choice. This ran at L / N, L / H, L / L and N / R, in Slayer on both maps and in Oddball on Proving Grounds.
+
+- **The target was already met.** At the defaults, the spawn hazard ratio is 0.01–0.47 at every pairing: the death rate in a life's first 3 s over the rate 10–30 s in. That is well under 1.0 everywhere. Spawn protection already makes the first seconds of a life the safest.
+- **The veto changes nothing.** In 120 readings, the kill share and the hazard ratio move only within the noise, and the hazard ratio not in one direction.
+- **The ratio misses spawn camping, and so does the veto.** On Proving Grounds, a Normal side facing Legendary loses 38% of its lives within 3 s of spawning. Those lives are short because the fight never left the spawn, not because the first seconds are more dangerous than later ones. With the veto at 15, 20 or 25 m, that share stays at 38% (±0.01 on both seed sets). Spreading team spawns (above) is the lever that worked.
+
+### Twin Foundry: one-way flag-room exits
+
+`modDropExits` removes the two step blocks at the outer sides of each flag room. Those exits become drops: a carrier can leave by them, but a defender can no longer climb back in that way. The hypothesis was that the middle lane would fall under 45–48% and Legendary captures would rise by 30%.
+
+- At the defaults, pilots already spend 44% of their time in the middle lane at L / L, 55% at N / N and 59–60% at N / R and L / N.
+- With one-way exits, the lanes don't move (±0.01). Legendary captures rise by +0.05 and +0.13 a match (+11% and +28%), but N / N moves −0.09 to +0.09 and N / R −0.28 to +0.06. That is mixed on the two seeds, so the map is unchanged.
+
+**Collision prediction.** tools/collision-report.js predicts where the two teams' shortest paths meet at about the same time. It compares those cells with where deaths actually happen, using a `HEAT=1` run of 48 matches at even skill on Twin Foundry capture the flag. The predicted cells are the middle of the map. They do see more deaths: 4.2 a cell, against 3.3 on cells only one team's paths use. But the rank correlation is only 0.12, and only 2 of the 10 likeliest collision points are among the 10 deadliest cells. Most of the deadliest cells are in and just outside the two bases, where attackers meet defenders who aren't travelling at all. Paths that cross predict the mid fights. The base fights need the defenders' positions as well.
+
+### Capture the flag: respawn timing
+
+The CTF respawn is 6 s. The runs tried 5, 7 and 9 s, plus a wave respawn: everyone who died comes back together on the next 6 s tick.
+
+| Respawn | L / L captures | N / N captures | L / N | N / R | Time spent fighting |
+|---|---|---|---|---|---|
+| 5 s | −0.07 to +0.03 | −0.14 to −0.21 | −0.010, −0.012 | −0.013, −0.012 | +0.01 |
+| 7 s | +0.07 to +0.09 | −0.05 to +0.07 | +0.016, +0.012 | +0.011, +0.001 | −0.01 |
+| 9 s | **+0.26 to +0.47** | **+0.39 to +0.40** | **+0.044, +0.033** | +0.013, 0.000 | −0.02 to −0.05 |
+| 6 s waves | **+0.51 to +0.55** | **+0.40 to +0.43** | **+0.033, +0.023** | +0.024, +0.012 | −0.04 to −0.10 |
+
+Longer respawns and waves turn capture the flag into a game of captures: they nearly double them at Legendary. But they also steepen the top of the ladder (L / N +0.02 to +0.04, beyond the noise) without softening the floor. A defence that died lets the attackers walk in, and Legendary kills faster, so that gap counts for more. **The 6 s respawn stays.** It's a feel question for a playtest: whether more captures are worth more one-sided matches.
+
+### Oddball: the carrier 10% slower
+
+At the defaults:
+- the skull changes hands 4–10 times a match at L / N and L / H, 12–16 at N / R and 19–24 at N / N;
+- in 94–96% of L / N and L / H matches, the last change of lead comes in the first few percent of the match. That is the lame-duck time: the share of a match after the last change of lead.
+
+A carrier 10% slower adds 0–2 changes of hands, and at N / N 4–7 points of lame-duck time. Kill shares and wins move only within the noise, so it isn't worth taking.
+
+### Score limits: does a longer match decide more?
+
+These runs played each mode at half, the default and twice the default score limit, with a 15 minute cap: L / N, N / R and H / N, 48 matches each, on seed set 100. The table shows the better side's kill share, then its win rate.
+
+| Mode | Limits | L / N | N / R | H / N |
+|---|---|---|---|---|
+| Capture the flag | 2 / 3 / 6 | 0.85 / 0.85 / 0.85 (all won) | 0.72 / 0.71 / 0.72 (0.96–0.98) | 0.67 / 0.67 / 0.67 (0.95) |
+| Slayer, Proving Grounds | 25 / 50 / 100 | 0.86 / 0.87 / 0.87 (all won) | 0.74 / 0.76 / 0.76 (all won) | 0.68 / 0.69 / 0.69 (all won) |
+| Free-for-all, Proving Grounds | 8 / 15 / 30 | 0.79 / 0.79 / 0.78 (all won) | 0.68 / 0.67 / 0.68 (0.96–1.00) | 0.61 / 0.62 / 0.63 (0.85 / 0.92 / 0.96) |
+| Oddball, Proving Grounds | 60 / 120 / 240 | 0.95 / 0.94 / 0.94 (all won) | 0.77 / 0.79 / 0.80 (0.98–1.00) | 0.75 / 0.79 / 0.80 (0.94–1.00) |
+
+The kill share barely depends on the limit. Only Oddball's lower rungs steepen with a longer match, by up to 0.05. A whole level is decisive at any length: the better side wins 85–100% of matches even at half the limit. A longer match mainly adds lame-duck time, the share of the match after the last change of lead:
+- capture the flag 0.48–0.53 → 0.69–0.82;
+- Slayer 0.83–0.91 → 0.96–0.98.
+
+Half limits would give the weaker side more matches still open at the end without changing who wins, so they suit a quick-play or training playlist. The defaults stay.
+
+### Measures added for this pass
+
+Every tools/tune.js run now reports a `std` block:
+- a bootstrap 95% interval on the skill share, over whole matches;
+- the better side's win rate beside its kill share;
+- Kaplan–Meier survival at 3, 10, 30 and 60 s of a life, and the spawn hazard ratio;
+- the escape rate (engagements survived);
+- the share of time spent fighting;
+- melee swing hit rate, and grenades landing within 3 m of an enemy;
+- lame-duck time, kill entropy (how evenly kills spread over the pilots), and engagements a minute;
+- carrier survival over time and distance, and the share of carries that score;
+- the share of pilot time in each lane, and melee's share of each side's deaths.
+
+The decision rules were the same throughout:
+- a change counts only if it holds on both seed sets and clears the null controls' spread;
+- it is rejected if it raises the skill share while a guard measure (captures, changes of hands, engagements, escapes) falls by more than 15%.
+
+The power check: with 48 matches and four null controls, the noise on a kill share is ±0.004 to ±0.046 depending on the cell. Oddball at even skill is the noisiest. So an effect under about 0.02 can only be read where it repeats across cells.
+
+### Run, and not run
+
+| Experiment | Status |
+|---|---|
+| Restricted play, every verb and weapon, every level and mode, with "prefer" decoys | run (above) |
+| Recruit melee audit (lunge −25% / −50%, back cone ±60° / ±40°, cooldown +0.3 s, Recruit without melee) | run (above); no change |
+| Rating ladder: ten levels, round robin, Bradley–Terry, depth, transitivity, agreement between modes | run (above) |
+| CTF carrier mobility (sprint, +20% speed, 0.8× damage) | run as simulation knobs only; the carrier rules are a design choice and stay |
+| Spawn sight-line veto at 15 / 20 / 25 m | run; no effect |
+| Twin Foundry one-way flag-room exits, and collision prediction against kill heat | run; map unchanged |
+| CTF respawn 5 / 7 / 9 s and a 6 s wave | run; 6 s stays |
+| Oddball carrier 10% slower | run; no effect worth taking |
+| Score limits at 0.5×, 1× and 2× | run (above) |
+| Aim-assist ablation | **not run**: the AI aims without assist, so there is nothing to remove. Assist is for human pads and needs a playtest. |
+| Oddball always-visible skull waypoint | **not run**: the AI always knows where the skull is. A waypoint changes only what a human sees, so it can't be simulated. |
+
+### The ladder again, on the retuned Recruit and Normal
+
+The experiments above ran on the AI levels as they were before the Recruit pass (next section). After merging it, the whole ladder was played again: every pairing, every mode and map, seed sets 100 and 700, 48 matches each, with null controls. Each cell shows the better side's kill share, before → after.
+
+| Cell | L / H | H / N | N / R | L / N | H / R | L / R |
+|---|---|---|---|---|---|---|
+| Capture the flag, Twin Foundry | .719 → .718 | .677 → **.813** | .713 → .686 | .857 → .925 | .846 → .919 | .941 → .972 |
+| Slayer, Proving Grounds | .694 → .694 | .684 → **.834** | .751 → .763 | .867 → .937 | .880 → .944 | .955 → .979 |
+| Slayer, Twin Foundry | .695 → .695 | .684 → **.795** | .725 → .722 | .834 → .910 | .853 → .925 | .931 → .968 |
+| Free-for-all, Proving Grounds | .668 → .668 | .635 → **.756** | .675 → .692 | .782 → .851 | .776 → .871 | .866 → .918 |
+| Free-for-all, Twin Foundry | .670 → .670 | .637 → **.757** | .671 → .692 | .782 → .851 | .776 → .867 | .865 → .916 |
+| Oddball, Proving Grounds | .862 → .862 | .793 → **.920** | .804 → .718 | .942 → .973 | .933 → .973 | .976 → .989 |
+| Oddball, Twin Foundry | .844 → .844 | .796 → **.911** | .794 → .723 | .933 → .963 | .921 → .962 | .974 → .985 |
+
+- **The floor held.** Normal over Recruit is 0.69–0.76, inside the 0.65–0.75 target almost everywhere. Oddball came down from 0.80 to 0.72.
+- **The ceiling held.** Legendary over Heroic is unchanged, and Legendary over Normal is now 0.85 or more in every cell.
+- **One step is too big.** Normal to Heroic grew from 0.64–0.80 to 0.76–0.92. The retuned Normal reacts in 0.42 s instead of 0.32 s and aims wider (error 0.05 instead of 0.035). Its K/D against Heroic halved (0.45 → 0.20 in Slayer on Proving Grounds). A player who outgrows Normal meets a wall at Heroic. That is a matter for `AI_SKILL`, outside this pass: a Normal between the old and new values, or an extra level between Normal and Heroic, would even it out.
+
+**Melee, re-checked on the new levels.** The new `melee` eagerness (0.5 at Recruit) has already met the audit's melee target in Slayer and free-for-all: melee now causes 0.31–0.38 of a Recruit side's deaths, down from 0.40–0.50. In capture the flag it causes 0.57–0.64. In Oddball it causes 0.69–0.78, mostly the skull carrier's one-hit swing. The audit's conclusions still hold:
+- a 50% shorter lunge raises Normal's share over Recruit by +0.02 to +0.04 in Slayer on both maps and free-for-all on Proving Grounds;
+- a Recruit team without melee falls 0.06–0.20 further behind Normal, and 0.11–0.41 behind an equal Recruit team.
+
+### For a human playtest
+
+- **Spawn camping in Proving Grounds Slayer** is the floor's biggest problem: half of a Recruit side's deaths against Legendary come within 3 s of spawning. Spread team spawns cut it by a quarter but let the stronger side win more. Worth playing to see which feels better, along with spawn-side swaps between rounds or a longer spawn invulnerability that ends when you fire.
+- **Aim magnetism on the carbine.** The AI's misses are too wide for it to matter, but human misses with an automatic often aren't.
+- **The skull carrier's one-hit swing** causes most Recruit deaths in Oddball (54%, 59–61% on the retuned levels). Pass four showed the carrier needs it (without it, captures fall 7 to 12 points and the skull changes hands 8 to 13 more times a match), so the question is a feel one: whether a warning on the carrier's swing would be enough.
+- **Normal to Heroic** is now the steepest step on the ladder (0.76–0.92). Worth a player who beats Normal comfortably trying Heroic, before `AI_SKILL` is touched.
+- **Capture the flag pace.** A 9 s respawn or a 6 s wave nearly doubles captures but lets the stronger side pull further ahead. A faster carrier (+20%) raises captures without moving kill shares, so it is the one to try as a Lab.
+- **Half score limits** for a quick-play or training playlist: the same winners, with the match still open for longer.
+- **Movement skill** (strafe timing, thrust dodges, slide jumps) is something the AI only partly expresses, so these simulations measure the ladder of aim and reaction. The movement end of the ceiling still needs players.
+
 ## Recruit against a new player
 
 Playtest: "the bots are way too good on Recruit... they absolutely crush me." The simulations had only ever played bots against bots, so this pass adds a model of a new human player and tunes the low levels against it.

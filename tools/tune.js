@@ -46,6 +46,12 @@
                                                  level, the rest of the worse); LIMITS=1 the real score limits
                                                  (LIMIT=n sets one), for who wins and lead changes
      HEAT=1 node tools/tune.js                  map heat in the output; node tools/heat-report.js reads it
+     SKILLONLY=1 PAIR=normal,recruit node tools/tune.js   the skill ladder: only the skill matches, with
+                                                 the worse side's K/D, time to death, deaths by melee,
+                                                 grenade and spawn, its wins and objective touches, and
+                                                 both sides' headshot share ("ladder" in the output);
+                                                 MIXR=1 puts one pilot of the worse level on the worse team
+                                                 and the rest of the better level
    Besides skill share, time to kill and grenades, every variant reports: the spread of time to kill
    (quartiles), each weapon's share of kills and of time held, how much skill decides fights with each
    weapon (the better team's share of that weapon's kills), captures and time to capture, the share of
@@ -77,7 +83,11 @@ const SEED = +(process.env.SEED || 100),
   MIX = +(process.env.MIX || 0),
   LIMITS = process.env.LIMITS === "1" || !!process.env.LIMIT,
   LIMIT = +(process.env.LIMIT || 0),
-  HEAT = process.env.HEAT === "1";
+  HEAT = process.env.HEAT === "1",
+  /* SKILLONLY=1: only the skill matches (the ladder measures come from them); MIXR=n: the worse team
+     is n pilots of the worse level and the rest of the better level (does one weak pilot drag a team?) */
+  SKILLONLY = process.env.SKILLONLY === "1",
+  MIXR = +(process.env.MIXR || 0);
 /* NOVICE=1: one pilot on team 0 plays like a new human player instead of a bot (the "novice"): slow to
    react (0.42 s) and to turn, wide aim, no strafing, no movement tech, melee only point-blank. Every
    run then reports how the novice fares (novice in the output): K/D, how often they die a minute, how
@@ -176,7 +186,9 @@ const KNOBS = {
   labScatter: { set: lab("scatter"), def: 0, try: [1] },
   labBeam: { set: lab("beam"), def: 0, try: [1] },
   labPulse: { set: lab("pulse"), def: 0, try: [1] },
-  labMelee: { set: lab("melee"), def: 0, try: [1] },
+  /* the most of a shield a melee blow takes (data/weapons.js MELEE; 999: the whole shield, as before the
+     skill-ladder pass) */
+  ruMeleeShield: { set: v => (K.MELEE.shield = v), def: 40, try: [999, 25] },
   /* lab weapon numbers (for reworks; use with LOCK or the lab on) */
   labBeamDmg: { set: v => Object.assign(W("beam"), { body: v, head: v }), def: 4, try: [5, 6] },
   labBurstDmg: {
@@ -193,6 +205,8 @@ const KNOBS = {
   /* pass four's layout changes undone (the skull spots; the spread free-for-all spawns), to re-measure */
   modOneSkull: { set: mod("oneskull"), def: 0, try: [1] },
   modOldSpawns: { set: mod("oldspawns"), def: 0, try: [1] },
+  modTeamSpread: { set: mod("teamspread"), def: 0, try: [1] },
+  modDropExits: { set: mod("dropexits"), def: 0, try: [1] },
   /* blast gates (both maps), and their cycle in seconds (GATES=1 turns the gates on for every variant) */
   labGates: { set: lab("gates"), def: 0, try: [1] },
   labGateOpen: { set: v => (K.GATE_CYCLE.open = v), def: 10, try: [7, 14] },
@@ -241,6 +255,11 @@ const RULE = {
   /* a dropped flag's return, a dropped skull's reset (seconds; 0 keeps the mode's own) */
   flagReset: 0,
   ballReset: 0,
+  /* seconds of spawn protection (no damage after spawning until you fire) */
+  spawnProt: 1.2,
+  /* aim magnetism for spread weapons: a miss that passes within this many metres of a pilot's body
+     counts as a body hit (0: off) */
+  magnet: 0,
 };
 const RULE_DEF = Object.assign({}, RULE);
 const rule = k => v => (RULE[k] = v);
@@ -261,6 +280,11 @@ Object.assign(KNOBS, {
   ruFlagReset: { set: rule("flagReset"), def: 0, try: [10, 25] },
   ruBallReset: { set: rule("ballReset"), def: 0, try: [8, 25] },
   /* spawn safety weights (world/spawns.js) */
+  ruSpawnProt: { set: rule("spawnProt"), def: 1.2, try: [0.6, 2.4] },
+  ruMagnet: { set: rule("magnet"), def: 0, try: [0.1, 0.2] },
+  /* headshot damage once shields are down: the magnum's and the carbine's */
+  sbMagHead: { set: v => (W("pistol").head = v), def: 50, try: [40, 60] },
+  sbCarbHead: { set: v => (W("carbine").head = v), def: 11, try: [9, 14] },
   spSeen: { set: v => (K.SPAWN_W.seen = v), def: 60, try: [30, 120] },
   spNear: { set: v => (K.SPAWN_W.near = v), def: 30, try: [20, 40] },
   spFight: { set: v => (K.SPAWN_W.fightW = v), def: 1.2, try: [0.6, 2.4] },
@@ -294,6 +318,24 @@ const RES_DEF = K.WEAPON_DATA.map(w => w.reserve);
     }
     return ev;
   };
+  const dmg0 = B.damage;
+  B.damage = function (n, now) {
+    /* world/physics.js Body.damage's spawn protection, with RULE's length */
+    if (
+      RULE.spawnProt !== 1.2 &&
+      !this.dead &&
+      now >= this.spawnT + RULE.spawnProt &&
+      now < this.spawnT + 1.2
+    ) {
+      const s = this.spawnT;
+      this.spawnT = now - 1.2;
+      const r = dmg0.call(this, n, now);
+      this.spawnT = s;
+      return r;
+    }
+    if (RULE.spawnProt > 1.2 && now < this.spawnT + RULE.spawnProt) return false;
+    return dmg0.call(this, n, now);
+  };
   const step0 = B.step;
   B.step = function (dt, inp, ev) {
     const m0 = this.meleeCD;
@@ -313,6 +355,32 @@ const RES_DEF = K.WEAPON_DATA.map(w => w.reserve);
     }
     return r;
   };
+  /* aim magnetism: while an AI pilot fires a spread weapon, a ray that misses a pilot but passes within
+     RULE.magnet of the body's axis (at a height inside the body) counts as a body hit */
+  let spreadShot = false;
+  const shoot0 = A.shoot;
+  A.shoot = function (tgt) {
+    spreadShot = !!RULE.magnet && !this.armed && !this.gun().precision;
+    try {
+      return shoot0.call(this, tgt);
+    } finally {
+      spreadShot = false;
+    }
+  };
+  const rt0 = K.rayTarget;
+  K.rayTarget = function (o, d, p, h, maxT) {
+    const r = rt0(o, d, p, h, maxT);
+    if (r || !spreadShot) return r;
+    const L = Math.hypot(d.x, d.z) || 1e-9,
+      t = ((p.x - o.x) * d.x + (p.z - o.z) * d.z) / (L * L);
+    if (t <= 0 || t >= maxT) return null;
+    const dx = o.x + d.x * t - p.x,
+      dz = o.z + d.z * t - p.z,
+      y = o.y + d.y * t;
+    return Math.hypot(dx, dz) < 0.4 + RULE.magnet && y > p.y && y < p.y + h - 0.45
+      ? { t, head: false }
+      : null;
+  };
   const throw0 = A.throwNade;
   A.throwNade = function (type, at) {
     const r = throw0.call(this, type, at);
@@ -323,6 +391,187 @@ const RES_DEF = K.WEAPON_DATA.map(w => w.reserve);
 /* per-pilot skill levels (MIX: mixed-skill teams) */
 function setLevel(a, level) {
   a.skill = () => K.AI_SKILL[level];
+}
+/* interpolated AI levels, for the rating ladder only: r33 and r67 a third and two thirds of the way
+   from Recruit to Normal, n33 n67 from Normal to Heroic, h33 h67 from Heroic to Legendary (the four
+   real levels are untouched) */
+{
+  const LV = ["recruit", "normal", "heroic", "legendary"],
+    S = K.AI_SKILL;
+  for (let i = 0; i < 3; i++)
+    for (const f of [1 / 3, 2 / 3]) {
+      const a = S[LV[i]],
+        b = S[LV[i + 1]],
+        o = {};
+      for (const k of Object.keys(a)) o[k] = typeof a[k] === "number" ? a[k] + (b[k] - a[k]) * f : a[k];
+      S[LV[i][0] + (f < 0.5 ? "33" : "67")] = o;
+    }
+}
+/* ---- restricted play (Jaffe): in a skill match the second team plays without one verb or weapon
+   (ruMinus), or over-uses one (ruPrefer, a decoy). Same levels on both sides (PAIR=normal,normal):
+   the reported skill share is then the full team's share ---- */
+const VERBS = [
+  "",
+  "melee",
+  "backmelee",
+  "frag",
+  "plasma",
+  "magnum",
+  "carbine",
+  "sniper",
+  "rocket",
+  "thrust",
+  "slide",
+  "clamber",
+  "pound",
+  "charge",
+  "sprint",
+  "hover",
+];
+const PREFS = ["", "magnum", "carbine", "nades", "melee"];
+const RP = { minus: "", prefer: "" };
+/** the melee swing being resolved (for the back-melee restriction and swing accuracy) */
+let CUR_SWING = null;
+Object.assign(KNOBS, {
+  ruMinus: { set: v => (RP.minus = VERBS[v]), def: 0, try: VERBS.map((_, i) => i).slice(1) },
+  ruPrefer: { set: v => (RP.prefer = PREFS[v]), def: 0, try: [1, 2, 3, 4] },
+  /* melee reach and back cone (data/weapons.js MELEE): -0.5 is about 120 degrees off the facing
+     (a back cone of +-60), -0.77 about 140 (+-40) */
+  ruMeleeRange: { set: v => (K.MELEE.range = v), def: 2.3, try: [1.725, 1.15] },
+  ruMeleeBack: { set: v => (K.MELEE.back = v), def: -0.35, try: [-0.5, -0.77] },
+  /* flag carriers (not the rules: simulation variants): 1 lets the AI carrier sprint, a speed
+     multiple, a damage multiple; a skull carrier's speed multiple */
+  ruCarrySprint: { set: rule("carrySprint"), def: 0, try: [1] },
+  ruCarrySpeed: { set: rule("carrySpeed"), def: 1, try: [1.2] },
+  ruCarryDmg: { set: rule("carryDmg"), def: 1, try: [0.8] },
+  ruBallSpeed: { set: rule("ballSpeed"), def: 1, try: [0.9] },
+  /* spawn veto: never spawn where an enemy can see the spot or closer than this many metres */
+  ruSpawnVeto: { set: rule("spawnVeto"), def: 0, try: [15, 20, 25] },
+  /* wave respawns: everyone dead comes back on the next multiple of this many seconds */
+  ruWave: { set: rule("wave"), def: 0, try: [6] },
+});
+Object.assign(RULE, { carrySprint: 0, carrySpeed: 1, carryDmg: 1, ballSpeed: 1, spawnVeto: 0, wave: 0 });
+Object.assign(RULE_DEF, { carrySprint: 0, carrySpeed: 1, carryDmg: 1, ballSpeed: 1, spawnVeto: 0, wave: 0 });
+{
+  const A = CTF.Agent.prototype,
+    B = K.Body.prototype;
+  const think0 = A.think;
+  A.think = function (dt) {
+    const inp = think0.call(this, dt);
+    if (!inp) return inp;
+    const b = this.body,
+      m = this.__minus,
+      p = this.__prefer;
+    const charging = b.sprintT > 0.85 && b.ground;
+    if (m === "melee" && !charging) inp.meleeP = false;
+    else if (m === "charge" && charging) inp.meleeP = false;
+    else if (m === "thrust") inp.thrust = false;
+    else if (m === "sprint") inp.sprint = false;
+    else if (m === "slide" && b.ground) inp.crouchP = false;
+    else if (m === "pound" && !b.ground) {
+      inp.crouchP = false;
+      inp.crouch = false;
+      this.poundHold = 0;
+    } else if (m === "hover" && !b.ground) inp.aim = false;
+    /* the melee decoy: swing at anyone close */
+    if (p === "melee" && this.target && this.target.alive && this.pos.distanceTo(this.target.pos) < 5) {
+      inp.meleeP = true;
+      inp.sprint = true;
+    }
+    const G = this.G;
+    if (this.carrying && this.carrying !== G.ball) {
+      if (RULE.carrySprint && inp.f > 0.5) inp.sprint = true;
+      if (RULE.carrySpeed !== 1) b.speedMul = RULE.carrySpeed;
+    } else if (this.carrying && RULE.ballSpeed !== 1) b.speedMul = RULE.ballSpeed;
+    return inp;
+  };
+  const pick0 = A.pickGun;
+  A.pickGun = function (tgt) {
+    const m = this.__minus,
+      p = this.__prefer;
+    if (m === "magnum" || p === "carbine") return 0;
+    if (m === "carbine" || p === "magnum") return 1;
+    return pick0.call(this, tgt);
+  };
+  const throwR = A.throwNade;
+  A.throwNade = function (type, at) {
+    if (this.__minus && this.__minus === type) {
+      this.nadeCD = 1.5;
+      return;
+    }
+    if (this.__stats && type === "frag") this.__stats.thrown++;
+    const r = throwR.call(this, type, at);
+    if (this.__prefer === "nades") this.nadeCD *= 0.3;
+    return r;
+  };
+  const onEvent0 = A.onEvent;
+  A.onEvent = function (type, d) {
+    if (type !== "melee") return onEvent0.call(this, type, d);
+    CUR_SWING = { a: this, hit: false };
+    try {
+      return onEvent0.call(this, type, d);
+    } finally {
+      if (this.__stats) {
+        this.__stats.swings++;
+        if (CUR_SWING.hit) this.__stats.swingHits++;
+      }
+      CUR_SWING = null;
+    }
+  };
+  const behind0 = K.meleeBehind;
+  K.meleeBehind = function (ax, az, vx, vz, yaw) {
+    if (CUR_SWING && CUR_SWING.a.__minus === "backmelee") return false;
+    return behind0(ax, az, vx, vz, yaw);
+  };
+  /* a frag's blast: did it land within 3 m of an enemy? */
+  const own0 = A.nadeOwner;
+  A.nadeOwner = function () {
+    const own = own0.call(this),
+      me = this;
+    if (!own.__ladder) {
+      own.__ladder = true;
+      const ex = own.onExplode;
+      own.onExplode = (c, type, stuck) => {
+        if (me.__stats && type === "frag") {
+          let d = 99;
+          for (const e of me.G.foes(me.team)) if (e.alive) d = Math.min(d, e.body.pos.distanceTo(c));
+          me.__stats.frags++;
+          if (d < 3) me.__stats.fragNear++;
+        }
+        return ex(c, type, stuck);
+      };
+    }
+    return own;
+  };
+  const stepC = B.step;
+  B.step = function (dt, inp, ev) {
+    const r = stepC.call(this, dt, inp, ev);
+    if (this.__noClamber && this.clamber) this.clamber = null;
+    return r;
+  };
+  /* the spawn veto: drop every spot an enemy can see or is within RULE.spawnVeto of (all of them
+     vetoed: the usual choice) */
+  const V3 = K.THREE.Vector3,
+    _e = new V3(),
+    _d = new V3();
+  const seen = (s, f) => {
+    _e.set(f.pos.x, f.pos.y + (f.h || K.H_STAND) - 0.2, f.pos.z);
+    _d.set(s[0], s[1] + 1.2, s[2]).sub(_e);
+    const L = _d.length();
+    if (L < 1e-3) return true;
+    _d.multiplyScalar(1 / L);
+    return K.rayWorld(_e, _d, L) >= L - 0.3;
+  };
+  const spawn0 = K.pickSpawn;
+  K.pickSpawn = function (points, foes, fights, t, rand01, taken) {
+    if (RULE.spawnVeto > 0 && foes && foes.length) {
+      const ok = points.filter(s =>
+        foes.every(f => Math.hypot(s[0] - f.pos.x, s[2] - f.pos.z) >= RULE.spawnVeto && !seen(s, f))
+      );
+      if (ok.length) points = ok;
+    }
+    return spawn0(points, foes, fights, t, rand01, taken);
+  };
 }
 const LAB_KNOBS = Object.keys(KNOBS).filter(k => /^(lab|mod)/.test(k));
 const RULE_KNOBS = Object.keys(KNOBS).filter(k => /^(ru|sp)/.test(k));
@@ -338,6 +587,8 @@ KNOBS.sbCarbSpread.def = W("carbine").spread;
 KNOBS.sbCarbBloom.def = W("carbine").bloom;
 KNOBS.sbMagDmg.def = W("pistol").body;
 KNOBS.sbMagRate.def = W("pistol").rate;
+KNOBS.sbMagHead.def = W("pistol").head;
+KNOBS.sbCarbHead.def = W("carbine").head;
 KNOBS.sbSnipeDmg.def = W("sniper").body;
 KNOBS.sbSnipeRate.def = W("sniper").rate;
 KNOBS.sbRocketSplash.def = W("rocket").splash;
@@ -368,7 +619,11 @@ for (const [k, f] of [
   KNOBS[k].def = K.TUNE_DEF[f];
 KNOBS.sbNadeThrow.def = K.NADE_TUNE.throw;
 KNOBS.sbNadeBounce.def = K.NADE_TUNE.bounce;
+let CUR_MINUS_TEAM = -1;
 function resetAll() {
+  RP.minus = RP.prefer = "";
+  K.MELEE.range = 2.3;
+  K.MELEE.back = -0.35;
   for (const k of Object.keys(KNOBS)) KNOBS[k].set(KNOBS[k].def);
   Object.assign(RULE, RULE_DEF);
   K.WEAPON_DATA.forEach((w, i) => (w.reserve = RES_DEF[i]));
@@ -400,6 +655,8 @@ function match(diff, seed, lock) {
   }
   /* everything but capture the flag plays the full time (a score limit would end matches at different
      lengths) */
+  /* free-for-all: the two skill levels alternate between pilots, so "team" below is the pilot's half */
+  const side = a => (G.ffa ? a.team % 2 : a.team);
   const G = CTF.Game({
     mode: "sim",
     render: false,
@@ -431,8 +688,31 @@ function match(diff, seed, lock) {
     const better = diff[0] === PAIR[0] ? 0 : 1;
     G.teams[better].agents.forEach((a, i) => setLevel(a, i < MIX ? PAIR[0] : PAIR[1]));
   }
-  /* free-for-all: the two skill levels alternate between pilots, so "team" below is the pilot's half */
-  const side = a => (G.ffa ? a.team % 2 : a.team);
+  if (MIXR && diff[0] !== diff[1]) {
+    const worse = diff[0] === PAIR[0] ? 1 : 0;
+    G.teams[worse].agents.forEach((a, i) => setLevel(a, i < MIXR ? PAIR[1] : PAIR[0]));
+  }
+  /* restricted play: the second team of a skill match (CUR_MINUS_TEAM) plays without RP.minus or
+     prefers RP.prefer */
+  for (const a of G.agents) {
+    a.__stats = { swings: 0, swingHits: 0, thrown: 0, frags: 0, fragNear: 0 };
+    if (CUR_MINUS_TEAM >= 0 && side(a) === CUR_MINUS_TEAM) {
+      a.__minus = RP.minus;
+      a.__prefer = RP.prefer;
+      if (RP.minus === "clamber") a.body.__noClamber = true;
+    }
+  }
+  const arm0 = G.arm;
+  G.arm = (a, type, ammo) =>
+    a.__minus && a.__minus === K.WEAPON_DATA[type].key ? undefined : arm0(a, type, ammo);
+  /* wave respawns */
+  const kill0 = G.kill;
+  G.kill = (v, k, type, head) => {
+    const r = kill0(v, k, type, head);
+    if (RULE.wave && v.respawnAt) v.respawnAt = Math.ceil(v.respawnAt / RULE.wave) * RULE.wave;
+    return r;
+  };
+
   const out = {
     k: [0, 0],
     cap: [0, 0],
@@ -462,9 +742,29 @@ function match(diff, seed, lock) {
     final: null,
     /* kills each pilot scored (spread, and the free-for-all leader's margin) */
     pk: [],
+    /* per side (team; free-for-all: the skill half): deaths, by melee and by grenade, spawn deaths,
+       headshot kills, times from first hit to death, flag grabs */
+    sd: [
+      { deaths: 0, melee: 0, nade: 0, spawn: 0, head: 0, ttd: [], grabs: 0 },
+      { deaths: 0, melee: 0, nade: 0, spawn: 0, head: 0, ttd: [], grabs: 0 },
+    ],
     /* HEAT=1: where pilots were (once a second), died and killed from, in 2 m cells; spawn deaths
        per spawn point */
     heat: HEAT ? { occ: {}, death: {}, kill: {}, spawn: {}, zocc: {}, zdeath: {}, zkill: {} } : null,
+    /* lives: [seconds alive, 1 died / 0 still alive at the end, side]; engagements and escapes
+       (an engagement that ended without the victim dying) by the victim's side; seconds alive and
+       seconds fighting (fired or was hit in the last second) by side; carries for survival curves:
+       [seconds, metres, 2 captured / 1 lost / 0 still carrying]; melee and frag accuracy by side */
+    lives: [],
+    eng: [0, 0],
+    esc: [0, 0],
+    alive: [0, 0],
+    fight: [0, 0],
+    carryKM: [],
+    comp: [
+      { swings: 0, swingHits: 0, thrown: 0, frags: 0, fragNear: 0 },
+      { swings: 0, swingHits: 0, thrown: 0, frags: 0, fragNear: 0 },
+    ],
   };
   const takenAt = new Map(),
     carryFrom = new Map();
@@ -473,6 +773,11 @@ function match(diff, seed, lock) {
   const bump = (o, k) => (o[k] = (o[k] || 0) + 1);
   const carryEnd = (a, how) => {
     if (!carryFrom.has(a)) return;
+    out.carryKM.push([
+      +(G.t - carryFrom.get(a)).toFixed(1),
+      +(a.__cd || 0).toFixed(1),
+      how === "capture" ? 2 : how === "reset" ? 0 : 1,
+    ]);
     out.carry.push(+(G.t - carryFrom.get(a)).toFixed(1));
     out.carryEnd[how]++;
     carryFrom.delete(a);
@@ -495,10 +800,21 @@ function match(diff, seed, lock) {
         out.wk[w] = (out.wk[w] || 0) + 1;
         if (side(k) === 0) out.wk0[w] = (out.wk0[w] || 0) + 1;
       }
+      if (v.__sp != null) out.lives.push([+(G.t - v.__sp).toFixed(1), 1, side(v)]);
+      if (k && k !== v) {
+        const S = out.sd[side(v)];
+        S.deaths++;
+        if (/melee|charge|flag|skull|pound/.test(w)) S.melee++;
+        if (/frag|stick|plasma|nade|pulse/.test(w)) S.nade++;
+        if (v.__sp != null && G.t - v.__sp < 3) S.spawn++;
+        if (v.__first != null) S.ttd.push(+(G.t - v.__first).toFixed(2));
+        if (d.head && k.team !== v.team) out.sd[side(k)].head++;
+      }
       if (v.__sp != null && G.t - v.__sp < 3) {
         out.spawnDeaths++;
         if (out.heat && v.__spAt) bump(out.heat.spawn, v.__spAt);
       }
+      v.__sp = null;
       if (out.heat && k && k !== v) {
         bump(out.heat.death, cell(v.pos));
         bump(out.heat.kill, cell(k.pos));
@@ -526,7 +842,10 @@ function match(diff, seed, lock) {
       takenAt.delete(d.flag);
     } else if (t === "flagTaken") {
       out.grabs++;
+      out.sd[side(d.by)].grabs++;
       carryFrom.set(d.by, G.t);
+      d.by.__cd = 0;
+      d.by.__cp = d.by.pos.clone();
       /* time to capture runs from the grab at the stand */
       if (!takenAt.has(d.flag) && d.flag.pos.distanceTo(CTF.FLAG_HOME[d.flag.team]) < 2)
         takenAt.set(d.flag, G.t);
@@ -534,6 +853,8 @@ function match(diff, seed, lock) {
     else if (t === "ballTaken") {
       out.turns++;
       carryFrom.set(d.by, G.t);
+      d.by.__cd = 0;
+      d.by.__cp = d.by.pos.clone();
     } else if ((t === "flagDrop" || t === "ballDrop") && d.by && !d.by.dead && !d.killer)
       carryEnd(d.by, "dropped");
   };
@@ -590,8 +911,16 @@ function match(diff, seed, lock) {
     };
     const on = a.onHit.bind(a);
     a.onHit = (n, type, head, att) => {
-      if (a.__first == null || G.t - a.__lastHit > 3) a.__first = G.t;
+      if (a.__first == null || G.t - a.__lastHit > 3) {
+        /* a new engagement; the last one (if any) ended without a death: an escape */
+        if (a.__first != null) out.esc[side(a)]++;
+        out.eng[side(a)]++;
+        a.__first = G.t;
+      }
       a.__lastHit = G.t;
+      if (CUR_SWING && att === CUR_SWING.a) CUR_SWING.hit = true;
+      if (RULE.carryDmg !== 1 && a.carrying && a.carrying !== G.ball && n < 999)
+        n = Math.max(1, Math.round(n * RULE.carryDmg));
       /* RULE.carryHit 0: a carrier's swing follows the normal melee rule */
       if (!RULE.carryHit && n >= 999 && (type === "flag" || type === "skull") && att && att.pos)
         n = K.meleeDamage(a.body.shield, K.meleeBehind(att.pos.x, att.pos.z, a.pos.x, a.pos.z, a.body.yaw));
@@ -614,6 +943,13 @@ function match(diff, seed, lock) {
     /* once a second: what each pilot holds, and where the ones in the middle of the map are */
     for (const a of G.agents) {
       if (!a.alive) continue;
+      const s = side(a);
+      out.alive[s]++;
+      if (G.t - (a.firedT || -9) < 1 || G.t - (a.__lastHit || -99) < 1) out.fight[s]++;
+      if (a.carrying && a.__cp) {
+        a.__cd += a.__cp.distanceTo(a.pos);
+        a.__cp.copy(a.pos);
+      }
       const key = K.WEAPON_DATA[a.held()].key;
       out.held[key] = (out.held[key] || 0) + 1;
       if (lanes && Math.abs(a.pos.z) < 30) out.lanes[CTF.worldLane(a.pos.x)]++;
@@ -633,6 +969,21 @@ function match(diff, seed, lock) {
     if (l >= 0) leader = l;
   }
   out.final = scores();
+  /* lame-duck time: the share of the match after the last change of lead (Isaksen) */
+  let last = -1,
+    lead = -1;
+  timeline.forEach((s, i) => {
+    const l = s[0] > s[1] ? 0 : s[1] > s[0] ? 1 : -1;
+    if (l >= 0 && l !== lead) {
+      last = i;
+      lead = l;
+    }
+  });
+  out.lameDuck = last >= 0 && timeline.length ? +(1 - last / timeline.length).toFixed(3) : null;
+  for (const a of G.agents) {
+    if (a.alive && a.__sp != null) out.lives.push([+(G.t - a.__sp).toFixed(1), 0, side(a)]);
+    for (const k of Object.keys(out.comp[0])) out.comp[side(a)][k] += a.__stats[k];
+  }
   out.pk = G.agents.map(a => a.k);
   if (nv) {
     if (nv.alive && nv.__sp != null) nvLives.push(G.t - nv.__sp);
@@ -651,6 +1002,8 @@ if (!isMainThread) {
   parentPort.on("message", job => {
     resetAll();
     if (job.knob) KNOBS[job.knob].set(job.value);
+    /* restricted play applies to the second team of a skill match (the first is the full agent) */
+    CUR_MINUS_TEAM = job.kind === "skill" ? (job.m % 2 === 1 ? 0 : 1) : -1;
     const r = match(job.diff, job.seed, job.lock);
     parentPort.postMessage({ id: job.id, r });
   });
@@ -686,14 +1039,14 @@ function main() {
      the setting and not from which matches were drawn */
   const jobs = [];
   variants.forEach((vr, vi) => {
-    vr.left = MATCHES * 2;
+    vr.left = MATCHES * (SKILLONLY ? 1 : 2);
     vr.res = [];
     for (let m = 0; m < MATCHES; m++) {
       const swap = m % 2 === 1;
       const base = { vi, m, knob: vr.knob, value: vr.value, lock: vr.lock };
       jobs.push({ ...base, kind: "skill", diff: swap ? [PAIR[1], PAIR[0]] : [PAIR[0], PAIR[1]] });
       jobs[jobs.length - 1].seed = SEED + m;
-      jobs.push({ ...base, kind: "even", diff: [EVEN, EVEN], seed: SEED + 1000 + m });
+      if (!SKILLONLY) jobs.push({ ...base, kind: "even", diff: [EVEN, EVEN], seed: SEED + 1000 + m });
     }
   });
   jobs.forEach((j, i) => (j.id = i));
@@ -784,6 +1137,56 @@ const median = a => {
   const s = a.slice().sort((x, y) => x - y);
   return s.length ? s[s.length >> 1] : 0;
 };
+/** a 95% interval for the better side's kill share, resampling whole matches (seeded, so repeatable) */
+function bootCI(pm) {
+  let s = 12345;
+  const r = () => (s = (s * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const out = [];
+  for (let b = 0; b < 1000; b++) {
+    let x = 0,
+      y = 0;
+    for (let i = 0; i < pm.length; i++) {
+      const m = pm[(r() * pm.length) | 0];
+      x += m[0];
+      y += m[1];
+    }
+    out.push(x / Math.max(1, x + y));
+  }
+  out.sort((a, b) => a - b);
+  return [+out[25].toFixed(3), +out[974].toFixed(3)];
+}
+/** Kaplan-Meier survival at the given times, from [time, event 1 / censored 0] */
+function km(list, at) {
+  const s = list.slice().sort((a, b) => a[0] - b[0]);
+  let n = s.length,
+    S = 1,
+    i = 0;
+  const out = {};
+  for (const t of at) {
+    while (i < s.length && s[i][0] <= t) {
+      if (s[i][1]) S *= 1 - 1 / n;
+      n--;
+      i++;
+    }
+    out[t] = +S.toFixed(3);
+  }
+  return out;
+}
+/** the spawn hazard ratio: deaths a second alive in the first 3 s over the same in 10-30 s */
+function hazard(lives) {
+  const rate = (a, b) => {
+    let d = 0,
+      exp = 0;
+    for (const [T, died] of lives) {
+      if (T <= a) continue;
+      exp += Math.min(T, b) - a;
+      if (died && T <= b) d++;
+    }
+    return exp > 0 ? d / exp : 0;
+  };
+  const late = rate(10, 30);
+  return late > 0 ? +(rate(0, 3) / late).toFixed(2) : null;
+}
 const quart = (a, q) => {
   const s = a.slice().sort((x, y) => x - y);
   return s.length ? +s[Math.min(s.length - 1, Math.floor(s.length * q))].toFixed(2) : 0;
@@ -819,6 +1222,8 @@ const extra = r => ({
   ttc: r.ttc,
   lanes: r.lanes,
   lifeShots: r.lifeShots,
+  ladder: r.ladder,
+  std: r.std,
 });
 /** a variant's matches: skill matches (legendary on team 0, then swapped sides) and even matches */
 /** the novice (NOVICE=1) over a variant's even matches */
@@ -862,6 +1267,32 @@ function summarize(vr) {
     leads = 0,
     leadWon = 0,
     leadChanges = 0;
+  /* the ladder: the worse side in the skill matches (W) against the better (B) */
+  const LW = { deaths: 0, melee: 0, nade: 0, spawn: 0, head: 0, ttd: [], grabs: 0, kills: 0 },
+    LB = { deaths: 0, melee: 0, nade: 0, spawn: 0, head: 0, ttd: [], grabs: 0, kills: 0 };
+  /* the standing measures (skill matches): per side W (worse) and B (better) */
+  const SX = [0, 1].map(() => ({
+    lives: [],
+    eng: 0,
+    esc: 0,
+    alive: 0,
+    fight: 0,
+    comp: { swings: 0, swingHits: 0, thrown: 0, frags: 0, fragNear: 0 },
+  }));
+  const perMatch = [],
+    carryKM = [],
+    lame = [],
+    entropy = [];
+  let sCaps = 0,
+    sTurns = 0,
+    sMin = 0,
+    sEng = 0;
+  const sLanes = [0, 0, 0],
+    meleeK = [0, 0];
+  let lMatches = 0,
+    lWins = 0,
+    lDecided = 0,
+    lTouch = 0;
   const carry = [],
     carryEnds = { capture: 0, killed: 0, dropped: 0, reset: 0 },
     spreads = [],
@@ -886,6 +1317,57 @@ function summarize(vr) {
       capN += r.cap[1 - L];
       holdL += (r.hold || [0, 0])[L];
       holdN += (r.hold || [0, 0])[1 - L];
+      if (r.lives) {
+        /* SX[0] the better side, SX[1] the worse */
+        for (const [T, died, s] of r.lives) SX[s === L ? 0 : 1].lives.push([T, died]);
+        for (const s of [0, 1]) {
+          const X = SX[s === L ? 0 : 1];
+          X.eng += r.eng[s];
+          X.esc += r.esc[s];
+          X.alive += r.alive[s];
+          X.fight += r.fight[s];
+          for (const k of Object.keys(X.comp)) X.comp[k] += r.comp[s][k];
+        }
+        perMatch.push([r.k[L], r.k[1 - L]]);
+        carryKM.push(...r.carryKM);
+        if (r.lameDuck != null) lame.push(r.lameDuck);
+        const pk = (r.pk || []).filter(v => v > 0),
+          n = pk.reduce((a, b) => a + b, 0);
+        if (n > 0 && r.pk.length > 1)
+          entropy.push(-pk.reduce((a, v) => a + (v / n) * Math.log(v / n), 0) / Math.log(r.pk.length));
+        sCaps += r.cap[0] + r.cap[1];
+        sTurns += r.turns || 0;
+        sMin += r.min || MINUTES;
+        sEng += r.eng[0] + r.eng[1];
+        for (let i = 0; i < 3; i++) sLanes[i] += (r.lanes || [0, 0, 0])[i];
+        /* melee kills by side (r.wk0 is team / skill-half 0's) */
+        for (const [w, n] of Object.entries(r.wk || {}))
+          if (/melee|charge|flag|skull|pound/.test(w)) {
+            const t0 = (r.wk0 || {})[w] || 0;
+            meleeK[0] += L === 0 ? t0 : n - t0;
+            meleeK[1] += L === 0 ? n - t0 : t0;
+          }
+      }
+      if (r.sd) {
+        lMatches++;
+        for (const [S, from] of [
+          [LB, r.sd[L]],
+          [LW, r.sd[1 - L]],
+        ]) {
+          for (const k of ["deaths", "melee", "nade", "spawn", "head", "grabs"]) S[k] += from[k];
+          S.ttd.push(...from.ttd);
+        }
+        LB.kills += r.k[L];
+        LW.kills += r.k[1 - L];
+        /* who won: the score (kills, captures or skull seconds) at the end */
+        const f = r.final || [0, 0];
+        if (f[0] !== f[1]) {
+          lDecided++;
+          if (f[1 - L] > f[L]) lWins++;
+        }
+        /* did the worse side ever touch the objective (flag grabbed, skull held)? */
+        if (r.sd[1 - L].grabs > 0 || (r.hold && r.hold[1 - L] > 0)) lTouch++;
+      }
       add(swk, r.wk);
       /* r.wk0 counts team 0's kills; the better team is team L */
       for (const [w, n] of Object.entries(r.wk || {})) {
@@ -964,6 +1446,70 @@ function summarize(vr) {
     killSpread: spreads.length ? +(spreads.reduce((a, b) => a + b, 0) / spreads.length).toFixed(3) : null,
     margin: margins.length ? +(margins.reduce((a, b) => a + b, 0) / margins.length).toFixed(2) : null,
     heat: HEAT ? heat : undefined,
+    /* the ladder, from the skill matches: the worse side's K/D, median time to death once hit, share
+       of its deaths by melee, by grenade and within 3 s of spawning, the share of matches it won, and
+       of matches where it touched the objective; both sides' headshot share of their kills */
+    ladder: lMatches
+      ? {
+          wKD: +(LW.kills / Math.max(1, LW.deaths)).toFixed(3),
+          wTTD: +median(LW.ttd).toFixed(2),
+          bTTD: +median(LB.ttd).toFixed(2),
+          wMelee: +(LW.melee / Math.max(1, LW.deaths)).toFixed(3),
+          wNade: +(LW.nade / Math.max(1, LW.deaths)).toFixed(3),
+          wSpawn: +(LW.spawn / Math.max(1, LW.deaths)).toFixed(3),
+          wWins: +(lWins / Math.max(1, lDecided)).toFixed(3),
+          wTouch: +(lTouch / lMatches).toFixed(3),
+          wHead: +(LW.head / Math.max(1, LW.kills)).toFixed(3),
+          bHead: +(LB.head / Math.max(1, LB.kills)).toFixed(3),
+          decided: lDecided,
+          wWon: lWins,
+        }
+      : null,
+    /* the standing measures from the skill matches (b better side, w worse): a 95% interval for the
+       skill share from a bootstrap over whole matches; win rate beside kill share; the spawn hazard
+       ratio (deaths a second in the first 3 s alive over 10-30 s alive); survival curves; escape rate;
+       the share of time spent fighting; melee and frag accuracy; lame-duck time and kill entropy;
+       guards (captures and engagements per match and minute, skull changes of hands) */
+    std: perMatch.length
+      ? {
+          skillCI: bootCI(perMatch),
+          bWin: lDecided ? +(1 - lWins / lDecided).toFixed(3) : null,
+          hazard: [hazard(SX[0].lives), hazard(SX[1].lives)],
+          survive: [km(SX[0].lives, [3, 10, 30, 60]), km(SX[1].lives, [3, 10, 30, 60])],
+          escape: SX.map(X => +(X.esc / Math.max(1, X.eng)).toFixed(3)),
+          fighting: SX.map(X => +(X.fight / Math.max(1, X.alive)).toFixed(3)),
+          meleeHit: SX.map(X => +(X.comp.swingHits / Math.max(1, X.comp.swings)).toFixed(3)),
+          swingsPerMin: SX.map(X => +(X.comp.swings / Math.max(0.01, sMin)).toFixed(2)),
+          fragNear: SX.map(X => +(X.comp.fragNear / Math.max(1, X.comp.frags)).toFixed(3)),
+          fragsPerMin: SX.map(X => +(X.comp.frags / Math.max(0.01, sMin)).toFixed(2)),
+          carryHold: carryKM.length
+            ? km(
+                carryKM.map(c => [c[0], c[2] === 1 ? 1 : 0]),
+                [5, 10, 20, 30]
+              )
+            : null,
+          carryDist: carryKM.length
+            ? km(
+                carryKM.map(c => [c[1], c[2] === 1 ? 1 : 0]),
+                [10, 20, 30, 50]
+              )
+            : null,
+          carryCapture: carryKM.length
+            ? +(carryKM.filter(c => c[2] === 2).length / carryKM.length).toFixed(3)
+            : null,
+          lameDuck: lame.length ? +(lame.reduce((a, b) => a + b, 0) / lame.length).toFixed(3) : null,
+          entropy: entropy.length ? +(entropy.reduce((a, b) => a + b, 0) / entropy.length).toFixed(3) : null,
+          capsPerMatch: +(sCaps / perMatch.length).toFixed(2),
+          turnsPerMatch: +(sTurns / perMatch.length).toFixed(1),
+          engPerMin: +(sEng / Math.max(0.01, sMin)).toFixed(1),
+          /* melee's share of each side's kills; lane use in the middle of a lane map */
+          meleeKills: [+(meleeK[0] / Math.max(1, kL)).toFixed(3), +(meleeK[1] / Math.max(1, kN)).toFixed(3)],
+          lanes:
+            sLanes[0] + sLanes[1] + sLanes[2]
+              ? sLanes.map(n => +(n / (sLanes[0] + sLanes[1] + sLanes[2])).toFixed(3))
+              : null,
+        }
+      : null,
     ttc: ttc.length ? +median(ttc).toFixed(1) : null,
     /* rounds fired per life with each weapon (even matches, whole lives): median, 95th and 99th
        percentiles, and how many lives */
