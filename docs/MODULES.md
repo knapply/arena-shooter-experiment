@@ -91,7 +91,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/modes/ctf/nav.js` | 349 |  |
 | `src/modes/ctf/memory.js` | 169 |  |
 | `src/modes/ctf/brain.js` | 628 |  |
-| `src/modes/ctf/agent.js` | 1614 |  |
+| `src/modes/ctf/agent.js` | 1615 |  |
 | `src/modes/ctf/rules.js` | 1073 |  |
 | `src/modes/ctf/ui.js` | 763 |  |
 | `src/net/ctf-host.js` | 813 |  |

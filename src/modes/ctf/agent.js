@@ -953,7 +953,8 @@
           if (!b.ground && !this.poundHold && dy < -1.2 && b.stabT < 1) inp.aim = true; // stabilize over them
           /* in reach: melee (the low levels hesitate: S.melee below 1) */
           const mk = S.melee ?? 1;
-          if (range < K.MELEE.range && b.meleeCD <= 0 && (mk >= 1 || K.rand() < dt * 6 * mk)) inp.meleeP = true;
+          if (range < K.MELEE.range && b.meleeCD <= 0 && (mk >= 1 || K.rand() < dt * 6 * mk))
+            inp.meleeP = true;
           else if (range < 6 && b.sprintT > 0.85 && K.rand() < dt * 10 * genes.charge * mk) {
             inp.meleeP = true;
           }
