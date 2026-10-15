@@ -411,9 +411,14 @@
          host was leaving): the one with the lower peer id keeps it, the other joins them */
       if (H.onRival && !H.yielded) {
         const mine = NET.myPeer();
-        const rival = NET.ctfPeers().find(
-          p => p.presence.ph === "host" && p.presence.H && p.presence.H.id === H.mid && p.peer < mine
-        );
+        const rival =
+          mine &&
+          NET.ctfPeers().find(
+            p =>
+              p.peer < mine &&
+              p.presence.ph === "host" &&
+              ((p.presence.H && p.presence.H.id === H.mid) || p.presence.mid === H.mid)
+          );
         if (rival) {
           H.yielded = true;
           const pr = rival.presence;

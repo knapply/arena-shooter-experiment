@@ -48,6 +48,8 @@ class Relay {
     this.owner = new Map(); /* peer id -> instance */
     this.links = new Map(); /* "a>b" -> state */
     this.t0 = Date.now();
+    /** deliveries this relay made late (its own event loop was busy): [when, ms late, to] */
+    this.late = [];
   }
   async start() {
     const { WebSocketServer } = require("ws");
@@ -119,7 +121,7 @@ class Relay {
       if (m.type !== "data") {
         /* signalling: the link's base latency, never lost */
         const d = this.link(from, to).p.lat;
-        setTimeout(() => this.send(to, buf), d);
+        this.later(to, buf, d);
         continue;
       }
       this.deliver(from, to, m, buf);
@@ -157,14 +159,23 @@ class Relay {
       if (lost) d += Math.max(200, p.lat * 3);
       const at = Math.max(now + d, l.last.get(m.cid) || 0);
       l.last.set(m.cid, at);
-      setTimeout(() => this.send(to, buf), at - now);
+      this.later(to, buf, at - now);
     } else {
       if (lost) {
         l.lost++;
         return;
       }
-      setTimeout(() => this.send(to, buf), d);
+      this.later(to, buf, d);
     }
+  }
+  /** deliver after d ms, noting when the relay itself (not the simulated link) is late */
+  later(to, buf, d) {
+    const due = Date.now() + d;
+    setTimeout(() => {
+      const lt = Date.now() - due;
+      if (lt > 60) this.late.push([Date.now(), lt, to]);
+      this.send(to, buf);
+    }, d);
   }
   stats() {
     const o = {};
@@ -388,6 +399,25 @@ async function migrate(I, mode) {
               hosting: !!g && !g.map && !g.over && !!KA.EXT,
               hp: g && g.map ? g.hostPeer : null,
               fresh: !!g && !!g.map && performance.now() - g.lastHost < 400,
+              /* why not, when it fails: the match state, and the messages it showed */
+              game: g
+                ? {
+                    over: !!g.over,
+                    gone: !!g.hostGone,
+                    promoting: !!g.promoting,
+                    ext: !!KA.EXT,
+                    mid: g.mid || (g.net && g.net.mid) || null,
+                    rival: !!(g.net && g.net.onRival),
+                    yielded: !!(g.net && g.net.yielded),
+                    my: CTF.NET.myPeer(),
+                  }
+                : null,
+              backup: s.backup,
+              lines: [...document.querySelectorAll("#cFeed div, .cline, #cLog div")]
+                .slice(-4)
+                .map(e => e.textContent.slice(0, 80)),
+              msg: document.getElementById("p2pMsg").textContent.slice(0, 80),
+              games: window.__lab ? window.__lab.games.slice(-6) : null,
             };
           })
           .catch(() => null)
@@ -411,7 +441,12 @@ async function migrate(I, mode) {
     await new Promise(r => setTimeout(r, 50));
   }
   await closing;
-  return { ms: -1, hosts: last ? last.filter(x => x && (x.hosting || x.hubId === x.me)).length : 0, last };
+  return {
+    ms: -1,
+    errors: rest.map(x => x.errors.slice(-3)),
+    hosts: last ? last.filter(x => x && (x.hosting || x.hubId === x.me)).length : 0,
+    last,
+  };
 }
 
 /* ---- analysis ---- */
@@ -515,6 +550,10 @@ function analyze(D, secs, mode) {
     pairs: all.length,
     /* long frames on any instance, and the share of drawn samples left out after them */
     stalls: hitches.length,
+    relayLate: hitches.filter(h => h[2] === "relay").length,
+    /* each observer's playback (mean delay, packet gap, jitter in ms): when one observer draws
+       everyone badly, this says whether its packets came late or irregular */
+    playback: Object.fromEntries(D.map(d => [d.i, [2, 3, 4].map(k => r1(mean(d.rec.pb.map(x => x[k]))))])),
     stalledPct: r1((dropped / Math.max(1, dropped + kept)) * 100),
     delayMs: pct(
       all.map(r => r.delay),
@@ -722,6 +761,13 @@ async function runLab(o) {
       await mark(I);
       await new Promise(r => setTimeout(r, secs * 1000));
       const D = await collect(I);
+      /* the relay running late is the lab, not the netcode: those moments count as stalls of the
+         instance it delivered to */
+      for (const d of D) {
+        const late = relay.late.filter(x => x[2] === d.i).map(x => [x[0], x[1], "relay"]);
+        d.rec.hitches = (d.rec.hitches || []).concat(late);
+      }
+      relay.late = [];
       const rep = analyze(D, secs, mode);
       if (o.raw) rep.raw = D;
       rep.joinMs = room.joinMs;

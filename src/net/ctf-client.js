@@ -208,8 +208,7 @@
       return p;
     });
     /* host migration: if the match host disappears, a player in the match takes over hosting it.
-       Everyone picks the same successor: the room's backup host if they're in the match, otherwise
-       the lowest peer id among the players in it. */
+       Everyone picks the same successor: the lowest peer id among the players in it. */
     /** someone else now hosts this match (a successor, or the one left standing when two took
         over at once): follow them. True if we did */
     M.follow = function (now) {
@@ -234,12 +233,16 @@
       const cands = [
         mine,
         ...NET.ctfPeers()
-          .filter(p => p.presence.ph === "client" && p.presence.mid === mid)
+          /* everyone in this match, whether still a client or already taking over */
+          .filter(p => p.presence.mid === mid || (p.presence.H && p.presence.H.id === mid))
           .map(p => p.peer),
       ];
-      const st = window.KAHOST && window.KAHOST.net ? window.KAHOST.net.stats() : null;
-      const succ = st && cands.includes(st.backup) ? st.backup : cands.slice().sort()[0];
-      if (succ === mine && M.onPromote) {
+      /* the lowest peer id among the players in the match: everyone agrees on it from who is in the
+         match alone. (It used to prefer the room's backup host, but the backup changes while the room
+         itself moves to a new host, so two players could each see themselves as the backup and both
+         take over; on slow machines they could also settle on different answers) */
+      const succ = cands.filter(Boolean).sort()[0];
+      if (mine && succ === mine && M.onPromote) {
         M.promoting = true;
         M.onPromote();
       }

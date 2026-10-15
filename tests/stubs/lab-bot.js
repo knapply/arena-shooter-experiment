@@ -304,6 +304,17 @@
       eye = V();
       tgt = V();
     }
+    /* every change of match object (hosting, joining, taking over), kept for diagnosis */
+    const g0 = game();
+    if (g0 !== lastGame) {
+      lastGame = g0;
+      games.push([
+        Date.now(),
+        g0 ? (g0.map ? "client of " + String(g0.hostPeer).slice(0, 8) : "host") : "none",
+        g0 && (g0.mid || (g0.net && g0.net.mid)),
+      ]);
+      if (games.length > 20) games.shift();
+    }
     const c = ctx();
     if (!c) return release();
     if (bot.on) play(c, dt);
@@ -325,11 +336,30 @@
   addEventListener("load", () => {
     const hook = () => {
       if (!window.KA || !KA.EVENTS) return setTimeout(hook, 100);
+      /* who starts a match (a stack, for diagnosis) */
+      const xp = KA.extPlay;
+      try {
+        KA.extPlay = function (a, b) {
+          games.push([
+            Date.now(),
+            "extPlay",
+            String(new Error().stack)
+              .split(String.fromCharCode(10))
+              .slice(2, 6)
+              .map(l => l.trim().slice(0, 60))
+              .join(" < "),
+          ]);
+          return xp.call(this, a, b);
+        };
+      } catch (e) {}
       KA.EVENTS.on("kill", e => rec.kills.push([Date.now(), e.killerName || "", e.victimName || ""]));
     };
     hook();
   });
+  let lastGame = null;
+  const games = [];
   window.__lab = {
+    games,
     bot,
     /** everything recorded since the last collect (cleared) */
     collect() {
