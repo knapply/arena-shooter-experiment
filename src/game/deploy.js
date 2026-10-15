@@ -50,6 +50,7 @@ function leaveGame() {
   MAIN_NADES.clear();
   MAIN_ROCKETS.clear();
   clearPods();
+  podReset();
   if (EXT) {
     const e = EXT;
     EXT = null;
