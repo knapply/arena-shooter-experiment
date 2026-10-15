@@ -289,6 +289,6 @@ const _mlp = new V3(),
 function slamDamage(p) {
   for (const t of targets()) {
     const dd = t.pos.distanceTo(p);
-    if (dd < 5) dealDamage(t, Math.round(120 - dd * 18), "pound", false);
+    if (dd < TUNE.poundR) dealDamage(t, Math.round(120 - (dd / TUNE.poundR) * 90), "pound", false);
   }
 }

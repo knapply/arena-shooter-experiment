@@ -1534,8 +1534,8 @@
         for (const e of G.foes(this.team)) {
           if (!e.alive) continue;
           const dd = e.body.pos.distanceTo(d.pos);
-          if (dd < 5) {
-            const n = Math.round(120 - dd * 18);
+          if (dd < K.TUNE.poundR) {
+            const n = Math.round(120 - (dd / K.TUNE.poundR) * 90);
             if (e.human) G.hurtHuman(e, n, { name: this.name, agent: this, w: "pound" });
             else e.onHit(n, "pound", false, this);
           }

@@ -32,7 +32,7 @@ function updPoundRing() {
   }
   _pd.copy(_po).addScaledVector(d, t);
   poundRing.position.set(_pd.x, _pd.y + 0.06, _pd.z);
-  const k = Math.min(1, me.poundT / 0.55);
+  const k = Math.min(1, me.poundT / TUNE.poundCharge);
   poundRing.scale.setScalar(5 * (0.4 + 0.6 * k));
   poundRing.material.opacity = 0.4 + 0.5 * k;
   poundRing.visible = true;

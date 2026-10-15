@@ -29,11 +29,17 @@ const TUNE_DEF = {
   /* how long a slide lasts, and how long a clamber takes (a multiple of its base time) */
   slideT: 0.8,
   clamberK: 1,
+  /* seconds without damage before shields (then health) recharge: 3, down from 4 by simulation in every
+     mode (docs/TUNING.md, "Every mode, every rule"); then shield and health points restored a second */
+  regenDelay: 3,
+  shieldRate: 48,
+  healthRate: 28,
+  /* seconds to charge a ground pound, and the reach of its blast in metres (it kills at the centre and
+     fades to a light hit at the edge) */
+  poundCharge: 0.55,
+  poundR: 5,
 };
 const TUNE = Object.assign({}, TUNE_DEF);
-/* seconds without damage before shields (then health) recharge: 3, down from 4 by simulation in every
-   mode (docs/TUNING.md, "Every mode, every rule") */
-const REGEN_DELAY = 3;
 /* pilots are solid to each other: modes say who else is in the world (anything with pos, h and dead) */
 const NO_PILOTS = [];
 let pilotsFn = null;
@@ -291,7 +297,7 @@ class Body {
       v.multiplyScalar(Math.pow(0.02, dt));
       v.y = Math.max(v.y, -1);
       if (!inp.crouch) {
-        if (this.poundT >= 0.55) {
+        if (this.poundT >= TUNE.poundCharge) {
           const d = this.aimDir();
           if (d.y > -0.45) {
             d.y = -0.45;
@@ -560,15 +566,15 @@ class Body {
     if (this.dead) return 0;
     /* sprinting holds the recharge 0.7 s from starting */
     if (this.sprint && this.shield < 70) {
-      this.lastDmg = Math.max(this.lastDmg, now - (REGEN_DELAY - 0.7));
+      this.lastDmg = Math.max(this.lastDmg, now - (TUNE.regenDelay - 0.7));
       return 0;
     }
     let ev = 0;
-    if (now - this.lastDmg > REGEN_DELAY) {
+    if (now - this.lastDmg > TUNE.regenDelay) {
       if (this.shield < 70) {
         if (this.shield <= 0) ev = 1;
-        this.shield = Math.min(70, this.shield + 48 * dt);
-      } else this.health = Math.min(45, this.health + 28 * dt);
+        this.shield = Math.min(70, this.shield + TUNE.shieldRate * dt);
+      } else this.health = Math.min(45, this.health + TUNE.healthRate * dt);
     }
     return ev;
   }

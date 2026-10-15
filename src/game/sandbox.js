@@ -48,7 +48,13 @@ function applySandbox() {
     clamberK: v.sbClamber,
     adsMove: v.sbAdsMove,
     stab: v.sbStab,
+    regenDelay: v.sbRegenDelay,
+    shieldRate: v.sbShieldRate,
+    healthRate: v.sbHealthRate,
+    poundCharge: v.sbPoundCharge,
+    poundR: v.sbPoundRadius,
   });
+  MELEE.shield = v.sbMeleeShield;
   const set = (key, fields) => {
     for (const list of [WEAPON_DATA, WEAPONS]) {
       const w = list.find(x => x.key === key);
@@ -58,13 +64,30 @@ function applySandbox() {
   /* headshots keep the same ratio to body damage */
   set("carbine", {
     body: v.sbCarbDmg,
-    head: Math.round(v.sbCarbDmg * (11 / 9)),
+    head: Math.round(v.sbCarbDmg * v.sbCarbHead),
+    reload: v.sbCarbReload,
+    recoil: v.sbCarbRecoil,
     rate: v.sbCarbRate,
     spread: v.sbCarbSpread,
     adsSpread: v.sbCarbSpread / 3,
     bloom: v.sbCarbBloom,
   });
-  set("pistol", { body: v.sbMagDmg, head: Math.round(v.sbMagDmg * 2.5), rate: v.sbMagRate });
+  set("pistol", {
+    body: v.sbMagDmg,
+    head: Math.round(v.sbMagDmg * 2.5),
+    rate: v.sbMagRate,
+    reload: v.sbMagReload,
+    recoil: v.sbMagRecoil,
+    zoom: [v.sbMagZoom],
+  });
+  set("burst", {
+    rate: v.sbBurstRate,
+    burstGap: v.sbBurstGap,
+    body: v.sbBurstDmg,
+    head: v.sbBurstHead,
+    recoil: v.sbBurstRecoil,
+    reload: v.sbBurstReload,
+  });
   set("sniper", { rate: v.sbSnipeRate });
   set("rocket", { speed: v.sbRocketSpeed, radius: v.sbRocketRadius });
   NADE_TUNE.throw = v.sbNadeThrow;

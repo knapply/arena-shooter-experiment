@@ -117,7 +117,7 @@ function sandboxPresetRow(body) {
     el(
       "p",
       "sdesc",
-      "Classic feel matches the pacing measured from reference arena-shooter footage: a quicker run that is closer to sprint, a sprint that winds up, floatier jumps to the same heights, shorter slides, slower clambers, a longer thrust cooldown, a short raise out of a sprint and no slowdown while scoped."
+      "Classic feel plays like the reference arena shooter as measured from its footage: a quicker run that is closer to sprint and a sprint that winds up, softer strafes, high floaty jumps, a short thrust on a long recharge, short slides and slow clambers, slower shield recharge and two-blow melee, and its weapons' fire rates, damage, zoom, reloads and kick. Every value is in docs/TUNING.md."
     )
   );
   body.appendChild(row);
