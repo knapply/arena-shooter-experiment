@@ -1,6 +1,7 @@
 /* Screenshots of every weapon, for working on weapons/models.js, viewmodels.js and weaponParts in characters/rig.js.
      THREE_PATH=... node tools/weapon-preview.js [out-dir]
-   first person: each weapon at the hip, aimed down its sights and at the hip with a low magazine;
+   first person: each weapon at the hip, aimed down its sights and at the hip with a low magazine, then
+   frozen mid-motion: coming up after a draw, the frame of a shot, sprinting and half-way through a reload;
    third person: a line of pilots holding every weapon, from close beside them and from 14 m away.
    Real three.js (software WebGL). */
 const fs = require("fs"),
@@ -41,7 +42,7 @@ fs.mkdirSync(out, { recursive: true });
     p.evaluate(() => {
       const K = KA,
         s = K.SPAWNS[0];
-      for (const o of K.bots) o.body.pos.set(60, -40, 60);
+      for (const o of K.bots) o.body.pos.set(400, -40, 400);
       K.me.pos.set(s[0], s[1], s[2]);
       K.me.vel.set(0, 0, 0);
       K.me.yaw = Math.atan2(s[0], s[2]);
@@ -63,6 +64,52 @@ fs.mkdirSync(out, { recursive: true });
     await p.evaluate(i => KA.giveWeapon(i, [1, 99]), i);
     await p.waitForTimeout(900);
     await shot(`fp${i}-low`);
+  }
+  /* in motion, each frozen mid-way (timescale 0): coming up after a draw, the frame of a shot (flash,
+     kick, tracer), a sprint, and the middle of a reload. Waits are on game state, not the clock */
+  const until = async (cond, arg) => {
+    for (let n = 0; n < 400 && !(await p.evaluate(cond, arg)); n++) await p.waitForTimeout(15);
+  };
+  const freeze = async (name, clip) => {
+    await p.evaluate(() => KA.CON.run("timescale 0"));
+    await p.waitForTimeout(250);
+    await shot(name, clip);
+    await p.evaluate(() => KA.CON.run("timescale 1"));
+  };
+  for (let i = 0; i < 7; i++) {
+    await place();
+    await p.evaluate(i => KA.giveWeapon(i), i);
+    await until(() => KA.now > 0);
+    const t0 = await p.evaluate(() => KA.now);
+    await until(t => KA.now > t + 0.12, t0);
+    await freeze(`fp${i}-draw`);
+    await p.waitForTimeout(900);
+    const m0 = await p.evaluate(() => KA.mag);
+    /* (slowed, so the flash and the streak outlive a frame of software rendering) */
+    await p.evaluate(() => KA.CON.run("timescale 0.1"));
+    await key("keydown", "Mouse0");
+    await until(m => KA.mag < m, m0);
+    if (i === 6) await p.waitForTimeout(300);
+    await freeze(`fp${i}-fire`);
+    await key("keyup", "Mouse0");
+    await p.waitForTimeout(600);
+    await key("keydown", "KeyW");
+    await key("keydown", "ShiftLeft");
+    await p.waitForTimeout(900);
+    await freeze(`fp${i}-sprint`);
+    await key("keyup", "ShiftLeft");
+    await key("keyup", "KeyW");
+    await place();
+    await p.evaluate(i => KA.giveWeapon(i, [1, 99]), i);
+    await p.waitForTimeout(900);
+    /* (the last round fired starts it: R may be the pickup key where this stands) */
+    await key("keydown", "Mouse0");
+    await until(() => KA.reloadT > 0);
+    await key("keyup", "Mouse0");
+    const r0 = await p.evaluate(() => KA.reloadT);
+    await until(r => KA.reloadT < r * 0.5, r0);
+    await freeze(`fp${i}-reload`);
+    await until(() => KA.reloadT <= 0);
   }
   /* third person: seven pilots in a row, each holding one weapon */
   await p.evaluate(() => {

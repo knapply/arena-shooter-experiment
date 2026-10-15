@@ -473,7 +473,8 @@ const hudHook = () => {
       e.style.zoom = String(SET.hudScale);
   if (master) master.gain.value = SET.master * SET.sfx;
 };
-for (const m of [flashMat, shardMat, plasMat, glowMat]) m.map = SOFT;
+/* (the rocket's exhaust too: without a soft map a sprite draws as a hard square) */
+for (const m of [flashMat, shardMat, plasMat, glowMat, rocketFlame]) m.map = SOFT;
 flashSprite.material.map = STAR;
 vmRoot.traverse(o => {
   if (o.isSprite && o !== flashSprite) o.material.map = SOFT;
