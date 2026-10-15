@@ -922,17 +922,27 @@
         if (s % 4 === 2) hat(at(x), 0.22);
         if (s % 2 === 0) pluck(at(x), ["D5", "F5", "A5", "C6", "A5", "F5"][(s / 2) % 6], 0.045);
       }
-      /* online, the AI, destruction: the drive comes back */
+      /* motion captured: the drive comes back under a weighted stop, a leap and its landing, the hits */
       hit(64, 0.75);
       groove(64, 3);
-      for (const x of [67.5, 68.5, 69.5]) boom(at(x), 0.9);
-      /* the armor at night: the floor falls away, a choir and a bell for the shooting star */
-      subdrop(at(70), 0.5, 2);
-      drone(at(70), "D2", 3, 0.07);
-      choir(at(70), "D4", 3, 0.06, "oo");
-      choir(at(70), "A4", 3, 0.05, "oo");
-      ping(at(70.6), "A5", 0.07);
-      ping(at(71.4), "E6", 0.06);
+      whoosh(at(64.95), 0.3);
+      subdrop(at(65.12), 0.35, 0.8);
+      bass(at(66.0), midi("D2"), 0.3, 1);
+      whoosh(at(67.1), 0.35);
+      ping(at(67.25), "A5", 0.06);
+      boom(at(68.62), 1.25);
+      subdrop(at(68.62), 0.6, 1.2);
+      crash(at(68.62), 0.7);
+      for (const x of [69.55, 69.9, 70.25]) taiko(at(x), 0.7);
+      boom(at(70.6), 1);
+      crash(at(70.6), 0.6);
+      /* the squad at night: the floor falls away, a choir and a bell for the shooting star */
+      subdrop(at(71.2), 0.45, 1.6);
+      drone(at(71.2), "D2", 1.8, 0.07);
+      choir(at(71.2), "D4", 1.8, 0.06, "oo");
+      choir(at(71.2), "A4", 1.8, 0.05, "oo");
+      ping(at(71.5), "A5", 0.07);
+      ping(at(72.1), "E6", 0.06);
       for (let x = 71; x < 73; x += x < 72 ? 0.125 : 0.0625) snare(at(x), 0.2 + (x - 71) * 0.35);
       for (let x = 71; x < 73; x += 0.5)
         tom(at(x), ["D3", "F3", "A3", "C4"][Math.round((x - 71) * 2) % 4], 0.8);
