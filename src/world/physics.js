@@ -24,6 +24,10 @@ const TUNE_DEF = {
   raise: 0,
   /* seconds of hover from aiming in the air (stabilize) */
   stab: 1.3,
+  /* hovering nearly pins you: the most you can drift while stabilized (m/s), and how hard steering bites
+     there (a share of air control) */
+  stabDrift: 0.5,
+  stabSteer: 0.3,
   /* seconds a sprint takes to build from run speed to full sprint speed (0 = at once) */
   sprintRamp: 0,
   /* how long a slide lasts, and how long a clamber takes (a multiple of its base time) */
@@ -294,7 +298,7 @@ class Body {
     }
     if (this.pound === 1) {
       this.poundT += dt;
-      v.multiplyScalar(Math.pow(0.02, dt));
+      v.multiplyScalar(Math.pow(0.003, dt));
       v.y = Math.max(v.y, -1);
       if (!inp.crouch) {
         if (this.poundT >= TUNE.poundCharge) {
@@ -324,8 +328,9 @@ class Body {
       this.stabbing = true;
       this.stabT += dt;
       v.y *= Math.pow(0.001, dt);
-      v.x *= Math.pow(0.25, dt);
-      v.z *= Math.pow(0.25, dt);
+      /* the momentum you came in with bleeds off fast: a sprint into a hover is down to a walk within a third of a second */
+      v.x *= Math.pow(0.003, dt);
+      v.z *= Math.pow(0.003, dt);
     }
     if (this.jumpBuf > 0 && (this.ground || this.coyote > 0) && v.y <= 0.5 && this.landLock <= 0) {
       this.jumpBuf = 0;
@@ -387,7 +392,7 @@ class Body {
       if (this.ground) {
         const hs = Math.hypot(v.x, v.z);
         if (hs > speed + 0.5) {
-          const k = Math.pow(0.02, dt);
+          const k = Math.pow(0.003, dt);
           v.x = tx + (v.x - tx) * k;
           v.z = tz + (v.z - tz) * k;
         } else {
@@ -398,9 +403,17 @@ class Body {
           v.z += clamp(tz - v.z, -a, a);
         }
       } else {
-        const a = TUNE.airAccel * dt;
-        const nx = v.x + clamp(tx - v.x, -a, a),
-          nz = v.z + clamp(tz - v.z, -a, a);
+        let a = TUNE.airAccel * dt,
+          ux = tx,
+          uz = tz;
+        if (this.stabbing) {
+          a *= TUNE.stabSteer;
+          const k = Math.min(1, TUNE.stabDrift / (Math.hypot(tx, tz) || 1));
+          ux *= k;
+          uz *= k;
+        }
+        const nx = v.x + clamp(ux - v.x, -a, a),
+          nz = v.z + clamp(uz - v.z, -a, a);
         if (Math.hypot(nx, nz) <= Math.max(Math.hypot(v.x, v.z), speed)) {
           v.x = nx;
           v.z = nz;

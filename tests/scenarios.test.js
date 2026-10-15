@@ -225,6 +225,19 @@ const fix = v => +v.toFixed(2);
     },
   });
   check(drift < 0.2, "stabilize holds your height for a second", fix(drift));
+  /* ...and pins you in place: a sprint jump into a hover, still pushing forward, barely moves on */
+  let h0 = null,
+    slide = 0;
+  scenario({
+    pilots: { a: { pos: RUN, yaw: 0 } },
+    seconds: 1.6,
+    input: t => ({ a: { f: 1, sprint: true, jumpP: t > 0.3 && t < 0.31, aim: t > 0.45 } }),
+    every: (t, P) => {
+      if (t > 0.5 && h0 == null) h0 = [P.a.pos.x, P.a.pos.z];
+      if (h0 && t > 0.5 && P.a.stabbing) slide = Math.hypot(P.a.pos.x - h0[0], P.a.pos.z - h0[1]);
+    },
+  });
+  check(h0 && slide < 2, "a hover barely drifts, even pushing forward out of a sprint", fix(slide));
   /* aimed ground pound: aiming forward lands further away than straight down */
   const poundAt = pitch => {
     const r = scenario({
