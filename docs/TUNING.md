@@ -373,7 +373,17 @@ Turn acceleration now goes up to 3.
 - **Movement response** (stick to motion, stop, strafe reversal against the stick): no player in the input footage held the right stick still while strafing, so it couldn't be separated from turning. The third-person measurements from pass two (0.4 s reversal, 0.2 to 0.3 s start and stop) stand.
 - **Aim assist:** there was too little steady footage to measure the slowdown. The one case seen shows shots curving onto a target about 1.5° off the body.
 
-**Simulation:** the controller look is the player's own, and the AI doesn't use it. The preset's Sandbox values are unchanged from pass two, and so are its simulated effects (skill share −0.02, time to kill −0.45 s). No default changed.
+**Firing out of a sprint.** Measured on the input-display footage against the trigger (n=3), and on match POVs from the sprint pose ending to the first muzzle flash (n=5):
+
+- **The trigger ends the sprint at once:** the weapon starts up on the press.
+- **The first shot leaves about 2 frames (0.033 s) after the press.** That is the same as firing with the weapon already up, so a sprint costs nothing to shoot out of. Pass one's 0.15 s "weapon raised after a sprint" is how long the gun takes to look up, not a delay before it can fire. The preset's 0.15 s sprint-to-fire delay was therefore wrong and is gone; it is back to 0, as in the defaults.
+- **After firing, the sprint doesn't come back by itself.** One player held forward for 3.6 s after a burst with the weapon up the whole time. Every new sprint (29 of 29) followed a fresh press of sprint, usually about 0.8 s after the trigger was released.
+- **Sprint builds to full speed in 0.93 s from the press** (IQR 0.92 to 0.95, n=29), which confirms the preset's 0.9 s wind-up.
+- **Crouch (into a slide), thrust, letting go of forward, scoping and jumping all end a sprint** within a few frames, and the sprint then needs a new press.
+
+This game now breaks a sprint with the trigger. A new Sandbox setting, **Sprint after firing**, says what happens next for a held or automatic sprint. It defaults to 0.3 s: the sprint picks up 0.3 s after the trigger is released. At 0 it waits for a fresh sprint press (or forward let go, with automatic sprint), as in the reference. A toggled sprint always waits for a fresh press. Classic feel sets it to 0.
+
+**Simulation:** the controller look is the player's own, and the AI doesn't use it, and neither does Sprint after firing (the AI never sprints while it shoots). The one Sandbox change that the AI does feel is the sprint-to-fire delay going from 0.15 s to 0. The revised preset was run again in the same four cells and both pairings, with null controls. On seed sets 100 and 700 (24 matches of each kind; noise ±0.005 to ±0.041), skill share fell by 0.026, with 1 of 16 readings positive and 13 clear. On seed sets 1300 and 1900 (48 matches; noise ±0.002 to ±0.024), it fell by 0.028, with 0 of 16 positive and 14 clear. Time to kill was 0.42 s shorter on both. That is about the same as pass two. No default changed.
 
 
 ## Earlier results (before the AI carried magnums)

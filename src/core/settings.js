@@ -146,6 +146,16 @@ const SANDBOX_DEFS = [
     "Time a sprint takes to build from run speed to full sprint speed. 0 is at once.",
   ],
   [
+    "sbSprintResume",
+    "Sprint after firing",
+    0.3,
+    0,
+    1,
+    0.05,
+    " s",
+    "Firing breaks a sprint. With sprint held (or automatic), how long after the trigger is released it picks up again; 0 waits for a fresh sprint press.",
+  ],
+  [
     "sbRaise",
     "Sprint-to-fire delay",
     0,

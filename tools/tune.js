@@ -158,6 +158,7 @@ const KNOBS = {
     def: 0,
     try: [1],
   },
+  sbSprintResume: { set: v => (K.TUNE.sprintResume = v), def: 0.3, try: [0] },
   sbPoundCharge: { set: v => (K.TUNE.poundCharge = v), def: 0.55, try: [0.65] },
   sbPoundRadius: { set: v => (K.TUNE.poundR = v), def: 5, try: [3.2] },
   sbBurstReload: { set: v => (W("burst").reload = v), def: 2, try: [1.4] },

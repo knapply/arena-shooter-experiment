@@ -42,6 +42,8 @@ const TUNE_DEF = {
      fades to a light hit at the edge) */
   poundCharge: 0.55,
   poundR: 5,
+  /* seconds after the trigger breaks a held sprint before it picks up again (0: a fresh press) */
+  sprintResume: 0.3,
 };
 const TUNE = Object.assign({}, TUNE_DEF);
 /* pilots are solid to each other: modes say who else is in the world (anything with pos, h and dead) */

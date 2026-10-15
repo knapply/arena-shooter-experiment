@@ -224,8 +224,9 @@ export const SANDBOX_PRESETS = {
       sbClamber: 2.3,
       sbPoundCharge: 0.65,
       sbPoundRadius: 3.2,
-      /* the gun comes up 0.15 s after a sprint; no slowdown while scoped */
-      sbRaise: 0.15,
+      /* the trigger breaks a sprint and the shot leaves about 2 frames later (no raise delay); a sprint
+         comes back only with a fresh sprint press; no slowdown while scoped */
+      sbSprintResume: 0,
       sbAdsMove: 1,
       /* shields come back after 4 s and refill in 2 s, health in 6 s; two melee blows kill */
       sbRegenDelay: 4,
