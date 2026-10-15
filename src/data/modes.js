@@ -165,3 +165,26 @@ export const POD_TIME = 3,
 /* the longer fall is spectacle only: a pod launches POD_EARLY seconds before the respawn time, so
    wait + fall is the same as it was with the old 1.35 s drop (an in-place spawn is unchanged) */
 export const POD_EARLY = POD_TIME - 1.35;
+/* Sandbox presets (Settings → Sandbox): named sets of Sandbox values; anything a preset leaves out goes
+   back to its default. "Classic feel" matches the pacing measured from reference arena-shooter footage
+   (docs/TUNING.md, "Classic feel"): a quicker run with a narrower gap to sprint and a sprint that winds
+   up, a floatier jump that reaches the same ledges, a shorter slide, a slower clamber, a longer thrust
+   cooldown, a short raise before firing out of a sprint, no slowdown while scoped and a slower magnum. */
+export const SANDBOX_PRESETS = {
+  defaults: { name: "Defaults", values: {} },
+  classic: {
+    name: "Classic feel",
+    values: {
+      sbRun: 7,
+      sbSprintRamp: 0.8,
+      sbJump: 3.4,
+      sbGrav: 5.2,
+      sbSlideT: 0.5,
+      sbClamber: 2.3,
+      sbThrustCD: 4,
+      sbRaise: 0.15,
+      sbAdsMove: 1,
+      sbMagRate: 0.28,
+    },
+  },
+};

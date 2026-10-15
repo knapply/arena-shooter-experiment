@@ -1172,6 +1172,23 @@ const podSeats = map => {
       "hostile import is sanitized",
       await text(p, "#setMsg")
     );
+    /* Sandbox presets: Classic feel sets its values, Defaults puts every Sandbox number back */
+    await p.click('.stab:has-text("Sandbox")');
+    await p.click('#setBody .dbtn:has-text("Classic feel")');
+    await p.waitForTimeout(100);
+    const classic = await p.evaluate(() => [KA.TUNE.run, KA.TUNE.grav, KA.TUNE.sprintRamp, KA.SET.sbRun]);
+    await p.click('#setBody .dbtn:has-text("Defaults")');
+    await p.waitForTimeout(100);
+    const backDef = await p.evaluate(() => [KA.TUNE.run, KA.TUNE.grav, KA.TUNE.sprintRamp]);
+    check(
+      classic[0] === 7 &&
+        classic[1] < 10 &&
+        classic[2] > 0 &&
+        classic[3] === 7 &&
+        backDef.join() === "6.4,24,0",
+      "Sandbox presets: Classic feel applies, Defaults restores",
+      [classic, backDef]
+    );
     await p.click('.stab:has-text("Controller")');
     await p.evaluate(p => {
       window.__pad = p;

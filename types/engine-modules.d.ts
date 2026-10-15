@@ -12,3 +12,4 @@ declare const AI_SKILL: typeof import("../src/data/modes.js").AI_SKILL;
 declare const POD_TIME: typeof import("../src/data/modes.js").POD_TIME;
 declare const POD_HEIGHT: typeof import("../src/data/modes.js").POD_HEIGHT;
 declare const POD_EARLY: typeof import("../src/data/modes.js").POD_EARLY;
+declare const SANDBOX_PRESETS: typeof import("../src/data/modes.js").SANDBOX_PRESETS;
