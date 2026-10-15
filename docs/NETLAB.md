@@ -26,7 +26,7 @@ Reports (JSON and markdown) go to `tools/out/net-lab/`. `tests/netlab.test.js` r
 
 | measure | how |
 |---|---|
-| delay, position error, pops | for each observer and pilot: the delay that best fits what is drawn to the truth, the median and 95th percentile error at that delay, and frame-to-frame moves that differ from the truth's by over 0.5 m (respawns excluded) |
+| delay, position error, pops | for each observer and pilot: the delay that best fits what is drawn to the truth (on the mean squared error), the median and 95th percentile error at that delay, and frame-to-frame moves that differ from the truth's by over 0.5 m. Respawns are left out, and so is the 1.2 s after any instance stalls (a frame over 150 ms: its CPU, not the network; a stalled host relays nothing, so what it relays freezes and catches up). The report counts the stalls and the share left out |
 | update rate and jitter, interpolation delay | each remote's playback buffer (packet gap, jitter, delay) |
 | bandwidth | bytes and messages per second each way, by kind (fast messages by name; presence by room, and by field) |
 | hit registration | claims sent vs applied (by the host, or by victims in the arena); every rejection of these honest players is a false rejection, with the hit check's reason |

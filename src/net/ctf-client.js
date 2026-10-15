@@ -220,6 +220,8 @@
       M.hostPeer = nh.peer;
       M.lastHost = now;
       M.rv = -1;
+      /* the new host stamps movement on its own clock: start every playback buffer over */
+      for (const a of M.map.values()) a.pb = new K.Playback();
       if (M.onEvent) M.onEvent("hostMoved", { name: K.cleanName(nh.presence.n) });
       return true;
     };

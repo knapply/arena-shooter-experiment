@@ -449,7 +449,10 @@ function at(pts, t) {
   return [a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
 }
 /** how one instance draws one pilot: delay that fits best, error at it, pops */
-function pair(truth, seen) {
+function pair(truth, seen0, stalled) {
+  /* moments right after any instance stalled (a long frame: the CPU, not the network) are left out:
+     a stalled host relays nothing, so whatever it relays freezes and catches up, by design */
+  const seen = stalled ? seen0.filter(s => !stalled(s[0])) : seen0;
   let best = null;
   for (let off = 0; off <= 900; off += 10) {
     const err = [];
@@ -478,6 +481,12 @@ function pair(truth, seen) {
 }
 function analyze(D, secs, mode) {
   const T = truthOf(D);
+  const hitches = D.flatMap(d => d.rec.hitches || []).sort((a, b) => a[0] - b[0]);
+  /* a stall ending in the last 1.2 s (the drawing delay plus time to catch up) */
+  const stalled = t => hitches.some(h => h[0] <= t && h[0] > t - 1200);
+  let dropped = 0,
+    kept = 0;
+  for (const d of D) for (const s of d.rec.drawn) stalled(s[0]) ? dropped++ : kept++;
   const rep = { instances: [], pos: {}, hits: {}, kills: {}, desync: {}, bw: {} };
   /* positions: every observer, every pilot it draws */
   const all = [];
@@ -491,7 +500,7 @@ function analyze(D, secs, mode) {
     for (const [id, seen] of by) {
       const tr = T.get(id);
       if (!tr || tr.owner === d.i) continue;
-      const r = pair(tr.pts, seen);
+      const r = pair(tr.pts, seen, stalled);
       if (r)
         all.push(
           Object.assign(
@@ -504,6 +513,9 @@ function analyze(D, secs, mode) {
   const mins = all.reduce((a, r) => a + r.mins, 0);
   rep.pos = {
     pairs: all.length,
+    /* long frames on any instance, and the share of drawn samples left out after them */
+    stalls: hitches.length,
+    stalledPct: r1((dropped / Math.max(1, dropped + kept)) * 100),
     delayMs: pct(
       all.map(r => r.delay),
       0.5
@@ -812,4 +824,6 @@ module.exports = {
   formRoom,
   startMode,
   migrate,
+  mark,
+  collect,
 };

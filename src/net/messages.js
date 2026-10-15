@@ -18,7 +18,7 @@ const MSG = (() => {
   /* 6: capture the flag presence carries players' drop pods on its fx list ("p" launch, "q" steer) */
   /* 7: the match modes (Team Slayer, free for all, oddball) on the room's start and presence messages */
   /* 8: hit claims carry the shot's ray, when it was fired and what the shooter saw (net/hitcheck.js) */
-  const PROTOCOL = 9;
+  const PROTOCOL = 10;
   const TWO_PI = Math.PI * 2;
   const BAD = /[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g;
   const enc = new TextEncoder(),
@@ -261,7 +261,8 @@ const MSG = (() => {
     ["b", "v3:100"],
     ["g", "u8"],
   ]);
-  /* capture the flag: everyone's movement from the host, ~30 Hz. Agents are listed in the order of
+  /* capture the flag: everyone's movement from the host, ~30 Hz, stamped with the host's wall clock (ms;
+     protocol 10: it was match time). Agents are listed in the order of
      the roster the host last sent over presence (rv says which roster version that is) */
   def(20, "ctfMove", "fast", [
     ["ts", "u32"],
