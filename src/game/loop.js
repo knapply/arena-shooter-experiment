@@ -550,15 +550,19 @@ function frameBody(t) {
       sprintLatch = false;
     }
     /* pulling the trigger breaks a sprint at once, so the shot comes out without letting go of sprint
-       first; a held sprint (or auto-sprint) picks up again a moment after the trigger is released, and a
-       toggled one waits for a fresh press */
+       first; a held sprint (or auto-sprint) picks up again TUNE.sprintResume seconds after the trigger is
+       released (0: only after a fresh press, or forward let go for auto-sprint), and a toggled one
+       always waits for a fresh press */
     /* (not while carrying the flag or skull: the trigger does nothing then, and a sprint that came back
        on its own would read as a fresh press, which drops the flag) */
     if ((A("fire") || touch.fire) && !carried()) {
-      fireNoSprint = 0.3;
+      fireNoSprint = TUNE.sprintResume > 0 ? TUNE.sprintResume : Infinity;
       sprintLatch = false;
       GP.sprint = false;
       touch.sprint = false;
+    } else if (fireNoSprint === Infinity) {
+      /* waiting for a fresh press: clears once nothing is asking to sprint */
+      if (!(SET.sprintMode === "auto" ? fw >= 0.3 : A("sprint") || touch.sprintStick)) fireNoSprint = 0;
     } else fireNoSprint = Math.max(0, fireNoSprint - dt);
     const sprint = SET.sprintMode === "auto" ? true : SET.sprintMode === "toggle" ? sprintLatch : A("sprint");
     if (P("jump")) crouchLatch = false;

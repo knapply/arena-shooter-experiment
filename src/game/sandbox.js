@@ -53,6 +53,7 @@ function applySandbox() {
     healthRate: v.sbHealthRate,
     poundCharge: v.sbPoundCharge,
     poundR: v.sbPoundRadius,
+    sprintResume: v.sbSprintResume,
   });
   MELEE.shield = v.sbMeleeShield;
   const set = (key, fields) => {

@@ -84,12 +84,37 @@ const podSeats = map => {
     await p.mouse.down();
     const shot = await until(p, m => KA.mag < m, mag0, 8000);
     await p.mouse.up();
+    /* by default a held sprint picks up again by itself; at 0 (Classic feel) it needs a fresh press */
+    const sprintBack = await until(p, () => KA.me.sprint, null, 4000);
+    await p.evaluate(() => {
+      KA.SET.sbSprintResume = 0;
+      KA.applySettings();
+      KA.mag = Math.max(KA.mag, 3);
+    });
+    await p.mouse.down();
+    await p.waitForTimeout(150);
+    await p.mouse.up();
+    await p.waitForTimeout(700);
+    const stayedOff = await p.evaluate(() => !KA.me.sprint);
+    await p.keyboard.up("ShiftLeft");
+    await p.waitForTimeout(100);
+    await p.keyboard.down("ShiftLeft");
+    const freshPress = await until(p, () => KA.me.sprint, null, 4000);
+    await p.evaluate(() => {
+      KA.SET.sbSprintResume = 0.3;
+      KA.applySettings();
+    });
     await p.keyboard.up("ShiftLeft");
     await p.keyboard.up("KeyW");
     check(sprinting && shot, "pulling the trigger mid-sprint breaks the sprint and fires", {
       sprinting,
       shot,
     });
+    check(
+      sprintBack && stayedOff && freshPress,
+      "after firing, a held sprint resumes by itself, or with Sprint after firing at 0 only on a fresh press",
+      { sprintBack, stayedOff, freshPress }
+    );
     await p.evaluate(() => {
       KA.me.pos.set(1.25, 3.25, 0);
       KA.me.vel.set(0, 0, 0);
@@ -1220,17 +1245,32 @@ const podSeats = map => {
     await p.click('.stab:has-text("Sandbox")');
     await p.click('#setBody .dbtn:has-text("Classic feel")');
     await p.waitForTimeout(100);
-    const classic = await p.evaluate(() => [KA.TUNE.run, KA.TUNE.grav, KA.TUNE.sprintRamp, KA.SET.sbRun]);
+    const classic = await p.evaluate(() => [
+      KA.TUNE.run,
+      KA.TUNE.grav,
+      KA.TUNE.sprintRamp,
+      KA.SET.sbRun,
+      KA.SET.padSens,
+      KA.SET.padAccelTime,
+    ]);
     await p.click('#setBody .dbtn:has-text("Defaults")');
     await p.waitForTimeout(100);
-    const backDef = await p.evaluate(() => [KA.TUNE.run, KA.TUNE.grav, KA.TUNE.sprintRamp]);
+    const backDef = await p.evaluate(() => [
+      KA.TUNE.run,
+      KA.TUNE.grav,
+      KA.TUNE.sprintRamp,
+      KA.SET.padSens,
+      KA.SET.padAccelTime,
+    ]);
     check(
       classic[0] === 7 &&
         classic[1] === 12.3 &&
         classic[2] > 0 &&
         classic[3] === 7 &&
-        backDef.join() === "6.4,24,0",
-      "Sandbox presets: Classic feel applies, Defaults restores",
+        classic[4] === 0.57 &&
+        classic[5] === 1.05 &&
+        backDef.join() === "6.4,24,0,1,0.3",
+      "Sandbox presets: Classic feel applies (with its controller look), Defaults restores",
       [classic, backDef]
     );
     await p.click('.stab:has-text("Controller")');

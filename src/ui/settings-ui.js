@@ -106,6 +106,13 @@ function sandboxPresetRow(body) {
       b = el("button", "dbtn", p.name);
     b.onclick = () => {
       for (const [k, , def] of SANDBOX_DEFS) SET[k] = k in p.values ? p.values[k] : def;
+      /* the controller's look response goes with it (your own setting, not the room's): a preset's
+         look values, or the defaults for every look setting any preset changes */
+      const lookKeys = new Set(Object.values(SANDBOX_PRESETS).flatMap(q => Object.keys(q.look || {})));
+      for (const k of lookKeys) {
+        const s = SCHEMA.find(x => x.k === k);
+        if (s) SET[k] = p.look && k in p.look ? p.look[k] : s.def;
+      }
       applySettings();
       saveSettings();
       renderSettings();

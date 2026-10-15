@@ -224,8 +224,9 @@ export const SANDBOX_PRESETS = {
       sbClamber: 2.3,
       sbPoundCharge: 0.65,
       sbPoundRadius: 3.2,
-      /* the gun comes up 0.15 s after a sprint; no slowdown while scoped */
-      sbRaise: 0.15,
+      /* the trigger breaks a sprint and the shot leaves about 2 frames later (no raise delay); a sprint
+         comes back only with a fresh sprint press; no slowdown while scoped */
+      sbSprintResume: 0,
       sbAdsMove: 1,
       /* shields come back after 4 s and refill in 2 s, health in 6 s; two melee blows kill */
       sbRegenDelay: 4,
@@ -254,6 +255,18 @@ export const SANDBOX_PRESETS = {
       sbBurstRecoil: 0.0035,
       /* sniper: 0.78 s between shots */
       sbSnipeRate: 0.78,
+    },
+    /* the controller's look response, measured from input-display footage (your own settings, applied
+       with the preset): about 105 deg/s at full tilt (from 88% of the stick's travel), a steep curve
+       below it, then a boost that ramps evenly with no wait to about 360 deg/s over about 1 s; vertical at half */
+    look: {
+      padSens: 0.57,
+      padCurve: 3,
+      padEdge: 0.88,
+      padAccel: 2.4,
+      padAccelDelay: 0,
+      padAccelTime: 1.05,
+      padVertical: 0.5,
     },
   },
 };
