@@ -136,6 +136,7 @@ const KA_API = {
   H_CROUCH,
   TUNE,
   TUNE_DEF,
+  SANDBOX_PRESETS,
   setPilotCollider,
   groundBelow,
   freeAt,

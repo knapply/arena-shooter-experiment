@@ -27,10 +27,11 @@ let last = performance.now(),
   jetOn = false,
   jetPuff = 0,
   fovX = 0;
-/* scoping eases in over ADS_IN seconds and out over ADS_OUT (in log zoom, so 5x to 10x takes as long as
-   1x to 2x): quick enough to keep up with a duel, slow enough to read as the gun coming up to the eye */
-const ADS_IN = 0.15,
-  ADS_OUT = 0.1,
+/* scoping, timed from reference arena-shooter footage (docs/TUNING.md, "Classic feel"): the gun reaches the
+   eye in a few frames and the magnification builds evenly (in log zoom, so 5x to 10x takes as long as 1x
+   to 2x) over ADS_IN seconds for that weapon; letting go or being knocked out takes ADS_OUT */
+const ADS_IN = { pistol: 0.06, sniper: 0.09, burst: 0.08 },
+  ADS_OUT = 0.05,
   zEase = { from: 0, to: 0, at: 0, t: 1, w: -1 };
 function easeZoom(dt) {
   const to = aiming ? Math.log(zoomK()) : 0,
@@ -45,8 +46,9 @@ function easeZoom(dt) {
     z.to = to;
     z.t = 0;
   }
-  z.t = Math.min(1, z.t + dt / (to > z.from ? ADS_IN : ADS_OUT));
-  z.at = z.from + (to - z.from) * (1 - Math.pow(1 - z.t, 3));
+  z.t = Math.min(1, z.t + dt / (to > z.from ? ADS_IN[W().key] || 0.1 : ADS_OUT));
+  /* nearly linear, settling over the last few percent */
+  z.at = z.from + (to - z.from) * (1 - Math.pow(1 - z.t, 1.5));
   zoomNow = Math.exp(z.at);
   adsP = clamp(z.at / Math.log(W().zoom[0]), 0, 1);
 }
@@ -59,6 +61,12 @@ function meEvent(type, d) {
     /* the burst kicks the lens wide and lurches the view into it; the gun is thrown back against it */
     fovK = 1.35;
     thrK = 1;
+    /* a thrust drops the scope on its first frame; aim again to come back in */
+    if (aiming) {
+      zoomLvl = 0;
+      descoped = true;
+      aimLatch = false;
+    }
     const side = d.dir.x * Math.cos(me.yaw) - d.dir.z * Math.sin(me.yaw),
       fwd = -d.dir.x * Math.sin(me.yaw) - d.dir.z * Math.cos(me.yaw);
     thrS = side;
@@ -643,7 +651,7 @@ function frameBody(t) {
   if (me.dead || paused) rpos.copy(me.pos);
   /* the eye: standing, crouched, or well below a crouch in a slide (presentation only: the body
      keeps its crouched height), dropping in fast with a dip that bottoms out a fifth of a second in */
-  const slid = me.slideT > 0 ? clamp((0.8 - me.slideT) / 0.22, 0, 1) : 1;
+  const slid = me.slideT > 0 ? clamp((TUNE.slideT - me.slideT) / 0.22, 0, 1) : 1;
   const eyeT = me.slideT > 0 ? 0.76 - 0.12 * Math.sin(Math.PI * slid) : me.h === H_STAND ? 1.62 : 1.02;
   eyeCur += (eyeT - eyeCur) * Math.min(1, dt * (me.slideT > 0 ? 24 : 14));
   const eyeH = eyeCur;
@@ -665,7 +673,8 @@ function frameBody(t) {
   shakeT = Math.max(0, shakeT - dt);
   const bobY =
     me.ground && me.slideT <= 0
-      ? Math.sin(stepAcc * Math.PI * 2) * (me.sprint ? 0.045 : 0.025) * clamp(hs / 6, 0, 1) * SET.bob
+      ? /* barely there: the reference keeps the view level and lets the weapon sway instead */
+        Math.sin(stepAcc * Math.PI * 2) * (me.sprint ? 0.012 : 0.006) * clamp(hs / 6, 0, 1) * SET.bob
       : 0;
   /* charging a ground pound, the hover trembles harder as it builds and the view tunnels in */
   const pk = me.pound === 1 ? Math.min(1, me.poundT / 0.55) : 0;
@@ -681,7 +690,7 @@ function frameBody(t) {
     clamp(-lr * 0.004, -0.04, 0.04) +
     (me.thrustT > 0 ? clamp(-lr * 0.006, -0.08, 0.08) : 0) -
     thrS * 0.06 * thrK * thrK +
-    (me.sprint ? Math.sin(stepAcc * Math.PI) * 0.012 : 0);
+    (me.sprint ? Math.sin(stepAcc * Math.PI) * 0.004 : 0);
   camRoll += (rollT - camRoll) * Math.min(1, dt * 8);
   camera.rotation.order = "YXZ";
   camera.rotation.y = me.yaw;

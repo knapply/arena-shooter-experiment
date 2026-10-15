@@ -42,6 +42,12 @@ function applySandbox() {
     thrust: v.sbThrust,
     thrustCD: v.sbThrustCD,
     slideBoost: v.sbSlide,
+    slideT: v.sbSlideT,
+    sprintRamp: v.sbSprintRamp,
+    raise: v.sbRaise,
+    clamberK: v.sbClamber,
+    adsMove: v.sbAdsMove,
+    stab: v.sbStab,
   });
   const set = (key, fields) => {
     for (const list of [WEAPON_DATA, WEAPONS]) {

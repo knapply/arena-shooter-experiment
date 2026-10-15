@@ -125,6 +125,27 @@ const KNOBS = {
   /* time to raise the gun after a sprint before it can fire */
   sbRaise: { set: v => (K.TUNE.raise = v), def: 0, try: [0.15, 0.3] },
   sbStab: { set: v => (K.TUNE.stab = v), def: 1.3, try: [2] },
+  sbSprintRamp: { set: v => (K.TUNE.sprintRamp = v), def: 0, try: [0.8] },
+  sbSlideT: { set: v => (K.TUNE.slideT = v), def: 0.8, try: [0.5] },
+  sbClamber: { set: v => (K.TUNE.clamberK = v), def: 1, try: [2.3] },
+  /* a floatier jump with the same apex: air time 1 s (8 = grav 9.1, jump 4.56) or 1.33 s (grav 5.2, jump 3.87) */
+  /* the whole "Classic feel" Sandbox preset (data/modes.js) at once */
+  sbClassic: {
+    set: v => {
+      if (v) for (const [k, x] of Object.entries(K.SANDBOX_PRESETS.classic.values)) KNOBS[k].set(x);
+    },
+    def: 0,
+    try: [1],
+  },
+  sbFloat: {
+    set: v =>
+      Object.assign(
+        K.TUNE,
+        v ? { grav: (8 * 1.14) / (v * v), jump: (4 * 1.14) / v } : { grav: 24, jump: 7.4 }
+      ),
+    def: 0,
+    try: [1, 1.33],
+  },
   sbCarbDmg: {
     set: v => Object.assign(W("carbine"), { body: v, head: Math.round(v * (11 / 9)) }),
     def: 9,
@@ -340,6 +361,9 @@ for (const [k, f] of [
   ["sbAdsMove", "adsMove"],
   ["sbRaise", "raise"],
   ["sbStab", "stab"],
+  ["sbSprintRamp", "sprintRamp"],
+  ["sbSlideT", "slideT"],
+  ["sbClamber", "clamberK"],
 ])
   KNOBS[k].def = K.TUNE_DEF[f];
 KNOBS.sbNadeThrow.def = K.NADE_TUNE.throw;
