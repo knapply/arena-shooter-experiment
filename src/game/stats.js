@@ -14,7 +14,9 @@ const STATS = {
   timeline: [],
   t0: 0,
   firstBlood: false,
-  sort: { key: "score", dir: -1 },
+  /* "mode": the mode's own measure first (captures, time holding the skull, or kills), then kills,
+     then fewest deaths; a column click sorts by that column instead */
+  sort: { key: "mode", dir: -1 },
   /** a pilot's row, made on first sight */
   row(id, name) {
     if (!id || id === "world") return null;
@@ -223,6 +225,11 @@ function powerHeld() {
 }
 /** a pilot's contribution, for sorting and MVP */
 const statScore = r => r.k + r.a * 0.5 + r.caps * 3 + r.rets + r.ballT / 15 + r.dmg / 400 - r.d * 0.25;
+/** the column a mode ranks by: flag captures, time holding the skull, or kills */
+STATS.modeKey = function () {
+  const m = String(EVENTS.context().mode || "");
+  return m.startsWith("ctf") ? "caps" : m.startsWith("oddball") ? "ballT" : "k";
+};
 /** every pilot in the match with their numbers (roster order is replaced by the current sort) */
 STATS.rows = function () {
   const roster = statRoster();
@@ -282,7 +289,10 @@ STATS.rows = function () {
     };
   });
   const { key, dir } = STATS.sort;
-  rows.sort((a, b) => (a[key] < b[key] ? -dir : a[key] > b[key] ? dir : b.score - a.score));
+  if (key === "mode") {
+    const lead = STATS.modeKey();
+    rows.sort((a, b) => (lead !== "k" && b[lead] - a[lead]) || b.k - a.k || a.d - b.d || b.score - a.score);
+  } else rows.sort((a, b) => (a[key] < b[key] ? -dir : a[key] > b[key] ? dir : b.score - a.score));
   return rows;
 };
 /** awards for the post-match screen: [{ title, name, value }] */
