@@ -24,6 +24,11 @@ const TUNE_DEF = {
   raise: 0,
   /* seconds of hover from aiming in the air (stabilize) */
   stab: 1.3,
+  /* seconds a sprint takes to build from run speed to full sprint speed (0 = at once) */
+  sprintRamp: 0,
+  /* how long a slide lasts, and how long a clamber takes (a multiple of its base time) */
+  slideT: 0.8,
+  clamberK: 1,
 };
 const TUNE = Object.assign({}, TUNE_DEF);
 /* seconds without damage before shields (then health) recharge: 3, down from 4 by simulation in every
@@ -268,7 +273,7 @@ class Body {
         il = 1 / Math.max(hs0, 1e-4);
       v.x *= il * sp;
       v.z *= il * sp;
-      this.slideT = 0.8;
+      this.slideT = TUNE.slideT;
       this.slideCD = 1.1;
       this.sprint = false;
       this.thrustT = 0;
@@ -359,14 +364,15 @@ class Body {
       v.z *= k;
       v.x += wish.x * 6 * dt;
       v.z += wish.z * 6 * dt;
-      if (!inp.crouch && this.slideT < 0.55) this.slideT = 0;
+      if (!inp.crouch && this.slideT < TUNE.slideT - 0.25) this.slideT = 0;
     } else if (this.pound === 0) {
       /* aiming slows you a little with low-zoom optics and more with a sniper scope (inp.scoped) */
       const speed =
         (this.crouch
           ? TUNE.crouchSpeed
           : this.sprint
-            ? TUNE.sprint
+            ? TUNE.sprint -
+              (TUNE.sprint - TUNE.run) * Math.max(0, 1 - this.sprintT / Math.max(TUNE.sprintRamp, 1e-3))
             : inp.aim
               ? TUNE.run * (inp.scoped ? TUNE.scopeMove : TUNE.adsMove)
               : TUNE.run) * (this.speedMul || 1);
@@ -427,7 +433,7 @@ class Body {
           if (dy > 0.3 && dy < (this.tuck ? 2.95 : 2.5)) {
             const to = new V3(p.x + dx * 0.95, b.y1 + 0.01, p.z + dz * 0.95);
             if (freeAt(to.x, to.y, to.z, H_STAND) && freeAt(p.x, b.y1 + 0.01, p.z, 0.4)) {
-              this.clamber = { from: p.clone(), to, t: 0, dur: 0.2 + dy * 0.03 };
+              this.clamber = { from: p.clone(), to, t: 0, dur: (0.2 + dy * 0.03) * TUNE.clamberK };
               v.set(0, 0, 0);
               this.thrustT = 0;
               this.stabbing = false;

@@ -173,8 +173,9 @@ function updPts(dt) {
     P.mesh.visible = n > 0;
     if (n)
       for (const a of [P.pos, P.col, P.size, P.alpha]) {
-        a.updateRange.offset = 0;
-        a.updateRange.count = n * a.itemSize;
+        /* only the live part goes to the GPU */
+        a.clearUpdateRanges();
+        a.addUpdateRange(0, n * a.itemSize);
         a.needsUpdate = true;
       }
   }

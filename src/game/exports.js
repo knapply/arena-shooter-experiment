@@ -70,6 +70,10 @@ const KA_API = {
   get powerMarks() {
     return PW_MARKS.filter(m => m.visible).length;
   },
+  /** the pause menu is up */
+  get paused() {
+    return paused;
+  },
   get myPod() {
     return myPod;
   },
@@ -110,9 +114,11 @@ const KA_API = {
   },
   sun,
   hemi,
+  LIGHT_K,
   skyTint,
   blast,
-  THREE,
+  /* three, with the game's own vector (core/vec3.js) as its Vector3: the modes simulate with it too */
+  THREE: Object.assign(Object.create(THREE), { Vector3: Vec3 }),
   $,
   clamp,
   rnd,
@@ -132,6 +138,7 @@ const KA_API = {
   H_CROUCH,
   TUNE,
   TUNE_DEF,
+  SANDBOX_PRESETS,
   setPilotCollider,
   groundBelow,
   freeAt,
@@ -139,6 +146,7 @@ const KA_API = {
   rayTarget,
   SPAWNS,
   makePilot,
+  ANIM,
   EVENTS,
   PINGS,
   addPing,
@@ -194,6 +202,7 @@ const KA_API = {
   modeList,
   modeRules,
   botLevel,
+  botLevelName,
   botAdapt,
   botAdaptNote,
   MENU,
@@ -206,6 +215,18 @@ const KA_API = {
   /* hit checks and lag compensation (net/hitcheck.js) */
   HITCHK,
   MoveHist,
+  netProf,
+  timed,
+  /** automated input (the network lab's players, tools/net-lab.js): hold an action, or press it once */
+  input: {
+    hold(a, on) {
+      if (on) virtHeld.add(a);
+      else virtHeld.delete(a);
+    },
+    press(a) {
+      hitActs.add(a);
+    },
+  },
   pidOf,
   RNG,
   rand,

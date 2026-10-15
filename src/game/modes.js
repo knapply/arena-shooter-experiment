@@ -27,32 +27,37 @@ function startMode(id, opts) {
   d.start(opts || {});
 }
 const modeList = () => [...MODE_DEFS.values()].map(d => ({ id: d.id, name: d.name }));
-/* ---- adaptive bot skill: offline matches start at the picked skill, then step up after a win and
-   down after a loss (Settings → Gameplay, on by default). Levels run 0 (Recruit) to 3 (Legendary);
-   the AI interpolates between them (CTF.skillAt). The level is saved ("botLevel") with the pick it
-   started from, so picking another skill starts over from there. ---- */
+/* ---- adaptive bot skill: offline matches start at the picked skill. A loss eases the bots off and a
+   win brings them back, never above the picked skill: the pick is the most they will be (down to
+   Trainee, easier than Recruit, for a player who keeps losing on Recruit). Settings → Gameplay, on by
+   default. Levels run −1 (Trainee) to 3 (Legendary); the AI interpolates between them
+   (CTF.skillAt). The level is saved ("botLevel") with the pick it started from, so picking another
+   skill starts over from there. ---- */
 const BOT_LEVELS = ["recruit", "normal", "heroic", "legendary"];
-/** one result moves the bots this far (a third of a level) */
-const BOT_STEP = 0.34;
-/** the level offline bot matches play at now: the adaptive level, or the picked skill */
+/** a loss eases the bots off this far, a win brings them back this far (a level is 1) */
+const BOT_DOWN = 0.4,
+  BOT_UP = 0.25;
+/** the level offline bot matches play at now: the adaptive level (never above the pick), or the pick */
 function botLevel() {
   const pick = Math.max(0, BOT_LEVELS.indexOf($("botSkill").value));
   if (!SET.adaptBots) return pick;
   const d = STORE.load("botLevel");
-  return d && d.base === $("botSkill").value && d.lvl >= 0 ? d.lvl : pick;
+  return d && d.base === $("botSkill").value && d.lvl != null ? Math.min(d.lvl, pick) : pick;
 }
-/** a level's name: the nearest skill, with + or − in between ("Normal+", "Heroic−") */
+/** a level's name: the nearest skill, with + or − in between ("Normal+", "Heroic−", "Trainee") */
 function botLevelName(l) {
   const i = Math.round(l),
     off = l - i,
-    n = BOT_LEVELS[i];
+    n = i < 0 ? "trainee" : BOT_LEVELS[i];
   return n[0].toUpperCase() + n.slice(1) + (off > 0.12 ? "+" : off < -0.12 ? "−" : "");
 }
 /** after an offline match: score 1 (won) to −1 (lost) moves the bots; returns { from, to } or null */
 function botAdapt(score) {
   if (!SET.adaptBots) return null;
-  const from = botLevel(),
-    to = clamp(Math.round((from + BOT_STEP * clamp(score, -1, 1)) * 100) / 100, 0, 3);
+  const pick = Math.max(0, BOT_LEVELS.indexOf($("botSkill").value)),
+    sc = clamp(score, -1, 1),
+    from = botLevel(),
+    to = clamp(Math.round((from + sc * (sc < 0 ? BOT_DOWN : BOT_UP)) * 100) / 100, -1, pick);
   STORE.save("botLevel", { lvl: to, base: $("botSkill").value });
   return { from, to };
 }
@@ -61,6 +66,8 @@ function botAdaptNote(r) {
   if (!r) return "";
   const a = botLevelName(r.from),
     b = botLevelName(r.to);
+  if (r.to === r.from && r.to >= 0 && r.to === Math.max(0, BOT_LEVELS.indexOf($("botSkill").value)))
+    return `Bots next match: ${b} (the skill you picked)`;
   if (a === b)
     return `Bots next match: ${b}${r.to === r.from ? "" : r.to > r.from ? " (a little harder)" : " (a little easier)"}`;
   return `Bots next match: ${b} (${r.to > r.from ? "up" : "down"} from ${a})`;

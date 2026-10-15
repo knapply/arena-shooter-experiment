@@ -39,7 +39,7 @@ const vmCtrC = document.createElement("canvas");
 vmCtrC.width = 64;
 vmCtrC.height = 32;
 const vmCtrT = new THREE.CanvasTexture(vmCtrC);
-vmCtrT.encoding = THREE.sRGBEncoding;
+vmCtrT.colorSpace = THREE.SRGBColorSpace;
 const vmCtr = new THREE.MeshBasicMaterial({ map: vmCtrT });
 vmCtr.color.setScalar(1.8);
 const VM_MAT = { D: vmDark, P: vmPlate, A: vmArmor, S: vmSuit, G: vmGlow, C: vmAcc, X: vmArc };
@@ -251,6 +251,8 @@ const HAND_POSE = {
   wrap: { c: [0.8, 0.85, 0.9, 0.95], t: 0.75, r: 1.45 },
   /* planted on a ledge, palm down */
   flat: { c: [0.08, 0.1, 0.12, 0.16], t: 0.1, r: 1 },
+  /* palm to the side of a ball (the oddball skull), fingers spread round it */
+  ball: { c: [0.3, 0.32, 0.35, 0.4], t: 0.35, r: 1.45 },
 };
 const HAND_GEO = {};
 const _hq = new THREE.Quaternion(),
@@ -417,7 +419,7 @@ const vmR = vmHand(1),
 /* the muzzle light rides on the camera, not the viewmodel: hiding the viewmodel (menu, death, scope)
    would change the scene's light count, and every lit shader would recompile; it follows the flash
    sprite each frame (game/loop.js) */
-const flash = new THREE.PointLight(0xffb347, 0, 6);
+const flash = new THREE.PointLight(0xffb347, 0, 6, 1);
 flash.position.set(0.2, -0.2, -0.9);
 camera.add(flash);
 const flashSprite = new THREE.Sprite(
@@ -495,8 +497,10 @@ vmFlag.visible = false;
   const tip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), vmAcc);
   tip.position.set(0, 1.25, 0);
   vmFlag.add(tip);
-  vmFlag.position.set(0.16, -0.32, -0.42);
-  vmFlag.rotation.set(-0.35, 0, -0.55);
+  vmFlag.position.set(0.05, -0.25, -0.44);
+  vmFlag.rotation.set(-0.3, 0, -0.95);
+  vmFlag.userData.p = vmFlag.position.clone();
+  vmFlag.userData.r = vmFlag.rotation.clone();
 }
 /* the oddball skull in first person: held low in front of you in both hands */
 const vmSkull = new THREE.Group();
@@ -521,8 +525,10 @@ vmSkull.visible = false;
     vmSkull.add(eye);
   }
   /* low and to the right, the face turned out toward what you're looking at */
-  vmSkull.position.set(0.09, -0.24, -0.46);
-  vmSkull.rotation.set(0.15, Math.PI + 0.7, 0.1);
+  vmSkull.position.set(0.02, -0.21, -0.42);
+  vmSkull.rotation.set(0.15, Math.PI + 0.3, 0);
+  vmSkull.userData.p = vmSkull.position.clone();
+  vmSkull.userData.r = vmSkull.rotation.clone();
 }
 /** "" (nothing), "flag" or "skull": what you carry in both hands instead of a weapon */
 let vmFlagOn = "";

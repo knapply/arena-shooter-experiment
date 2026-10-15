@@ -167,7 +167,7 @@ function signAtlas() {
   ];
   SIGNS.forEach((f, i) => tile(i, f));
   const t = new THREE.CanvasTexture(c);
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
   return t;
 }

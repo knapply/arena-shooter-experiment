@@ -1,6 +1,6 @@
 /* Screenshots of a drop pod respawn, for working on game/pods.js and game/pod-view.js.
      THREE_PATH=... node tools/pod-preview.js [out-dir] [--map ctf]
-   first person: high up, mid-fall, under the retros, the impact flash, the doors blowing, the step out
+   first person: the opening shot from outside (launch, sweep, behind, push in), then high up, mid-fall, under the retros, the impact flash, the doors blowing, the step out
    and looking down at the wreck; third person: a pod landing beside you, from impact to the wreck
    sinking. Real three.js (software WebGL); the world is frozen (timescale 0) for each shot. */
 const fs = require("fs"),
@@ -8,7 +8,9 @@ const fs = require("fs"),
 const { launch, open } = require("../tests/lib/browser.js");
 const out = process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : "pod-shots";
 if (!process.env.THREE_PATH) {
-  console.error("set THREE_PATH to three.js r128's three.min.js");
+  console.error(
+    "set THREE_PATH to three.module.min.js (three.js at the version in src/manifest.json, three.core.min.js beside it)"
+  );
   process.exit(1);
 }
 fs.mkdirSync(out, { recursive: true });
@@ -40,13 +42,18 @@ fs.mkdirSync(out, { recursive: true });
     KA.hurtMe(999, { w: "self", name: "test" });
   });
   await until(() => !!KA.myPod, null, 1);
+  /* seconds into the fall: the opening shot from outside, the push in, then the cockpit */
   const stages = [
-    ["fp1-high", 0.12],
-    ["fp2-mid", 0.5],
-    ["fp3-retro", 0.9],
+    ["op1-launch", 0.25],
+    ["op2-sweep", 0.85],
+    ["op3-behind", 1.3],
+    ["op4-push", 1.58],
+    ["fp1-high", 1.95],
+    ["fp2-mid", 2.3],
+    ["fp3-retro", 2.75],
   ];
-  for (const [name, k] of stages) {
-    await until(k => KA.myPod && KA.myPod.t / KA.myPod.dur >= k, k);
+  for (const [name, t] of stages) {
+    await until(t => KA.myPod && KA.myPod.t >= t, t, 0.1);
     await shot(name);
   }
   const land = [

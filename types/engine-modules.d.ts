@@ -3,6 +3,7 @@
 declare const STORE: typeof import("../src/core/store.js").STORE;
 declare const RNG: typeof import("../src/core/rng.js").RNG;
 declare const rand: typeof import("../src/core/rng.js").rand;
+declare const Vec3: typeof import("../src/core/vec3.js").Vec3;
 declare const FRAME_HOOKS: typeof import("../src/game/frame-hooks.js").FRAME_HOOKS;
 declare const onFrame: typeof import("../src/game/frame-hooks.js").onFrame;
 declare const runFrameHooks: typeof import("../src/game/frame-hooks.js").runFrameHooks;
@@ -12,3 +13,4 @@ declare const AI_SKILL: typeof import("../src/data/modes.js").AI_SKILL;
 declare const POD_TIME: typeof import("../src/data/modes.js").POD_TIME;
 declare const POD_HEIGHT: typeof import("../src/data/modes.js").POD_HEIGHT;
 declare const POD_EARLY: typeof import("../src/data/modes.js").POD_EARLY;
+declare const SANDBOX_PRESETS: typeof import("../src/data/modes.js").SANDBOX_PRESETS;

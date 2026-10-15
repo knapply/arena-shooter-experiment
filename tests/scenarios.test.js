@@ -1310,8 +1310,20 @@ const fix = v => +v.toFixed(2);
     { react: mid.react, err: mid.err }
   );
   check(
-    CTF.skillAt(2.99) === CTF.skillAt(3) && CTF.skillAt(-1) === CTF.skillAt(0),
-    "levels snap to steps and clamp to the ends"
+    CTF.skillAt(2.99) === CTF.skillAt(3) &&
+      CTF.skillAt(-2) === CTF.skillAt(-1) &&
+      CTF.skillAt(-1).react === S.trainee.react,
+    "levels snap to steps and clamp to the ends (Trainee, −1, below Recruit)"
+  );
+  /* the ladder is ordered: every step up reacts faster, aims tighter and turns quicker */
+  const ladder = ["trainee", "recruit", "normal", "heroic", "legendary"].map(k => S[k]);
+  check(
+    ladder.every(
+      (s, i) =>
+        i === 0 || (s.react < ladder[i - 1].react && s.err < ladder[i - 1].err && s.turn > ladder[i - 1].turn)
+    ),
+    "AI_SKILL is ordered: Trainee < Recruit < Normal < Heroic < Legendary",
+    ladder.map(s => [s.react, s.err, s.turn])
   );
   /* the map memory: heat where things happen, faded by later matches, small when saved */
   const doc = K.MAPS.arena,

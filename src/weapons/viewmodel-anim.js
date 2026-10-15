@@ -1,4 +1,44 @@
 /* ============ viewmodel animation ============ */
+const _cA = new V3(),
+  _cB = new V3(),
+  _cZ = new V3(),
+  _cM = new THREE.Matrix4();
+/* carrying in first person: the flag's pole or the skull rides a little with your stride and swings
+   with a blow (wound up, driven, followed through), and both hands hold it: closed round the pole,
+   or spread on the skull's sides */
+function carryVM(c, G) {
+  const M = meleeShape(vmS.mc),
+    skull = G === vmSkull,
+    bob = c.moving ? Math.abs(Math.cos(c.stepPh * Math.PI)) * 0.012 : 0;
+  G.position.copy(G.userData.p);
+  G.rotation.copy(G.userData.r);
+  G.position.y += bob + (skull ? 0.1 * M.w - 0.05 * M.s : 0.06 * M.w);
+  G.position.z += (skull ? -0.16 : -0.1) * M.s + 0.04 * M.w;
+  G.position.x -= (skull ? 0.04 : 0.1) * M.s;
+  G.rotation.x += skull ? -0.3 * M.w + 0.5 * M.s : -0.2 * M.w + 0.25 * M.s;
+  G.rotation.z += skull ? 0 : 0.5 * M.s + 0.15 * M.f;
+  G.updateMatrix();
+  for (const h of [vmR, vmL]) {
+    const sd = h.userData.side;
+    if (skull) {
+      /* the hand's body out to its side of the skull, the palm on it, fingers up and round it */
+      h.quaternion.setFromRotationMatrix(
+        _cM.makeBasis(_cA.set(1, 0, 0), _cB.set(0, 0, 1), _cZ.set(0, -1, 0))
+      );
+      h.position.setFromMatrixPosition(G.matrix);
+      h.position.x += sd * 0.028;
+      handPose(h, "ball");
+    } else {
+      /* round the pole, the hand's body toward you: right hand high, left low */
+      _cB.set(0, 1, 0).applyQuaternion(G.quaternion);
+      _cA.set(0, 0, 1).addScaledVector(_cB, -_cB.z).normalize().multiplyScalar(sd);
+      _cZ.crossVectors(_cA, _cB);
+      h.quaternion.setFromRotationMatrix(_cM.makeBasis(_cA, _cB, _cZ));
+      h.position.set(0, sd > 0 ? 0.15 : -0.1, 0).applyMatrix4(G.matrix);
+      handPose(h, "grip");
+    }
+  }
+}
 /* a blow's impact waits for the first-person strike to reach it (a charge's, or one with no blow in
    flight, lands at once): then the thud and sparks, the hitstop, the camera punch and the rumble */
 const _mlP = new V3(),
@@ -204,6 +244,7 @@ function updVM(dt, c) {
       if (vmS.cl > 0.5) handPose(h, "flat");
     });
   }
+  if (vmFlagOn) carryVM(c, vmFlagOn === "skull" ? vmSkull : vmFlag);
   handArm(vmR);
   handArm(vmL);
   const r = c.reload,

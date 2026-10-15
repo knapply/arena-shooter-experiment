@@ -106,7 +106,6 @@ function shieldMaterial() {
     uniforms: { uI: { value: 0 }, uT: { value: 0 }, uC: { value: new THREE.Color("#ffd36b") } },
     transparent: true,
     depthWrite: false,
-    skinning: true,
     blending: THREE.AdditiveBlending,
     vertexShader: [
       "#include <common>",
@@ -229,6 +228,18 @@ function reloadKey(keys, r, fore, out) {
   }
   return out.copy(fore);
 }
+/* where the palm's centre is in a hand's frame (the right hand's; the left mirrors x) */
+const PALM = new V3(0.0375, -0.06, 0);
+const _gx = new V3(),
+  _gy = new V3(),
+  _gz = new V3(),
+  _gv = new V3(),
+  _gpull = new V3(),
+  _gc = new V3(),
+  _gn = new V3(),
+  _gk = new V3(),
+  _gqL = new THREE.Quaternion(),
+  _gqR = new THREE.Quaternion();
 /* damped spring (substepped for stability at low frame rates) */
 const spr = () => ({ x: 0, v: 0 });
 function spring(s, t, dt, f, z) {
@@ -547,9 +558,8 @@ function carriedSkull() {
       roughness: 0.55,
     })
   );
-  /* between the hands (the grip's y -0.12 and -0.45), upright in the pilot's frame and facing out */
-  m.position.set(0, -0.29, -0.06);
-  m.rotation.set(-0.35, Math.PI, 0.5);
+  /* at the carry's origin, the face forward (the hands grip its sides: rig.update) */
+  m.rotation.set(-0.15, 0, 0);
   return m;
 }
 function flagCloth(color) {
@@ -572,21 +582,19 @@ function flagCloth(color) {
 function makePilot(color, label) {
   /* layered look: dark undersuit, team-colored hard armor in two tones, gunmetal trim, a gold visor
      and team-lit seams that catch the bloom */
-  const armorM = new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0.55, skinning: true });
+  const armorM = new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0.55 });
   armorM.color.multiplyScalar(0.62);
-  const armor2M = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.45, skinning: true });
+  const armor2M = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.45 });
   armor2M.color.multiplyScalar(0.36);
   const suitM = new THREE.MeshStandardMaterial({
     color: "#1b2125",
     roughness: 0.82,
     metalness: 0.1,
-    skinning: true,
   });
   const trimM = new THREE.MeshStandardMaterial({
     color: "#363f45",
     roughness: 0.38,
     metalness: 0.8,
-    skinning: true,
   });
   const visorM = new THREE.MeshStandardMaterial({
     color: "#5a3a0c",
@@ -594,19 +602,17 @@ function makePilot(color, label) {
     emissiveIntensity: 0.22,
     roughness: 0.05,
     metalness: 1,
-    skinning: true,
   });
   const glowM = new THREE.MeshStandardMaterial({
     color: "#000000",
     emissive: color,
     emissiveIntensity: 1.5,
     roughness: 0.5,
-    skinning: true,
   });
   const mats = [suitM, armorM, armor2M, trimM, visorM, glowM];
-  /* weapons and the flag are plain meshes: three.js compiles one program per material, so they get
-     their own (unskinned) copies instead of sharing the body's */
-  const wmats = mats.map(m => Object.assign(m.clone(), { skinning: false }));
+  /* weapons and the flag are plain meshes with their own copies of the materials (three.js compiles a
+     skinned and an unskinned program either way; separate copies keep their settings apart) */
+  const wmats = mats.map(m => m.clone());
   const shieldM = shieldMaterial();
   /* bones */
   const root = new THREE.Group();
@@ -657,6 +663,8 @@ function makePilot(color, label) {
     tas: byName["tas" + s],
     side,
     cur: new V3(side * 0.12, -0.89, 0),
+    /* the tasset trails the thigh on a spring */
+    spT: spr(),
   }));
   /* thruster glows */
   const glows = [-0.1, 0.1].map(x => {
@@ -707,7 +715,7 @@ function makePilot(color, label) {
   c.height = 64;
   const x = c.getContext("2d");
   const tagTex = new THREE.CanvasTexture(c);
-  tagTex.encoding = THREE.sRGBEncoding;
+  tagTex.colorSpace = THREE.SRGBColorSpace;
   const tag = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: tagTex, depthTest: false, transparent: true })
   );
@@ -739,8 +747,21 @@ function makePilot(color, label) {
       gR: 0,
       near: true,
       aim: false,
+      busy: false,
     },
     mocap: false,
+    /* a look toward a threat or a ping (characters/gaze.js): target, weight, and the eased turn */
+    lookX: 0,
+    lookY: 0,
+    lookZ: 0,
+    lookW: 0,
+    lkW: 0,
+    lkY: 0,
+    lkP: 0,
+    /* fatigue: builds while sprinting, shows in the breathing, the shoulders and the head */
+    fat: 0,
+    spTw: spr(),
+    spTs: spr(),
     gly: 0,
     lh: new V3(-0.2, -0.1, -0.3),
     rh: new V3(0.1, -0.1, -0.2),
@@ -801,6 +822,22 @@ function makePilot(color, label) {
     A.sh.quaternion.copy(A.clav.quaternion).invert().multiply(_up.quaternion);
   }
   /* point a hand along a frame given in the chest's space (blend 0..1), and close its fingers */
+  /* a hand's grip on a carried object (chest frame): c, the point the palm presses on; n, the way the
+     palm faces (into the object); kn, the line of the knuckles (along a pole). Writes the wrist to put
+     the arm's IK at, and the hand's frame (its palm faces -x on the right hand, +x on the left; the
+     fingers run down -y; the knuckles along z) */
+  function gripAt(A, c, n, kn, wrist, q) {
+    _gx.copy(n).multiplyScalar(-A.side);
+    _gz.copy(kn).addScaledVector(_gx, -kn.dot(_gx)).normalize();
+    _gy.crossVectors(_gz, _gx);
+    q.setFromRotationMatrix(_m1.makeBasis(_gx, _gy, _gz));
+    return wrist.copy(c).sub(
+      _gv
+        .copy(PALM)
+        .setX(-A.side * PALM.x)
+        .applyQuaternion(q)
+    );
+  }
   function handTo(A, frameQ, k, curl) {
     _q3.copy(A.clav.quaternion).multiply(A.sh.quaternion).multiply(A.el.quaternion).invert();
     _q2.copy(_q3).multiply(frameQ);
@@ -819,6 +856,11 @@ function makePilot(color, label) {
     /* sprint assist (0..1, from rig.update) and the two exhaust sprites, for the effects in rigEvents */
     jet: 0,
     jets: glows,
+    /** where the last footstep came down (world) */
+    stepAt: new V3(),
+    /** the pilot's stable id and team (posePilot sets them; characters/gaze.js reads them) */
+    pid: "",
+    team: -1,
     setLabel(t, sub) {
       x.clearRect(0, 0, 256, 64);
       x.font = "600 28px Chakra Petch, Arial Narrow, sans-serif";
@@ -852,6 +894,8 @@ function makePilot(color, label) {
         const L = Math.hypot(_dl.x, _dl.z) || 1;
         S.spFl.v -= (2.6 * _dl.z) / L;
         S.spFr.v -= (2.2 * _dl.x) / L;
+        /* and a captured stumble, pushed the way the hit came (harder on the hull than the shield) */
+        ANIM.hit(S.loco, _dl.x / L, _dl.z / L, kind === "head" ? 1 : S.sh > 0 ? 0.45 : 0.8);
       } else {
         S.spFl.v -= 1.6;
         S.spFr.v += rnd(-1.4, 1.4);
@@ -874,6 +918,18 @@ function makePilot(color, label) {
         mb += (_dl.z / L) * 2.2 * power;
       } else mb += 1.4;
       const L = Math.hypot(mr, mb) || 1;
+      /* where the body would come down: a wall in the way stops the topple (it slumps against it), a
+         step up ahead takes the head higher, a drop ahead lets it drape over the edge */
+      const y = yawOf(),
+        wx = (mr / L) * Math.cos(y) + (mb / L) * Math.sin(y),
+        wz = (-mr / L) * Math.sin(y) + (mb / L) * Math.cos(y),
+        rp = root.position;
+      let maxA = 1.45;
+      const wall = rayWorld(_kA.set(rp.x, rp.y + 1.1, rp.z), _kB.set(wx, 0, wz), 1.8);
+      if (wall < 1.75) maxA = Math.min(maxA, Math.asin(clamp((wall - 0.25) / 1.4, 0.25, 1)));
+      const g = groundBelow(rp.x + wx * 1.5, rp.z + wz * 1.5, rp.y + 1.2, 0.15) - rp.y;
+      if (g > 0.05) maxA = Math.min(maxA, Math.acos(clamp(g / 1.5, 0, 1)));
+      else if (g < -0.35 && wall >= 1.75) maxA = 1.68;
       S.fall = {
         bx: mr / L,
         bz: mb / L,
@@ -883,6 +939,11 @@ function makePilot(color, label) {
         vx: mr * 0.8,
         vz: mb * 0.8,
         spin: S.air ? rnd(-2, 2) : 0,
+        maxA,
+        /* slumped against a wall: the body sits down it instead of lying flat */
+        slump: maxA < 1.1 ? 1 - maxA / 1.1 : 0,
+        /* when it came to rest, for the crumple after */
+        restT: -1,
       };
       /* what they held goes with the death drop, not the body */
       gun.visible = false;
@@ -901,6 +962,17 @@ function makePilot(color, label) {
       S.yaw = null;
       S.spP.x = S.spP.v = 0;
       ANIM.reset(S.loco);
+    },
+    /** a short emote (cheer, flex, wave, shrug), only standing; false if the pilot is busy */
+    emote(name) {
+      return !rig.dead && ANIM.emote(S.loco, name);
+    },
+    /** turn the head toward a world point (w 0..1; 0 lets go) */
+    look(x, y, z, w) {
+      S.lookX = x;
+      S.lookY = y;
+      S.lookZ = z;
+      S.lookW = w;
     },
     chestWorld(out) {
       return out.copy(root.position).add(_kA.set(0, 1.25, 0));
@@ -1031,6 +1103,7 @@ function makePilot(color, label) {
         I.gR = S.gR;
         I.near = near;
         I.aim = !!st.aim;
+        I.busy = !!st.aim || !!st.fire || st.melee >= 0 || st.reload >= 0;
         if (!S.mocap) ANIM.reset(LO);
         ANIM.update(LO, I);
       }
@@ -1079,14 +1152,17 @@ function makePilot(color, label) {
       /* aiming down sights eases in: the head drops to the sights */
       S.ads = (S.ads || 0) + ((st.aim && !st.sprint ? 1 : 0) - (S.ads || 0)) * Math.min(1, dt * 12);
       if (!air && !st.slide) {
-        /* lean into acceleration and bank into turns */
-        lean += clamp(S.accF * 0.012, -0.2, 0.2);
+        /* lean into acceleration and bank into turns, harder the faster the pilot goes */
+        const sk = 0.6 + 0.4 * Math.min(1, spd / 6);
+        lean += clamp(S.accF * 0.012 * sk, -0.2, 0.2);
         roll += clamp(-S.turn * spd * 0.02, -0.34, 0.34);
       }
       /* breathing (faster and deeper after running), and a slow weight shift at rest */
       S.puff = clamp((S.puff || 0) + (spd > 4 ? dt * 0.12 : -dt * 0.05), 0, 1);
-      S.brT = (S.brT || 0) + dt * (1.7 + 1.6 * S.puff);
-      const br = Math.sin(S.brT) * (1 + S.puff),
+      /* fatigue builds over a long sprint and fades over a few seconds' rest */
+      S.fat = clamp(S.fat + (st.sprint && !air ? dt * 0.12 : -dt * (spd < 1 ? 0.18 : 0.08)), 0, 1);
+      S.brT = (S.brT || 0) + dt * (1.7 + 1.6 * S.puff + 1.2 * S.fat);
+      const br = Math.sin(S.brT) * (1 + S.puff + S.fat),
         sway = Math.sin(S.t * 0.45) * S.idle;
       if (!mocap) roll += sway * 0.025;
       S.pel += (pel - S.pel) * k;
@@ -1110,9 +1186,17 @@ function makePilot(color, label) {
       }
       /* the spine shares lean and bank between its two segments on top of the capture; breathing
          lifts the chest; a melee blow twists the torso into the strike */
-      const mtw = strike * 0.85 + fol * 0.3 - wind * 0.5;
-      spine.rotation.set((-leanS + st.pitch * 0.3) * 0.5, mtw * 0.5, rollS * 0.5);
-      spine2.rotation.set((-leanS + st.pitch * 0.3) * 0.5 + br * 0.012, mtw * 0.5, rollS * 0.5);
+      /* the upper body follows through: the twist of a blow and the rock of a shot carry on a spring */
+      const mtw = spring(S.spTw, strike * 0.85 + fol * 0.3 - wind * 0.5, dt, 3.4, 0.5),
+        rock = spring(S.spTs, S.spKick.x * 0.5, dt, 2.6, 0.45);
+      spine.rotation.set((-leanS + st.pitch * 0.3 - rock) * 0.5, mtw * 0.5, rollS * 0.5);
+      spine2.rotation.set((-leanS + st.pitch * 0.3 - rock) * 0.5 + br * 0.012, mtw * 0.5, rollS * 0.5);
+      /* the clamber's body comes from a capture of stepping up and over */
+      if (st.clamber && near) {
+        const V = ANIM.clipPose(S.loco, "vault", clK * ANIM.clips.vault.T);
+        spine.quaternion.premultiply(_q1.fromArray(V, ANIM.bone("spine") * 4).slerp(_q3.identity(), 0.4));
+        spine2.quaternion.premultiply(_q1.fromArray(V, ANIM.bone("spine2") * 4).slerp(_q3.identity(), 0.4));
+      }
       if (mocap) {
         spine.quaternion.premultiply(_q1.fromArray(LO.spine, 0));
         spine2.quaternion.premultiply(_q1.fromArray(LO.spine, 4));
@@ -1126,6 +1210,24 @@ function makePilot(color, label) {
         S.glance = S.idle > 0.5 ? (Math.random() - 0.5) * 0.9 : 0;
       }
       S.gly += (S.glance * S.idle - S.gly) * Math.min(1, dt * 4);
+      /* a look toward a threat or a teammate's ping, on top of the aim (limited to what a neck can do) */
+      S.lkW += (S.lookW - S.lkW) * Math.min(1, dt * 3);
+      let lkY = 0,
+        lkP = 0;
+      if (S.lkW > 0.01) {
+        const dx = S.lookX - root.position.x,
+          dz = S.lookZ - root.position.z;
+        localDir(dx, dz, _dl);
+        lkY = clamp(Math.atan2(-_dl.x, -_dl.z), -1.1, 1.1) * S.lkW;
+        lkP =
+          clamp(
+            Math.atan2(S.lookY - root.position.y - 1.6, Math.hypot(dx, dz)) - st.pitch * 0.68,
+            -0.5,
+            0.5
+          ) * S.lkW;
+      }
+      S.lkY += (lkY - S.lkY) * Math.min(1, dt * 7);
+      S.lkP += (lkP - S.lkP) * Math.min(1, dt * 7);
       _q1
         .copy(pelvis.quaternion)
         .multiply(spine.quaternion)
@@ -1133,8 +1235,8 @@ function makePilot(color, label) {
         .multiply(chest.quaternion);
       _q2.setFromEuler(
         _e1.set(
-          st.pitch * 0.68 + leanS * 0.25 - S.ads * (S.wp === 1 ? 0.2 : 0.1),
-          S.gly - S.turn * 0.02,
+          st.pitch * 0.68 + leanS * 0.25 - S.ads * (S.wp === 1 ? 0.2 : 0.1) + S.lkP + br * 0.02 * S.fat,
+          S.gly - S.turn * 0.02 + S.lkY,
           0,
           "YXZ"
         )
@@ -1213,7 +1315,13 @@ function makePilot(color, label) {
           g.toe.rotation.x = toe;
         }
         /* tassets ride the thigh as it swings forward */
-        g.tas.rotation.x = clamp(-g.cur.z * 1.4, -0.1, 0.95) + (st.crouch || st.slide ? 0.6 : 0);
+        g.tas.rotation.x = spring(
+          g.spT,
+          clamp(-g.cur.z * 1.4, -0.1, 0.95) + (st.crouch || st.slide ? 0.6 : 0),
+          dt,
+          5,
+          0.35
+        );
       });
       /* the tabard: the thighs kick its flaps out as they swing, the run drags them back, and each
          lower half trails its upper on a spring */
@@ -1313,6 +1421,16 @@ function makePilot(color, label) {
       S.lastMel = st.melee;
       _c.z += kick * 0.1;
       _c.y += br * 0.004;
+      /* an emote: the gun rides in the capture's right hand, pointing along the arm */
+      const em = S.mocap ? S.loco.emote : 0;
+      if (em > 0.01) {
+        const h = S.loco.hand;
+        _kA.set(h[3], h[4], h[5]);
+        _kB.set(h[3] - 0.27, h[4] - 0.17, h[5]).normalize();
+        _q1.setFromUnitVectors(_a.set(0, 0, -1), _kB);
+        _c.lerp(_kA.sub(_kB.multiplyScalar(0.12)), em);
+        _q2.slerp(_q1, em);
+      }
       const kg = Math.min(1, k * 1.5);
       gun.position.lerp(_c, kg);
       gun.quaternion.slerp(_q2, kg);
@@ -1320,13 +1438,61 @@ function makePilot(color, label) {
       let curlL = 1,
         curlR = 1;
       if (S.flag) {
-        /* the flag: carried across the body in both hands, pole up over the right shoulder */
+        /* carrying, in both hands: the flag's pole across the body, up over the right shoulder, or the
+           oddball skull held out in front. Each hand closes on its own contact on the object (the pole,
+           or a side of the skull) and the wrist is solved back from there, so the hands sit on it, and
+           the carry swings with a blow (wound up, driven, followed through) */
         const sw = S.mocap ? Math.sin(S.loco.phase * Math.PI * 2) * 0.05 * Math.min(1, S.loco.moving) : 0;
-        flagG.position.set(0.04, -0.02 + sw * 0.3, -0.24);
-        flagG.rotation.set(0.35 + sw, 0, -0.5 + (st.melee >= 0 ? Math.sin(Math.PI * st.melee) * 0.5 : 0));
+        if (S.skull) {
+          flagG.position.set(
+            0,
+            -0.08 + sw * 0.2 + 0.18 * wind - 0.12 * strike,
+            -0.32 + 0.06 * wind - 0.13 * strike
+          );
+          flagG.rotation.set(-0.4 * wind + 0.6 * strike, 0, 0);
+        } else {
+          flagG.position.set(0.04, -0.02 + sw * 0.3, -0.24 - 0.06 * strike);
+          flagG.rotation.set(
+            0.35 + sw - 0.3 * wind + 0.35 * strike,
+            0,
+            -0.5 - 0.2 * wind + 0.35 * strike + 0.12 * fol
+          );
+        }
         flagG.updateMatrix();
-        _rk.set(0, -0.12, 0).applyMatrix4(flagG.matrix);
-        _lk.set(0, -0.45, 0).applyMatrix4(flagG.matrix);
+        /* (if a grip is out of an arm's reach, the object comes in toward the body by the shortfall,
+           so both hands stay on it through a swing) */
+        for (let pass = 0; pass < 3; pass++) {
+          let over = 0;
+          for (let i = 0; i < 2; i++) {
+            const A = arms[i];
+            if (S.skull) {
+              /* palms on the skull's sides, fingers up round it */
+              _gn.set(A.side < 0 ? 1 : -1, 0, 0).applyQuaternion(flagG.quaternion);
+              _gc.copy(flagG.position).addScaledVector(_gn, -0.155);
+              _gk.set(0, 0, -1).applyQuaternion(flagG.quaternion);
+            } else {
+              /* round the pole (right hand high, left low), palms forward */
+              _gk.set(0, 1, 0).applyQuaternion(flagG.quaternion);
+              _gc.set(0, i ? -0.12 : -0.4, 0).applyMatrix4(flagG.matrix);
+              _gn.set(0, 0, -1).addScaledVector(_gk, _gk.z).normalize();
+              _gc.addScaledVector(_gn, -0.02);
+            }
+            gripAt(A, _gc, _gn, _gk, i ? _rk : _lk, i ? _gqR : _gqL);
+            _gv.set(A.side * 0.26, 0.17, 0);
+            const d = _gv.distanceTo(i ? _rk : _lk) - 0.57;
+            if (d > over) {
+              over = d;
+              _gpull
+                .copy(_gv)
+                .sub(i ? _rk : _lk)
+                .normalize();
+            }
+          }
+          if (over <= 0.005 || pass === 2) break;
+          flagG.position.addScaledVector(_gpull, over);
+          flagG.updateMatrix();
+        }
+        curlL = curlR = S.skull ? 0.5 : 1;
         if (cloth) {
           const a = cloth.geometry.attributes.position,
             b0 = cloth.userData.base,
@@ -1353,17 +1519,32 @@ function makePilot(color, label) {
           _lk.set(Math.min(h[0], -0.24), h[1] + 0.06, h[2]);
           curlL = 0.6;
         } else _lk.copy(R.fore).applyMatrix4(gun.matrix);
+        /* (an emote frees the left hand: it does what the capture's does) */
+        if (S.mocap && S.loco.emote > 0.01) {
+          const h = S.loco.hand;
+          _lk.lerp(_kA.set(h[0], h[1], h[2]), S.loco.emote);
+          curlL = 1 - 0.6 * S.loco.emote;
+        }
       }
       if (air && !st.thrust && !st.stab && st.vy < -6) curlL = Math.min(curlL, 0.4);
-      S.lh.lerp(_lk, kf);
-      S.rh.lerp(_rk, Math.min(1, kf * 1.5));
+      /* (a carried object's grip is held exactly: easing toward it would leave the hands trailing it) */
+      if (S.flag) {
+        S.lh.copy(_lk);
+        S.rh.copy(_rk);
+      } else {
+        S.lh.lerp(_lk, kf);
+        S.rh.lerp(_rk, Math.min(1, kf * 1.5));
+      }
       /* (elbows out, not tucked) */
       solveArm(arms[0], S.lh, _pole.set(-1, -0.2, 0.3), near);
       solveArm(arms[1], S.rh, _pole.set(1, -0.2, 0.35), near);
-      if (near) {
-        const frame = S.flag ? flagG.quaternion : gun.quaternion;
-        handTo(arms[1], frame, 0.85, curlR);
-        handTo(arms[0], frame, curlL > 0.7 ? 0.7 : 0.2, curlL);
+      /* (a carried object's grip at any distance; a weapon's hands only up close) */
+      if (S.flag) {
+        handTo(arms[1], _gqR, 1, curlR);
+        handTo(arms[0], _gqL, 1, curlL);
+      } else if (near) {
+        handTo(arms[1], gun.quaternion, 0.85, curlR);
+        handTo(arms[0], gun.quaternion, curlL > 0.7 ? 0.7 : 0.2, curlL);
       }
       /* the reload's sounds, heard from anyone: seat, slap, bolt */
       if (rl >= 0 && S.lastRS >= 0) {
@@ -1422,41 +1603,79 @@ function makePilot(color, label) {
         /* (a sprite draws even when it is fully transparent) */
         g.visible = g.material.opacity > 0.01;
       }
-      if (S.mocap && S.loco.step && !air) ev = Object.assign(ev || {}, { step: true, sprint: st.sprint });
+      if (S.mocap && S.loco.step && !air) {
+        /* (at the foot that came down, so the sound takes the surface under it) */
+        const o = S.loco.stepFoot * 3,
+          lx = S.loco.ank[o],
+          lz = S.loco.ank[o + 2];
+        rig.stepAt.set(
+          root.position.x + lx * cy + lz * sy,
+          root.position.y,
+          root.position.z - lx * sy + lz * cy
+        );
+        ev = Object.assign(ev || {}, { step: true, sprint: st.sprint, at: rig.stepAt });
+      }
       return ev;
     },
   };
   /* death: topple in the direction of momentum, knees buckle first, hands go limp, then a small settle bounce */
   function deathPose(dt) {
-    const F = S.fall || (S.fall = { bx: 0, bz: 1, ang: 0, angV: 0.4, g: 7, vx: 0, vz: 0, spin: 0 });
+    const F =
+      S.fall ||
+      (S.fall = {
+        bx: 0,
+        bz: 1,
+        ang: 0,
+        angV: 0.4,
+        g: 7,
+        vx: 0,
+        vz: 0,
+        spin: 0,
+        maxA: 1.45,
+        slump: 0,
+        restT: -1,
+      });
     S.deadT += dt;
     const kf = 1 - Math.exp(-20 * dt);
     F.angV += F.g * dt;
     F.ang += F.angV * dt;
-    if (F.ang > 1.45) {
-      F.ang = 1.45;
+    /* the topple meets the ground (or the wall, or the step): a bounce, then rest */
+    if (F.ang > F.maxA) {
+      F.ang = F.maxA;
       F.angV = Math.abs(F.angV) > 0.6 ? -F.angV * 0.22 : 0;
+      if (F.restT < 0) F.restT = S.deadT;
     }
+    /* then the crumple: settled on the ground, the knees fold and the body sags into it */
+    const cr = F.restT < 0 ? 0 : sstep(0, 0.45, S.deadT - F.restT);
     pivot.rotation.set(F.ang * F.bz, F.spin * Math.min(1, S.deadT), -F.ang * F.bx);
-    const fr = Math.exp(-2.6 * dt);
+    /* (sliding stops at a wall) */
+    const fr = Math.exp(-(F.slump > 0 ? 9 : 2.6) * dt);
     F.vx *= fr;
     F.vz *= fr;
     pivot.position.x += F.vx * dt;
     pivot.position.z += F.vz * dt;
     const c = Math.min(1, S.deadT * 3.4);
-    pelvis.position.y = 0.96 - 0.3 * c * c;
+    pelvis.position.y = 0.96 - 0.3 * c * c - (0.25 * F.slump + 0.06) * cr;
     pelvis.rotation.y = 0;
     /* the hit's jolt: the torso whips away from the blow and the head snaps, before the slump */
     const jolt = S.deadT < 0.3 ? Math.sin((S.deadT / 0.3) * Math.PI) : 0;
-    spine.rotation.set(-0.15 * c + 0.3 * jolt * F.bz, 0.25 * jolt * F.bx, F.bx * (0.1 * c + 0.2 * jolt));
-    spine2.rotation.set(-0.15 * c + 0.3 * jolt * F.bz, 0.15 * jolt * F.bx, F.bx * (0.1 * c + 0.2 * jolt));
+    spine.rotation.set(
+      -0.15 * c + 0.3 * jolt * F.bz - 0.18 * cr,
+      0.25 * jolt * F.bx,
+      F.bx * (0.1 * c + 0.2 * jolt + 0.1 * cr)
+    );
+    spine2.rotation.set(
+      -0.15 * c + 0.3 * jolt * F.bz - 0.12 * cr,
+      0.15 * jolt * F.bx,
+      F.bx * (0.1 * c + 0.2 * jolt)
+    );
     neck.rotation.set(0.45 * c + 0.4 * jolt, 0, 0);
     head.rotation.set(0.2 * c + 0.3 * jolt, F.bx * 0.4 * c, 0);
     legs.forEach((g, i) => {
       _lk.set(
-        g.side * (0.15 + 0.05 * c),
-        -pelvis.position.y + 0.08 + 0.18 * c * (i ? 1 : 0.4),
-        (-0.08 + i * 0.22) * c
+        g.side * (0.15 + 0.05 * c + 0.06 * cr),
+        -pelvis.position.y + 0.08 + 0.18 * c * (i ? 1 : 0.4) + (0.16 + 0.2 * F.slump) * cr * (i ? 0.6 : 1),
+        (-0.08 + i * 0.22) * c - (0.12 + 0.2 * F.slump) * cr
       );
       g.cur.lerp(_lk, kf);
       solve2(g.hip, g.kn, 0.44, 0.43, g.hip.position, g.cur, _pole.set(g.side * 0.15, 0, -1));
@@ -1483,6 +1702,7 @@ function makePilot(color, label) {
     if (S.deadT > 3.4) root.visible = false;
   }
   rig.setLabel(label);
+  RIGS.add(rig);
   /* materials only: rim light, panel lines, team pattern, visor, shield ripple (characters/look.js) */
   styleRig(rig);
   return rig;

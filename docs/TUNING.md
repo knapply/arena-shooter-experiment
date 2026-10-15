@@ -118,7 +118,7 @@ Most of this already holds here: no spread on the precision weapons, a fixed per
 
 **Presentation (no simulation needed; the feel tests pass unchanged):**
 
-- **The zoom eases** in over 0.15 s and out over 0.1 s (cubic ease-out, in log zoom so the sniper's 5x to 10x step takes as long as 1x to 2x). It used to chase the target at a fixed rate, which never quite settled and felt soft at the end. The sprint, slide and thrust widening of the view gives way as the scope comes up instead of popping off.
+- **The zoom eases** (since retimed from footage: see "Classic feel" below) in over 0.15 s and out over 0.1 s (cubic ease-out, in log zoom so the sniper's 5x to 10x step takes as long as 1x to 2x). It used to chase the target at a fixed rate, which never quite settled and felt soft at the end. The sprint, slide and thrust widening of the view gives way as the scope comes up instead of popping off.
 - **The gun comes up to the eye with the zoom.** The viewmodel's hip-to-aim pose follows the same ease, a little ahead of it, so the sights are at the eye before the optic finishes. The sniper's model gives way to its scope once the zoom is 60% in.
 - **The optic overlay fades in** over the last three quarters of the zoom and settles from slightly large; it fades out the same way, so a descope reads as being knocked out. The crosshair fades and tightens as it goes. A soft click plays on scoping in, stepping a zoom level and dropping out.
 - **Look speed follows the zoom** as it eases, so the first frames of a scope don't lurch (mouse and controller).
@@ -151,6 +151,99 @@ Time to kill, kills per minute, grenade self-kills and teamkills moved within th
 - **Removing the hip flinch:** the references have none. Ours is small (at most 0.06 rad, gone within about a third of a second) and only applies at the hip. A playtest question.
 - **Red reticle range growing while scoped** (the references extend aim assist range when zoomed): only a cue here, since this game's precision weapons don't fall off. Left alone.
 - **A sprint-to-fire delay** (above): measured, and it costs skill share.
+
+## Classic feel: pacing measured from footage
+
+This pass measured the reference arena shooters' movement and aiming from their multiplayer footage rather than from what players and developers say about it, and compared the result with this game.
+
+### How it was measured
+
+About 3.6 hours of first-person multiplayer video was used (22 videos, mostly 60 fps): professional league POVs, top-rank ranked play in slayer, CTF, strongholds, doubles and free-for-all, and movement-technique tutorials. Every video was scanned from start to end, and each event (zoom, thrust, slide, clamber, sprint-to-fire, kill, jump) was timed to the frame on 60 fps contact sheets: 789 events. Two passes ran over every frame automatically:
+
+- **Turn rate:** the frame-to-frame image shift, converted to degrees per second with the reference's 78° field of view (412,000 frames).
+- **Zoom:** the frame-to-frame image scale.
+
+**Speed** needs a scale, which first-person video doesn't give directly. Two Forge runs over a measured 2,048-unit track, timed by their author to the frame, give run and sprint speed in Forge units. The floor seams in the base run's video, fitted to the projection of a moving camera, give the camera's eye height in the same units: 6.03 units, from 23 seams with an interquartile range of 5.89 to 6.09. Speeds are compared as eye heights per second, so the body sizes of the two games cancel out.
+
+| | Reference (median; IQR or range; samples) | This game before this pass |
+|---|---|---|
+| Run | 26.0 units/s = **4.31 eye heights/s** | 6.4 m / 1.62 m = 3.95 |
+| Sprint | 33.8 units/s = **5.61 eye heights/s** | 9 / 1.62 = 5.56 |
+| Sprint ÷ run | **1.30** | 1.41 |
+| Sprint wind-up to full speed | 0.83 s (2) | instant |
+| Zoom in | magnum 0.05 s (91), rifles 0.083 s (42), sniper 0.083 s (49), automatics 0.10 s (25); magnification builds evenly | 0.15 s, front-loaded |
+| Zoom out, including a descope | 0.03 to 0.05 s | 0.1 s |
+| Thrust while scoped | drops the scope on its first frame (4 of 4) | kept the scope |
+| Thrust burst (visible) | 0.13 s (0.10 to 0.17; 132) | 0.24 s |
+| Thrust cooldown | at least 4 s (gaps of 4 to 8 s) | 2.2 s |
+| Slide, out of a thrust | 0.47 s (0.47 to 0.50; 11) | 0.8 s |
+| Clamber | 0.60 s (0.57 to 0.67; 20); about 1 s on tall ledges | about 0.26 s |
+| Standing jump, time in the air | 1.30 to 1.38 s (3) | 0.62 s |
+| Weapon up after a sprint | 0.15 s (0.12 to 0.18; 20) | can fire at once |
+| Camera head bob | none visible; the weapon sways instead | a step bob |
+| Magnum fire interval | 0.28 s (data-mined); players spam at about 0.32 s (19) | 0.26 s |
+| Turn rate in sustained turns | median 177°/s, 90th percentile 337°/s | controller: 183°/s, about 350°/s with the hold boost |
+
+Not measured: jump height, thrust distance, how fast a strafe reverses, and ground pound and stabilize timings. The footage never held an opponent in a still enough shot. The floatier-jump numbers below assume the reference jump reaches about as high, for its body, as this one.
+
+In short, the reference runs a little quicker for its size and sprints about as fast, so the gap between the two is smaller. Its scopes are close to instant. Its jumps are about twice as floaty. Its thrust is a short burst with a long recharge, its slides are short and its clambers are slow. The camera stays level while the weapon sways.
+
+### Presentation (direct; the feel tests pass)
+
+- **Zoom timing per weapon.** The zoom takes 0.06 s on the magnum, 0.08 s on the burst rifle, 0.09 s on the sniper and 0.1 s on the others. Magnification builds nearly linearly, settling only at the very end, and letting go or being knocked out takes 0.05 s. The gun still leads the optic to the eye.
+- **A thrust drops the scope** on its first frame; aim again to come back in.
+- **The camera barely bobs.** The step bob is down to about a quarter (0.6 cm walking, 1.2 cm sprinting) and the sprint roll to a third. The weapon's own sway carries the stride.
+
+### The simulation numbers
+
+New knobs, each at today's value so nothing else moved:
+
+- `sbSprintRamp`: sprint wind-up.
+- `sbSlideT`: slide length.
+- `sbClamber`: clamber time, as a multiple of the default.
+- `sbFloat`: a floatier jump that reaches the same apex. Air time 1 s is gravity 9.1 with jump 4.56; 1.33 s is gravity 5.2 with jump 3.43.
+- `sbClassic`: the whole preset below.
+
+Each of these is also a Sandbox setting: Sprint wind-up, Slide length, Clamber time, Sprint-to-fire delay, Scoped move speed and Stabilize time. Jump strength and gravity now go low enough for the floatier jump.
+
+Method as in pass four: four mode-and-map cells (capture the flag on Twin Foundry; slayer, free-for-all and oddball on the arena), both pairings (Legendary vs Normal, Normal vs Recruit), and four null controls per run.
+
+- **Round one:** seed sets 100 and 700, 24 matches of each kind (16 readings per variant). Null noise was ±0.007 to ±0.038.
+- **Round two:** seed sets 1300 and 1900, 48 matches of each kind.
+
+Round two's null noise was ±0.003 to ±0.014. Effects are on skill share against the mean of the baseline and its controls. "Positive" counts readings above it; "clear" counts readings outside the noise.
+
+| Variant | Round one (100, 700) | Round two (1300, 1900) | Time to kill, kills/min (both rounds) | Decision |
+|---|---|---|---|---|
+| Run 7 m/s (sprint ÷ run 1.29) | −0.004; 6 of 15 positive, 5 clear | not run | −0.1 to −0.3 s in most cells | Kept at 6.4. No consistent effect, and fights get shorter. |
+| Sprint wind-up 0.8 s | +0.006; 10 of 16, 4 clear | +0.003; 11 of 16, 5 clear | −0.03 / +0.04 s; −0.35 kills/min | Kept at 0 (instant). It leans positive but stays within the noise. A playtest candidate. |
+| Floatier jump, 1 s in the air | −0.001; 8 of 16 | not run | small | Kept. |
+| Floatier jump, 1.33 s in the air | −0.0004; 9 of 16 | not run | about +0.05 s; −0.4 kills/min | Kept. Neutral to the AI, and a large change in feel: for a playtest. |
+| Slide 0.5 s | −0.004; 7 of 16, none clear | not run | small | Kept at 0.8. |
+| Clamber ×2.3 | +0.007; 12 of 16, 3 clear | +0.0005; 7 of 16 | small | Kept at 1. Round one's lean didn't repeat. |
+| Thrust cooldown 4 s | +0.004; 9 of 16, 5 clear | −0.001; 9 of 16 | +0.3 kills/min; teamkills up in round two | Kept at 2.2, as in every pass. |
+| Sprint-to-fire 0.15 s | +0.006; 9 of 16, 7 clear | +0.004; 9 of 16, 6 clear | −0.06 / 0 s | Kept at 0. Mixed signs per cell; the earlier passes leaned negative. |
+| No slowdown scoped (1.0) | −0.0005; 5 of 16 | not run | small | Kept at 0.9. |
+| Magnum interval 0.28 s | +0.002; 8 of 16 | not run | small | Kept at 0.26. The 1.04 s perfect kill stays. |
+| **The whole Classic feel preset** | −0.0004; 8 of 16, 4 clear | −0.0006; 6 of 16, 6 clear | **−0.10 s and −0.10 s; −0.76 and −0.81 kills/min**; teamkills and self-kills slightly down | Ships as a Sandbox preset, not as the defaults (below). |
+
+### Decision, and the Sandbox preset
+
+No default changes. No knob moved skill share the same way on both rounds, and the reference pacing as a whole is neutral to skill share: the simulated pilots win or lose by aim and reaction, as before. It does change the shape of a match. Fights are about 0.1 s shorter once they start, because the faster run brings opponents closer. There are about 0.8 fewer kills a minute, because the longer thrust recharge, the slide, the wind-up and the slower clamber all take time out of rotations. By this page's rule a shorter time to kill counts against accessibility, so the reference values are offered to play rather than imposed. The movement knobs are also exactly the kind of change the simulation can't judge (see "Limits of the method"), so the next step is to playtest the preset.
+
+**Settings → Sandbox → Presets** has two buttons. **Defaults** puts every Sandbox number back. **Classic feel** sets these:
+
+- run 7 m/s (sprint stays 9)
+- sprint wind-up 0.8 s
+- jump 3.4 m/s with gravity 5.2: the same apex, 1.33 s in the air
+- slide 0.5 s
+- clamber ×2.3
+- thrust cooldown 4 s
+- 0.15 s from sprint to fire
+- no slowdown with low-zoom optics
+- magnum interval 0.28 s
+
+Online, the host's preset is the room's, like any Sandbox value. It is a playtest of the reference's pacing as a whole; the knobs can be mixed by hand from there.
 
 ## Earlier results (before the AI carried magnums)
 
@@ -548,6 +641,38 @@ Null means of seed sets 100 and 700, 48 skill matches per seed set. The share is
 - **Aim magnetism on the carbine.** The AI's misses are too wide for it to matter, but human misses with an automatic often aren't.
 - **The skull carrier's one-hit swing** causes most Recruit deaths in Oddball (54%). Pass four showed the carrier needs it (without it, captures fall 7 to 12 points and the skull changes hands 8 to 13 more times a match), so the question is a feel one: whether a warning on the carrier's swing would be enough.
 - **Movement skill** (strafe timing, thrust dodges, slide jumps) is something the AI only partly expresses, so these simulations measure the ladder of aim and reaction. The movement end of the ceiling still needs players.
+
+## Recruit against a new player
+
+Playtest: "the bots are way too good on Recruit... they absolutely crush me." The simulations had only ever played bots against bots, so this pass adds a model of a new human player and tunes the low levels against it.
+
+**The novice** (`NOVICE=1 DIFF=recruit node tools/tune.js`): one pilot on team 0 reacts in 0.42 s, turns at 3 rad/s, aims wide (aim error 0.08), never strafes in a fight, uses no movement tech, and only melees with someone in its face. Each run reports its K/D, kills and deaths a minute, median life, how often two or more pilots hurt it in the 3 s before a death (focus), and how it dies. Every mode, 24 matches of 4 minutes per level, seed sets 100 and 700. Target: an even fight against Recruit (K/D 0.8 to 1.2), and Normal a clear but fair step up.
+
+**Why Recruit crushed a new player:**
+- **Every bot wanted a 4 m fight.** A fresh brain's preferred range ties across its distance buckets and fell to the closest one, so bots walked straight into melee range: melee was 34 to 41% of the novice's deaths against Recruit (72% in oddball).
+- **Recruit's numbers were sharp for a person:** it turned at 5 rad/s (faster than a new player tracks), reacted in 0.5 s and dodged.
+- **Recruit bots ganged up** on a cracked target at full strength ("finish him" calls).
+- **Adaptive bots could climb above the pick** after wins.
+
+**What changed** (Heroic and Legendary unchanged):
+- New `AI_SKILL` fields: `minRange` (the closest they like to fight from: Recruit 10 m, Normal 8 m), `melee` (eagerness to melee and charge: Recruit 0.5, Normal 0.5, the top levels 1) and `focus` (ganging up on a called target: Recruit 0.4, Normal 0.6).
+- Recruit: reaction 0.5 → 0.58 s, aim error 0.055 → 0.068, turn 5 → 4, sight 42 → 40 m, dodge 0.3 → 0.2, fewer grenades.
+- Normal, a step between: reaction 0.32 → 0.42 s, aim error 0.035 → 0.05, turn 7 → 5.5, sight 75 → 60 m, dodge 1 → 0.7, grenades 1 → 0.7.
+- Every level, against a flag or skull carrier: close to 5 m and shoot, outside the carrier's one-hit swing.
+- Adaptive bots: the picked skill is the ceiling. A loss eases them 0.4 of a level (down to a new Trainee level below Recruit, never offered as a pick), a win brings them back 0.25 toward the pick.
+
+**The novice's K/D, before and after** (seed sets 100 / 700):
+
+| Mode | Against Recruit, before | after | Against Normal, before | after |
+|---|---|---|---|---|
+| Team Slayer (arena) | 0.59 | **0.86 / 0.91** | 0.31 | 0.45 / 0.41 |
+| Free-for-all (arena) | 0.38 | **0.96 / 0.72** | 0.26 | 0.45 / 0.38 |
+| Capture the flag | 0.56 | **0.82 / 1.16** | 0.32 | 0.60 / 0.53 |
+| Oddball (arena) | 0.55 | **1.20 / 1.45** | 0.36 | 0.87 / 0.85 |
+
+The novice now lives longer against Recruit (median life 14 to 24 s against 9 to 17 s before), and melee is 19 to 47% of its deaths rather than 34 to 72% (oddball's skull carriers still swing). Oddball is a little easy against Recruit; it is the noisiest mode, and the novice gets the most out of the skull's one-hit melee. Focus (two or more attackers before a death) is 0.4 to 0.8 at every level, as much a property of 4 v 4 as of the bots.
+
+**The bot ladder stays ordered** (share of kills the better level takes, seed set 100, 16 matches): Normal over Recruit 0.75 / 0.68 / 0.67 / 0.74 (Slayer / free-for-all / capture the flag / oddball), Heroic over Normal 0.83 / 0.77 / 0.80 / 0.92, Legendary over Heroic 0.71 / 0.67 / 0.73 / 0.85. With Normal softer, the biggest step is now Normal to Heroic.
 
 ## Limits of the method
 

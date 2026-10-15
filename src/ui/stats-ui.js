@@ -39,9 +39,10 @@ function statsTable(box, rows, onSort) {
     b.textContent = c.h;
     b.title = c.title;
     b.dataset.k = c.k;
-    if (STATS.sort.key === c.k) b.className = STATS.sort.dir < 0 ? "desc" : "asc";
+    const sk = STATS.sort.key === "mode" ? STATS.modeKey() : STATS.sort.key;
+    if (sk === c.k) b.className = STATS.sort.dir < 0 ? "desc" : "asc";
     b.onclick = () => {
-      if (STATS.sort.key === c.k) STATS.sort.dir *= -1;
+      if (sk === c.k) STATS.sort = { key: c.k, dir: -STATS.sort.dir };
       else STATS.sort = { key: c.k, dir: c.k === "name" ? 1 : -1 };
       if (onSort) onSort();
     };

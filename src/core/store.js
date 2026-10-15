@@ -139,14 +139,19 @@ export const STORE = (() => {
     }),
   });
   define("settings", {
-    version: 3,
+    version: 4,
     legacy: "ka-settings-v1",
     /* v1 was the settings export file itself ({app, version, settings, keys, pad}); v2 keeps just the parts;
        v3 moved the motion tracker's default from bottom right to bottom left (the new HUD layout), so a
-       save still on the old default moves with it */
+       save still on the old default moves with it; v4 does it once more, for saves written by pages
+       cached from before the change */
     migrate: {
       1: d => ({ settings: d?.settings || {}, keys: d?.keys || {}, pad: d?.pad || {} }),
       2: d =>
+        d && d.settings && d.settings.trackerPos === "br"
+          ? Object.assign({}, d, { settings: Object.assign({}, d.settings, { trackerPos: "bl" }) })
+          : d,
+      3: d =>
         d && d.settings && d.settings.trackerPos === "br"
           ? Object.assign({}, d, { settings: Object.assign({}, d.settings, { trackerPos: "bl" }) })
           : d,
@@ -174,11 +179,11 @@ export const STORE = (() => {
       return { maps };
     },
   });
-  /* adaptive bot skill: where the bots are now, 0 (Recruit) to 3 (Legendary), and the pick it started from */
+  /* adaptive bot skill: where the bots are now, −1 (Trainee) to 3 (Legendary), and the pick it started from */
   define("botLevel", {
     version: 1,
     clean: d => ({
-      lvl: Number.isFinite(+d?.lvl) ? Math.max(0, Math.min(3, +d.lvl)) : -1,
+      lvl: d?.lvl != null && Number.isFinite(+d.lvl) ? Math.max(-1, Math.min(3, +d.lvl)) : null,
       base: ["recruit", "normal", "heroic", "legendary"].includes(d?.base) ? d.base : "",
     }),
   });

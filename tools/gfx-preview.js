@@ -17,7 +17,9 @@ const flags = new Set(args);
 const [preset = "high", outArg] = args.filter(a => !a.startsWith("--"));
 const OUT = outArg || path.join(__dirname, "out");
 if (!process.env.THREE_PATH) {
-  console.error("set THREE_PATH to three.js r128's three.min.js");
+  console.error(
+    "set THREE_PATH to three.module.min.js (three.js at the version in src/manifest.json, three.core.min.js beside it)"
+  );
   process.exit(1);
 }
 /* [name, map, x, y, z, yaw, pitch]; yaw "sun" looks just under the sun */

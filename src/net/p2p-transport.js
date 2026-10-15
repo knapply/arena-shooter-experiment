@@ -64,10 +64,62 @@
     }
     return servers.length > 1 ? { iceServers: servers } : undefined;
   }
+  /* a local signalling server (the network lab, tools/net-lab.js): ?peerhost=127.0.0.1:9000. Nothing
+     leaves the machine: no public broker and no STUN servers, so links use local addresses only */
+  const localSignal = (() => {
+    const m = /[?&#]peerhost=([\w.-]+):(\d+)/.exec(location.search + location.hash);
+    return m ? { host: m[1], port: +m[2], path: "/", secure: false } : null;
+  })();
   const peerOpts = () => {
+    if (localSignal) return Object.assign({ debug: 0, config: { iceServers: [] } }, localSignal);
     const config = iceConfig();
     return config ? { debug: 0, config } : { debug: 0 };
   };
+
+  /* ---- traffic by message type (network panel, network lab): bytes and messages each way. Fast
+     packets count by their game message id ("f10"), reliable ones by kind ("p:<room>" for presence).
+     With fields on, presence also counts each top-level field ("pf:<room>.<field>"). ---- */
+  const TRAFFIC = { tx: {}, rx: {}, since: performance.now(), fields: false };
+  const tkind = (m, fast) =>
+    fast
+      ? "f" + (m.byteLength ? new Uint8Array(m)[0] : 0)
+      : m && m.t === "p"
+        ? "p:" + m.r
+        : String((m && m.t) || "?");
+  function count(dir, m, fast, n) {
+    const k = tkind(m, fast),
+      o = TRAFFIC[dir];
+    const e = o[k] || (o[k] = [0, 0]);
+    e[0] += n;
+    e[1]++;
+    if (TRAFFIC.fields && !fast && m && m.t === "p" && m.p && typeof m.p === "object")
+      for (const f in m.p) {
+        const fe = o["pf:" + m.r + "." + f] || (o["pf:" + m.r + "." + f] = [0, 0]);
+        fe[0] += JSON.stringify(m.p[f]).length + f.length + 4;
+        fe[1]++;
+      }
+  }
+  /* time spent in network code (ms and calls per part): the transport's own, and the game's through
+     KAHOST.prof.add */
+  const PROF = {};
+  /* parts nest (a game tick sends through the transport; a received packet runs game code), so
+     "total" counts only the outermost: begin() before a part, end(part, t0) after it */
+  let profDepth = 0;
+  function profAdd(k, ms) {
+    const e = PROF[k] || (PROF[k] = [0, 0]);
+    e[0] += ms;
+    e[1]++;
+  }
+  function profBegin() {
+    profDepth++;
+    return performance.now();
+  }
+  function profEnd(k, t0) {
+    const ms = performance.now() - t0;
+    profDepth = Math.max(0, profDepth - 1);
+    profAdd(k, ms);
+    if (!profDepth) profAdd("total", ms);
+  }
 
   /* ---- network simulation: added latency, jitter and loss on everything this tab sends.
      Reliable traffic models retransmission (a lost packet arrives a round trip late and holds up
@@ -137,12 +189,15 @@
     }
     raw(m) {
       if (!this.conn.open) return;
+      const t0 = profBegin();
       const n = this.fast ? m.byteLength : JSON.stringify(m).length;
       this.tx.b += n;
       this.tx.n++;
+      count("tx", m, this.fast, n);
       try {
         this.conn.send(m);
       } catch (e) {}
+      profEnd("transport.send", t0);
     }
     /** send through the network simulator when it is active (reliable unless opts.unreliable or a fast link) */
     send(m, opts) {
@@ -178,6 +233,11 @@
       this.lastRtt = r;
     }
     recv(m) {
+      const t0 = profBegin();
+      this.recv1(m);
+      profEnd("transport.recv", t0);
+    }
+    recv1(m) {
       const now = performance.now();
       this.rx.n++;
       this.rx.last = now;
@@ -185,6 +245,7 @@
         const b = asBuffer(m);
         if (!b || !b.byteLength || b.byteLength > 16384) return;
         this.rx.b += b.byteLength;
+        count("rx", b, true, b.byteLength);
         const k = new DataView(b).getUint8(0);
         if (k === FP_PING && b.byteLength === 11) {
           const v = new DataView(b);
@@ -193,7 +254,9 @@
         if (k === FP_PONG && b.byteLength === 11) return this.gotPong(new DataView(b).getUint16(1));
         return this.onData(b, this);
       }
-      this.rx.b += JSON.stringify(m || null).length;
+      const n = JSON.stringify(m || null).length;
+      this.rx.b += n;
+      count("rx", m, false, n);
       if (m && m.t === "_pi") return this.send({ t: "_po", n: m.n, ts: m.ts }, { unreliable: true });
       if (m && m.t === "_po") return this.gotPong(m.n);
       this.onData(m, this);
@@ -231,6 +294,85 @@
       };
     }
   }
+
+  /* ---- presence deltas: after the first send, only what changed goes out. Presence travels on
+     reliable, ordered links, and whoever joins (or reconnects to a new host) gets everything in full,
+     so a delta always lands on the state it was made from. Top-level keys that changed are sent
+     whole; a plain object (such as a host's snapshot) sends only its changed fields:
+     { key: { "~d": { changed }, "~x": [removed] } }; "~x" at the top lists removed keys. ---- */
+  const plain = v => !!v && typeof v === "object" && !Array.isArray(v);
+  const BADKEY = k => k === "__proto__" || k === "constructor" || k === "prototype";
+  /** what we last sent per room: key -> { j: JSON } or { sub: Map(field -> JSON) } */
+  const sentP = new Map();
+  function delta(prev, m) {
+    const d = {};
+    let changed = false,
+      size = 2;
+    for (const k in m) {
+      const v = m[k];
+      if (plain(v)) {
+        let e = prev.get(k);
+        const fresh = !e || !e.sub;
+        if (fresh) prev.set(k, (e = { sub: new Map() }));
+        const sd = {};
+        let sc = false;
+        for (const f in v) {
+          const j = JSON.stringify(v[f]);
+          size += (j ? j.length : 0) + f.length + 4;
+          if (e.sub.get(f) !== j) {
+            e.sub.set(f, j);
+            sd[f] = v[f];
+            sc = true;
+          }
+        }
+        const gone = [];
+        for (const f of e.sub.keys()) if (!(f in v)) gone.push(f);
+        for (const f of gone) e.sub.delete(f);
+        if (fresh) {
+          d[k] = v;
+          changed = true;
+        } else if (sc || gone.length) {
+          d[k] = gone.length ? { "~d": sd, "~x": gone } : { "~d": sd };
+          changed = true;
+        }
+      } else {
+        const j = JSON.stringify(v);
+        size += (j ? j.length : 0) + k.length + 4;
+        const e = prev.get(k);
+        if (!e || e.sub || e.j !== j) {
+          prev.set(k, { j });
+          d[k] = v;
+          changed = true;
+        }
+      }
+    }
+    const gone = [];
+    for (const k of prev.keys()) if (!(k in m)) gone.push(k);
+    for (const k of gone) prev.delete(k);
+    if (gone.length) {
+      d["~x"] = gone;
+      changed = true;
+    }
+    return { d, changed, size };
+  }
+  /** apply a delta to what we had */
+  function merge(old, d) {
+    const n = Object.assign({}, old);
+    for (const k in d) {
+      if (k === "~x" || BADKEY(k)) continue;
+      const v = d[k];
+      if (plain(v) && plain(v["~d"])) {
+        const o = Object.assign({}, plain(n[k]) ? n[k] : {});
+        for (const f in v["~d"]) if (!BADKEY(f)) o[f] = v["~d"][f];
+        if (Array.isArray(v["~x"])) for (const f of v["~x"]) delete o[f];
+        n[k] = o;
+      } else n[k] = v;
+    }
+    if (Array.isArray(d["~x"])) for (const k of d["~x"]) delete n[k];
+    return n;
+  }
+  /** the next presence goes out in full (a new host, a new connection) */
+  const fullSync = () => sentP.clear();
 
   /* ---- presence rooms ---- */
   const st = r => {
@@ -287,9 +429,17 @@
           if (patch[k] === null) delete m[k];
           else m[k] = patch[k];
         }
-        if (JSON.stringify(m).length > 4096) return Promise.reject({ code: "invalid_argument" });
+        let prev = sentP.get(name);
+        const first = !prev;
+        if (first) sentP.set(name, (prev = new Map()));
+        const dl = delta(prev, m);
+        if (dl.size > 4096) {
+          sentP.delete(name);
+          return Promise.reject({ code: "invalid_argument" });
+        }
         T.mine.set(name, m);
-        send({ t: "p", r: name, id: T.myId, p: m });
+        if (first) send({ t: "p", r: name, id: T.myId, p: m });
+        else if (dl.changed) send({ t: "p", r: name, id: T.myId, p: dl.d, d: 1 });
         return Promise.resolve();
       },
       peers: snap,
@@ -359,10 +509,11 @@
     if (m.t === "p") {
       const s = st(m.r),
         had = s.has(m.id);
-      s.set(m.id, m.p);
+      const p = m.d ? merge(s.get(m.id) || {}, m.p) : m.p;
+      s.set(m.id, p);
       const R = T.rooms.get(m.r);
       if (R) {
-        const e = entry(m.id, m.p, false);
+        const e = entry(m.id, p, false);
         R.fire(had ? [] : [e], [], had ? [e] : []);
       }
     } else if (m.t === "x") forget(m.id);
@@ -459,10 +610,12 @@
   }
 
   /* ---- hub: one reliable connection per friend, with a flood guard ---- */
+  /** run f once the connection is open (now, if it already is: a call held while we took over) */
+  const whenOpen = (c, f) => (c.open ? f() : c.on("open", f));
   function hubAccept(c) {
     if (c.label === "fast") return adoptFast(c);
     if (T.conns.size >= MAX_PEERS - 1) {
-      c.on("open", () => {
+      whenOpen(c, () => {
         try {
           c.send({ t: "full" });
         } catch (e) {}
@@ -473,7 +626,7 @@
     /* protocol handshake: a friend on a different build is told why instead of getting garbage */
     const theirs = c.metadata && +c.metadata.pv;
     if (myProtocol() && theirs && theirs !== myProtocol()) {
-      c.on("open", () => {
+      whenOpen(c, () => {
         try {
           c.send({ t: "ver", pv: myProtocol() });
         } catch (e) {}
@@ -506,11 +659,11 @@
         return;
       }
       if (!okMsg(m) || m.t !== "p") return;
-      const out = { t: "p", r: m.r, id: c.peer, p: m.p };
+      const out = m.d ? { t: "p", r: m.r, id: c.peer, p: m.p, d: 1 } : { t: "p", r: m.r, id: c.peer, p: m.p };
       apply(out);
       for (const [id, o] of T.conns) if (id !== c.peer && o.open) o.send(out);
     });
-    c.on("open", () => {
+    whenOpen(c, () => {
       const old = T.conns.get(c.peer);
       if (old && old !== link) old.close();
       T.conns.set(c.peer, link);
@@ -696,7 +849,8 @@
         T.hubConn = link;
         T.hubId = next;
         T.migrating = false;
-        /* the new hub learns our presence again; it answers with everyone else's */
+        /* the new hub learns our presence again (in full); it answers with everyone else's */
+        fullSync();
         for (const [r, p] of T.mine) link.send({ t: "p", r, id: T.myId, p });
         setUI("joined");
         status();
@@ -809,6 +963,23 @@
   function onConnection(c) {
     if (c.label === "fast") return adoptFast(c);
     if (T.hub) return hubAccept(c);
+    /* we are the backup and someone dials us as their host: the host has probably just left and they
+       noticed first. Hold the call for a moment instead of refusing it (a refusal costs them a
+       timeout and a retry): if we take over, they are in */
+    if (T.backup === T.myId && T.connected) {
+      const t0 = performance.now();
+      const wait = () => {
+        if (T.hub) return hubAccept(c);
+        if (performance.now() - t0 > 3000 || !T.connected) {
+          try {
+            c.close();
+          } catch (e) {}
+          return;
+        }
+        setTimeout(wait, 50);
+      };
+      return wait();
+    }
     setTimeout(() => {
       try {
         c.close();
@@ -1113,10 +1284,32 @@
           if (Number.isFinite(+o[k])) NETSIM[k] = Math.max(0, +o[k]);
         NETSIM.loss = Math.min(0.5, NETSIM.loss);
       },
+      /** bytes and messages by type each way since the last reset: { tx, rx, secs } */
+      traffic(reset, fields) {
+        const out = {
+          tx: JSON.parse(JSON.stringify(TRAFFIC.tx)),
+          rx: JSON.parse(JSON.stringify(TRAFFIC.rx)),
+          secs: (performance.now() - TRAFFIC.since) / 1000,
+        };
+        if (reset) Object.assign(TRAFFIC, { tx: {}, rx: {}, since: performance.now() });
+        if (fields != null) TRAFFIC.fields = !!fields;
+        return out;
+      },
       /** who hosts the room: { me: am I the host, id: the host's peer id } */
       hub: () => ({ me: !!T.hub, id: T.hubId }),
       /** host only: hand the room to another player (defaults to the suggested best host) */
       handover: to => handover(to || (T.suggest && T.suggest.peer)),
+    },
+  };
+  /** time in network code: add(part, ms) from the game; read(reset) → { part: [ms, calls] } */
+  window.KAHOST.prof = {
+    add: profAdd,
+    begin: profBegin,
+    end: profEnd,
+    read(reset) {
+      const o = JSON.parse(JSON.stringify(PROF));
+      if (reset) for (const k in PROF) delete PROF[k];
+      return o;
     },
   };
   window.__p2p = {

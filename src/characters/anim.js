@@ -12,6 +12,12 @@
      jump clip is played by vertical speed in the air, its landing absorbs the impact.
    - Feet lock to the ground while planted (no skating at any speed or blend), step when the body
      turns on the spot, follow the ground (stairs, ledges) and pull the hips down when out of reach.
+   - Variety and transitions (motion matching, lite): each pilot idles in one of three captured
+     idles and drifts between them; one-shots are picked by how the velocity changes (a braking
+     stop when a run ends, a plant when it reverses, a push-off out of a standstill), a running
+     leap or a standing jump by the speed at takeoff, and a landing by how hard it is.
+   - A hit plays a captured stumble additively on the hips and spine, turned toward the push;
+     emotes (cheer, flex, wave, shrug) play standing, with the free arms.
    update(L, I) poses one pilot: the result is in L (targets in the pelvis' frame for the leg IK). */
 const ANIM = (() => {
   const C = ANIM_CLIPS;
@@ -67,7 +73,7 @@ const ANIM = (() => {
       }
   }
   let at = 0;
-  /** @type {Record<string, { n: string, k: number, T: number, v: number[], c: number[][], up: number, down: number, d: Float32Array, speed: number, w: number[] | null }>} */
+  /** @type {Record<string, { n: string, k: number, T: number, v: number[], c: number[][], up: number, down: number, d: Float32Array, speed: number, w: number[] | null, shot: number }>} */
   const CL = {};
   for (const m of C.clips) {
     const d = new Float32Array(m.k * ST);
@@ -87,7 +93,7 @@ const ANIM = (() => {
       }
       for (let j = 0; j < 3; j++) d[o + NB * 4 + j] = raw[at++] / C.pq;
     }
-    CL[m.n] = Object.assign({ v: [0, 0], c: [], up: 0, down: 0, w: null }, m, {
+    CL[m.n] = Object.assign({ v: [0, 0], c: [], up: 0, down: 0, w: null, shot: 0 }, m, {
       d,
       speed: m.v ? Math.hypot(m.v[0], m.v[1]) : 0,
     });
@@ -242,6 +248,7 @@ const ANIM = (() => {
     return offR + ((u - a3) / (1 - a3)) * (1 - offR);
   }
   for (const n in CL) {
+    if (CL[n].shot) continue;
     const c = CL[n].c;
     /* a run: the left stance starts the cycle and the right one sits inside it, each under half */
     if (
@@ -303,8 +310,9 @@ const ANIM = (() => {
   const speedOf = t => (typeof t.v === "string" ? TUNE[t.v] : t.v);
   /** the active clips for speed s, direction a (radians) and sprint weight, into B (clips, weights,
       reversed; B.n of them) */
+  let crouchAs = "crouch";
   function put(B, n, w, rev) {
-    B.c[B.n] = CL[n];
+    B.c[B.n] = CL[n === "crouch" ? crouchAs : n];
     B.w[B.n] = w;
     B.r[B.n++] = rev | 0;
   }
@@ -342,9 +350,74 @@ const ANIM = (() => {
     return B;
   }
 
+  /* ---- one-shots ---- */
+  const IDLES = ["idle", "idle2", "idle3"].map(n => CL[n]);
+  /** per-bone weights of an upper-body one-shot: spine and arms, half the hips, no legs */
+  const UPPER = new Float32Array(NB);
+  UPPER[PEL] = 0.5;
+  for (const b of [SPN, SP2, CHS, ARM[0][0], ARM[0][1], ARM[1][0], ARM[1][1]]) UPPER[b] = 1;
+  const HITB = [PEL, SPN, SP2, CHS];
+  /** foot f planted in one-shot c at t seconds */
+  function shotStance(c, f, t) {
+    const S = c.c[f];
+    for (let i = 0; i < S.length; i += 2) if (t >= S[i] && t <= S[i + 1]) return 1;
+    return 0;
+  }
+  /** start one-shot name at t0 s, for dur s (to its end by default), with a body mask (null: all of
+      it), easing in and out over fin and fout s, at gain */
+  function play(L, name, t0, mask, dur, fin, fout, gain) {
+    const c = CL[name];
+    L.sc = c;
+    L.sT = L.s0 = t0;
+    L.sEnd = Math.min(c.T, t0 + dur);
+    L.sIn = fin;
+    L.sOut = fout;
+    L.sMask = mask;
+    L.sGain = gain;
+    L.sEm = false;
+    L.sCut = false;
+    L.sMode = L.mode;
+  }
+  /** an emote, standing (it gives way to moving, shooting or aiming); false if the pilot is busy */
+  function emote(L, name) {
+    if (!CL[name] || L.mode !== 0 || L.moving > 0.2) return false;
+    play(L, name, 0, null, CL[name].T, 0.2, 0.35, 1);
+    L.sEm = true;
+    return true;
+  }
+  /** a hit: px, pz the push in the pilot's frame (x right, z back), power 0..1 */
+  function hit(L, px, pz, power) {
+    L.hT = 0;
+    L.hA = Math.atan2(px, -pz);
+    L.hW = clamp(power, 0, 1);
+  }
+  /** a one-shot's pose at t seconds (for the rig's own moves, e.g. the clamber), into L.aux */
+  function clipPose(L, name, t) {
+    L.aux.fill(0);
+    sample(CL[name], t, 1, L.aux, false);
+    finish(L.aux);
+    return L.aux;
+  }
+  const H0 = new Float32Array(ST);
+  sample(CL.hit, 0, 1, H0, false);
+  finish(H0);
+
   /* ---- per-pilot state ---- */
   function foot() {
-    return { lock: false, lw: 0, lx: 0, lz: 0, ly: 0, lyaw: 0, step: -1, sx: 0, sz: 0, syaw: 0, c: 0 };
+    return {
+      lock: false,
+      lw: 0,
+      lx: 0,
+      lz: 0,
+      ly: 0,
+      lyaw: 0,
+      step: -1,
+      sx: 0,
+      sz: 0,
+      syaw: 0,
+      c: 0,
+      skip: 0,
+    };
   }
   function make() {
     return {
@@ -372,6 +445,45 @@ const ANIM = (() => {
       moving: 0,
       vyLast: 0,
       duty: 1,
+      /* the idle in play, the one it drifts into, and when */
+      idleA: IDLES[(Math.random() * IDLES.length) | 0],
+      idleB: null,
+      idleW: 0,
+      idleTB: 0,
+      idleNext: 6 + Math.random() * 8,
+      crouchAs: Math.random() < 0.5 ? "crouch" : "crouch2",
+      /* this jump's clip, how hard the landing was */
+      J: CL.jump,
+      landH: 0,
+      /* the one-shot in play (clip, time, start, end, ease in and out, mask, gain, weight) */
+      sc: null,
+      sT: 0,
+      s0: 0,
+      sEnd: 0,
+      sIn: 0.1,
+      sOut: 0.2,
+      /** @type {Float32Array | null} */
+      sMask: null,
+      sGain: 1,
+      sW: 0,
+      sEm: false,
+      sCut: false,
+      sMode: 0,
+      shotP: new Float32Array(ST),
+      aux: new Float32Array(ST),
+      /** how much an emote is playing (the rig frees the arms for it) */
+      emote: 0,
+      /* the hit reaction: time, push direction, strength */
+      hT: 9,
+      hA: 0,
+      hW: 0,
+      hitP: new Float32Array(ST),
+      /* recent speed peak, time standing, the velocity a moment ago (world), a plant's hold */
+      fast: 0,
+      stillT: 0,
+      pvx: 0,
+      pvz: 0,
+      plantT: 0,
       /* results: pelvis (root frame), spine locals, leg targets (pelvis frame), hands (chest frame) */
       pelP: new Float32Array(3),
       pelQ: new Float32Array(4),
@@ -384,6 +496,10 @@ const ANIM = (() => {
       hand: new Float32Array(6),
       contact: new Float32Array(2),
       step: false,
+      /** which foot just came down (0 left, 1 right) */
+      stepFoot: 0,
+      pc0: 0,
+      pc1: 0,
       phase: 0,
     };
   }
@@ -394,6 +510,12 @@ const ANIM = (() => {
     L.drop = 0;
     L.ready = 1;
     L.tuck = 0;
+    L.sc = null;
+    L.sW = 0;
+    L.emote = 0;
+    L.hT = 9;
+    L.fast = 0;
+    L.landT = 9;
     for (const f of L.feet) Object.assign(f, foot());
   }
   const _q = new Float32Array(16),
@@ -425,11 +547,15 @@ const ANIM = (() => {
       if (mode === 1 && L.mode === 0) {
         L.airT = 0;
         L.v0 = Math.max(I.vy, 0);
+        /* a running leap or a standing jump */
+        L.J = I.spd > 3 && L.v0 > 1 ? CL.jumpRun : CL.jump;
       }
       if (mode === 0 && L.mode === 1) {
         /* touchdown: the landing plays out, harder for a harder fall */
         L.landT = 0;
         L.landW = clamp(-L.vyLast * 0.11, 0.2, 1);
+        /* a long drop lands deep, from the capture of a jump off a ledge */
+        L.landH = smooth(9, 15, -L.vyLast);
         L.fade = L.fadeD = 0.06;
       }
       L.mode = mode;
@@ -446,7 +572,7 @@ const ANIM = (() => {
     if (mode === 1) {
       /* in the air: the jump by vertical speed, from the push-off to the reach for the ground */
       L.airT += dt;
-      const J = CL.jump;
+      const J = L.J;
       const v0 = Math.max(L.v0, 4);
       let u = L.v0 > 1 ? clamp((L.v0 - I.vy) / (2 * v0), 0, 0.92) : clamp(0.5 + L.airT * 0.8, 0.5, 0.85);
       if (I.vy < -3 && I.gd < 1.6) u = Math.max(u, 0.92);
@@ -455,7 +581,25 @@ const ANIM = (() => {
       L.contact[0] = L.contact[1] = 0;
       L.moving = 0;
     } else {
+      /* how the velocity changes picks the transitions: a run that ends brakes into a planted
+         stop, a run that reverses plants and swings the body round, a standstill pushes off */
+      const wvx = I.lr * Math.cos(I.yaw) - I.lf * Math.sin(I.yaw),
+        wvz = -I.lr * Math.sin(I.yaw) - I.lf * Math.cos(I.yaw);
+      const pm = Math.sqrt(L.pvx * L.pvx + L.pvz * L.pvz);
+      if (I.spd > 2.5 && pm > 2.5 && wvx * L.pvx + wvz * L.pvz < -0.5 * I.spd * pm && L.plantT <= 0) {
+        L.plantT = 0.09;
+        play(L, "plant", 0.12, UPPER, 0.4, 0.05, 0.22, 0.8);
+      }
+      if (!I.crouch && L.fast > 3.5 && I.spd < 0.6 && L.sc !== CL.stop)
+        play(L, "stop", 0.3, null, 0.6, 0.08, 0.3, 1);
+      if (L.stillT > 0.3 && I.spd > 1.5) play(L, "start", 0.1, UPPER, 0.45, 0.06, 0.25, 0.8);
+      L.stillT = I.spd < 0.5 ? L.stillT + dt : 0;
+      L.fast = Math.max(I.spd, L.fast - dt * 6);
+      L.pvx += (wvx - L.pvx) * Math.min(1, dt * 8);
+      L.pvz += (wvz - L.pvz) * Math.min(1, dt * 8);
+      L.plantT -= dt;
       /* on the ground: the idle and the blend space, all loops on one phase */
+      crouchAs = L.crouchAs;
       const B = weights(I.crouch ? T_CROUCH : T_STAND, I.spd, a, L.sprintW, L.B);
       let wm = 0,
         Tb = 0,
@@ -495,11 +639,33 @@ const ANIM = (() => {
         /* (only runs shorten their stance: in a walk a foot stays down, so it just steps quicker) */
         L.duty = rest > 1 ? 1 - (1 - clamp(Math.pow(rest, -0.5), 0.6, 1)) * (wr / wm) : 1;
         rate = (rest * L.duty) / Tb;
-        L.ph = (L.ph + dt * rate) % 1;
+        /* (a plant holds the stride for a moment: the planted foot takes the reversal) */
+        if (L.plantT <= 0) L.ph = (L.ph + dt * rate) % 1;
       }
       const iw = 1 - wm;
       L.idleT += dt;
-      if (iw > 0.01) sample(CL.idle, L.idleT / CL.idle.T, iw, P, true);
+      /* the idle: now and then it drifts into another (the feet step to the new stance) */
+      if (iw > 0.9) L.idleNext -= dt;
+      if (L.idleNext < 0 && !L.idleB) {
+        const i = IDLES.indexOf(L.idleA);
+        L.idleB = IDLES[(i + 1 + ((Math.random() * (IDLES.length - 1)) | 0)) % IDLES.length];
+        L.idleTB = 0;
+      }
+      if (L.idleB) {
+        L.idleTB += dt;
+        L.idleW = Math.min(1, L.idleW + dt / 1.5);
+        if (L.idleW >= 1) {
+          L.idleA = L.idleB;
+          L.idleT = L.idleTB;
+          L.idleB = null;
+          L.idleW = 0;
+          L.idleNext = 8 + Math.random() * 10;
+        }
+      }
+      if (iw > 0.01) {
+        sample(L.idleA, L.idleT / L.idleA.T, iw * (1 - L.idleW), P, true);
+        if (L.idleB) sample(L.idleB, L.idleTB / L.idleB.T, iw * L.idleW, P, true);
+      }
       let c0 = iw,
         c1 = iw;
       for (let i = 0; i < B.n; i++) {
@@ -511,24 +677,68 @@ const ANIM = (() => {
         c1 += w * stance(c, 1, p);
       }
       finish(P);
-      /* footsteps: a foot comes down while moving */
-      if (wm > 0.4 && ((c0 > 0.5 && L.contact[0] <= 0.5) || (c1 > 0.5 && L.contact[1] <= 0.5))) L.step = true;
+      L.pc0 = L.contact[0];
+      L.pc1 = L.contact[1];
       L.contact[0] = c0;
       L.contact[1] = c1;
       /* a landing: the capture's knees take the impact, fading back into the gait */
-      if (L.landT < 0.5) {
+      if (L.landT < 0.5 + 0.6 * L.landH) {
         L.landT += dt;
-        const J = CL.jump;
-        const w = L.landW * (1 - smooth(0.12, 0.5, L.landT)) * (1 - 0.6 * wm);
+        const J = CL.jump,
+          JH = CL.landHard;
+        const w = L.landW * (1 - smooth(0.12 + 0.3 * L.landH, 0.5 + 0.6 * L.landH, L.landT)) * (1 - 0.6 * wm);
         if (w > 0.01) {
           L.land.fill(0);
-          sample(J, J.down + L.landT, 1, L.land, false);
+          if (L.landH < 0.99) sample(J, J.down + L.landT, 1 - L.landH, L.land, false);
+          if (L.landH > 0.01) sample(JH, JH.down + L.landT, L.landH, L.land, false);
           finish(L.land);
           for (let b = 0; b < NB; b++) qlerp(P, b * 4, L.land, b * 4, w);
           for (let j = NB * 4; j < ST; j++) P[j] += (L.land[j] - P[j]) * w;
         }
       }
     }
+    /* ---- the one-shot in play, over the gait: it gives way when the pilot moves on (an emote also
+       to shooting or aiming) ---- */
+    if (L.sc) {
+      const c = L.sc,
+        t = (L.sT += dt);
+      if (!L.sMask && (mode !== L.sMode || I.spd > (L.sEm ? 0.6 : 1.8) || (L.sEm && I.busy))) L.sCut = true;
+      const env = L.sCut ? 0 : Math.min(1, (t - L.s0) / L.sIn, (L.sEnd - t) / L.sOut) * L.sGain;
+      L.sW += (Math.max(0, env) - L.sW) * Math.min(1, dt * 14);
+      if ((t >= L.sEnd || L.sCut) && L.sW < 0.01) {
+        L.sc = null;
+        L.sW = 0;
+      } else if (L.sW > 0.001) {
+        const w = L.sW,
+          M = L.sMask;
+        L.shotP.fill(0);
+        sample(c, Math.min(t, c.T), 1, L.shotP, false);
+        finish(L.shotP);
+        for (let b = 0; b < NB; b++) {
+          const wb = M ? w * M[b] : w;
+          if (wb > 0.001) qlerp(P, b * 4, L.shotP, b * 4, wb);
+        }
+        if (!M) {
+          for (let j = NB * 4; j < ST; j++) P[j] += (L.shotP[j] - P[j]) * w;
+          if (mode === 0) {
+            L.contact[0] += (shotStance(c, 0, t) - L.contact[0]) * w;
+            L.contact[1] += (shotStance(c, 1, t) - L.contact[1]) * w;
+          }
+        }
+      }
+    }
+    L.emote = L.sc && L.sEm ? L.sW : 0;
+    /* footsteps: a foot comes down while moving (or braking) */
+    if (
+      mode === 0 &&
+      (L.moving > 0.4 || L.sc === CL.stop) &&
+      ((L.contact[0] > 0.5 && L.pc0 <= 0.5) || (L.contact[1] > 0.5 && L.pc1 <= 0.5))
+    ) {
+      L.step = true;
+      L.stepFoot = L.contact[0] > 0.5 && L.pc0 <= 0.5 ? 0 : 1;
+    }
+    L.pc0 = L.contact[0];
+    L.pc1 = L.contact[1];
     if (L.fade > 0) {
       L.fade = Math.max(0, L.fade - dt);
       const w = L.fade / L.fadeD;
@@ -613,7 +823,9 @@ const ANIM = (() => {
         az = _ank[o + 2];
       const wx = I.x + ax * cy + az * sy,
         wz = I.z - ax * sy + az * cy;
-      const c = L.contact[s];
+      /* (a foot the body has pulled away from steps quickly instead of sliding: it is up meanwhile) */
+      if (F.skip > 0) F.skip -= dt;
+      const c = F.skip > 0 ? 0 : L.contact[s];
       F.c = c;
       if (!I.near || mode === 1) {
         F.lock = false;
@@ -656,7 +868,10 @@ const ANIM = (() => {
             F.sx = F.lx;
             F.sz = F.lz;
             F.syaw = F.lyaw;
-          } else if (dev > 0.45) F.lock = false;
+          } else if (dev > (L.plantT > 0 ? 0.65 : 0.45)) {
+            F.lock = false;
+            F.skip = 0.18;
+          }
         }
         const want = F.lock || F.step >= 0 ? 1 : 0;
         /* (a lock starts where the foot is, so it takes hold at once; letting go eases out) */
@@ -674,6 +889,9 @@ const ANIM = (() => {
         qyaw(wrap(F.lyaw - I.yaw) * F.lw, _q, 12);
         qmul(_q, 12, _aq, s * 4, _aq, s * 4);
       }
+      if (F.skip > 0) _ank[o + 1] += Math.sin((Math.PI * F.skip) / 0.18) * 0.08;
+      /* a stepping foot is off the ground */
+      if (F.step >= 0 || F.skip > 0) L.contact[s] = 0;
       /* the ground under the foot (stairs, ledges); the rig looks it up where the foot is */
       L.ank[o] = _ank[o];
       L.ank[o + 2] = _ank[o + 2];
@@ -750,6 +968,39 @@ const ANIM = (() => {
     qmul(_q, 0, SPQ, 4, _q, 4); // W_spine2'
     qinv(_q, 4, _v, 0);
     qmul(_v, 0, _q, 12, SPQ, 8);
+    /* ---- a hit: the captured stumble, as a change from its first frame, turned toward the push and
+       scaled by the hit, rises and settles on the hips and spine ---- */
+    if (L.hT < CL.hit.T) {
+      L.hT += dt;
+      const Hc = CL.hit,
+        env = Math.sin(Math.PI * clamp(L.hT / Hc.T, 0, 1)) * L.hW * 0.45;
+      L.hitP.fill(0);
+      sample(Hc, L.hT, 1, L.hitP, false);
+      finish(L.hitP);
+      for (let i = 0; i < HITB.length; i++) {
+        const b = HITB[i],
+          o = b * 4;
+        qinv(H0, o, _v, 0);
+        qmul(L.hitP, o, _v, 0, _v, 4); // the clip's change since its start
+        if (_v[7] < 0) for (let j = 4; j < 8; j++) _v[j] = -_v[j];
+        /* (the capture lurches forward: turn its axis to the push, in this bone's parent frame) */
+        const be = (b === PEL ? 0 : L.hipYaw) - L.hA,
+          cb = Math.cos(be),
+          sb = Math.sin(be);
+        const x = _v[4] * cb + _v[6] * sb,
+          z = -_v[4] * sb + _v[6] * cb;
+        _v[8] = x * env;
+        _v[9] = _v[5] * env;
+        _v[10] = z * env;
+        _v[11] = 1 - env + _v[7] * env;
+        qnorm(_v, 8);
+        if (b === PEL) qmul(_v, 8, L.pelQ, 0, L.pelQ, 0);
+        else {
+          const so = b === SPN ? 0 : b === SP2 ? 4 : 8;
+          qmul(_v, 8, L.spine, so, L.spine, so);
+        }
+      }
+    }
     /* ---- the arms' swing (hands in the chest's frame), for an arm that holds nothing ---- */
     for (let s = 0; s < 2; s++) {
       const sh = ARM[s][0],
@@ -766,5 +1017,5 @@ const ANIM = (() => {
     L.phase = L.ph;
     return L;
   }
-  return { make, reset, update, clips: CL, sample, finish, stance };
+  return { make, reset, update, emote, hit, clipPose, clips: CL, sample, finish, stance, bone: bi };
 })();

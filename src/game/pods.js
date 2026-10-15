@@ -20,6 +20,8 @@ const podLeft = k => 1 - k * k * k;
 const podSpeed = k => 3 * k * k;
 /** the re-entry burn builds with speed and dims under the retros at the end */
 const podHeat = k => (k < 0.8 ? Math.min(1, 0.35 + podSpeed(k) * 0.4) : Math.max(0.25, 1 - (k - 0.8) * 3.5));
+/** your own pod is not drawn (nor its burn) while you look out from inside it, or wait where it lands */
+const podHidden = p => p.rider && (p.inside || p.skip);
 const POD_R = 0.76,
   POD_NOSE = 0.35,
   POD_BURY = 0.95,
@@ -80,7 +82,9 @@ const POD_MAT = {
   }),
   dark: new THREE.MeshStandardMaterial({ color: "#1d2226", roughness: 0.6, metalness: 0.5 }),
 };
+/* (the soft round sprite texture: without it the flame is a hard-edged card) */
 const podFireMat = new THREE.SpriteMaterial({
+  map: SOFT,
   color: 0xff9a40,
   transparent: true,
   blending: THREE.AdditiveBlending,
@@ -332,6 +336,8 @@ function dropPod(pos, color, o = {}) {
     steer: o.steer || null,
     skip: false,
     rider: !!o.rider,
+    /** the rider is in the cockpit (game/pod-view.js); before that the opening shot sees it from outside */
+    inside: false,
     /* where it comes to rest (podSeat), and the offset it eases toward on the way down */
     seat: null,
     ox: 0,
@@ -360,7 +366,7 @@ function podTrail(p, heat, near = 1) {
     _podV.y -= 0.2;
     /* the plasma sheath: big, bright and short-lived; it hangs where the pod passed (from inside, the
        cockpit draws its own) */
-    if (!p.rider)
+    if (!podHidden(p))
       ptAdd(
         PTS.glow,
         _podV,
@@ -372,19 +378,19 @@ function podTrail(p, heat, near = 1) {
         { max: 1.4, grow: -0.5, drag: 2 }
       );
     /* smoke: a dark column that lingers and spreads */
-    if (!p.rider && Math.random() < 0.7)
+    if (!podHidden(p) && Math.random() < 0.7)
       ptAdd(
         PTS.soft,
         _podW.copy(_podV).add(_fx.set(rnd(-0.4, 0.4), 1.5, rnd(-0.4, 0.4))),
         new V3(rnd(-0.6, 0.6), rnd(0.5, 1.5), rnd(-0.6, 0.6)),
-        rnd(3, 4.8),
+        rnd(3, 4.8) * Math.max(0.5, near),
         Math.random() < 0.5 ? 0x4a423c : 0x5c534b,
         0.55 * heat,
         rnd(2.5, 4),
         { max: 4, grow: 0.5, drag: 0.6 }
       );
     /* embers flung off the sheath */
-    if (!p.rider && Math.random() < 0.5)
+    if (!podHidden(p) && Math.random() < 0.5)
       ptAdd(
         PTS.glow,
         _podV,
@@ -626,7 +632,7 @@ function podBlow(p) {
 }
 function updPods(dt) {
   /* pods falling right beside the one you ride burn smaller, so your window is not all flame */
-  const ride = PODS.find(q => q.rider && !q.landed && !q.skip);
+  const ride = PODS.find(q => q.rider && q.inside && !q.landed && !q.skip);
   for (let i = PODS.length - 1; i >= 0; i--) {
     const p = PODS[i];
     if (!p.landed) {
@@ -645,13 +651,14 @@ function updPods(dt) {
       p.g.position.set(p.vis.x + p.ox, p.at.y + h, p.vis.z + p.oz);
       p.g.rotation.y += dt * 2.5;
       /* your own pod is drawn from inside (game/pod-view.js) */
-      p.g.visible = !p.rider;
+      p.g.visible = !podHidden(p);
       p.fire.material.opacity = 0.6 + Math.random() * 0.4;
       p.retro.material.opacity = k > 0.8 ? (k - 0.8) * 5 * (0.7 + Math.random() * 0.3) : 0;
       /* a sprite draws even when it is fully transparent */
       p.retro.visible = p.retro.material.opacity > 0.01;
       /* the nose runs white-hot through the burn and dims as the retros take over */
-      const heat = podHeat(k);
+      /* (your own opening shot sees it burn bright from the start) */
+      const heat = p.rider && !p.inside && !p.skip ? Math.max(0.75, podHeat(k)) : podHeat(k);
       p.heat = heat;
       p.heatGlow = 1.4 + heat * 2.6;
       const near =
@@ -662,16 +669,21 @@ function updPods(dt) {
               1
             )
           : 1;
-      podTrail(p, heat, near);
+      /* your own opening shot is a few metres away: a tighter burn, at the nose, so the hull shows */
+      const close = p.rider && !p.inside && !p.skip;
+      podTrail(p, heat, close ? 0.3 : near);
       /* the fireball at the head of the trail */
-      if (!p.rider) {
-        ptAdd(PTS.glow, p.g.position, new V3(), 7 * heat * near, 0xffc070, near, 0.05);
-        ptAdd(PTS.glow, p.g.position, new V3(), 3 * heat * near, 0xfff0d0, 1, 0.05);
+      if (!podHidden(p)) {
+        const f = close ? 0.2 : near;
+        _podW.copy(p.g.position);
+        if (close) _podW.y -= 0.5;
+        ptAdd(PTS.glow, _podW, new V3(), 7 * heat * f, 0xffc070, close ? 0.8 : near, 0.05);
+        ptAdd(PTS.glow, _podW, new V3(), 3 * heat * f, 0xfff0d0, 1, 0.05);
       }
       /* the burn lights the ground as it comes in, and the air shimmers around it */
       if (h < 70) {
         dynLight(p.g.position, 0xff9a50, 5 * heat * (1 - h / 70), 0.05, 26);
-        if (!p.rider) heatAt(p.g.position, 2.2 * heat, 1.2);
+        if (!podHidden(p)) heatAt(p.g.position, 2.2 * heat, 1.2);
       }
       if (k >= 1) {
         podImpact(p);

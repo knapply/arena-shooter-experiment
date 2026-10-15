@@ -36,7 +36,9 @@ export function build({ dev = false, trailer = false } = {}) {
     .replace("<!--@trailer-->\n", () => (trailer ? markup(read(tr.html)) : ""))
     .replace(/<!--@partial ([\w./-]+)-->/g, (_, p) => markup(read(p)).replace(/\s+$/, ""))
     .replace(/<!--@script ([\w./-]+)-->/g, (_, p) => `<script>\n${js(mod(p))}</script>`)
-    .replace("<!--@game-->", () => `<script>\n${game}</script>\n</body>\n</html>\n`);
+    .replace("<!--@three-->", () => threeTags(man.three))
+    /* a module, so it runs after three.js has loaded (module scripts run in document order) */
+    .replace("<!--@game-->", () => `<script type="module">\n${game}</script>\n</body>\n</html>\n`);
   const problems = [];
   if (/<\/script/i.test(game)) problems.push("a module contains a closing script tag");
   if (/<!--@/.test(html)) problems.push("unresolved template directive");
@@ -65,6 +67,18 @@ export function build({ dev = false, trailer = false } = {}) {
     worker,
     modules: man.engine.length + man.modes.length + (trailer ? tr.engine.length + tr.modes.length : 0),
   };
+}
+
+/** three.js, pinned (manifest.three), from jsDelivr: its ES module build sets the global THREE the engine
+    reads. three.module.min.js imports "./three.core.js"; the import map points that at the minified core,
+    so the page downloads about 0.8 MB of minified script instead of 2.1 MB (and the CDN compresses it).
+    A test stub served in its place may have set THREE already. */
+export function threeTags(v) {
+  const base = `https://cdn.jsdelivr.net/npm/three@${v}/build/`;
+  return (
+    `<script type="importmap">${JSON.stringify({ imports: { [base + "three.core.js"]: base + "three.core.min.js" } })}</script>\n` +
+    `<script type="module">import * as THREE from "${base}three.module.min.js";window.THREE ??= THREE;</script>`
+  );
 }
 
 /** types/engine-modules.d.ts: an engine module written as an ES module is a module to TypeScript, but

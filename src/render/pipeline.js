@@ -8,7 +8,8 @@ const GFX = {
   w: 1,
   h: 1,
   dyn: 1,
-  webgl2: !!renderer.capabilities.isWebGL2,
+  /* three.js needs WebGL 2 (r163 on); the WebGL 1 fallbacks below are kept only where they cost nothing */
+  webgl2: true,
   cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1),
   env: null,
   failed: false,
@@ -29,7 +30,7 @@ const GFX = {
   frame: 0,
 };
 renderer.toneMapping = THREE.NoToneMapping;
-renderer.outputEncoding = THREE.LinearEncoding;
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 const FSV = "varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}";
 const brightMat = new THREE.ShaderMaterial({
   uniforms: { t: { value: null }, th: { value: 0.9 } },
@@ -253,7 +254,7 @@ function gfxResize() {
   const s = gfxScale();
   const w = Math.max(1, Math.round(W * s)),
     h = Math.max(1, Math.round(H * s));
-  const msaa = SET.aa === "msaa" && GFX.webgl2 && THREE.WebGLMultisampleRenderTarget;
+  const msaa = SET.aa === "msaa" && GFX.webgl2;
   const wantDof = !!(GFX.look && GFX.look.dof > 0) && GFX.webgl2;
   const wantAo = SET.ao === "ssao" && GFX.webgl2,
     wantSh = !!SET.lightShafts,
@@ -287,10 +288,7 @@ function gfxResize() {
     stencilBuffer: false,
   };
   try {
-    GFX.rt = msaa
-      ? new THREE.WebGLMultisampleRenderTarget(w, h, opt)
-      : new THREE.WebGLRenderTarget(w, h, opt);
-    if (msaa) GFX.rt.samples = 4;
+    GFX.rt = new THREE.WebGLRenderTarget(w, h, msaa ? { ...opt, samples: 4 } : opt);
     if (wantDepth) {
       GFX.rt.depthTexture = new THREE.DepthTexture(w, h);
       GFX.rt.depthTexture.type = THREE.UnsignedIntType;
@@ -485,7 +483,7 @@ function renderFrame() {
       if (errs) {
         GFX.on = false;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
         recompileAll();
         toast("Effects disabled on this GPU");
       }
@@ -546,7 +544,7 @@ function exposureVerdict() {
       } else {
         GFX.on = false;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
         recompileAll();
         toast("Effects off: the scene was overexposed");
       }

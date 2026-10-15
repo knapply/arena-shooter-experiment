@@ -92,8 +92,35 @@ function renderSettings() {
     renderKeys(body);
     return;
   }
+  if (SUI.tab === T_SBX) sandboxPresetRow(body);
   for (const s of SCHEMA) if (s.tab === SUI.tab) settingRow(s, body, false);
   if (SUI.tab === T_PAD) renderPadBinds(body);
+}
+/** Sandbox presets (data/modes.js): one button each; a preset sets its values and every other Sandbox
+    number back to its default */
+function sandboxPresetRow(body) {
+  const row = el("div", "srow");
+  row.appendChild(el("span", "slab", "Presets"));
+  for (const id of Object.keys(SANDBOX_PRESETS)) {
+    const p = SANDBOX_PRESETS[id],
+      b = el("button", "dbtn", p.name);
+    b.onclick = () => {
+      for (const [k, , def] of SANDBOX_DEFS) SET[k] = k in p.values ? p.values[k] : def;
+      applySettings();
+      saveSettings();
+      renderSettings();
+      setMsg(`Sandbox: ${p.name}.`);
+    };
+    row.appendChild(b);
+  }
+  row.appendChild(
+    el(
+      "p",
+      "sdesc",
+      "Classic feel matches the pacing measured from reference arena-shooter footage: a quicker run that is closer to sprint, a sprint that winds up, floatier jumps to the same heights, shorter slides, slower clambers, a longer thrust cooldown, a short raise out of a sprint and no slowdown while scoped."
+    )
+  );
+  body.appendChild(row);
 }
 /** does every word of the search appear in this text? */
 function searchHit(text) {

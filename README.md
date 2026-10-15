@@ -82,7 +82,7 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 | **Arena** | 1–8 | Free-for-all on Proving Grounds. First to 15 kills (or the most kills after 10 minutes) wins, then Play of the Game and the results screen. Practice drones fill in when it's quiet. |
 | **Capture the Flag** | 1–8 humans, 8 total | 4v4 on Twin Foundry. Bring the enemy flag to your stand while yours is home. First to 3 captures wins, with an 8-minute time limit. Humans take a bot's slot on their team. |
 | **AI vs AI** | Spectator | Two learning AI teams play CTF. Speed controls (1×/2×/4×), a director camera that varies its shots and slows down for captures and multikills, follow cameras, and a tactical camera you can turn and zoom (drag, wheel, pinch or controller). The intel panel shows each team's strategy odds and evolved play style. "Train 10 matches" runs headless matches in the background. |
-| **Trailer** | Spectator | An 88-second cinematic cut of the game: the squad burns in from orbit in drop pods and you ride yours down from the cockpit, three rules of the arena (with first-person stretches: a thruster dodge, a clamber over a blast gate), an action montage with the rocket launcher and a scoped sniper shot, every mode live (capture the flag, Team Slayer, oddball with its skull dropping in by pod, free-for-all), a supply drop, the simulations that tune every number, online play, and a frozen-time finale, synced to an original score. |
+| **Trailer** | Spectator | An 88-second cinematic cut of the game: the squad burns in from orbit in drop pods and you ride yours down from the cockpit, three rules of the arena (with first-person stretches: a thruster dodge, a clamber over a blast gate), an action montage with the rocket launcher and a scoped sniper shot, every mode live (capture the flag, Team Slayer, oddball with its skull dropping in by pod, free-for-all), a supply drop, the simulations that tune every number, the motion capture up close (a weighted stop and pivot, a running leap and a hard landing, hits that rock a pilot and a crumple, the squad celebrating at night), and a frozen-time finale, synced to an original score. |
 
 ## Playing with friends
 1. Open the game and click **Host a room**. You'll get a 5-character code.
@@ -198,11 +198,11 @@ Settings are saved in your browser automatically and can be exported to or impor
 
 ## Tech overview
 - **One self-contained HTML file.** The shipped `index.html` runs straight from disk or any static host. It is built from modular source in `src/` (see [Development](#development)). A second generated file, `sim-worker.js`, runs AI training in the background when the page is served over http(s).
-- **Rendering:** [three.js](https://threejs.org/) r128 on WebGL with linear-space color management, and a custom post-processing pipeline: half-float render target, bloom, then a composite with ACES tone mapping, FXAA, contrast-adaptive sharpening, saturation, vignette and grain. Static map geometry and character parts are merged by material, which keeps a full CTF scene well under a thousand draw calls. It falls back automatically if a shader fails to compile and has an exposure safety check.
+- **Rendering:** [three.js](https://threejs.org/) r186 on WebGL 2 with linear-space color management, and a custom post-processing pipeline: half-float render target, bloom, then a composite with ACES tone mapping, FXAA, contrast-adaptive sharpening, saturation, vignette and grain. Static map geometry and character parts are merged by material, which keeps a full CTF scene well under a thousand draw calls. It falls back automatically if a shader fails to compile and has an exposure safety check.
 - **Characters:** 32-bone rigs, rigidly skinned into one mesh per material and shared by every pilot, so a fully articulated pilot costs about ten draw calls.
-  - Locomotion is motion capture: walk, jog, run, sprint, side steps, backpedal, crouched walks, idle and a jump with its landing, retargeted onto the rig and packed into about 43 KB of 16-bit keys. A blend space over speed and direction (relative to where the pilot aims) mixes them on one shared phase; strides lengthen, cadence quickens and stances shorten to match the game's speeds, and the hips turn toward the travel while the torso keeps aiming. A small state machine cross-fades idle, moving, crouched, airborne and landing.
+  - Locomotion is motion capture: walk, jog, run, sprint, side steps, backpedal, two crouched walks, three idles (each pilot settles into one and drifts between them), standing and running jumps, soft and hard landings, a braking stop, a plant, a push-off, a stumble for hit reactions, emotes (cheer, flex, wave, shrug) and a step-up for the clamber, retargeted onto the rig and packed into about 55 KB. A blend space over speed and direction (relative to where the pilot aims) mixes them on one shared phase; strides lengthen, cadence quickens and stances shorten to match the game's speeds, and the hips turn toward the travel while the torso keeps aiming. A small state machine cross-fades idle, moving, crouched, airborne and landing; one-shots are chosen by how the velocity changes (a run that ends brakes, one that reverses plants, a standstill pushes off), by the speed at takeoff and by how far the fall was.
   - Planted feet lock to the ground (tests check they drift under 3 cm a stride at every speed and direction), follow stairs and ledges, and step when a pilot turns on the spot.
-  - Procedural layers on top: two-bone IK arms holding the weapon or flag, aiming down sights, reloads, melee, recoil, flinch, a head that looks at the aim point, breathing that deepens after a run, and springs for lean into acceleration and turns. Deaths topple in the direction of momentum and the killing blow. About 10 µs of animation per pilot per frame.
+  - Procedural layers on top: two-bone IK arms holding the weapon or flag, aiming down sights, reloads, melee, recoil with the upper body following through, a hit lurch toward the push, a head that looks at the aim point and turns toward threats and teammates' pings, breathing and fatigue after sprinting, and springs for lean into acceleration and turns, the tassets, the tabard and the antenna. Deaths topple in the direction of momentum and the killing blow, stop against walls, rest on steps and crumple. Killers standing still gesture, and match winners cheer. A few microseconds of animation per pilot per frame, without allocating.
 - **Physics:** custom capsule-vs-box collision and raycasting, with a fixed 120 Hz step.
 - **Maps and modes as data.** Each map is a plain document (geometry, spawns, flags, pickups, lanes, bounds) that is validated, built and mirrored automatically, and match intros are generated from it. Modes are declared with a small framework (rules, scoring, HUD, spawn logic), so Free-for-All, CTF and the sandbox share one match loop.
 - **Networking:** [PeerJS](https://peerjs.com/) WebRTC data channels in a full mesh. Movement travels on unordered, unreliable fast channels as compact binary messages (40 per second in Arena, 30 in CTF); events and setup use a reliable channel. A versioned message registry defines every packet, and peers check protocol versions when they join.
@@ -219,7 +219,7 @@ Settings are saved in your browser automatically and can be exported to or impor
 - **No WebAssembly, on purpose.** Simulation, AI and physics take well under a millisecond per frame in JavaScript (CI checks this), so a WebAssembly port would add build complexity and download size without a visible gain. Frame time is GPU-bound: the wins there come from fewer draw calls (merging, shared skinned meshes) and shader work, which is where the graphics effort went.
 
 External resources loaded at runtime:
-- three.js r128 from cdnjs
+- three.js 0.186.1 from jsDelivr (its ES module build, imported by a small module script; the version is pinned in `src/manifest.json`)
 - PeerJS 1.5.4 from jsDelivr (with unpkg as a fallback), only when you host or join a room
 - Google Fonts
 
@@ -274,33 +274,43 @@ node tests/maps.test.js        # map validation and overlaps
 node tests/perf.test.js        # size, draw call and triangle budgets
 node tests/browser.test.js     # gameplay, settings and online rooms
 node tests/net.test.js         # mesh, host migration and smoothness on a simulated bad network
+node tests/netlab.test.js      # the network lab at CI size: 3 browser processes on bad links
 node tools/tune.js             # sandbox tuning: simulated matches on every CPU core (LOCK=magnum etc. for single-weapon runs)
-THREE_PATH=three.min.js node tests/render.test.js   # every graphics preset renders a normal frame
-THREE_PATH=three.min.js node tests/visual.test.js   # compare scenes against tests/visual baselines
-VISUAL_UPDATE=1 THREE_PATH=three.min.js node tests/visual.test.js   # accept new baselines
+THREE_PATH=three.module.min.js node tests/render.test.js   # every graphics preset renders a normal frame
+THREE_PATH=three.module.min.js node tests/visual.test.js   # compare scenes against tests/visual baselines
+VISUAL_UPDATE=1 THREE_PATH=three.module.min.js node tests/visual.test.js   # accept new baselines
+```
+
+Working on the netcode: the network lab runs separate game instances (one browser process each) that form a room and play real matches with automated players, every mode, over simulated links, and writes a JSON and markdown report to `tools/out/net-lab/` (position error and delay, correction pops, bandwidth by message type, hit registration and false rejections, kill-to-display time, desyncs, host migration time, net code CPU and garbage). Nothing leaves the machine: a local relay simulates the links, or `--transport webrtc` uses real WebRTC with a local signalling server.
+
+```bash
+node tools/net-lab.js                                   # 4 instances, every mode, good links
+node tools/net-lab.js --n 8 --profile bad --migrate     # 8 instances on bad links, then lose the host
+node tools/net-lab.js --profile all                     # good, wifi, bad, asym (one bad player) and spikes
+node tools/net-lab.js --modes ctf,oddball --secs 90 --transport webrtc
 ```
 
 Working on the HUD:
 
 ```bash
-THREE_PATH=three.min.js node tools/hud-preview.js [out-dir]   # first person at desktop and phone sizes: keyboard and controller hints, low ammo, a danger mark, CTF
+THREE_PATH=three.module.min.js node tools/hud-preview.js [out-dir]   # first person at desktop and phone sizes: keyboard and controller hints, low ammo, a danger mark, CTF
 ```
 
 Working on character animation:
 
 ```bash
-THREE_PATH=three.min.js node tools/rig-preview.js gait    # contact sheet: a run, a sprint and a jump
-THREE_PATH=three.min.js node tools/rig-preview.js poses   # idle, aiming down sights, melee, reload
-THREE_PATH=three.min.js node tools/rig-preview.js moves   # the armor up close, crouch, slide, death
+THREE_PATH=three.module.min.js node tools/rig-preview.js gait    # contact sheet: a run, a sprint and a jump
+THREE_PATH=three.module.min.js node tools/rig-preview.js poses   # idle, aiming down sights, melee, reload
+THREE_PATH=three.module.min.js node tools/rig-preview.js moves   # the armor up close, crouch, slide, death
 ```
 
 Working on the trailer (it lives in a separate build, `node build.mjs --trailer` → `out/trailer.html`, which these tools make for you):
 
 ```bash
 node tools/trailer-preview.js check                       # simulate the whole cut: wall bumps, camera clipping, event log
-THREE_PATH=three.min.js node tools/trailer-preview.js stills 12,20.5,60   # a contact sheet of frames
-THREE_PATH=three.min.js node tools/trailer-preview.js clip 11 16          # a small video of a stretch, with the score
-THREE_PATH=three.min.js node tools/record-trailer.js      # re-record media/trailer.mp4 and the preview GIF
+THREE_PATH=three.module.min.js node tools/trailer-preview.js stills 12,20.5,60   # a contact sheet of frames
+THREE_PATH=three.module.min.js node tools/trailer-preview.js clip 11 16          # a small video of a stretch, with the score
+THREE_PATH=three.module.min.js node tools/record-trailer.js      # re-record media/trailer.mp4 and the preview GIF
 ```
 
 Add `?dev` to the page address (or use `npm run dev`), then press the backquote key for the developer console: time scale, teleport, god mode, bad-network simulation and the network panel. Type `help` for the full list.

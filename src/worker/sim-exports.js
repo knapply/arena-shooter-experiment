@@ -2,6 +2,7 @@
 window.KA = {
   MODE_DATA,
   AI_SKILL,
+  SANDBOX_PRESETS,
   SWITCH_TIME,
   POD_TIME,
   POD_EARLY,

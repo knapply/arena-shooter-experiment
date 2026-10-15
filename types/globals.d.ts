@@ -76,6 +76,18 @@ interface HostServices {
     setSim(o: Partial<{ latency: number; jitter: number; loss: number }>): void;
     handover?(to?: string): boolean;
     hub?(): { me: boolean; id: string | null };
+    /** bytes and messages by type ({ kind: [bytes, count] }) each way since the last reset */
+    traffic?(
+      reset?: boolean,
+      fields?: boolean
+    ): { tx: Record<string, number[]>; rx: Record<string, number[]>; secs: number };
+  };
+  /** time spent in network code by part: add(part, ms), read(reset) → { part: [ms, calls] } */
+  prof?: {
+    add(k: string, ms: number): void;
+    begin(): number;
+    end(k: string, t0: number): void;
+    read(reset?: boolean): Record<string, number[]>;
   };
   use(name: "room"): Promise<PresenceRoom | null>;
   use(name: "downloads"): Promise<{ save(o: { filename: string; data: string }): Promise<void> } | null>;

@@ -5,9 +5,15 @@
    the frame give altitude, speed, time to impact and whether you can still steer, with brackets on
    the landing point. On impact: a white flash and a thump, the frame's two halves blow outward, and
    the camera rises out of the buried pod to your eye height (podExitCam).
+   Every drop opens from outside (podOpening, PV_OPEN seconds): the camera swings round your pod as
+   it starts its fall, burning, then settles behind it looking down at the map and pushes in through
+   the hull with a flash into the cockpit. Jump cuts straight to the cockpit (and a second Jump skips
+   the pod camera, as before). Steering works throughout, relative to where you face, so the time to
+   pick a spot is unchanged.
    The cockpit is HTML and SVG over the canvas (no draw calls). The vibration follows the Screen
    shake setting and stops for reduced motion. podCockpit(p) runs every frame you ride; podCockpitIdle
-   every other frame (the step out, then nothing). */
+   every other frame (the step out, then nothing). Pausing, a replay or the results screen hide it
+   (podSuspended), and leaving the match tears it all down (podReset in game/loop.js). */
 const PV = {
   /** the size the frame was drawn for */
   w: 0,
@@ -22,6 +28,8 @@ const PV = {
   txt: {},
   steer: null,
 };
+/** how long the opening shot from outside lasts (s) */
+const PV_OPEN = 1.7;
 /** how long the step out takes (s), and how long the frame stays on screen */
 const PV_RISE = 0.55,
   PV_END = 0.8;
@@ -134,16 +142,75 @@ function pvHide() {
   PV.exit = -1;
   const el = pvEl();
   el.hidden = true;
-  el.classList.remove("impact", "blown");
+  el.classList.remove("impact", "blown", "outside", "cut");
   el.style.transform = "";
+}
+/** is the opening shot from outside still playing for this pod? */
+const podOpening = p => !p.opened && p.t < PV_OPEN;
+/** cut from the opening shot into the cockpit (its end, or Jump) */
+function podEndOpening(p) {
+  if (p.opened) return;
+  p.opened = true;
+  const el = pvEl();
+  if (!el) return;
+  el.classList.remove("outside", "cut");
+  /* (restart the flash) */
+  void el.offsetWidth;
+  el.classList.add("cut");
+  sfx("podbolts", 0.35);
+}
+const _pvA = new V3(),
+  _pvB = new V3(),
+  _pvL = new V3();
+/** the opening shot: your pod from outside, burning as it starts down, then in through the hull */
+function podOpeningShot(p, dt) {
+  p.inside = false;
+  podView(p);
+  if (!pvShow()) return;
+  const el = pvEl();
+  if (!el.classList.contains("outside")) el.classList.add("outside");
+  const u = clamp(p.t / PV_OPEN, 0, 1),
+    e = u * u * (3 - 2 * u),
+    g = p.g.position,
+    y = me.yaw;
+  /* round from beside and below it to behind and above, pulling back */
+  const a = y + Math.PI * 0.6 * (1 - e),
+    d = 5 + 4 * e;
+  _pvA.set(g.x + Math.sin(a) * d, g.y + 0.6 - 1.8 + 6.5 * e, g.z + Math.cos(a) * d);
+  _pvL.set(g.x, g.y + 1.2 - 4 * e, g.z);
+  /* the last fifth pushes in through the hull to the rider's eyes, looking down the window */
+  const k2 = clamp((u - 0.8) / 0.2, 0, 1),
+    s2 = k2 * k2 * (3 - 2 * k2);
+  if (s2 > 0) {
+    _pvB.set(g.x, g.y + POD_EYE, g.z);
+    _pvA.lerp(_pvB, s2);
+    const cp = Math.cos(-1.42);
+    _pvB.set(g.x - Math.sin(y) * cp * 10, g.y + POD_EYE + Math.sin(-1.42) * 10, g.z - Math.cos(y) * cp * 10);
+    _pvL.lerp(_pvB, s2);
+  }
+  const vib = reduceMotion ? 0 : SET.shake * (0.5 + 0.5 * e);
+  const j = n => (Math.random() * 2 - 1) * n * vib;
+  camera.position.set(_pvA.x + j(0.06), _pvA.y + j(0.06), _pvA.z + j(0.06));
+  camera.lookAt(_pvL);
+  camera.rotateZ(Math.sin(now * 1.7) * 0.04 * (1 - s2) + j(0.006));
+  camera.fov = 56 + 24 * e + 16 * s2;
+  camera.updateProjectionMatrix();
+  el.style.transform = "";
+  el.style.setProperty("--speed", (0.35 + 0.65 * e).toFixed(2));
+  pvSet("alt2", Math.round(Math.max(0, g.y - p.at.y)) + " m");
+  void dt;
 }
 const _pvP = new V3();
 /** the camera and cockpit while you ride your pod down */
 function podCockpit(p, dt) {
+  PV.exit = -1;
+  if (podOpening(p)) return podOpeningShot(p, dt);
+  if (!p.opened) podEndOpening(p);
+  p.inside = true;
   podView(p);
   if (!pvShow()) return;
-  PV.exit = -1;
   const el = pvEl();
+  if (el.classList.contains("outside")) el.classList.remove("outside");
   const k = clamp(p.t / p.dur, 0, 1),
     g = p.g.position,
     up = Math.max(0, g.y - p.at.y);

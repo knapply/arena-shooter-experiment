@@ -284,16 +284,39 @@ const { launch, open, text, visible, until } = require("./lib/browser.js");
       "the capture wins and the results show",
       rc
     );
-    /* adaptive bots (on by default offline): the win makes them a little harder, and the menu says so */
+    /* adaptive bots (on by default offline): the pick is the most they will be, so a win on Recruit
+       keeps them there, and the menu says where they are */
     check(
-      rc && /Bots next match: Recruit\+ \(up from Recruit\)/.test(rc.note),
-      "after a win the adaptive bots step up, and the results say so",
+      rc && /Bots next match: Recruit \(the skill you picked\)/.test(rc.note),
+      "after a win the adaptive bots stay at the skill you picked, and the results say so",
       rc && rc.note
     );
     check(
-      /Recruit\+, adapting/.test((await text(p, "#modeSum")) || ""),
+      /Recruit, adapting/.test((await text(p, "#modeSum")) || ""),
       "the menu shows where the adaptive bots are",
       await text(p, "#modeSum")
+    );
+    /* a loss eases them off (below Recruit too); wins bring them back, never above the pick */
+    const ad = await p.evaluate(() => {
+      const name = () => KA.botLevelName(KA.botLevel());
+      const out = [name()];
+      KA.botAdapt(-1);
+      out.push(name());
+      KA.botAdapt(-1);
+      KA.botAdapt(-1);
+      out.push(name());
+      for (let i = 0; i < 8; i++) KA.botAdapt(1);
+      out.push(name(), KA.botLevel());
+      return out;
+    });
+    check(
+      ad[0] === "Recruit" &&
+        ad[1] === "Recruit−" &&
+        ad[2] === "Trainee" &&
+        ad[3] === "Recruit" &&
+        ad[4] === 0,
+      "adaptive bots: a loss eases them off (down to Trainee), wins bring them back up to the pick and no further",
+      ad
     );
     check(
       await p.evaluate(() => {

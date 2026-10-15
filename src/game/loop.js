@@ -27,10 +27,11 @@ let last = performance.now(),
   jetOn = false,
   jetPuff = 0,
   fovX = 0;
-/* scoping eases in over ADS_IN seconds and out over ADS_OUT (in log zoom, so 5x to 10x takes as long as
-   1x to 2x): quick enough to keep up with a duel, slow enough to read as the gun coming up to the eye */
-const ADS_IN = 0.15,
-  ADS_OUT = 0.1,
+/* scoping, timed from reference arena-shooter footage (docs/TUNING.md, "Classic feel"): the gun reaches the
+   eye in a few frames and the magnification builds evenly (in log zoom, so 5x to 10x takes as long as 1x
+   to 2x) over ADS_IN seconds for that weapon; letting go or being knocked out takes ADS_OUT */
+const ADS_IN = { pistol: 0.06, sniper: 0.09, burst: 0.08 },
+  ADS_OUT = 0.05,
   zEase = { from: 0, to: 0, at: 0, t: 1, w: -1 };
 function easeZoom(dt) {
   const to = aiming ? Math.log(zoomK()) : 0,
@@ -45,8 +46,9 @@ function easeZoom(dt) {
     z.to = to;
     z.t = 0;
   }
-  z.t = Math.min(1, z.t + dt / (to > z.from ? ADS_IN : ADS_OUT));
-  z.at = z.from + (to - z.from) * (1 - Math.pow(1 - z.t, 3));
+  z.t = Math.min(1, z.t + dt / (to > z.from ? ADS_IN[W().key] || 0.1 : ADS_OUT));
+  /* nearly linear, settling over the last few percent */
+  z.at = z.from + (to - z.from) * (1 - Math.pow(1 - z.t, 1.5));
   zoomNow = Math.exp(z.at);
   adsP = clamp(z.at / Math.log(W().zoom[0]), 0, 1);
 }
@@ -59,6 +61,12 @@ function meEvent(type, d) {
     /* the burst kicks the lens wide and lurches the view into it; the gun is thrown back against it */
     fovK = 1.35;
     thrK = 1;
+    /* a thrust drops the scope on its first frame; aim again to come back in */
+    if (aiming) {
+      zoomLvl = 0;
+      descoped = true;
+      aimLatch = false;
+    }
     const side = d.dir.x * Math.cos(me.yaw) - d.dir.z * Math.sin(me.yaw),
       fwd = -d.dir.x * Math.sin(me.yaw) - d.dir.z * Math.cos(me.yaw);
     thrS = side;
@@ -218,6 +226,9 @@ function recLocal() {
       reload: reloadT > 0 ? 1 - reloadT / RELOAD_TIME : -1,
       fire: now - lastFireT < 0.1,
       wpn: wi,
+      /* (what you carry shows in replays and kill cams: your ghost holds it in both hands) */
+      flag: !!carried(),
+      skull: carried() === "skull",
     })
   );
 }
@@ -240,6 +251,19 @@ let podding = false,
 let spawnPick = null;
 /** when your respawn starts: a pod launches POD_EARLY before respawnAt and lands when you would have */
 const respawnStart = () => respawnAt - (podsOn() && !INTRO.active ? POD_EARLY : 0);
+/** something else has the screen: the pause menu or settings, a replay (kill cam, Play of the
+    Game), the results */
+const podSuspended = () => paused || REPLAY.active || POST.open || !$("settings").hidden;
+/** leaving the match mid-drop: no pod, no cockpit, no hidden HUD, the fog back as it was */
+function podReset() {
+  if (myPod) podViewEnd(myPod);
+  myPod = null;
+  dropHold = false;
+  pvHide();
+  podMarker(null);
+  if (podding) document.body.classList.remove("podding");
+  podding = false;
+}
 /** skip the pod camera: watch from where you will land instead (you're out until it does) */
 function skipPodCam(p) {
   p.skip = true;
@@ -455,7 +479,11 @@ function frameBody(t) {
   if (me.dead) {
     if (myPod) {
       /* riding the drop pod down; Jump, Fire or Melee skips the pod camera */
-      if (!myPod.skip && !REPLAY.active && (P("jump") || P("fire") || P("melee"))) skipPodCam(myPod);
+      /* Jump cuts the opening shot to the cockpit; in the cockpit it skips the pod camera */
+      if (!myPod.skip && !podSuspended() && (P("jump") || P("fire") || P("melee"))) {
+        if (podOpening(myPod)) podEndOpening(myPod);
+        else skipPodCam(myPod);
+      }
       /* move (keys or stick) steers where it lands, relative to where you look */
       const fw = clamp(
           (A("forward") ? 1 : 0) - (A("back") ? 1 : 0) + touch.f - (pad.on ? GP.ax[1] : 0),
@@ -490,7 +518,7 @@ function frameBody(t) {
         /* you ride it down facing the way you will come out (the mouse turns it) */
         me.yaw = Math.atan2(at.x, at.z);
         me.pitch = 0;
-        myPod = dropPod(at, myColor, {
+        myPod = dropPod(at, myArmor, {
           rider: true,
           /* steering stays within the mode's zone, and off spots where someone stands or another pod
              is coming down (it may always move further away from them) */
@@ -623,7 +651,7 @@ function frameBody(t) {
   if (me.dead || paused) rpos.copy(me.pos);
   /* the eye: standing, crouched, or well below a crouch in a slide (presentation only: the body
      keeps its crouched height), dropping in fast with a dip that bottoms out a fifth of a second in */
-  const slid = me.slideT > 0 ? clamp((0.8 - me.slideT) / 0.22, 0, 1) : 1;
+  const slid = me.slideT > 0 ? clamp((TUNE.slideT - me.slideT) / 0.22, 0, 1) : 1;
   const eyeT = me.slideT > 0 ? 0.76 - 0.12 * Math.sin(Math.PI * slid) : me.h === H_STAND ? 1.62 : 1.02;
   eyeCur += (eyeT - eyeCur) * Math.min(1, dt * (me.slideT > 0 ? 24 : 14));
   const eyeH = eyeCur;
@@ -645,7 +673,8 @@ function frameBody(t) {
   shakeT = Math.max(0, shakeT - dt);
   const bobY =
     me.ground && me.slideT <= 0
-      ? Math.sin(stepAcc * Math.PI * 2) * (me.sprint ? 0.045 : 0.025) * clamp(hs / 6, 0, 1) * SET.bob
+      ? /* barely there: the reference keeps the view level and lets the weapon sway instead */
+        Math.sin(stepAcc * Math.PI * 2) * (me.sprint ? 0.012 : 0.006) * clamp(hs / 6, 0, 1) * SET.bob
       : 0;
   /* charging a ground pound, the hover trembles harder as it builds and the view tunnels in */
   const pk = me.pound === 1 ? Math.min(1, me.poundT / 0.55) : 0;
@@ -661,7 +690,7 @@ function frameBody(t) {
     clamp(-lr * 0.004, -0.04, 0.04) +
     (me.thrustT > 0 ? clamp(-lr * 0.006, -0.08, 0.08) : 0) -
     thrS * 0.06 * thrK * thrK +
-    (me.sprint ? Math.sin(stepAcc * Math.PI) * 0.012 : 0);
+    (me.sprint ? Math.sin(stepAcc * Math.PI) * 0.004 : 0);
   camRoll += (rollT - camRoll) * Math.min(1, dt * 8);
   camera.rotation.order = "YXZ";
   camera.rotation.y = me.yaw;
@@ -684,8 +713,12 @@ function frameBody(t) {
   if (!(camera.fov > 1 && camera.fov < 170)) camera.fov = fb;
   camera.updateProjectionMatrix();
   /* riding your pod down, from inside (game/pod-view.js); then stepping out of it */
-  if (myPod && !myPod.skip) podCockpit(myPod, dt);
-  else podCockpitIdle(dt);
+  if (myPod && !myPod.skip && !podSuspended()) podCockpit(myPod, dt);
+  else {
+    /* paused, a replay or the results over the drop: the cockpit and its lifted fog wait */
+    if (myPod && podSuspended()) podViewEnd(myPod);
+    podCockpitIdle(dt);
+  }
   podMarker(myPod);
   const pd = !!myPod || PV.exit >= 0;
   if (pd !== podding) document.body.classList.toggle("podding", (podding = pd));
@@ -711,7 +744,7 @@ function frameBody(t) {
     ground: me.ground,
   });
   flashT = Math.max(0, flashT - dt);
-  flash.intensity = flashT > 0 ? 2.2 : 0;
+  flash.intensity = flashT > 0 ? 2.2 * LIGHT_K : 0;
   if (flashT > 0) camera.worldToLocal(flashSprite.getWorldPosition(flash.position));
   flashSprite.material.opacity = flashT > 0 ? 0.95 : 0;
   flashSprite.material.rotation = Math.random() * 6;
@@ -798,6 +831,7 @@ function updRigs(dt) {
       REC.put(r.id, root.position, st);
       if (!REC.hasMeta(r.id)) REC.setMeta(r.id, { color: r.color, name: r.name });
     }
+    if (!r.rig.pid) r.rig.pid = r.id;
     rigEvents(r.rig, r.rig.update(dt, st), st);
     /* keep the pilot's body where it is drawn, so body-based features (kill cams, events) see it */
     r.body.pos.copy(root.position);
@@ -859,7 +893,8 @@ function rigEvents(rig, ev, st) {
   if (ev.land) sfxAt("land", p, 32, Math.min(1, ev.land / 14));
   /* footsteps: positional and loud up close (sprinting louder still) */
   if (ev.step) {
-    sfxAt("step", p, 30, ev.sprint ? 1 : 0.6);
+    /* (at the foot that came down, on the surface under it) */
+    sfxAt("step", ev.at || p, 30, ev.sprint ? 1 : 0.6);
     if (ev.sprint) dust(p, 1, 0.5, 0.2, 0.22);
   }
 }
