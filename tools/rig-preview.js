@@ -1,5 +1,5 @@
 /* Contact sheets of the pilot rig's animation, for working on characters/rig.js and anim.js.
-     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves|climb|carry|react|emote] [out.png]
+     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves|climb|carry|react|emote|abilities] [out.png]
    gait   a run, a sprint and a jump, seen from the side, six frames each (stepped at exactly 60 Hz)
    loco   the other motion-captured gaits: a walk, a strafe (from the front), a backpedal and a crouched run
    poses  idle, aiming down sights (carbine and magnum), a melee strike, the reload's slap and bolt;
@@ -12,6 +12,8 @@
           push-off from a standstill, a drop from 3 m landing hard, hits from behind and from the
           left, a death on open floor (the crumple) and one against a wall (the slump)
    emote  the three captured idles, then the emotes: cheer, flex, wave, shrug (from the front)
+   abilities  the gun carried, then shouldered to fire; thrusts forward (side view) and sideways (front);
+          the stabilizer's hover; a ground pound's hover and slam; a shoulder charge
    A pilot really travels (planted feet lock to the ground) across the largest open floor of the
    arena, with the camera keeping pace beside it; real three.js (software WebGL); needs ffmpeg on the PATH. */
 const fs = require("fs"),
@@ -80,6 +82,10 @@ if (!process.env.THREE_PATH) {
         B.slideT = m.slide ? 0.5 : 0;
         B.aiming = !!m.st.aim;
         B.meleeT = m.st.melee >= 0 ? 0.4 * (1 - m.st.melee) : 0;
+        B.thrustT = m.thrust ? 0.3 : 0;
+        B.stabbing = !!m.stab;
+        B.pound = m.pound | 0;
+        B.chargeT = m.charge ? 0.3 : 0;
         if (B.clamber) {
           /* as world/physics.js moves a clambering body */
           const c = B.clamber;
@@ -94,6 +100,11 @@ if (!process.env.THREE_PATH) {
             B.clamber = null;
             B.ground = true;
           }
+        } else if (m.hover) {
+          /* held in the air (a thrust, a hover, a pound) at m.hover metres */
+          B.ground = false;
+          B.vel.y = m.vy || 0;
+          B.pos.y = m.hover;
         } else if (m.dropT >= 0) {
           /* a fall from m.dropH metres, landing hard */
           m.dropT += dt;
@@ -129,7 +140,7 @@ if (!process.env.THREE_PATH) {
         }
         a.pose(dt, {
           reload: m.st.reload == null ? -1 : m.st.reload,
-          fire: false,
+          fire: !!m.st.fire,
           wpn: m.st.wpn | 0,
           flag: !!m.st.carry,
           skull: m.st.carry === "skull",
@@ -173,6 +184,12 @@ if (!process.env.THREE_PATH) {
     jumpT: -1,
     dropT: -1,
     dropH: 3,
+    hover: 0,
+    vy: 0,
+    thrust: false,
+    stab: false,
+    pound: 0,
+    charge: false,
     cam: "side",
     r: 0,
     st: {},
@@ -191,6 +208,32 @@ if (!process.env.THREE_PATH) {
         await step(n);
         await take();
       }
+  } else if (mode === "abilities") {
+    const shots = [
+      /* carried while running, then firing while running */
+      [{ v: 6.4, cam: -40 }, 60],
+      [{ v: 6.4, cam: -40, st: { fire: true } }, 30],
+      /* thrusts: forward from the side, to the right from the front */
+      [{ v: 12, hover: 0.3, thrust: true }, 10],
+      [{ v: 12, dir: Math.PI / 2, hover: 0.3, thrust: true, cam: "front" }, 10],
+      /* the stabilizer's hover, aiming */
+      [{ v: 0, hover: 0.6, stab: true, st: { aim: true }, cam: -40 }, 30],
+      [{ v: 0, hover: 0.6, stab: true, st: { aim: true } }, 30],
+      /* a ground pound: the hover, then the slam */
+      [{ v: 0, hover: 0.8, pound: 1, cam: -40 }, 30],
+      [{ v: 0, hover: 0.5, pound: 2, vy: -30, cam: -40 }, 12],
+      /* a shoulder charge */
+      [{ v: 9, sprint: true, charge: true }, 20],
+      [{ v: 9, sprint: true, charge: true, cam: -40 }, 20],
+      /* the magnum carried, then fired */
+      [{ v: 0, cam: -40, st: { wpn: 1 } }, 60],
+      [{ v: 0, cam: -40, st: { wpn: 1, fire: true } }, 20],
+    ];
+    for (const [m, n] of shots) {
+      await set(Object.assign({}, base, m), (n + 4) / 60);
+      await step(n);
+      await take();
+    }
   } else if (mode === "react") {
     /* frames picked through each transition (60 Hz steps between them) */
     const row = async (m, lead, warm, change, gaps) => {

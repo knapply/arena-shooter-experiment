@@ -128,7 +128,17 @@ function shieldMaterial() {
    points. A fighting carry: the gun up and pushed out in front, even at a run (port arms) */
 const POSE = {
   aim: { p: new V3(0.11, 0.075, -0.26), r: [0, 0, 0] },
-  sprint: { p: new V3(0.03, -0.06, -0.21), r: [-0.32, 0.85, 0.4] },
+  /* carried, not firing: level at the chest, angled down and across (it comes up to the shoulder to
+     shoot); the magnum two-handed at the sternum */
+  carry: { p: new V3(0.07, -0.05, -0.24), r: [-0.32, 0.38, 0.22] },
+  pistolCarry: { p: new V3(0.04, -0.03, -0.27), r: [-0.42, 0.05, 0] },
+  /* sprinting: hugged high against the chest in the right hand, muzzle up past the left shoulder
+     (the free arm pumps) */
+  sprint: { p: new V3(0.06, 0.03, -0.17), r: [1.05, 0.5, 0.35] },
+  /* sliding, hovering in a ground pound: held across the chest, muzzle up and to the left */
+  across: { p: new V3(0.03, -0.02, -0.21), r: [0.55, 0.55, 0.4] },
+  /* a shoulder charge: held upright beside the head, the right shoulder leading */
+  charge: { p: new V3(0.15, 0.12, -0.06), r: [1.25, 0.1, -0.1] },
   reload: { p: new V3(0.08, 0.02, -0.25), r: [0.22, 0.25, 0.65] },
   low: { p: new V3(0.12, -0.12, -0.14), r: [-0.7, 0.2, 0.2] },
   rocket: { p: new V3(0.15, 0.13, -0.08), r: [0, 0, 0] },
@@ -760,6 +770,10 @@ function makePilot(color, label) {
     lkP: 0,
     /* fatigue: builds while sprinting, shows in the breathing, the shoulders and the head */
     fat: 0,
+    /* the gun comes up to the shoulder while firing or aiming (and for a moment after), and is
+       carried at the chest otherwise */
+    hotT: 0,
+    carry: 1,
     spTw: spr(),
     spTs: spr(),
     gly: 0,
@@ -892,13 +906,15 @@ function makePilot(color, label) {
       if (from) {
         localDir(root.position.x - from.x, root.position.z - from.z, _dl);
         const L = Math.hypot(_dl.x, _dl.z) || 1;
-        S.spFl.v -= (2.6 * _dl.z) / L;
-        S.spFr.v -= (2.2 * _dl.x) / L;
-        /* and a captured stumble, pushed the way the hit came (harder on the hull than the shield) */
-        ANIM.hit(S.loco, _dl.x / L, _dl.z / L, kind === "head" ? 1 : S.sh > 0 ? 0.45 : 0.8);
+        /* (a hit barely moves an armored body: the shield shimmers instead; only a hull or head hit
+           shows a small push, from the captured stumble) */
+        S.spFl.v -= (0.8 * _dl.z) / L;
+        S.spFr.v -= (0.7 * _dl.x) / L;
+        if (S.sh <= 0 || kind === "head")
+          ANIM.hit(S.loco, _dl.x / L, _dl.z / L, kind === "head" ? 0.4 : 0.25);
       } else {
-        S.spFl.v -= 1.6;
-        S.spFr.v += rnd(-1.4, 1.4);
+        S.spFl.v -= 0.5;
+        S.spFr.v += rnd(-0.4, 0.4);
       }
     },
     /* momentum-based fall: carries running speed, gets knocked away from the killer, harder hits throw further */
@@ -940,6 +956,9 @@ function makePilot(color, label) {
         vz: mb * 0.8,
         spin: S.air ? rnd(-2, 2) : 0,
         maxA,
+        /* how it goes down: a heavy blow throws the body (arms flung up, it spins); anything else
+           buckles the knees first and folds it forward over them */
+        thrown: power > 1.5 || S.air,
         /* slumped against a wall: the body sits down it instead of lying flat */
         slump: maxA < 1.1 ? 1 - maxA / 1.1 : 0,
         /* when it came to rest, for the crumple after */
@@ -1028,7 +1047,8 @@ function makePilot(color, label) {
         S.gd = root.position.y - groundBelow(root.position.x, root.position.z, root.position.y, 0.2);
       else S.gd = 9;
       if (S.air && !air) {
-        S.spP.v -= clamp(-S.vy * 0.11, 0, 2.4);
+        /* (by the height of the fall, so a floaty preset's landings weigh the same) */
+        S.spP.v -= clamp(Math.sqrt((S.vy * S.vy) / Math.max(1, TUNE.grav)) * 0.55, 0, 2.4);
         /* a heavy landing is heard (rigEvents plays it, positional) */
         if (S.vy < -6) ev = Object.assign(ev || {}, { land: -S.vy });
       }
@@ -1111,31 +1131,35 @@ function makePilot(color, label) {
       /* the body's lean: a fighting hunch, forward over the gun, in every stance (the capture leans
          into its own gait, so speed adds less of it here); hard into a sprint */
       let pel = 0.96,
-        lean = 0.15 + Math.min(0.16, spd * 0.022) * (mocap ? 0.4 : 1),
+        lean = 0.09 + Math.min(0.16, spd * 0.022) * (mocap ? 0.4 : 1),
         roll = 0;
       if (!air && st.crouch) {
         pel = 0.7;
         lean = 0.32;
       }
-      if (!air && st.sprint) lean = mocap ? 0.36 : 0.45;
+      if (!air && st.sprint) lean = mocap ? 0.24 : 0.32;
       /* a slide: low, leaning back against the lead leg, rolled toward the tucked one */
       if (st.slide) {
         pel = 0.42;
-        lean = -0.4;
-        roll = -0.12;
+        lean = -0.1;
+        roll = -0.05;
       }
       if (air) {
         lean = 0.17;
         roll = clamp(-lr * 0.025, -0.24, 0.24);
       }
+      /* a thrust: the body leans into the burst, forward, back or to the side */
       if (st.thrust) {
-        lean = 0.26;
-        roll = clamp(-lr * 0.03, -0.32, 0.32);
+        const tl = spd > 0.5 ? lf / spd : 1,
+          tr = spd > 0.5 ? lr / spd : 0;
+        lean = 0.45 * tl;
+        roll = -0.5 * tr;
       }
-      if (st.stab) lean = -0.04;
-      if (st.pound === 1) lean = 0.6;
-      else if (st.pound === 2) lean = 0.3;
-      if (st.charge) lean = 0.55;
+      if (st.stab) lean = 0.05;
+      /* a ground pound: sat upright in the hover, then straight down */
+      if (st.pound === 1) lean = 0.1;
+      else if (st.pound === 2) lean = 0.15;
+      if (st.charge) lean = 0.6;
       if (st.clamber) {
         lean = 0.3 + 0.45 * Math.sin(Math.PI * clK);
         pel = 0.9 - 0.14 * Math.sin(Math.PI * clK);
@@ -1187,10 +1211,25 @@ function makePilot(color, label) {
       /* the spine shares lean and bank between its two segments on top of the capture; breathing
          lifts the chest; a melee blow twists the torso into the strike */
       /* the upper body follows through: the twist of a blow and the rock of a shot carry on a spring */
-      const mtw = spring(S.spTw, strike * 0.85 + fol * 0.3 - wind * 0.5, dt, 3.4, 0.5),
+      const mtw = spring(
+          S.spTw,
+          strike * 0.85 + fol * 0.3 - wind * 0.5 + (st.charge ? 0.4 : 0),
+          dt,
+          3.4,
+          0.5
+        ),
         rock = spring(S.spTs, S.spKick.x * 0.5, dt, 2.6, 0.45);
       spine.rotation.set((-leanS + st.pitch * 0.3 - rock) * 0.5, mtw * 0.5, rollS * 0.5);
-      spine2.rotation.set((-leanS + st.pitch * 0.3 - rock) * 0.5 + br * 0.012, mtw * 0.5, rollS * 0.5);
+      /* (running, the shoulders rock with each step) */
+      const rockStep =
+        mocap && !air
+          ? Math.sin(S.loco.phase * Math.PI * 2) * 0.09 * Math.min(1, S.loco.moving) * Math.min(1, spd / 5)
+          : 0;
+      spine2.rotation.set(
+        (-leanS + st.pitch * 0.3 - rock) * 0.5 + br * 0.012,
+        mtw * 0.5,
+        rollS * 0.5 + rockStep
+      );
       /* the clamber's body comes from a capture of stepping up and over */
       if (st.clamber && near) {
         const V = ANIM.clipPose(S.loco, "vault", clK * ANIM.clips.vault.T);
@@ -1269,8 +1308,11 @@ function makePilot(color, label) {
           const tg = _lk;
           /* the slide: the lead leg out straight ahead, the other folded under it, knee out to the side */
           if (st.slide) tg.set(i === 0 ? -0.06 : 0.2, i === 0 ? gy + 0.05 : gy + 0.02, i === 0 ? -0.8 : 0.1);
-          else if (st.pound === 1) tg.set(side * 0.14, -0.42, -0.18);
-          else if (st.pound === 2) tg.set(side * 0.15, -0.83, side * 0.05);
+          /* the pound's hover: sat in the air, thighs level and shins hanging; the slam: legs straight */ else if (
+            st.pound === 1
+          )
+            tg.set(side * 0.15, -0.5, -0.36);
+          else if (st.pound === 2) tg.set(side * 0.17, -0.85, 0.04);
           else if (st.clamber) {
             /* the ledge's top and near edge, in the hips' frame, as the body rises and moves over it */
             const ly = (st.clH || 1.2) * (1 - Math.min(1, clK * 1.6)) - pelvis.position.y + 0.07,
@@ -1290,8 +1332,16 @@ function makePilot(color, label) {
             } else
               /* the trailing leg hangs, then swings up under the body and through */
               tg.set(side * 0.13, gy + 0.32 * Math.sin(Math.PI * clK), 0.18 - 0.3 * clK);
-          } else if (st.stab) tg.set(side * 0.13, -0.8, 0.03 + Math.sin(S.t * 3 + i * 2) * 0.05);
-          else if (!air) tg.set(side * 0.13, gy, 0.02 * (i ? 1 : -1));
+          } else if (st.stab)
+            /* hovering: one knee up at the hip, the other leg hanging straight */
+            tg.set(side * 0.12, i === 0 ? -0.5 : -0.86, i === 0 ? -0.38 : 0.04 + Math.sin(S.t * 2.4) * 0.02);
+          else if (st.thrust) {
+            /* a thrust: the legs split like a leap along the burst, the lead knee bent */
+            const dx = spd > 0.5 ? lr / spd : 0,
+              dz = spd > 0.5 ? -lf / spd : -1;
+            if (i === 0) tg.set(side * 0.1 + dx * 0.28, -0.55, dz * 0.28);
+            else tg.set(side * 0.12 - dx * 0.42, -0.74, -dz * 0.42);
+          } else if (!air) tg.set(side * 0.13, gy, 0.02 * (i ? 1 : -1));
           else {
             /* the jetpack: legs trail the thrust, reaching for the ground before a landing */
             const tx = side * 0.12 - mx * 0.22,
@@ -1375,14 +1425,21 @@ function makePilot(color, label) {
             : POSE.aim;
       if (rl >= 0) gp = POSE.reload;
       else if (!air && st.sprint) gp = rocket ? POSE.rocketRun : POSE.sprint;
-      else if (st.pound === 1 || st.clamber || st.charge) gp = POSE.low;
+      else if (st.charge) gp = POSE.charge;
+      else if (st.slide || st.pound === 1) gp = POSE.across;
+      else if (st.pound === 2 || st.clamber) gp = POSE.low;
       /* recoil: each shot kicks the weapon back and up through a spring, heavier for heavier guns */
       if (st.fire && S.t - S.lastKick > R.every) {
         S.lastKick = S.t;
         S.spKick.v += R.kick * 1.35;
       }
       const kick = spring(S.spKick, 0, dt, 9, 0.42);
-      _c.copy(gp.p);
+      /* the gun is shouldered to fire (or aim) and for a moment after, carried at the chest otherwise */
+      S.hotT = st.fire || st.aim || st.melee >= 0 ? 1.4 : Math.max(0, S.hotT - dt);
+      S.carry += ((S.hotT > 0 || st.stab || rocket ? 0 : 1) - S.carry) * Math.min(1, dt * 8);
+      const cw = gp === POSE.aim || gp === POSE.pistol ? S.carry : 0,
+        cp = wp === 1 ? POSE.pistolCarry : POSE.carry;
+      _c.copy(gp.p).lerp(cp.p, cw);
       /* aimed guns follow the look pitch (fully when sighted in) */
       const pf =
         gp === POSE.ads || gp === POSE.adsPistol
@@ -1392,9 +1449,13 @@ function makePilot(color, label) {
             : 0;
       /* (an aimed gun stays on the aim however far the body leans) */
       _e1.set(
-        gp.r[0] + st.pitch * pf + kick * (R.flip || 0.5) + (pf > 0 ? leanS * 0.85 : 0),
-        gp.r[1],
-        gp.r[2]
+        gp.r[0] +
+          (cp.r[0] - gp.r[0]) * cw +
+          st.pitch * pf * (1 - 0.6 * cw) +
+          kick * (R.flip || 0.5) +
+          (pf > 0 ? leanS * 0.85 : 0),
+        gp.r[1] + (cp.r[1] - gp.r[1]) * cw,
+        gp.r[2] + (cp.r[2] - gp.r[2]) * cw
       );
       if (rl >= 0) reloadGunMotion(rl, _c, _e1);
       _q2.setFromEuler(_e1);
@@ -1515,9 +1576,14 @@ function makePilot(color, label) {
           curlL = 0.3;
         } else if (!air && st.sprint && !rocket && S.mocap) {
           /* the free arm swings with the stride as the capture's does, held a little off the body */
+          /* (pumped hard: the fist comes up to the helmet, the elbow out) */
           const h = S.loco.hand;
-          _lk.set(Math.min(h[0], -0.24), h[1] + 0.06, h[2]);
-          curlL = 0.6;
+          _lk.set(Math.min(h[0] - 0.04, -0.3), clamp(h[1] * 1.5 + 0.22, -0.25, 0.48), h[2] * 1.25 - 0.04);
+          curlL = 1;
+        } else if (st.pound === 2) {
+          /* the slam: the free arm straight out to the side, fist closed */
+          _lk.set(-0.78, -0.04, -0.12);
+          curlL = 1;
         } else _lk.copy(R.fore).applyMatrix4(gun.matrix);
         /* (an emote frees the left hand: it does what the capture's does) */
         if (S.mocap && S.loco.emote > 0.01) {
@@ -1634,10 +1700,13 @@ function makePilot(color, label) {
         maxA: 1.45,
         slump: 0,
         restT: -1,
+        thrown: false,
       });
     S.deadT += dt;
     const kf = 1 - Math.exp(-20 * dt);
-    F.angV += F.g * dt;
+    /* a buckle: the knees go first (a quarter second), then the body pitches over them */
+    const bk = F.thrown ? 0 : sstep(0, 0.28, S.deadT);
+    if (F.thrown || S.deadT > 0.18) F.angV += F.g * dt;
     F.ang += F.angV * dt;
     /* the topple meets the ground (or the wall, or the step): a bounce, then rest */
     if (F.ang > F.maxA) {
@@ -1655,7 +1724,7 @@ function makePilot(color, label) {
     pivot.position.x += F.vx * dt;
     pivot.position.z += F.vz * dt;
     const c = Math.min(1, S.deadT * 3.4);
-    pelvis.position.y = 0.96 - 0.3 * c * c - (0.25 * F.slump + 0.06) * cr;
+    pelvis.position.y = 0.96 - (F.thrown ? 0.3 * c * c : 0.42 * bk + 0.04 * c) - (0.25 * F.slump + 0.06) * cr;
     pelvis.rotation.y = 0;
     /* the hit's jolt: the torso whips away from the blow and the head snaps, before the slump */
     const jolt = S.deadT < 0.3 ? Math.sin((S.deadT / 0.3) * Math.PI) : 0;
@@ -1675,8 +1744,10 @@ function makePilot(color, label) {
       _lk.set(
         g.side * (0.15 + 0.05 * c + 0.06 * cr),
         -pelvis.position.y + 0.08 + 0.18 * c * (i ? 1 : 0.4) + (0.16 + 0.2 * F.slump) * cr * (i ? 0.6 : 1),
-        (-0.08 + i * 0.22) * c - (0.12 + 0.2 * F.slump) * cr
+        (-0.08 + i * 0.22) * c - (0.12 + 0.2 * F.slump) * cr + 0.3 * bk
       );
+      /* (thrown, the legs trail loose) */
+      if (F.thrown) _lk.y += 0.25 * Math.sin(Math.min(1, S.deadT * 2) * Math.PI) * (i ? 1 : 0.6);
       g.cur.lerp(_lk, kf);
       solve2(g.hip, g.kn, 0.44, 0.43, g.hip.position, g.cur, _pole.set(g.side * 0.15, 0, -1));
       _q1.copy(g.hip.quaternion).multiply(g.kn.quaternion).invert();
@@ -1686,6 +1757,12 @@ function makePilot(color, label) {
     const fl = Math.min(1, S.deadT * 2.5);
     S.lh.lerp(_lk.set(-0.56, -0.02 + 0.38 * fl * F.bz, 0.2 + 0.25 * fl), kf * 0.7);
     S.rh.lerp(_rk.set(0.56, -0.02 + 0.33 * fl * F.bz, 0.15 + 0.3 * fl), kf * 0.7);
+    /* (thrown, the arms fly up beside the head for a moment, then go limp) */
+    if (F.thrown && S.deadT < 0.45) {
+      const up = Math.sin((S.deadT / 0.45) * Math.PI);
+      S.lh.lerp(_lk.set(-0.42, 0.62, 0.05), up * kf);
+      S.rh.lerp(_rk.set(0.42, 0.6, 0.05), up * kf);
+    }
     solveArm(arms[0], S.lh, _pole.set(-0.9, -0.5, 0.5), false);
     solveArm(arms[1], S.rh, _pole.set(0.9, -0.5, 0.5), false);
     for (const A of arms) {

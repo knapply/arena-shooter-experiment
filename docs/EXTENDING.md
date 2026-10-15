@@ -94,7 +94,18 @@ The four match modes share one implementation: `CTF.Game({ rules })` in `modes/c
 The pilot is a 32-bone rig (`characters/rig.js`) posed every frame from the body's state (`bodyState`), in two layers:
 - **Locomotion from motion capture** (`characters/anim.js`): pelvis, spine, legs and the free arm's swing. A blend space over speed and move direction (relative to facing) mixes the clips on one phase (0 is the left foot's strike), with stride, cadence and stance length warped to the game's speeds and the hips turned toward the travel. A small state machine (idle/move, crouch, air, land) cross-fades between states. Planted feet lock in the world, follow the ground and step when turning on the spot; the rig's leg IK puts them there.
 - **One-shots** over the gait (`play` in `anim.js`, with a body mask): chosen by the velocity's history (a braking `stop`, a `plant` on a reversal, a `start` from a standstill), the takeoff (`jumpRun` or `jump`) and the fall (`landHard`). `ANIM.hit` plays the captured stumble additively on the hips and spine, turned toward the push; `ANIM.emote` (cheer, flex, wave, shrug; `rig.emote`) plays standing and frees the arms. Each pilot idles in one of three captured idles and drifts between them. `characters/gaze.js` turns heads toward threats and pings and triggers the gestures (after a kill, at the end of a match).
-- **A fighting stance** on top of the capture (`anim.js`): the hips sit lower over wider-set feet with the knees out, narrowing with pace; jumps tuck the knees. The rig adds a forward hunch in every state, the gun carried up and out with the elbows wide, and hard leans into sprints and turns.
+- **A fighting stance** on top of the capture (`anim.js`): the hips sit lower over wider-set feet with the knees out, narrowing with pace; jumps tuck the knees. The rig adds a slight forward hunch, elbows wide, and leans into acceleration and turns.
+- **How it reads from outside**, matched to third-person reference footage (the poses and timings are in `POSE` and `rig.update`):
+  - The gun is carried level at the chest (low ready) and comes up to the shoulder to fire or aim, then stays up for a moment (`S.hotT`, `S.carry`).
+  - A sprint hugs the rifle high against the chest in the right hand while the free fist pumps to the helmet.
+  - A thrust splits the legs like a leap along the burst and leans into it.
+  - The stabilizer hovers with one knee up.
+  - A ground pound sits upright in its hover, then slams straight-legged with the free arm out.
+  - A slide stays upright with the gun across the chest.
+  - A charge leads with the right shoulder.
+  - Hits barely move the body (the shield shows them).
+  - Deaths either buckle at the knees and fold forward, or throw the body with the arms flung up (heavy weapons).
+  - Poses follow the physics state and timings, so the Classic feel preset (floatier jump, sprint wind-up, slower clamber) animates as it plays: landings are judged by the height of the fall under the current gravity, and the sprint gait builds with the speed.
 - **Procedural layers** in `rig.update`: the weapon pose and hand IK, aiming down sights, reloads (`RELOAD_T`, shared with the first-person viewmodel), melee, recoil, flinch, head look-at, breathing, lean springs, the special moves (slide, ground pound, clamber, jetpack, stabilizer) and deaths. A melee blow has a wind-up, a strike and a follow-through (`meleeShape`, shared with the first-person viewmodel, which runs it on its own clock with a hitstop when it lands: `meleeLand`). The clamber is driven by the body's clamber state (`clK`, `clH` in `bodyState`): a hand on the ledge, a knee up, over the top; leaving any special move eases the legs back into the capture. A tabard (two flaps on spring-driven bones) hangs from the belt.
 - **First-person hands** (`weapons/viewmodels.js`): a palm, jointed fingers and thumb, and armored plates, built once per grip shape (`HAND_POSE`: grip, wrap, flat) and merged per material; each forearm runs from the wrist to an elbow below the view (`handArm`). A weapon's support hand turns to its handguard with `lq`.
 
@@ -113,6 +124,7 @@ THREE_PATH=three.module.min.js node tools/rig-preview.js moves   # the armor up 
 THREE_PATH=three.module.min.js node tools/rig-preview.js climb   # a clamber, from the side and three-quarters
 THREE_PATH=three.module.min.js node tools/rig-preview.js react   # stop, plant, push-off, hard landing, hits, deaths
 THREE_PATH=three.module.min.js node tools/rig-preview.js emote   # the three idles; cheer, flex, wave, shrug
+THREE_PATH=three.module.min.js node tools/rig-preview.js abilities   # carry and fire, thrusts, stabilizer, ground pound, charge
 ```
 
 ## Sounds
