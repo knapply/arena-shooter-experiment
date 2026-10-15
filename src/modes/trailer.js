@@ -561,8 +561,9 @@
     const m = MOODS[name];
     sun.position.set(m.sun[0], m.sun[1], m.sun[2]);
     sun.color.setHex(m.col);
-    sun.intensity = m.i;
-    if (hemi) hemi.intensity = m.hemi;
+    /* (moods are in the legacy light units the game was tuned in) */
+    sun.intensity = m.i * K.LIGHT_K;
+    if (hemi) hemi.intensity = m.hemi * K.LIGHT_K;
     fog.color.set(m.fog);
     fog.near = m.near;
     fog.far = m.far;

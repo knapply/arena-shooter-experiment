@@ -1,31 +1,53 @@
 /* ============ renderer / scene ============ */
-/* color management: three r128 takes hex and CSS colors as linear values, so after the final gamma step every
-   color came out brighter and greyer than authored. Convert colors to linear once, where they are set. */
+/* color management (three's default): hex and CSS colors are sRGB and become linear where they are set;
+   lighting is linear and the composite pass (render/pipeline.js) tone maps and applies the gamma.
+   Lights: every intensity was tuned in three's legacy light units, which multiplied direct light by pi.
+   LIGHT_K converts them (sun, sky, muzzle flashes, explosions, pods), and point lights keep the falloff
+   they were tuned with, (1 - d / distance)^decay, instead of the physical inverse square. */
+const LIGHT_K = Math.PI;
 {
-  const C = THREE.Color.prototype,
-    setHex = C.setHex,
-    setStyle = C.setStyle;
-  let inStyle = false;
-  C.setHex = function (h) {
-    setHex.call(this, h);
-    return inStyle ? this : this.convertSRGBToLinear();
-  };
-  C.setStyle = function (s) {
-    inStyle = true;
-    try {
-      setStyle.call(this, s);
-    } finally {
-      inStyle = false;
-    }
-    return this.convertSRGBToLinear();
-  };
+  const C = THREE.ShaderChunk || {},
+    src = C.lights_pars_begin;
+  /* (a stand-in three.js in tests has no shaders) */
+  const a = typeof src === "string" ? src.indexOf("float getDistanceAttenuation(") : -2,
+    r = a >= 0 ? src.indexOf("return distanceFalloff;", a) : -1,
+    b = r >= 0 ? src.indexOf("}", r) + 1 : 0;
+  if (a === -1 || (a >= 0 && r < 0))
+    console.warn("lights: three's getDistanceAttenuation changed; point lights fall off physically");
+  else if (r >= 0)
+    C.lights_pars_begin =
+      src.slice(0, a) +
+      "float getDistanceAttenuation(const in float d,const in float cutoff,const in float decay){" +
+      "if(cutoff>0.&&decay>0.)return pow(saturate(-d/cutoff+1.),decay);return 1.;}" +
+      src.slice(b);
+}
+/* transparent double-sided materials draw in one pass, as everything here was made for: three (r150 on)
+   otherwise draws them twice, back faces then front, flipping each material's program state per draw */
+Object.defineProperty(THREE.Material.prototype, "forceSinglePass", {
+  get: () => true,
+  set() {},
+  configurable: true,
+});
+/* shadows: three draws every caster with one depth material, so skinned pilots, instanced meshes and plain
+   meshes in turn make it re-check its program at each switch; each kind gets its own (unless it sets one) */
+for (const C of [THREE.SkinnedMesh, THREE.InstancedMesh]) {
+  const depth = new THREE.MeshDepthMaterial();
+  Object.defineProperty(C.prototype, "customDepthMaterial", {
+    get() {
+      return this._depthMat || depth;
+    },
+    set(v) {
+      this._depthMat = v;
+    },
+    configurable: true,
+  });
 }
 const canvas = $("game");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 1.75));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#141e24");
 scene.fog = new THREE.Fog("#141e24", 40, 120);
@@ -42,9 +64,9 @@ function resize() {
 addEventListener("resize", resize);
 resize();
 
-const hemi = new THREE.HemisphereLight(0xb4cbe0, 0x5a4a3c, 1.35);
+const hemi = new THREE.HemisphereLight(0xb4cbe0, 0x5a4a3c, 1.35 * LIGHT_K);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xffe2c0, 2.3);
+const sun = new THREE.DirectionalLight(0xffe2c0, 2.3 * LIGHT_K);
 /* a lower sun than overhead: longer shadows, and the sky shader draws it where the shadows say it is */
 sun.position.set(30, 30, 18);
 sun.castShadow = true;

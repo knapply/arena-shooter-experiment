@@ -47,7 +47,6 @@ function surfMat(m) {
   if (floor) m.defines.SURF_FLOOR = "";
   /* the dressing's trim and ribs are too small for panels: plain metal, worn at the edges */
   if (Object.values(DRESS_MATS).includes(m)) m.defines.SURF_PLAIN = "";
-  /** @type {any} */ (m).extensions = { derivatives: true };
   /* a mesh without the attributes reads these (no occlusion, no bounce, no edges) */
   /** @type {any} */ (m).defaultAttributeValues = { bake: [0, 0, 0, 1], edge: [0, 0, 0, 0] };
   m.onBeforeCompile = sh => {
@@ -322,7 +321,7 @@ function bakeMarkings(doc, solids) {
   }
   const t = new THREE.CanvasTexture(c);
   t.flipY = false;
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
   return { tex: t, b: new THREE.Vector4(x0, z0, 1 / (c.width / k), 1 / (c.height / k)) };
 }

@@ -1,9 +1,9 @@
-/* Real-GPU render checks (software WebGL in CI). Needs THREE_PATH pointing at three.js r128's three.min.js.
+/* Real-GPU render checks (software WebGL in CI). Needs THREE_PATH pointing at three.module.min.js (three.core.min.js beside it).
    Guards against blown-out or black frames on every graphics preset. */
 const { check, finish } = require("./lib/check.js");
 const { launch, open } = require("./lib/browser.js");
 if (!process.env.THREE_PATH) {
-  console.log("render: skipped (set THREE_PATH to three.min.js r128)");
+  console.log("render: skipped (set THREE_PATH to three.module.min.js)");
   process.exit(0);
 }
 const stats = async p => {

@@ -8,14 +8,15 @@ Engine modules share one scope and load in this order; mode modules are self-con
 |---|---|---|
 | `src/core/store.js` | 222 | `STORE` |
 | `src/core/rng.js` | 29 | `RNG` `rand` |
-| `src/core/prelude.js` | 39 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
+| `src/core/vec3.js` | 94 | `Vec3` |
+| `src/core/prelude.js` | 41 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
 | `src/game/events.js` | 71 | `EVENTS` |
 | `src/game/frame-hooks.js` | 21 | `FRAME_HOOKS` `onFrame` `runFrameHooks` |
 | `src/core/settings.js` | 1477 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `T_LAB` `T_MODE` `SANDBOX_DEFS` `LAB_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` … (+15) |
-| `src/render/renderer.js` | 169 | `canvas` `renderer` `scene` `camera` `resize` `hemi` `sun` `_skyP` `skyTint` `SKY_TIME` `SKY_SUN` `SKY_Q` |
-| `src/render/pipeline.js` | 615 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `VIEWPOS` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `MAP_GRADE` `HEAT_U` `compMat` `fsQuad` `fsScene` `UPS` `gfxScale` `gfxResize` … (+16) |
-| `src/render/environment.js` | 172 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyGfx` `pc` `scaleBoxUV` |
-| `src/render/surfaces.js` | 329 | `SURF_MATS` `SURF_DEBUG` `SURF_U` `SURF_GLSL` `surfMat` `applySurf` `bakeMarkings` |
+| `src/render/renderer.js` | 191 | `LIGHT_K` `canvas` `renderer` `scene` `camera` `resize` `hemi` `sun` `_skyP` `skyTint` `SKY_TIME` `SKY_SUN` `SKY_Q` |
+| `src/render/pipeline.js` | 613 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `VIEWPOS` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `MAP_GRADE` `HEAT_U` `compMat` `fsQuad` `fsScene` `UPS` `gfxScale` `gfxResize` … (+16) |
+| `src/render/environment.js` | 173 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyGfx` `pc` `scaleBoxUV` |
+| `src/render/surfaces.js` | 328 | `SURF_MATS` `SURF_DEBUG` `SURF_U` `SURF_GLSL` `surfMat` `applySurf` `bakeMarkings` |
 | `src/render/perf.js` | 118 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
 | `src/data/modes.js` | 225 | `MODE_DATA` `PLAY_MODES` `AI_SKILL` `POD_TIME` `POD_HEIGHT` `POD_EARLY` `SANDBOX_PRESETS` |
 | `src/data/maps.js` | 605 | `MAP_SCHEMA` `MAPS` `mapZone` `SIDE_NAMES` `zoneLabel` `PLAY_MAP` `setPlayMap` `zoneAt` `mapPieces` `ringPieces` `MAP_MODS` `MOD_DOCS` `mapDoc` |
@@ -31,16 +32,16 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/data/anim-clips.js` | 280 | `ANIM_CLIPS` |
 | `src/characters/anim.js` | 1022 | `ANIM` |
 | `src/weapons/models.js` | 280 | `GUN_MODELS` `gunParts` `gunGeo` |
-| `src/characters/rig.js` | 1746 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+57) |
-| `src/characters/look.js` | 132 | `RIG_LOOK` `_rh` `_rh2` `CHAR_GLSL` `charPatch` `applyCharLook` `teamPattern` `HEX_FRAG` `styleRig` |
+| `src/characters/rig.js` | 1741 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+57) |
+| `src/characters/look.js` | 131 | `RIG_LOOK` `_rh` `_rh2` `CHAR_GLSL` `charPatch` `applyCharLook` `teamPattern` `HEX_FRAG` `styleRig` |
 | `src/game/recorder.js` | 226 | `REC` |
 | `src/game/pilot.js` | 86 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |
 | `src/characters/gaze.js` | 86 | `RIGS` `GESTURES` `gazeT` `rigById` `updGaze` |
 | `src/data/weapons.js` | 290 | `PILOT_SHIELD` `PILOT_HEALTH` `WEAPON_DATA` `SWITCH_TIME` `POWER_ROTATION` `LABS` `labOn` `powerRotation` `falloffAt` `killStats` `MELEE_KILL` `meleeDamage` `MELEE_LAB_SHIELD` `meleeBehind` |
 | `src/weapons/viewmodels.js` | 544 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlove` `vmPlate` `vmArc` `vmGlow` `vmGlass` `vmCtrC` `vmCtrT` `vmCtr` `VM_MAT` `vmBox` `dot` `vmModel` `vmHolo` … (+32) |
 | `src/weapons/arsenal.js` | 88 | `WEAPONS` `slots` `cur` `wi` `switchT` `semiLatch` `zoomLvl` `descoped` `flinch` `zoomNow` `adsP` `ammo` `reserve` `W` `zoomK` `lookSens` `showVM` `wpnHud` … (+4) |
-| `src/render/fx.js` | 394 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `PT_N` `PT_K` `_ptC` `_ptV2` `makePts` `PTS` `ptAdd` `updPts` `ptClearBelow` `tracerGeo` `tracer` … (+14) |
-| `src/render/combat-fx.js` | 529 | `CFX` `_cf` `_cf2` `_cq` `_cm` `_cz` `_cs` `fxOn` `syncDynLights` `dynLight` `heatAt` `HEAT_POOL` `heatDone` `tumblers` `casings` `chunks` `toss` `ejectCasing` … (+25) |
+| `src/render/fx.js` | 395 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `PT_N` `PT_K` `_ptC` `_ptV2` `makePts` `PTS` `ptAdd` `updPts` `ptClearBelow` `tracerGeo` `tracer` … (+14) |
+| `src/render/combat-fx.js` | 531 | `CFX` `_cf` `_cf2` `_cq` `_cm` `_cz` `_cs` `fxOn` `syncDynLights` `dynLight` `heatAt` `HEAT_POOL` `heatDone` `tumblers` `casings` `chunks` `toss` `ejectCasing` … (+25) |
 | `src/render/cinema.js` | 192 | `CINE` |
 | `src/render/atmosphere.js` | 88 | `ATMO` `MOTE_BOX` `makeMotes` `updAtmosphere` |
 | `src/weapons/grenades.js` | 321 | `NADES` `pulseBody` `NADE_TUNE` `NG` `_n1` `_n2` `fragGeo` `fragMat` `pulseMat` `plasMat` `fxPut` `losClear` `inBox` `solveThrow` `nadeDmg` `NadeWorld` `MAIN_NADES` `nadeInv` … (+9) |
@@ -81,7 +82,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 41 | `_sd` `RANGE` `updAim` |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 319 | `KA_API` |
+| `src/game/exports.js` | 321 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 147 | `TFP` |
@@ -97,4 +98,4 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/net/ctf-client.js` | 773 |  |
 | `src/modes/ctf/modes.js` | 1200 |  |
 | `src/modes/trailer-score.js` | 1009 |  |
-| `src/modes/trailer.js` | 2338 |  |
+| `src/modes/trailer.js` | 2339 |  |

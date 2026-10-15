@@ -55,7 +55,7 @@ function supplyAtlas() {
   const tex = (cv, srgb) => {
     const t = new THREE.CanvasTexture(cv);
     t.magFilter = THREE.NearestFilter;
-    if (srgb) t.encoding = THREE.sRGBEncoding;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     return t;
   };
   return { map: tex(c, true), glow: tex(e, true) };

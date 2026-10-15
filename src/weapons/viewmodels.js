@@ -39,7 +39,7 @@ const vmCtrC = document.createElement("canvas");
 vmCtrC.width = 64;
 vmCtrC.height = 32;
 const vmCtrT = new THREE.CanvasTexture(vmCtrC);
-vmCtrT.encoding = THREE.sRGBEncoding;
+vmCtrT.colorSpace = THREE.SRGBColorSpace;
 const vmCtr = new THREE.MeshBasicMaterial({ map: vmCtrT });
 vmCtr.color.setScalar(1.8);
 const VM_MAT = { D: vmDark, P: vmPlate, A: vmArmor, S: vmSuit, G: vmGlow, C: vmAcc, X: vmArc };
@@ -419,7 +419,7 @@ const vmR = vmHand(1),
 /* the muzzle light rides on the camera, not the viewmodel: hiding the viewmodel (menu, death, scope)
    would change the scene's light count, and every lit shader would recompile; it follows the flash
    sprite each frame (game/loop.js) */
-const flash = new THREE.PointLight(0xffb347, 0, 6);
+const flash = new THREE.PointLight(0xffb347, 0, 6, 1);
 flash.position.set(0.2, -0.2, -0.9);
 camera.add(flash);
 const flashSprite = new THREE.Sprite(

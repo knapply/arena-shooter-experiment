@@ -114,9 +114,11 @@ const KA_API = {
   },
   sun,
   hemi,
+  LIGHT_K,
   skyTint,
   blast,
-  THREE,
+  /* three, with the game's own vector (core/vec3.js) as its Vector3: the modes simulate with it too */
+  THREE: Object.assign(Object.create(THREE), { Vector3: Vec3 }),
   $,
   clamp,
   rnd,

@@ -1333,7 +1333,9 @@ const podSeats = map => {
       );
       return e.name;
     });
-    await A.waitForTimeout(800);
+    /* (the callout arrives at once; the HUD marks the holder on its next frames, slower on CI) */
+    for (const q of [A, B])
+      await until(q, n => window.__pt.some(e => e.name === n) && KA.powerMarks >= 1, holder, 15000);
     const seenBy = q => q.evaluate(() => ({ events: window.__pt, marks: KA.powerMarks }));
     const callA = await seenBy(A),
       callB = await seenBy(B);
@@ -2083,7 +2085,16 @@ const podSeats = map => {
         limit: KA.MODE_DATA.ctf.timeLimit,
       };
     });
-    await C2.waitForTimeout(3200);
+    /* (until the opening pods are down: a slow machine takes longer to play the fall) */
+    await until(
+      C2,
+      () => {
+        const g = CTF.UI.game();
+        return !!g && g.agents.every(a => a.human || a.alive) && !KA.me.dead;
+      },
+      null,
+      30000
+    );
     const ctfDown = await C2.evaluate(() => {
       const g = CTF.UI.game();
       const ai = g.agents.filter(a => !a.human);

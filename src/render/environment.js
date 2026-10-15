@@ -80,6 +80,9 @@ function applyGfx() {
     lastRefl = refl;
     if (refl !== "off" && !GFX.env) deferEnv();
     scene.environment = refl === "off" ? null : GFX.env;
+    /* glossy surfaces reflect a sharper, GGX-filtered sky than they did on three r128 (less of the warm
+       horizon): a little more of it keeps their brightness */
+    scene.environmentIntensity = refl !== "off" && refl !== "env" ? 1.25 : 1;
     scene.traverse(o => {
       const m = o.material;
       if (!m || !m.isMeshStandardMaterial) return;
@@ -107,11 +110,9 @@ function applyGfx() {
     /* low shadows redraw every other frame (renderFrame) */
     renderer.shadowMap.autoUpdate = q !== "low";
     renderer.shadowMap.needsUpdate = true;
-    const ty = q === "low" ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
-    if (renderer.shadowMap.type !== ty) {
-      renderer.shadowMap.type = ty;
-      recompileAll();
-    }
+    /* PCF samples a small rotated disk of shadow-map taps; Low keeps it tight, higher settings widen it
+       (the soft edges r128's PCFSoftShadowMap gave) */
+    sun.shadow.radius = q === "low" ? 1 : 2.2;
   }
   if (GFX_DONE.tex !== SET.textures) {
     GFX_DONE.tex = SET.textures;

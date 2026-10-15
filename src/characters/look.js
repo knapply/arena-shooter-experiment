@@ -16,7 +16,6 @@ float ch1(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}`
 function charPatch(m, team, pat, main) {
   m.defines = m.defines || {};
   if (main) m.defines.CHAR_MAIN = "";
-  /** @type {any} */ (m).extensions = { derivatives: true };
   m.onBeforeCompile = sh => {
     sh.uniforms.cTeam = { value: team };
     sh.uniforms.cPat = { value: pat };

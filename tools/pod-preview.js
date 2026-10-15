@@ -8,7 +8,9 @@ const fs = require("fs"),
 const { launch, open } = require("../tests/lib/browser.js");
 const out = process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : "pod-shots";
 if (!process.env.THREE_PATH) {
-  console.error("set THREE_PATH to three.js r128's three.min.js");
+  console.error(
+    "set THREE_PATH to three.module.min.js (three.js at the version in src/manifest.json, three.core.min.js beside it)"
+  );
   process.exit(1);
 }
 fs.mkdirSync(out, { recursive: true });

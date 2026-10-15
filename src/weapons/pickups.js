@@ -66,7 +66,7 @@ function labelSprite() {
   c.height = 64;
   const x = c.getContext("2d");
   const tex = new THREE.CanvasTexture(c);
-  tex.encoding = THREE.sRGBEncoding;
+  tex.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
   s.scale.set(1.9, 0.48, 1);
   s.userData.draw = (t, col) => {
