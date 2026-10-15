@@ -45,7 +45,7 @@ check(
   s
 );
 check(
-  JSON.parse(mem.get("ka-doc-settings")).version === 3,
+  JSON.parse(mem.get("ka-doc-settings")).version === 4,
   "migrated settings are saved at the current version"
 );
 /* v3: the motion tracker's default moved to bottom left; a save on the old default moves with it,
