@@ -1,8 +1,8 @@
 /* ===== Trailer score: an original piece synthesized live with Web Audio (no samples), scored to the
    picture in modes/trailer.js: a cold open on a drone and a heartbeat, a hit on each black card,
    slow motion answered by sub drops and bells, a full-band drop for the action montage, the band
-   an octave up for the modes, a plucked breakdown for the numbers, a frozen-time climax and a choir
-   on the title.
+   an octave up for the modes, new acts for the arsenal, the movement, the world and a battle, a
+   plucked breakdown for the numbers, a frozen-time climax and a choir on the title.
    score(ctx, out, t0) schedules everything on any AudioContext, including OfflineAudioContext for rendering to a file. ===== */
 (function () {
   const BPM = 120,
@@ -17,7 +17,21 @@
     );
   };
   const hz = n => 440 * Math.pow(2, ((typeof n === "string" ? midi(n) : n) - 69) / 12);
-  const LENGTH = 88;
+  /* the cut grew by four acts inserted into the older 88-second arrangement: [where (old time), how long].
+     remap(old) is where an old moment plays now; the picture (modes/trailer.js) uses the same table */
+  /** @type {[number, number][]} */
+  const INSERTS = [
+    [28.5, 28],
+    [41, 24],
+    [60, 14],
+    [73, 18],
+  ];
+  const remap = x => {
+    let y = x;
+    for (const [t, d] of INSERTS) if (x >= t) y += d;
+    return y;
+  };
+  const LENGTH = remap(88);
   /* chord tones for each bar of the drop and theme (D minor: i - VI - III - VII) */
   const PROG = [
     ["D3", "F3", "A3"],
@@ -87,7 +101,9 @@
       s.loop = true;
       return s;
     };
-    const at = x => t0 + x;
+    /* old arrangement times go through remap; the new acts are written at their own (absolute) times */
+    let mapT = remap;
+    const at = x => t0 + mapT(x);
     const gainEnv = (g, t, a, peak, hold, rel) => {
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(peak, t + a);
@@ -983,6 +999,72 @@
       ping(at(82), "D5", 0.07);
       ping(at(83.2), "A5", 0.05);
       braam(at(79.6), 5, 0.1);
+      /* ================= the four new acts, at their own times ================= */
+      mapT = x => x;
+      /* ===== arsenal (28.5-56.5): a hit on the card, then the band; a boom on every cut ===== */
+      hit(28.5, 1, ["C1", "C2", "G2", "C3"]);
+      groove(29.5, 6);
+      groove(41.5, 6, { lift: 1 });
+      for (const x of [32, 34, 36, 41, 43, 45, 47, 50, 53]) boom(at(x), 0.55);
+      crash(at(41.5), 0.8);
+      /* the grenade going off, the melee's thud */
+      boom(at(38.45), 1.1);
+      subdrop(at(38.45), 0.45, 1);
+      taiko(at(41.55), 1);
+      /* the weapons on display: bells as each one comes up */
+      for (const [x, n] of [
+        [47.1, "D5"],
+        [47.6, "F5"],
+        [48.1, "A5"],
+        [48.6, "C6"],
+        [49.1, "D6"],
+      ])
+        ping(at(x), n, 0.05);
+      for (let x = 54.5; x < 56.5; x += x < 55.5 ? 0.125 : 0.0625) snare(at(x), 0.2 + (x - 54.5) * 0.35);
+      riser(at(54.5), 2, 0.38);
+      /* ===== movement (69-93): the band an octave up under the moves ===== */
+      hit(69, 1, ["Bb0", "Bb1", "F2", "Bb2"]);
+      groove(70, 5, { lift: 1 });
+      for (const x of [72.5, 75, 77.5]) boom(at(x), 0.6);
+      boom(at(76.9), 1.2);
+      subdrop(at(76.9), 0.5, 1.2);
+      /* the classic feel: the floor drops out, a long bell under the floaty jump */
+      subdrop(at(80), 0.45, 2.4);
+      drone(at(80), "D2", 3, 0.07);
+      choir(at(80.1), "A4", 2.8, 0.06, "oo");
+      ping(at(80.6), "A5", 0.07);
+      ping(at(81.6), "E6", 0.06);
+      groove(83, 5);
+      for (const x of [86, 89]) boom(at(x), 0.7);
+      for (let x = 91; x < 93; x += x < 92 ? 0.125 : 0.0625) snare(at(x), 0.2 + (x - 91) * 0.35);
+      riser(at(91), 2, 0.38);
+      /* ===== the world (112-126): wide and slow, a choir over drums ===== */
+      hit(112, 0.9);
+      drone(at(112), "D2", 14, 0.07);
+      pad(at(112.5), ["D3", "F3", "A3"], 13, 0.03);
+      for (let k = 0; k < 12; k++) taiko(at(112.5 + k), k % 4 === 0 ? 0.8 : 0.45);
+      boom(at(112.9), 1.2);
+      crash(at(112.9), 0.6);
+      braam(at(114.5), 2.4, 0.2, ["D1", "D2", "A2", "D3"]);
+      for (const [x, n] of [
+        [117.5, "D4"],
+        [119.5, "F4"],
+        [121.5, "A4"],
+        [123.5, "E4"],
+      ]) {
+        choir(at(x), n, 1.9, 0.07, "ah");
+        choir(at(x), midi(n) - 12, 1.9, 0.05, "oh");
+      }
+      ping(at(121), "A5", 0.07);
+      riser(at(124), 2, 0.34);
+      /* ===== the battle (139-157): the full band, the lead an octave up, a hit on every kill ===== */
+      hit(139, 1.1);
+      groove(139, 8, { lift: 1 });
+      for (const x of [142, 145, 148, 151, 154]) boom(at(x), 0.6);
+      for (let x = 155; x < 157; x += x < 156 ? 0.125 : 0.0625) snare(at(x), 0.2 + (x - 155) * 0.35);
+      for (let x = 155; x < 157; x += 0.5)
+        tom(at(x), ["D3", "F3", "A3", "C4"][Math.round((x - 155) * 2) % 4], 0.8);
+      riser(at(155), 2, 0.4);
     }
     if (live) {
       queue.sort((x, y) => x[0] - y[0]);
@@ -1003,7 +1085,7 @@
     master.gain.linearRampToValueAtTime(0, t0 + LENGTH);
     return LENGTH;
   }
-  const api = { score, stop, BPM, BEAT, BAR, LENGTH };
+  const api = { score, stop, BPM, BEAT, BAR, LENGTH, INSERTS, remap };
   if (window.KA) window.KA.trailerScore = api;
   else window.TRAILER_SCORE = api;
 })();

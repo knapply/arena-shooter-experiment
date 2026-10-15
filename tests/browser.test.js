@@ -1894,7 +1894,7 @@ const podSeats = map => {
       fp
     );
     const ctfCut = await T.evaluate(() => {
-      KA.trailer.seek(43.5);
+      KA.trailer.seek(KA.trailerScore.remap(43.5));
       return { game: !!CTF.UI.game(), fp: KA.trailerFP.on, hud: !document.getElementById("hud").hidden };
     });
     check(
