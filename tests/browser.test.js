@@ -1296,7 +1296,9 @@ const podSeats = map => {
       );
       return e.name;
     });
-    await A.waitForTimeout(800);
+    /* (the callout arrives at once; the HUD marks the holder on its next frames, slower on CI) */
+    for (const q of [A, B])
+      await until(q, n => window.__pt.some(e => e.name === n) && KA.powerMarks >= 1, holder, 15000);
     const seenBy = q => q.evaluate(() => ({ events: window.__pt, marks: KA.powerMarks }));
     const callA = await seenBy(A),
       callB = await seenBy(B);
