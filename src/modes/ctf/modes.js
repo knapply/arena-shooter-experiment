@@ -500,6 +500,14 @@
     host.mid = M.mid;
     host.mapKey = M.mapKey;
     host.wrap();
+    const mine = G;
+    /* another player took over at the same moment and keeps the match: join theirs */
+    host.onRival = h => {
+      if (G !== mine) return;
+      UI.line("sys", `${h.name} is hosting the match now.`);
+      K.extStop();
+      setTimeout(() => startClient(h), 60);
+    };
     Object.assign(K.EXT, hostExt(host));
     UI.line("sys", "The host left. You're hosting the match now.");
     K.say("You are the host", true);

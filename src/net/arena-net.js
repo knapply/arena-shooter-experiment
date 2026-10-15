@@ -100,6 +100,11 @@ function myBits() {
   );
 }
 function sendPresence(force) {
+  const t0 = netT0();
+  sendPresence1(force);
+  netProf("arena.send", t0);
+}
+function sendPresence1(force) {
   if (!room || !playing || EXT) return;
   const fast = typeof room.fast === "function";
   if (fast && now - lastFast >= 1 / FAST_HZ - 0.002) {
@@ -138,20 +143,27 @@ function sendPresence(force) {
   if (!force && fresh && now - lastSend < 0.016) return;
   sentEv = ev;
   lastSend = now;
-  const st = myBits();
-  room
-    .presence({
-      n: myName,
-      c: myColor,
+  /* movement rides the fast channel; presence repeats it once a second, as a fallback (and with
+     presence deltas, unchanged fields cost nothing) */
+  if (!fast || now - presMv.t >= 1 || now < presMv.t) {
+    presMv.t = now;
+    Object.assign(presMv.o, {
       p: v3a(me.pos),
       v: v3a(me.vel),
       y: r2(me.yaw),
       pt: r2(me.pitch),
-      st,
+      st: myBits(),
       sh: Math.ceil(me.shield),
       dead: me.dead ? 1 : 0,
       k: kills,
       d: deaths,
+    });
+  }
+  room
+    .presence({
+      n: myName,
+      c: myColor,
+      ...presMv.o,
       hits: hitsOut.slice(),
       fx: fxOut.slice(),
       dth,
@@ -163,6 +175,7 @@ function sendPresence(force) {
     })
     .catch(() => {});
 }
+const presMv = { t: -9, o: {} };
 function remoteFor(peer) {
   let r = remotes.get(peer);
   if (!r) {
@@ -220,6 +233,11 @@ function remoteState(r, st, sh, dead) {
 }
 /** movement from the fast channel: into the player's playback buffer */
 function onFastPacket(from, buf) {
+  const t0 = netT0();
+  onFastPacket1(from, buf);
+  netProf("arena.fast", t0);
+}
+function onFastPacket1(from, buf) {
   const m = MSG.decode(buf);
   if (!m || m.name !== "arenaState" || EXT) return;
   const r = remotes.get(from);
@@ -237,6 +255,11 @@ function onFastPacket(from, buf) {
   }
 }
 function applyPeer(pe) {
+  const t0 = netT0();
+  applyPeer1(pe);
+  netProf("arena.presence", t0);
+}
+function applyPeer1(pe) {
   const pr = pe.presence || {};
   const r0 = remotes.get(pe.peer);
   if (!pr.p || !Array.isArray(pr.p) || pr.m === "ctf") {

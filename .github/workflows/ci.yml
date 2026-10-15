@@ -39,6 +39,8 @@ jobs:
         run: node tests/modes.test.js
       - name: Network smoothness under simulated lag and loss
         run: node tests/net.test.js
+      - name: Network lab (separate browser processes play matches on bad links)
+        run: node tests/netlab.test.js
       - name: Render tests and draw budgets (software WebGL)
         run: |
           curl -sSL -o /tmp/three.min.js https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js

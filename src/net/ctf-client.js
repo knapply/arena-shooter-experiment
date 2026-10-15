@@ -159,6 +159,9 @@
       pgS: 0,
       seenPg: -1,
       fastT: 0,
+      /** movement as last put in presence, and when (ms) */
+      mv: {},
+      mvT: -1e9,
     };
     /* the host's movement for everyone arrives on the fast channel, in roster order */
     NET.onFast = function (from, buf) {
@@ -207,18 +210,24 @@
     /* host migration: if the match host disappears, a player in the match takes over hosting it.
        Everyone picks the same successor: the room's backup host if they're in the match, otherwise
        the lowest peer id among the players in it. */
-    M.succession = function (now) {
+    /** someone else now hosts this match (a successor, or the one left standing when two took
+        over at once): follow them. True if we did */
+    M.follow = function (now) {
       const nh = NET.ctfPeers().find(
         p => p.presence.ph === "host" && p.presence.H && p.presence.H.id === mid && p.peer !== M.hostPeer
       );
-      if (nh) {
-        M.hostPeer = nh.peer;
-        M.lastHost = now;
-        M.rv = -1;
-        if (M.onEvent) M.onEvent("hostMoved", { name: K.cleanName(nh.presence.n) });
-        return;
-      }
-      if (M.promoting || now - M.lastHost < 1500) return;
+      if (!nh) return false;
+      M.hostPeer = nh.peer;
+      M.lastHost = now;
+      M.rv = -1;
+      if (M.onEvent) M.onEvent("hostMoved", { name: K.cleanName(nh.presence.n) });
+      return true;
+    };
+    M.succession = function (now) {
+      if (M.follow(now)) return;
+      /* the host is gone from the room (not just quiet: that is the 8 s timeout below), so the
+         successor only waits a moment for the last snapshot in flight */
+      if (M.promoting || now - M.lastHost < 300) return;
       const mine = NET.myPeer();
       const cands = [
         mine,
@@ -587,9 +596,9 @@
             });
           }
         }
-        if (hp.ph !== "host" || !hp.H || hp.H.id !== mid)
-          M.lastHost = Math.min(M.lastHost, performance.now() - 7800);
-        else M.apply(hp.H);
+        if (hp.ph !== "host" || !hp.H || hp.H.id !== mid) {
+          if (!M.follow(now)) M.lastHost = Math.min(M.lastHost, performance.now() - 7800);
+        } else M.apply(hp.H);
       } else M.succession(now);
       for (const p of NET.ctfPeers()) {
         const pr = p.presence;
@@ -718,21 +727,29 @@
         ]);
       M.agg.clear();
       while (M.hs.length > 10) M.hs.shift();
+      /* movement rides the fast channel to the host; presence repeats it once a second as a fallback */
+      const tn = performance.now();
+      if (!fast || tn - M.mvT >= 1000) {
+        M.mvT = tn;
+        M.mv = {
+          p: [r2(m.pos.x), r2(m.pos.y), r2(m.pos.z)],
+          v: [r2(m.vel.x), r2(m.vel.y), r2(m.vel.z)],
+          y: r2(m.yaw),
+          pt: r2(m.pitch),
+          st: NET.bitsOf(m, {
+            reload: K.reloadT > 0,
+            fire: K.now - K.lastFireT < 0.12,
+            wpn: K.wi,
+            carry: !!me.carrying,
+          }),
+          sh: Math.ceil(m.shield),
+        };
+      }
       NET.send({
         ph: "client",
         mid,
         tm: me.team,
-        p: [r2(m.pos.x), r2(m.pos.y), r2(m.pos.z)],
-        v: [r2(m.vel.x), r2(m.vel.y), r2(m.vel.z)],
-        y: r2(m.yaw),
-        pt: r2(m.pitch),
-        st: NET.bitsOf(m, {
-          reload: K.reloadT > 0,
-          fire: K.now - K.lastFireT < 0.12,
-          wpn: K.wi,
-          carry: !!me.carrying,
-        }),
-        sh: Math.ceil(m.shield),
+        ...M.mv,
         dd: m.dead ? 1 : 0,
         hs: M.hs,
         fx: M.fx,
@@ -747,6 +764,9 @@
     };
     const _p = new V3(),
       _pbs = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, s: null };
+    M.step = K.timed("ctf.client.step", M.step);
+    M.apply = K.timed("ctf.client.apply", M.apply);
+    NET.onFast = K.timed("ctf.client.fast", NET.onFast);
     return M;
   };
 })();

@@ -18,7 +18,7 @@ const MSG = (() => {
   /* 6: capture the flag presence carries players' drop pods on its fx list ("p" launch, "q" steer) */
   /* 7: the match modes (Team Slayer, free for all, oddball) on the room's start and presence messages */
   /* 8: hit claims carry the shot's ray, when it was fired and what the shooter saw (net/hitcheck.js) */
-  const PROTOCOL = 8;
+  const PROTOCOL = 9;
   const TWO_PI = Math.PI * 2;
   const BAD = /[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g;
   const enc = new TextEncoder(),
@@ -332,6 +332,27 @@ const MSG = (() => {
       BY_ID.filter(Boolean).map(m => ({ id: m.id, name: m.name, channel: m.channel, fields: m.fields })),
   };
 })();
+/** time spent in network code (the network lab reads it from KAHOST.prof): netProf(part, startMs) */
+function netProf(k, t0) {
+  const p = window.KAHOST && window.KAHOST.prof;
+  if (p && p.end) p.end(k, t0);
+}
+/** the start of a timed part (pairs with netProf) */
+function netT0() {
+  const p = window.KAHOST && window.KAHOST.prof;
+  return p && p.begin ? p.begin() : performance.now();
+}
+/** the same around a function: timed(part, fn) */
+function timed(k, fn) {
+  return function (a, b, c) {
+    const t0 = netT0();
+    try {
+      return fn(a, b, c);
+    } finally {
+      netProf(k, t0);
+    }
+  };
+}
 /* the transport checks this when a friend joins, so mismatched versions get a clear message */
 try {
   if (window.KAHOST) window.KAHOST.protocol = MSG.PROTOCOL;

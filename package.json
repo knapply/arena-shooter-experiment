@@ -14,11 +14,13 @@
     "test:render": "node tests/render.test.js",
     "test:visual": "node tests/visual.test.js",
     "test:net": "node tests/net.test.js",
+    "test:netlab": "node tests/netlab.test.js",
+    "netlab": "node tools/net-lab.js",
     "test:messages": "node tests/messages.test.js",
     "test:store": "node tests/store.test.js",
     "test:maps": "node tests/maps.test.js",
     "test:scenarios": "node tests/scenarios.test.js",
-    "test": "node build.mjs --check && tsc -p . && eslint . && node tests/sim.test.js && node tests/messages.test.js && node tests/store.test.js && node tests/maps.test.js && node tests/scenarios.test.js && node tests/perf.test.js && node tests/anim.test.js && node tests/browser.test.js && node tests/net.test.js && node tests/render.test.js",
+    "test": "node build.mjs --check && tsc -p . && eslint . && node tests/sim.test.js && node tests/messages.test.js && node tests/store.test.js && node tests/maps.test.js && node tests/scenarios.test.js && node tests/perf.test.js && node tests/anim.test.js && node tests/browser.test.js && node tests/net.test.js && node tests/netlab.test.js && node tests/render.test.js",
     "typecheck": "tsc -p .",
     "dev": "node tools/dev-server.mjs",
     "test:perf": "node tests/perf.test.js",
@@ -28,8 +30,11 @@
     "acorn": "8.18.0",
     "esbuild": "0.28.2",
     "eslint": "10.1.0",
+    "peer": "1.0.2",
+    "peerjs": "1.5.4",
     "playwright": "1.48.2",
     "prettier": "3.8.1",
-    "typescript": "6.0.2"
+    "typescript": "6.0.2",
+    "ws": "8.22.0"
   }
 }
