@@ -71,6 +71,25 @@ const podSeats = map => {
       await p.evaluate(() => [KA.adsP, KA.camera.fov])
     );
     await p.mouse.up({ button: "right" });
+    /* the trigger breaks a sprint: holding sprint and forward, a pull of the trigger still fires */
+    await p.evaluate(() => {
+      KA.me.pos.set(-30, 0, 30);
+      KA.me.yaw = Math.PI / 4;
+      KA.mag = Math.max(KA.mag, 3);
+    });
+    await p.keyboard.down("KeyW");
+    await p.keyboard.down("ShiftLeft");
+    const sprinting = await until(p, () => KA.me.sprint, null, 8000);
+    const mag0 = await p.evaluate(() => KA.mag);
+    await p.mouse.down();
+    const shot = await until(p, m => KA.mag < m, mag0, 8000);
+    await p.mouse.up();
+    await p.keyboard.up("ShiftLeft");
+    await p.keyboard.up("KeyW");
+    check(sprinting && shot, "pulling the trigger mid-sprint breaks the sprint and fires", {
+      sprinting,
+      shot,
+    });
     await p.evaluate(() => {
       KA.me.pos.set(1.25, 3.25, 0);
       KA.me.vel.set(0, 0, 0);

@@ -11,7 +11,9 @@ let hitActs = new Set(),
   mdy = 0,
   aimLatch = false,
   crouchLatch = false,
-  sprintLatch = false;
+  sprintLatch = false,
+  /* seconds left in which the trigger keeps you out of a sprint (see the game loop's sprint input) */
+  fireNoSprint = 0;
 /** when the keyboard or mouse was last used (performance.now ms): the HUD's hints follow the device in use */
 let keysT = 0;
 function A(a) {
