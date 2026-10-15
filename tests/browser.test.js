@@ -1598,7 +1598,14 @@ const podSeats = map => {
       await A.evaluate(() => KA.EXT.pickups().map(p => [p.id, p.avail, p.availAt, KA.now])),
       trail,
     ]);
-    check(await A.evaluate(() => !KA.EXT.pickups()[0].avail), "host marks the sniper taken");
+    /* the friend's claim reaches the host over the room: wait for it rather than read it once */
+    check(
+      await A.waitForFunction(() => !KA.EXT.pickups()[0].avail, null, { timeout: 10000, polling: 100 }).then(
+        () => true,
+        () => false
+      ),
+      "host marks the sniper taken"
+    );
     await A.evaluate(() => {
       for (const a of CTF.UI.game().agents) if (!a.human) a.respawnAt = 0;
     });

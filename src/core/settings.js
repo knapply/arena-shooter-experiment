@@ -956,7 +956,7 @@ const SCHEMA = [
     label: "Adaptive bot skill",
     type: "toggle",
     def: true,
-    desc: "Offline matches against AI pilots start at the bot skill you pick in the menu. After each match the bots get a little better if you won and a little easier if you lost, a third of a skill level at a time, so they settle where the fights are even. The menu and the results screen show where they are now; picking a bot skill starts over from it. Online matches always use the host's pick.",
+    desc: "Offline matches against AI pilots start at the bot skill you pick in the menu, and that pick is the most they will ever be. When you lose a match the bots ease off (below Recruit too, if you need it); when you win they come back up toward your pick. The menu and the results screen show where they are now; picking a bot skill starts over from it. Online matches always use the host's pick.",
   },
   {
     k: "friendlyFire",

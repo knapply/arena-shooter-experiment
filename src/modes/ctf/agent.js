@@ -394,7 +394,8 @@
           const c = G.mateCarrier(this.team);
           if (c && e.pos.distanceTo(c.pos) < 14) s += 18;
         }
-        if (br.focus === e) s += 25;
+        /* a teammate called them cracked: everyone turns on them (the low levels less so) */
+        if (br.focus === e) s += 25 * (this.skill().focus ?? 1);
         if (e.body.shield <= 0) s += 12;
         if (e === this.target) s += 8;
         if (this.lastAttacker === e && G.t - this.lastHitT < 2) s += 10;
@@ -896,7 +897,9 @@
                 ? 15
                 : this.pw
                   ? 4.5
-                  : br.prefRange() * (this.carrying ? 1.4 : 1);
+                  : tgt.carrying && !this.carrying
+                    ? 5 /* a carrier can't shoot back: close in and shoot, outside their one-hit swing */
+                    : Math.max(br.prefRange(), S.minRange || 0) * (this.carrying ? 1.4 : 1);
           const push = this.mustMove
             ? 0.75
             : clamp((range - pref) / 6, -0.8, 0.8) * (this.fallback ? -1 : 1) + (genes.aggr - 0.5) * 0.4;
@@ -948,8 +951,10 @@
             this.poundHold = 0.62;
           }
           if (!b.ground && !this.poundHold && dy < -1.2 && b.stabT < 1) inp.aim = true; // stabilize over them
-          if (range < 2.3 && b.meleeCD <= 0) inp.meleeP = true;
-          else if (range < 6 && b.sprintT > 0.85 && K.rand() < dt * 10 * genes.charge) {
+          /* in reach: melee (the low levels hesitate: S.melee below 1) */
+          const mk = S.melee ?? 1;
+          if (range < 2.3 && b.meleeCD <= 0 && (mk >= 1 || K.rand() < dt * 6 * mk)) inp.meleeP = true;
+          else if (range < 6 && b.sprintT > 0.85 && K.rand() < dt * 10 * genes.charge * mk) {
             inp.meleeP = true;
           }
           if (
@@ -963,7 +968,7 @@
             inp.thrust = true;
             wish.copy(toT);
           }
-          if (range < 9 && range > 4 && genes.charge > 0.5 && b.shield > 50 && !this.mustMove)
+          if (range < 9 && range > 4 && genes.charge > 0.5 && mk >= 0.5 && b.shield > 50 && !this.mustMove)
             inp.sprint = true;
         }
       } else {

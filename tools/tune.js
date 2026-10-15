@@ -78,6 +78,24 @@ const SEED = +(process.env.SEED || 100),
   LIMITS = process.env.LIMITS === "1" || !!process.env.LIMIT,
   LIMIT = +(process.env.LIMIT || 0),
   HEAT = process.env.HEAT === "1";
+/* NOVICE=1: one pilot on team 0 plays like a new human player instead of a bot (the "novice"): slow to
+   react (0.42 s) and to turn, wide aim, no strafing, no movement tech, melee only point-blank. Every
+   run then reports how the novice fares (novice in the output): K/D, how often they die a minute, how
+   long they live, how often two or more pilots hurt them in the 3 s before a death (focus), and how
+   they die. Read it from the even matches, with DIFF set to the level to measure (DIFF=recruit) */
+const NOVICE = process.env.NOVICE === "1";
+const NOVICE_SKILL = {
+  react: 0.42,
+  err: 0.08,
+  turn: 3,
+  magErr: 1.4,
+  magPace: 0.45,
+  magFrom: 24,
+  sight: 55,
+  dodge: 0,
+  nades: 0.5,
+  rhythm: 0,
+};
 /* AIMEM=1: every variant starts with a memory of the map (so aiPreAim measures something) */
 const AIMEM_ENV = process.env.AIMEM === "1";
 /** aiMemory: matches start with a memory of the map (see match) */
@@ -496,6 +514,48 @@ function match(diff, seed, lock) {
       carryEnd(d.by, "dropped");
   };
   G.start();
+  /* NOVICE=1: team 0's first pilot plays like a new player (see NOVICE_SKILL) */
+  const nv = NOVICE ? G.teams[0].agents[0] : null,
+    nvLives = [],
+    nvHurt = [],
+    nvHow = {};
+  let nvFocus = 0;
+  if (nv) {
+    nv.skill = () => NOVICE_SKILL;
+    const think = nv.think.bind(nv);
+    nv.think = dt => {
+      const inp = think(dt),
+        t = nv.target;
+      /* no strafing in a fight, no thrust, slide, pound or jink; melee only with someone in your face */
+      if (t && G.t >= nv.acqT) inp.s = 0;
+      inp.thrust = false;
+      inp.crouchP = false;
+      inp.crouch = false;
+      if (t && inp.jumpP && nv.stuckT <= 0.5) inp.jumpP = false;
+      if (inp.meleeP && !(t && t.pos.distanceTo(nv.pos) < 1.8)) inp.meleeP = false;
+      return inp;
+    };
+    const prev = G.onEvent;
+    G.onEvent = (t, d) => {
+      prev(t, d);
+      if (t === "damage" && d.victim === nv && d.by && d.by !== nv) nvHurt.push([G.t, d.by]);
+      else if (t === "kill" && d.victim === nv) {
+        const by = new Set(nvHurt.filter(([at]) => G.t - at < 3).map(([, a]) => a));
+        if (by.size >= 2) nvFocus++;
+        nvHurt.length = 0;
+        const w = d.type || "?",
+          k = /melee|charge|flag|skull/.test(w)
+            ? "melee"
+            : /frag|stick|pulse|rocket/.test(w)
+              ? "explosive"
+              : w === "pod"
+                ? "pod"
+                : "gun";
+        nvHow[k] = (nvHow[k] || 0) + 1;
+        if (nv.__sp != null) nvLives.push(G.t - nv.__sp);
+      }
+    };
+  }
   for (const a of G.agents) {
     const sp = a.spawn.bind(a);
     a.spawn = p => {
@@ -550,6 +610,10 @@ function match(diff, seed, lock) {
   }
   out.final = scores();
   out.pk = G.agents.map(a => a.k);
+  if (nv) {
+    if (nv.alive && nv.__sp != null) nvLives.push(G.t - nv.__sp);
+    out.novice = { k: nv.k, d: nv.d, lives: nvLives, focus: nvFocus, how: nvHow, min: G.t / 60 };
+  }
   for (const a of [...carryFrom.keys()]) carryEnd(a, "reset");
   /* minutes actually played (a capture limit can end a match early) */
   out.min = G.t / 60;
@@ -714,6 +778,7 @@ const add = (to, o) => {
 };
 /** the extra measures in one line (the full set is in the JSON) */
 const extra = r => ({
+  novice: r.novice,
   ttkQ: r.ttkQ,
   kills: r.wShare,
   held: r.held,
@@ -732,7 +797,27 @@ const extra = r => ({
   lifeShots: r.lifeShots,
 });
 /** a variant's matches: skill matches (legendary on team 0, then swapped sides) and even matches */
+/** the novice (NOVICE=1) over a variant's even matches */
+function noviceSum(list) {
+  if (!list.length) return null;
+  const k = list.reduce((a, n) => a + n.k, 0),
+    d = list.reduce((a, n) => a + n.d, 0),
+    min = list.reduce((a, n) => a + n.min, 0),
+    focus = list.reduce((a, n) => a + n.focus, 0),
+    lives = list.flatMap(n => n.lives),
+    how = {};
+  for (const n of list) add(how, n.how);
+  return {
+    kd: +(k / Math.max(1, d)).toFixed(2),
+    kpm: +(k / Math.max(0.01, min)).toFixed(2),
+    dpm: +(d / Math.max(0.01, min)).toFixed(2),
+    life: +median(lives).toFixed(1),
+    focus: +(focus / Math.max(1, d)).toFixed(2),
+    how: shares(how),
+  };
+}
 function summarize(vr) {
+  const nov = [];
   let kL = 0,
     kN = 0,
     capL = 0,
@@ -785,6 +870,7 @@ function summarize(vr) {
       }
     } else {
       nEven++;
+      if (r.novice) nov.push(r.novice);
       carry.push(...(r.carry || []));
       add(carryEnds, r.carryEnd);
       if (r.heat) for (const k of Object.keys(heat)) add(heat[k], r.heat[k]);
@@ -819,6 +905,8 @@ function summarize(vr) {
     }
   }
   return {
+    /* NOVICE=1: how the novice player fares against the even matches' level */
+    novice: noviceSum(nov),
     /* the share of kills the better team gets: higher means skill shows more */
     skill: +(kL / Math.max(1, kL + kN)).toFixed(3),
     capGap: capL - capN,

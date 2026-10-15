@@ -194,6 +194,7 @@ const KA_API = {
   modeList,
   modeRules,
   botLevel,
+  botLevelName,
   botAdapt,
   botAdaptNote,
   MENU,
