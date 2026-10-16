@@ -57,6 +57,62 @@ const stats = async p => {
         s
       );
       check(p.errors.length === 0, `${preset} preset has no errors`, p.errors.slice(0, 3));
+      if (preset === "ultra") {
+        /* TAA (Ultra's anti-aliasing) and motion blur: the history is in use, survives fast turns without
+           smearing or blowing out, is dropped on a camera cut, and the blur has a working off switch */
+        const before = s;
+        const t = await p.evaluate(async () => {
+          const K = KA,
+            G = K.GFX;
+          const frames = n =>
+            new Promise(r => {
+              let k = 0;
+              (function f() {
+                if (++k >= n) r();
+                else requestAnimationFrame(f);
+              })();
+            });
+          await frames(5);
+          const r = { aa: K.SET.aa, taa: G.taaOk, mbOn: !!G.mb };
+          /* a fast sweep back and forth */
+          const y0 = K.me.yaw;
+          for (let i = 0; i < 60; i++) {
+            K.me.yaw = y0 + Math.sin(i / 6) * 0.8;
+            await frames(1);
+          }
+          K.me.yaw = y0;
+          await frames(20);
+          const cuts = G.cuts;
+          K.me.pos.x += 12;
+          await frames(3);
+          r.cut = G.cuts > cuts;
+          K.me.pos.x -= 12;
+          await frames(3);
+          K.SET.motionBlur = false;
+          K.applySettings();
+          await frames(3);
+          r.mbOff = !G.mb;
+          K.SET.motionBlur = true;
+          K.applySettings();
+          await frames(3);
+          r.mbBack = !!G.mb;
+          await frames(20);
+          return r;
+        });
+        const after = await stats(p);
+        check(t.aa === "taa" && t.taa && t.mbOn, "Ultra draws with TAA and motion blur", t);
+        check(
+          after.mean > 25 &&
+            after.mean < 200 &&
+            after.white < 15 &&
+            Math.abs(after.mean - before.mean) < before.mean * 0.25,
+          "TAA's history settles back to a normal frame after fast turns",
+          { before, after }
+        );
+        check(t.cut, "a camera cut drops TAA's history", t);
+        check(t.mbOff && t.mbBack, "motion blur turns off and on", t);
+        check(p.errors.length === 0, "TAA and motion blur have no errors", p.errors.slice(0, 3));
+      }
       if (preset === "high") {
         /* another pilot's shield in the world: its break and recharge are heard where it stands, and
            its thrusters hum while it hovers, then stop */
@@ -120,6 +176,9 @@ const stats = async p => {
         Object.assign(KA.SET, {
           preset: "custom",
           ao: "ssao",
+          /* (the haze is what's measured: anti-aliasing that settles over frames is checked on its own below) */
+          aa: "smaa",
+          motionBlur: false,
           bloom: 0.7,
           dynRes: false,
           spawnStyle: "classic",
@@ -147,7 +206,7 @@ const stats = async p => {
         );
       /* pixels around the pilot (feet to head, from its projected position) that change by a lot when
          the pilot is hidden */
-      const standsOut = async haze => {
+      const standsOut = async (haze, settle = 0) => {
         const box = await p.evaluate(haze => {
           KA.SET.haze = haze;
           KA.applySettings();
@@ -161,10 +220,10 @@ const stats = async p => {
               .project(KA.camera);
           return { x: (f.x + 1) / 2, y0: 1 - (h.y + 1) / 2, y1: 1 - (f.y + 1) / 2 };
         }, haze);
-        await frames(5);
+        await frames(5 + settle);
         const a = await shot();
         await p.evaluate(() => (window.__q.rig.root.visible = false));
-        await frames(3);
+        await frames(3 + settle);
         const b = await shot();
         return p.evaluate(
           async ([a, b, box]) => {
@@ -255,6 +314,24 @@ const stats = async p => {
           }
         );
         await p.evaluate(() => KA.CON.run("timescale 1"));
+      }
+      /* TAA never blends a distant pilot into the wall behind: once it settles, a pilot 30 m away stands
+         out about as much as with SMAA */
+      {
+        const at = async aa => {
+          await p.evaluate(aa => {
+            KA.SET.aa = aa;
+            KA.applySettings();
+          }, aa);
+          return standsOut(true, aa === "taa" ? 30 : 0);
+        };
+        const smaa = await at("smaa"),
+          taa = await at("taa");
+        await p.evaluate(() => {
+          KA.SET.aa = "smaa";
+          KA.applySettings();
+        });
+        check(smaa > 20 && taa >= smaa * 0.85, "a pilot 30 m away stays as visible with TAA", { smaa, taa });
       }
       /* and an explosion's smoke between you and the pilot, a moment later, keeps most of them in view */
       {

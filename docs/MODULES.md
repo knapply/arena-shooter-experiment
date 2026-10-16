@@ -12,12 +12,12 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/prelude.js` | 41 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
 | `src/game/events.js` | 71 | `EVENTS` |
 | `src/game/frame-hooks.js` | 21 | `FRAME_HOOKS` `onFrame` `runFrameHooks` |
-| `src/core/settings.js` | 1704 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `T_LAB` `T_MODE` `SANDBOX_DEFS` `LAB_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` … (+15) |
+| `src/core/settings.js` | 1717 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `T_LAB` `T_MODE` `SANDBOX_DEFS` `LAB_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` … (+15) |
 | `src/render/renderer.js` | 231 | `LIGHT_K` `canvas` `renderer` `scene` `camera` `resize` `hemi` `sun` `_skyP` `skyTint` `SKY_TIME` `SKY_SUN` `SKY_Q` `SKY_U` |
 | `src/render/shadow-fit.js` | 54 | `SHADOW_FIT` `_sfC` `_sfF` `_sfR` `_sfI` `_sfO` `_sfU` `sunDir` `fitShadow` |
 | `src/render/tone.js` | 96 | `TONE` `TONE_CURVES` `toneLut` `TONE_GLSL` |
-| `src/render/pipeline.js` | 806 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `VIEWPOS` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `MAP_LOOK` `LOOK_NOW` `applyLook` `HEAT_U` `compMat` `fsQuad` `fsScene` `UPS` … (+20) |
-| `src/render/environment.js` | 189 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyFog` `applyGfx` `pc` `scaleBoxUV` |
+| `src/render/pipeline.js` | 1018 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `VIEWPOS` `VIEWNRM` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `REPROJ` `taaMat` `mbMat` `MAP_LOOK` `LOOK_NOW` `applyLook` `HEAT_U` … (+28) |
+| `src/render/environment.js` | 199 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyFog` `applyGfx` `pc` `scaleBoxUV` |
 | `src/render/map-env.js` | 116 | `MAP_ENV` `_meV` `PROBE_HEMI` `PROBE_K` `mapEnvCapture` `mapSH` `mapEnvFrame` |
 | `src/render/surfaces.js` | 328 | `SURF_MATS` `SURF_DEBUG` `SURF_U` `SURF_GLSL` `surfMat` `applySurf` `bakeMarkings` |
 | `src/render/perf.js` | 118 | `PERF` `GPUQ` `perfBegin` `perfEnd` |

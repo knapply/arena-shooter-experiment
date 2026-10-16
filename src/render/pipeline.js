@@ -41,6 +41,21 @@ const GFX = {
   lookId: "",
   /* a tone curve that overrides the map's (the developer console's "tone" command) */
   tone: "",
+  /* TAA: two full-size histories (read one, write the other), this frame's sub-pixel nudge, whether the
+     history can be trusted; mb: the motion-blurred copy; pvp, pPos, pDir, pT: last frame's camera */
+  taaA: null,
+  taaB: null,
+  taaN: 0,
+  jx: 0,
+  jy: 0,
+  taaOk: false,
+  mb: null,
+  pvp: new THREE.Matrix4(),
+  pPos: new THREE.Vector3(),
+  pDir: new THREE.Vector3(),
+  pT: 0,
+  /* camera cuts seen (each drops the TAA history and skips the blur for a frame) */
+  cuts: 0,
 };
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
@@ -61,36 +76,55 @@ const blurMat = new THREE.ShaderMaterial({
   fragmentShader:
     "uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb*.227027;c+=texture2D(t,vUv+dir*1.3846).rgb*.316216;c+=texture2D(t,vUv-dir*1.3846).rgb*.316216;c+=texture2D(t,vUv+dir*3.2308).rgb*.07027;c+=texture2D(t,vUv-dir*3.2308).rgb*.07027;gl_FragColor=vec4(c,1.);}",
 });
-/* screen-space ambient occlusion at half resolution: view positions rebuilt from depth, normals from
-   the flatter side of each pixel's neighbours, ten samples on a rotated spiral within `rad` metres */
+/* view positions rebuilt from depth, and each pixel's normal from the flatter side of its neighbours
+   (the scene has no normal buffer: see "Why no G-buffer" in docs/ARCHITECTURE.md; the map is built from
+   flat faces, so these are its true face normals) */
 const VIEWPOS =
   "uniform sampler2D tD;uniform vec2 clip;uniform vec2 proj;float lz(vec2 uv){float d=texture2D(tD,uv).x;return clip.x*clip.y/(clip.y-d*(clip.y-clip.x));}vec3 vp(vec2 uv){float z=lz(uv);return vec3((uv*2.-1.)*proj*z,-z);}";
+const VIEWNRM =
+  VIEWPOS +
+  "uniform vec2 dtx;vec3 vn(vec2 uv,vec3 P){vec3 r=vp(uv+vec2(dtx.x,0.)),l=vp(uv-vec2(dtx.x,0.)),u=vp(uv+vec2(0.,dtx.y)),b=vp(uv-vec2(0.,dtx.y));vec3 dx=abs(r.z-P.z)<abs(P.z-l.z)?r-P:P-l;vec3 dy=abs(u.z-P.z)<abs(P.z-b.z)?u-P:P-b;return normalize(cross(dx,dy));}float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(.06711056,.00583715))));}";
+/* ground-truth ambient occlusion (GTAO) at half resolution: in two slices through each pixel (turned a
+   little every frame under TAA, which then averages them), walk out both ways within `rad` metres for the
+   highest horizon, and integrate the cosine-weighted sky left open between the two horizons around the
+   pixel's normal. Unlike a plain sample count this darkens by how much of the hemisphere is really
+   blocked, so creases go dark and open floor stays clean. */
 const ssaoMat = new THREE.ShaderMaterial({
+  defines: { SLICES: 2, STEPS: 6 },
   uniforms: {
     tD: { value: null },
     clip: { value: new THREE.Vector2(0.1, 500) },
     proj: { value: new THREE.Vector2(1, 1) },
-    texel: { value: new THREE.Vector2(1, 1) },
-    rad: { value: 1.1 },
-    k: { value: 1.25 },
+    dtx: { value: new THREE.Vector2(1, 1) },
+    rad: { value: 1.3 },
+    k: { value: 1.4 },
+    fr: { value: 0 },
   },
   vertexShader: FSV,
   depthTest: false,
   depthWrite: false,
-  fragmentShader: `uniform vec2 texel;uniform float rad;uniform float k;varying vec2 vUv;${VIEWPOS}
+  fragmentShader: `uniform float rad;uniform float k;uniform float fr;varying vec2 vUv;${VIEWNRM}
 void main(){if(texture2D(tD,vUv).x>=1.){gl_FragColor=vec4(1.);return;}
 vec3 P=vp(vUv);
-vec3 r=vp(vUv+vec2(texel.x,0.)),l=vp(vUv-vec2(texel.x,0.)),u=vp(vUv+vec2(0.,texel.y)),b=vp(vUv-vec2(0.,texel.y));
-vec3 dx=abs(r.z-P.z)<abs(P.z-l.z)?r-P:P-l;vec3 dy=abs(u.z-P.z)<abs(P.z-b.z)?u-P:P-b;
-vec3 N=normalize(cross(dx,dy));
+/* (not the weapon in your hands, and fading out far away where a pixel spans more than the radius) */
+if(P.z>-1.){gl_FragColor=vec4(1.);return;}
+vec3 N=vn(vUv,P);vec3 V=normalize(-P);
 vec2 sr=rad/(-P.z*proj)*.5;
-float a0=6.2831*fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
-float ao=0.;
-for(int i=0;i<10;i++){float f=(float(i)+.6)/10.;float a=a0+float(i)*2.39996;
-vec3 v=vp(vUv+vec2(cos(a),sin(a))*sr*f)-P;float L=length(v);
-ao+=max(0.,dot(v,N)/max(L,1e-4)-.08)*(1.-smoothstep(rad*.6,rad*1.6,L));}
-ao=clamp(1.-ao*k/10.,0.,1.);
-gl_FragColor=vec4(vec3(ao*ao),1.);}`,
+float n0=ign(gl_FragCoord.xy+fr*5.588),j0=ign(gl_FragCoord.yx+17.+fr*7.31);
+float vis=0.;
+for(int s=0;s<SLICES;s++){float phi=(float(s)+n0)*3.14159/float(SLICES);vec2 om=vec2(cos(phi),sin(phi));
+vec3 dv=vec3(om,0.);vec3 od=dv-dot(dv,V)*V;vec3 ax=normalize(cross(od,V));
+vec3 pn=N-ax*dot(N,ax);float pl=length(pn);float cn=clamp(dot(pn,V)/max(pl,1e-4),0.,1.);
+float n=sign(dot(od,pn))*acos(cn);
+float h0=cos(n+1.5708),h1=cos(n-1.5708),lo0=h0,lo1=h1;
+for(int i=0;i<STEPS;i++){float t=(float(i)+j0)/float(STEPS);vec2 o=om*max(sr*t*t,dtx*3.*(float(i)+1.));
+vec3 d0=vp(vUv+o)-P,d1=vp(vUv-o)-P;float L0=length(d0),L1=length(d1);
+float w0=1.-smoothstep(rad*.4,rad,L0),w1=1.-smoothstep(rad*.4,rad,L1);
+h0=max(h0,mix(lo0,dot(d0,V)/max(L0,1e-4)-.04,w0));h1=max(h1,mix(lo1,dot(d1,V)/max(L1,1e-4)-.04,w1));}
+float a1=n+clamp(acos(clamp(h0,-1.,1.))-n,-1.5708,1.5708),a0=n+clamp(-acos(clamp(h1,-1.,1.))-n,-1.5708,1.5708);
+float sn=sin(n);vis+=pl*((cn+2.*a0*sn-cos(2.*a0-n))+(cn+2.*a1*sn-cos(2.*a1-n)))*.25;}
+vis=mix(clamp(vis/float(SLICES),0.,1.),1.,smoothstep(40.,90.,-P.z));
+gl_FragColor=vec4(vec3(pow(vis,k)),1.);}`,
 });
 /* edge-aware blur of the occlusion in one pass (5x5 taps): neighbours at a different depth don't bleed across */
 const aoBlurMat = new THREE.ShaderMaterial({
@@ -131,10 +165,10 @@ for(int i=0;i<36;i++){vec4 s=texture2D(t,uv);float g=max(0.,1.-length((uv-sunUv)
 acc+=(min(max(s.rgb-.3,0.),vec3(6.))+vec3(1.,.8,.55)*g*g*g*3.)*(1.-smoothstep(0.,.2,s.a))*dec;dec*=.965;uv+=st;}
 gl_FragColor=vec4(acc*vis/36.,1.);}`,
 });
-/* screen-space reflections on the floor (the Reflections setting: "ssr" at High, "ssrhi" at Ultra). The
-   map's surfaces leave how mirror-like they are in the scene's alpha (render/surfaces.js: wet patches
-   fully, polished floor plates and deck tops partly); each such pixel marches its reflected view ray
-   through the depth buffer and takes the color it hits, fading at the screen's edges. Rougher surfaces
+/* screen-space reflections (the Reflections setting: "ssr" at High, "ssrhi" at Ultra). The map's
+   surfaces leave how mirror-like they are in the scene's alpha (render/surfaces.js: wet patches fully,
+   polished floor plates, deck tops and trim partly); each such pixel reflects its view ray about its own
+   normal (rebuilt from depth), marches it through the depth buffer and takes the color it hits, fading at the screen's edges. Rougher surfaces
    scatter the ray and leave their roughness in alpha, which the composite blurs by. The high quality
    takes twice the steps and refines each hit by bisection. */
 const ssrMat = new THREE.ShaderMaterial({
@@ -146,12 +180,12 @@ const ssrMat = new THREE.ShaderMaterial({
     proj: { value: new THREE.Vector2(1, 1) },
     pm: { value: new THREE.Matrix4() },
     upV: { value: new THREE.Vector3() },
+    dtx: { value: new THREE.Vector2(1, 1) },
   },
   vertexShader: FSV,
   depthTest: false,
   depthWrite: false,
-  fragmentShader: `uniform sampler2D tS;uniform mat4 pm;uniform vec3 upV;varying vec2 vUv;${VIEWPOS}
-float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(.06711056,.00583715))));}
+  fragmentShader: `uniform sampler2D tS;uniform mat4 pm;uniform vec3 upV;varying vec2 vUv;${VIEWNRM}
 vec2 suv(vec3 q){vec4 c=pm*vec4(q,1.);return c.xy/c.w*.5+.5;}
 void main(){/* (sky, and smoke drawn over it, reflect nothing) */
 if(texture2D(tD,vUv).x>=1.){gl_FragColor=vec4(0.);return;}
@@ -159,8 +193,12 @@ float a=texture2D(tS,vUv).a;float w=clamp((1.-a)*2.,0.,1.);
 if(a<.25||w<.04){gl_FragColor=vec4(0.);return;}
 float rough=clamp(1.-w*1.3,0.,1.);
 vec3 P=vp(vUv);vec3 V=normalize(P);float j=ign(gl_FragCoord.xy),j2=ign(gl_FragCoord.yx+17.);
-vec3 N=normalize(upV+rough*.1*vec3(j2-.5,0.,j-.5));vec3 R=reflect(V,N);
-float fres=.06+.94*pow(1.-max(dot(-V,upV),0.),5.);
+/* the surface's own normal, rebuilt from depth (walls and ramps reflect too); the floor's exactly up,
+   so distant floor doesn't ripple with the depth buffer's steps */
+vec3 G=vn(vUv,P);if(dot(G,V)>0.)G=-G;if(dot(G,upV)>.96)G=upV;
+vec3 T=normalize(cross(G,abs(G.y)<.9?vec3(0.,1.,0.):vec3(1.,0.,0.))),B=cross(G,T);
+vec3 N=normalize(G+rough*.1*(T*(j2-.5)+B*(j-.5)));vec3 R=reflect(V,N);
+float fres=.06+.94*pow(1.-max(dot(-V,G),0.),5.);
 float st=.18-P.z*.015;vec3 Q=P+R*st*j;vec3 hit=vec3(0.);float found=0.;
 for(int i=0;i<STEPS;i++){vec3 Q0=Q;Q+=R*st;st*=GROW;vec2 uv=suv(Q);
 if(uv.x<0.||uv.x>1.||uv.y<0.||uv.y>1.||Q.z>-.05)break;
@@ -172,12 +210,93 @@ for(int k=0;k<4;k++){vec3 M=(Q0+Q)*.5;if(-M.z-lz(suv(M))>0.)Q=M;else Q0=M;}uv=su
 hit=texture2D(tS,uv).rgb;vec2 e=abs(uv-.5)*2.;found=(1.-smoothstep(.8,1.,max(e.x,e.y)))*(1.-float(i)/float(STEPS));break;}}
 gl_FragColor=vec4(min(hit,vec3(8.))*found*w*fres,rough);}`,
 });
+/* temporal anti-aliasing (the "taa" choice of Anti-aliasing; Ultra's default). Each frame the camera is
+   nudged by a different fraction of a pixel (a Halton sequence); this pass finds where each pixel was a
+   frame ago (its depth, rebuilt into the world, through last frame's camera) and blends this frame into
+   that history, so edges and fine detail average out across frames. The history is clamped to the colors
+   around the pixel now (a box from their mean and spread), so things that moved don't leave ghosts, and
+   it's dropped wherever it falls off screen, after a camera cut and on any resize. The weapon in your
+   hands moves with the camera: it keeps its own place. Anything that moved on its own is caught by its
+   depth (kept in the history's alpha) not matching. Colors blend in a compressed range so a muzzle
+   flash doesn't smear. */
+const REPROJ =
+  "uniform mat4 pvp;uniform mat3 camW;uniform vec3 camP;vec2 prevUv(vec2 uv,float z){if(z<1.)return uv;vec3 q=vec3((uv*2.-1.)*proj*z,-z);vec4 c=pvp*vec4(camP+camW*q,1.);return c.xy/c.w*.5+.5;}";
+const taaMat = new THREE.ShaderMaterial({
+  uniforms: {
+    tC: { value: null },
+    tH: { value: null },
+    tD: { value: null },
+    clip: { value: new THREE.Vector2(0.1, 500) },
+    proj: { value: new THREE.Vector2(1, 1) },
+    pvp: { value: new THREE.Matrix4() },
+    camW: { value: new THREE.Matrix3() },
+    camP: { value: new THREE.Vector3() },
+    jit: { value: new THREE.Vector2() },
+    size: { value: new THREE.Vector2(1, 1) },
+    hOk: { value: 0 },
+  },
+  vertexShader: FSV,
+  depthTest: false,
+  depthWrite: false,
+  fragmentShader: `uniform sampler2D tC;uniform sampler2D tH;uniform vec2 jit;uniform vec2 size;uniform float hOk;varying vec2 vUv;${VIEWPOS}${REPROJ}
+vec3 tm(vec3 c){return c/(1.+max(c.r,max(c.g,c.b)));}
+vec3 itm(vec3 c){return c/max(1e-4,1.-max(c.r,max(c.g,c.b)));}
+vec3 yc(vec3 c){return vec3(.25*c.r+.5*c.g+.25*c.b,.5*c.r-.5*c.b,-.25*c.r+.5*c.g-.25*c.b);}
+vec3 rgb(vec3 y){float t=y.x-y.z;return vec3(t+y.y,y.x+y.z,t-y.y);}
+vec3 hist(vec2 uv){vec2 sp=uv*size,tp=floor(sp-.5)+.5,f=sp-tp;
+vec2 w0=f*(-.5+f*(1.-.5*f)),w1=1.+f*f*(-2.5+1.5*f),w2=f*(.5+f*(2.-1.5*f)),w3=f*f*(-.5+.5*f),w12=w1+w2;
+vec2 t0=(tp-1.)/size,t3=(tp+2.)/size,t12=(tp+w2/w12)/size;
+vec3 r=tm(texture2D(tH,vec2(t12.x,t0.y)).rgb)*w12.x*w0.y+tm(texture2D(tH,vec2(t0.x,t12.y)).rgb)*w0.x*w12.y+tm(texture2D(tH,t12).rgb)*w12.x*w12.y+tm(texture2D(tH,vec2(t3.x,t12.y)).rgb)*w3.x*w12.y+tm(texture2D(tH,vec2(t12.x,t3.y)).rgb)*w12.x*w3.y;
+return max(r/(w12.x*w0.y+w0.x*w12.y+w12.x*w12.y+w3.x*w12.y+w12.x*w3.y),0.);}
+void main(){vec2 cu=vUv+jit;vec4 c0=texture2D(tC,cu);vec3 c=tm(c0.rgb);
+vec3 m1=vec3(0.),m2=vec3(0.);
+for(int i=-1;i<=1;i++)for(int j=-1;j<=1;j++){vec3 y=yc(tm(texture2D(tC,cu+vec2(float(i),float(j))/size).rgb));m1+=y;m2+=y*y;}
+m1/=9.;vec3 sd=sqrt(max(m2/9.-m1*m1,0.));
+/* where it was: from the nearest depth around it, so edges move with what's in front */
+float zc=lz(vUv),z=zc;for(int i=-1;i<=1;i+=2)for(int j=-1;j<=1;j+=2)z=min(z,lz(vUv+vec2(float(i),float(j))/size));
+vec2 pu=prevUv(vUv,z);vec2 v=(vUv-pu)*size;
+float a=hOk<.5||pu.x<0.||pu.y<0.||pu.x>1.||pu.y>1.?1.:mix(.09,.3,clamp(length(v)/12.,0.,1.));
+/* the history keeps each pixel's depth: where last frame had something else there (a player stepping
+   into or out of it: the camera's motion alone can't tell), this frame is taken as it is, so a distant
+   player is never blended into the wall behind them */
+float ez=zc;if(zc>=1.){vec4 e=pvp*vec4(camP+camW*vec3((vUv*2.-1.)*proj*zc,-zc),1.);ez=e.w;}
+float hz=texelFetch(tH,ivec2(clamp(pu,0.,1.)*size),0).a;
+a=mix(a,1.,smoothstep(.04,.1,abs(hz-ez)/(ez+.3)));
+vec3 h=yc(hist(pu));vec3 e=sd*1.15+.002;vec3 d=h-m1;vec3 u=abs(d/e);float mx=max(u.x,max(u.y,u.z));h=mx>1.?m1+d/mx:h;
+gl_FragColor=vec4(itm(clamp(mix(rgb(h),c,a),0.,.98)),zc);}`,
+});
+/* camera motion blur (Ultra, with its own off switch): each pixel smeared along how far it moved across
+   the screen since last frame, as a camera with a half-frame shutter at 60 fps would (scaled to the frame
+   rate), capped short. Only the camera's motion counts: the weapon in your hands stays sharp and never
+   smears into the world. */
+const mbMat = new THREE.ShaderMaterial({
+  uniforms: {
+    t: { value: null },
+    tD: { value: null },
+    clip: { value: new THREE.Vector2(0.1, 500) },
+    proj: { value: new THREE.Vector2(1, 1) },
+    pvp: { value: new THREE.Matrix4() },
+    camW: { value: new THREE.Matrix3() },
+    camP: { value: new THREE.Vector3() },
+    k: { value: 0.5 },
+  },
+  vertexShader: FSV,
+  depthTest: false,
+  depthWrite: false,
+  fragmentShader: `uniform sampler2D t;uniform float k;varying vec2 vUv;${VIEWPOS}${REPROJ}
+void main(){vec4 c0=texture2D(t,vUv);float z=lz(vUv);vec2 v=(vUv-prevUv(vUv,z))*k;float L=length(v);
+if(z<1.||L<.0015){gl_FragColor=c0;return;}
+v*=min(L,.035)/L;float j=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))))-.5;
+vec3 s=c0.rgb;float w=1.;
+for(int i=0;i<8;i++){vec2 uv=vUv+v*((float(i)+j)/7.-.5);if(lz(uv)<1.)continue;s+=texture2D(t,uv).rgb;w+=1.;}
+gl_FragColor=vec4(s/w,c0.a);}`,
+});
 /* each map's own color mood, applied after tone mapping: shadow tint (lift), highlight tint (gain),
    vibrance. Picked by whichever map group is showing (MAP_GROUPS, world/bake.js). */
 /* each map's time of day and weather: tone curve (render/tone.js), grade (shadow and highlight tints,
    vibrance), sun (direction, color, brightness in the old light units), sky and ground ambient, fog
    (color, and its near and far as shares of the usual), the sky (see SKY_U in render/renderer.js) and
-   whether a storm throws lightning. Applied when the map that is showing changes (applyLook). */
+   whether a storm throws lightning, and how strongly its light shafts show (Ultra). Applied when the map that is showing changes (applyLook). */
 const MAP_LOOK = {
   /* Proving Grounds at dusk */
   arena: {
@@ -213,6 +332,8 @@ const MAP_LOOK = {
     fog: ["#2b2118", 0.55, 0.85],
     haze: [0.7, 0.03, 0, 0.35, 0.18, 2.2],
     cones: 0.5,
+    /* (no sun at night: the lit cloud deck would only flood the light shafts) */
+    shafts: 0,
     storm: true,
     envK: 0.8,
     envSky: 0.35,
@@ -398,7 +519,9 @@ function gfxResize() {
     wantSsr = ssrQ > 0;
   /* the scene's depth as a texture (depth of field, occlusion); WebGL2 resolves it from MSAA too */
   const wantHaze = !!SET.haze && GFX.webgl2;
-  const wantDepth = wantDof || wantAo || wantSsr || wantHaze;
+  const wantTaa = SET.aa === "taa" && GFX.webgl2,
+    wantMb = !!SET.motionBlur && GFX.webgl2;
+  const wantDepth = wantDof || wantAo || wantSsr || wantHaze || wantTaa || wantMb;
   const key =
     w +
     "x" +
@@ -409,10 +532,13 @@ function gfxResize() {
     (wantAo ? "a" : "") +
     (wantSh ? "s" : "") +
     (wantSsr ? "r" + ssrQ : "") +
-    (wantHaze ? "h" : "");
+    (wantHaze ? "h" : "") +
+    (wantTaa ? "t" : "") +
+    (wantMb ? "v" : "");
   if (key === GFX.lastKey && GFX.rt) return;
   GFX.lastKey = key;
-  for (const k of ["rt", "b1", "b2", "b3", "b4", "ao1", "ao2", "sh", "ssr"])
+  GFX.taaOk = false;
+  for (const k of ["rt", "b1", "b2", "b3", "b4", "ao1", "ao2", "sh", "ssr", "taaA", "taaB", "mb"])
     if (GFX[k]) {
       GFX[k].dispose();
       GFX[k] = null;
@@ -450,6 +576,11 @@ function gfxResize() {
       );
       ssrMat.needsUpdate = true;
     }
+    if (wantTaa) {
+      GFX.taaA = new THREE.WebGLRenderTarget(w, h, bo);
+      GFX.taaB = new THREE.WebGLRenderTarget(w, h, bo);
+    }
+    if (wantMb) GFX.mb = new THREE.WebGLRenderTarget(w, h, bo);
     if (wantDof) {
       const fw = Math.max(1, w >> 1),
         fh = Math.max(1, h >> 1);
@@ -497,6 +628,72 @@ function fsPass(mat, target) {
   renderer.setRenderTarget(target);
   renderer.render(fsScene, GFX.cam);
 }
+/** the n-th number of the Halton sequence in a base (TAA's sub-pixel nudges) */
+function halton(n, b) {
+  let r = 0,
+    f = 1;
+  for (; n > 0; n = Math.floor(n / b)) r += (f /= b) * (n % b);
+  return r;
+}
+const _taaD = new THREE.Vector3(),
+  _taaP = new THREE.Vector3();
+/**
+ * TAA and motion blur, after the scene and before the composite: both find where each pixel was last frame
+ * from its depth and last frame's camera. A camera cut (a respawn, a killcam, a replay) drops the history
+ * and the blur for a frame. Returns the image the composite should read.
+ */
+function temporalPasses(taa) {
+  const now = performance.now(),
+    dt = Math.max(1, now - GFX.pT) / 1000;
+  GFX.pT = now;
+  camera.getWorldPosition(_taaP);
+  camera.getWorldDirection(_taaD);
+  const cut = _taaP.distanceTo(GFX.pPos) > 3 || _taaD.dot(GFX.pDir) < 0.5 || dt > 0.25;
+  if (cut) GFX.cuts++;
+  GFX.pPos.copy(_taaP);
+  GFX.pDir.copy(_taaD);
+  let out = GFX.rt.texture;
+  const mb = !!GFX.mb && !!GFX.rt.depthTexture && !GFX.look;
+  if (taa || mb) {
+    const tanY = Math.tan((camera.fov * Math.PI) / 360);
+    for (const M of [taaMat, mbMat]) {
+      const u = M.uniforms;
+      u.tD.value = GFX.rt.depthTexture;
+      u.clip.value.set(camera.near, camera.far);
+      u.proj.value.set(tanY * camera.aspect, tanY);
+      u.pvp.value.copy(GFX.pvp);
+      u.camW.value.setFromMatrix4(camera.matrixWorld);
+      u.camP.value.copy(_taaP);
+    }
+  }
+  if (taa) {
+    if (GPUQ) GPUQ.begin("taa");
+    const T = taaMat.uniforms;
+    T.tC.value = GFX.rt.texture;
+    T.tH.value = GFX.taaB.texture;
+    T.jit.value.set(-GFX.jx / GFX.w, GFX.jy / GFX.h);
+    T.size.value.set(GFX.w, GFX.h);
+    T.hOk.value = GFX.taaOk && !cut ? 1 : 0;
+    fsPass(taaMat, GFX.taaA);
+    out = GFX.taaA.texture;
+    const t = GFX.taaA;
+    GFX.taaA = GFX.taaB;
+    GFX.taaB = t;
+    GFX.taaOk = true;
+    if (GPUQ) GPUQ.end();
+  } else GFX.taaOk = false;
+  if (mb && !cut) {
+    if (GPUQ) GPUQ.begin("blur");
+    mbMat.uniforms.t.value = out;
+    /* a half-frame shutter at 60 fps, whatever the frame rate */
+    mbMat.uniforms.k.value = Math.min(1.2, Math.max(0.2, 1 / 120 / dt));
+    fsPass(mbMat, GFX.mb);
+    out = GFX.mb.texture;
+    if (GPUQ) GPUQ.end();
+  }
+  GFX.pvp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  return out;
+}
 /* if the post shaders fail to compile on this GPU, fall back to plain rendering instead of a black screen */
 let gfxChecked = false;
 function renderFrame() {
@@ -523,10 +720,19 @@ function renderFrame() {
       return oe.apply(console, arguments);
     };
   try {
+    /* TAA nudges the camera by a fraction of a pixel, different every frame (not under a cutscene's look) */
+    const taa = !!GFX.taaA && !!GFX.rt.depthTexture && !GFX.look;
+    if (taa) {
+      const n = (GFX.taaN = (GFX.taaN % 8) + 1);
+      GFX.jx = halton(n, 2) - 0.5;
+      GFX.jy = halton(n, 3) - 0.5;
+      camera.setViewOffset(GFX.w, GFX.h, GFX.jx, GFX.jy, GFX.w, GFX.h);
+    }
     renderer.setRenderTarget(GFX.rt);
     if (GPUQ) GPUQ.begin("scene");
     renderer.render(scene, camera);
     if (GPUQ) GPUQ.end();
+    if (taa) camera.clearViewOffset();
     const tp = performance.now();
     PERF.renderCpu += tp - tr;
     const U = compMat.uniforms;
@@ -540,7 +746,9 @@ function renderFrame() {
         M.uniforms.clip.value.set(camera.near, camera.far);
         M.uniforms.proj.value.set(tanY * camera.aspect, tanY);
       }
-      ssaoMat.uniforms.texel.value.set(1 / GFX.ao1.width, 1 / GFX.ao1.height);
+      ssaoMat.uniforms.dtx.value.set(1 / GFX.w, 1 / GFX.h);
+      /* (under TAA the slices turn every frame and the history averages them) */
+      ssaoMat.uniforms.fr.value = taa ? GFX.taaN : 0;
       fsPass(ssaoMat, GFX.ao1);
       aoBlurMat.uniforms.t.value = GFX.ao1.texture;
       aoBlurMat.uniforms.dir.value.set(1 / GFX.ao1.width, 1 / GFX.ao1.height);
@@ -560,6 +768,7 @@ function renderFrame() {
       M.proj.value.set(tanY * camera.aspect, tanY);
       M.pm.value.copy(camera.projectionMatrix);
       M.upV.value.set(0, 1, 0).transformDirection(camera.matrixWorldInverse);
+      M.dtx.value.set(1 / GFX.w, 1 / GFX.h);
       fsPass(ssrMat, GFX.ssr);
       U.tR.value = GFX.ssr.texture;
       U.ssrK.value = 0.9;
@@ -575,7 +784,9 @@ function renderFrame() {
         _sunS.multiplyScalar(100).add(camera.getWorldPosition(_sunF)).project(camera);
         const off = Math.max(Math.abs(_sunS.x), Math.abs(_sunS.y));
         const vis = Math.min(1, (facing - 0.1) * 2.5) * (1 - Math.min(1, Math.max(0, off - 1) / 1.2));
-        if (vis > 0.01) {
+        const sL = MAP_LOOK[LOOK_NOW.id],
+          sK = sL && sL.shafts != null ? sL.shafts : 1;
+        if (vis > 0.01 && sK > 0) {
           if (GPUQ) GPUQ.begin("shafts");
           shaftMat.uniforms.t.value = GFX.rt.texture;
           shaftMat.uniforms.sunUv.value.set(_sunS.x * 0.5 + 0.5, _sunS.y * 0.5 + 0.5);
@@ -583,7 +794,7 @@ function renderFrame() {
           shaftMat.uniforms.aspect.value = camera.aspect;
           fsPass(shaftMat, GFX.sh);
           U.tSh.value = GFX.sh.texture;
-          U.shaftK.value = 1.5;
+          U.shaftK.value = 1.5 * sK;
           if (GPUQ) GPUQ.end();
         }
       }
@@ -628,12 +839,13 @@ function renderFrame() {
       compMat.needsUpdate = true;
     }
     if (L && GFX.lookPass) GFX.lookPass(U, L);
+    const src = temporalPasses(taa);
     if (GPUQ) GPUQ.begin("comp");
-    U.tS.value = GFX.rt.texture;
+    U.tS.value = src;
     U.tB.value = GFX.b1.texture;
     const smaa = smaaWanted();
     /* (FXAA stands in for SMAA while it loads, or if it can't) */
-    U.fx.value = SET.aa === "fxaa" || (SET.aa === "smaa" && !smaa) ? 1 : 0;
+    U.fx.value = SET.aa === "fxaa" || (SET.aa === "smaa" && !smaa) || (SET.aa === "taa" && !taa) ? 1 : 0;
     U.bloom.value = SET.bloom;
     U.expo.value = SET.exposure;
     U.sat.value = SET.saturation;

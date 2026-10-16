@@ -148,7 +148,17 @@ function applyGfx() {
   camera.far = SET.drawDist + 60;
   camera.updateProjectionMatrix();
   /* render targets only change with these */
-  const rt = ["upscale", "renderScale", "aa", "bloom", "ao", "lightShafts", "reflections"]
+  const rt = [
+    "upscale",
+    "renderScale",
+    "aa",
+    "bloom",
+    "ao",
+    "lightShafts",
+    "reflections",
+    "haze",
+    "motionBlur",
+  ]
     .map(k => SET[k])
     .join();
   if (GFX_DONE.rt !== rt) {
