@@ -181,7 +181,9 @@
       if (d > R) return false;
       return K.losClear(_s, _t) || d < 4;
     }
-    if (w === "melee" || w === "charge" || w === "flag" || w === "skull") return d < 4.5;
+    /* a melee lunge carries a pilot a couple of metres while the blow travels: the same reach the
+       hit check allows (net/hitcheck.js) */
+    if (w === "melee" || w === "charge" || w === "flag" || w === "skull") return d < 6.5;
     if (w === "pound") return d < 8;
     /* explosions (rockets, grenades) land wherever they were sent: around corners and far from the
        thrower (the network lab caught rockets and long throws being refused at the old 14 m) */
@@ -205,7 +207,9 @@
       fireT: new Map(),
       agg: new Map(),
       /** hit claims from players: accepted, and rejected by the checks below */
-      hitStats: { ok: 0, bad: 0 },
+      /** hit claims from players: accepted, rejected (by reason), and moot (the target was already
+          down here: the hit changes nothing, so it is neither), with the last rejections in detail */
+      hitStats: { ok: 0, bad: 0, moot: 0, why: {}, recent: [] },
       /** recent pings, relayed to everyone: [seq, fromId, kind, x, y, z, targetId, label] */
       pg: [],
       pgS: 0,
@@ -539,6 +543,14 @@
         g1 = c[hi * 2 + 1];
       return g0 + ((g1 - g0) * (w - w0)) / (w1 - w0 || 1);
     };
+    /** a refused claim: counted by reason, the last few kept in detail (the network lab reports them) */
+    H.reject = function (why, info) {
+      const S = H.hitStats;
+      S.bad++;
+      S.why[why] = (S.why[why] || 0) + 1;
+      S.recent.push(Object.assign({ why, t: Math.round(K.now * 10) / 10 }, info));
+      if (S.recent.length > 12) S.recent.shift();
+    };
     H.snapshotRv = function () {
       const key = G.agents.map(a => a.id).join();
       if (key !== H.rosterKey) {
@@ -691,13 +703,24 @@
           hd = !!h[4];
         if (!NET.okId(tid)) continue;
         const tgt = G.byId(tid);
-        if (!tgt || tgt === a || !tgt.alive || (tgt.team === a.team && !G.ff)) {
-          H.hitStats.bad++;
+        /* down already (they saw them a moment late): the hit is moot, not refused */
+        if (tgt && tgt !== a && !tgt.alive) {
+          H.hitStats.moot++;
           continue;
         }
-        /* a one-hit flag or skull melee only from someone carrying it */
-        if ((w === "flag" || w === "skull") && (!a.carrying || (w === "skull") !== (a.carrying === G.ball))) {
-          H.hitStats.bad++;
+        const pre = !tgt
+          ? "gone"
+          : tgt === a
+            ? "self"
+            : tgt.team === a.team && !G.ff
+              ? "team"
+              : /* a one-hit flag or skull melee only from someone carrying it */
+                (w === "flag" || w === "skull") &&
+                  (!a.carrying || (w === "skull") !== (a.carrying === G.ball))
+                ? "carrier"
+                : "";
+        if (pre) {
+          H.reject(pre, { w, who: a.name });
           continue;
         }
         /* lag compensation: check the shot against where the target was on the shooter's screen
@@ -721,15 +744,22 @@
           stream: a.stream,
         });
         let at = null;
-        if (v.t != null) {
-          const s = K.REC.sample(K.pidOf(tgt), v.t);
+        /* where the target was when the shooter saw them: the checked time, or for a claim without a
+           ray (a melee) the view time it names */
+        const tAt = v.t != null ? v.t : vt > 0 && K.now - vt < K.HITCHK.T.CAP + 0.25 ? vt : null;
+        if (tAt != null) {
+          const s = K.REC.sample(K.pidOf(tgt), tAt);
           if (s) at = _rw.set(s.x, s.y, s.z);
         }
         /* claims without a checked ray (melee, grenades, an old client): range and line of sight
            from where we draw the shooter. A checked ray already had both, from where they really
            were: we draw them a little late, and that view cut corners (the network lab measured
            false rejections on the arena from it) */
-        if (v.ok && v.t == null && !NET.plausible(a.body.pos, tgt, w, at)) {
+        /* the shooter where they last reported being (we draw them ~0.1-0.2 s later than that, which
+           put a lunging melee out of reach on bad links: the network lab caught it) */
+        const sb = a.hist.ready ? a.hist.buf[a.hist.buf.length - 1] : null;
+        const from = sb ? _rs.set(sb.x, sb.y, sb.z) : a.body.pos;
+        if (v.ok && v.t == null && !NET.plausible(from, tgt, w, at)) {
           v.ok = false;
           v.why = "los";
         }
@@ -750,7 +780,17 @@
               }
         );
         if (!v.ok) {
-          H.hitStats.bad++;
+          H.reject(v.why, {
+            w,
+            who: a.name,
+            /* how far, how old the view was (s) against the rewind cap, how far the ray passed */
+            dist: at ? Math.round(at.distanceTo(a.body.pos) * 10) / 10 : null,
+            age: vt > 0 ? Math.round((K.now - vt) * 1000) / 1000 : null,
+            rewind: Math.round(v.rewind * 1000) / 1000,
+            cap: K.HITCHK.T.CAP,
+            miss: v.miss >= 0 ? Math.round(v.miss * 100) / 100 : null,
+            ray: !!ray,
+          });
           continue;
         }
         H.hitStats.ok++;
@@ -795,7 +835,8 @@
     NET.onFast = K.timed("ctf.host.fast", NET.onFast);
     return H;
   };
-  const _rw = new V3();
+  const _rw = new V3(),
+    _rs = new V3();
   /** an agent's movement fields of a snapshot row (x, y, z, vx, vy, vz, yaw, pitch, bits, shield, dead) */
   function kinOf(a, b, loc) {
     const fire = loc ? K.now - K.lastFireT < 0.12 : a.remote ? !!a.firing : a.G.t - a.firedT < 0.12;

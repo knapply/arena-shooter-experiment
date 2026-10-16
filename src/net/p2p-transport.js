@@ -304,6 +304,9 @@
   const BADKEY = k => k === "__proto__" || k === "constructor" || k === "prototype";
   /** what we last sent per room: key -> { j: JSON } or { sub: Map(field -> JSON) } */
   const sentP = new Map();
+  /** when each room's presence last went out whole, and how often it does (ms) */
+  const fullAt = new Map(),
+    FULL_EVERY = 4000;
   function delta(prev, m) {
     const d = {};
     let changed = false,
@@ -438,8 +441,14 @@
           return Promise.reject({ code: "invalid_argument" });
         }
         T.mine.set(name, m);
-        if (first) send({ t: "p", r: name, id: T.myId, p: m });
-        else if (dl.changed) send({ t: "p", r: name, id: T.myId, p: dl.d, d: 1 });
+        /* every few seconds the whole presence again (when anything changed): a receiver that missed
+           the base of a delta (it was dropped from their store, or never arrived) heals itself */
+        const tn = performance.now();
+        const full = first || (dl.changed && tn - (fullAt.get(name) || 0) > FULL_EVERY);
+        if (full) {
+          fullAt.set(name, tn);
+          send({ t: "p", r: name, id: T.myId, p: m });
+        } else if (dl.changed) send({ t: "p", r: name, id: T.myId, p: dl.d, d: 1 });
         return Promise.resolve();
       },
       peers: snap,
