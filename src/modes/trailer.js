@@ -9,26 +9,21 @@
    The timeline is a pure function of trailer time, so the same cut can play live (clocked by the
    music) or be stepped frame by frame for video capture.
 
-   Structure (120 BPM, a bar is 2 s; the older 88-second cut with four acts inserted, see INSERTS in
-   modes/trailer-score.js, so the times below are where each part plays now):
-     0-10   cold open: a dolly past cover to the squad at dusk; the squad burns in from orbit in drop
-            pods, then you ride yours down from inside the cockpit
-     10-28  three rules, each on a black card then shown: speed (first person: sprint, thrust and fire;
-            then a slide under fire), height (first person over a blast gate, then a ground pound),
-            nothing is safe (a frag through cover)
-     28-41  the drop, one shot per bar: a shoulder charge, then the guns in first person (the rocket
-            launcher fired and reloaded, a scoped sniper shot, the magnum drawn from the lower right with
-            its slide cycling, the scattergun's pump, a carbine reload swung up on end), and air shots
-            from a stabilizer hover
-     41-60  every mode, live: the mode picker, capture the flag (and a flag carry in first person),
-            Team Slayer, oddball (the skull drops in by pod, then a carry in first person),
-            free-for-all, and a power weapon arriving in a supply pod
-     60-64  under the hood: thousands of simulated matches tune every number
-     64-73  motion captured: the sprint (rifle hugged, free fist pumping), a weighted stop and pivot,
-            a running leap and thrust to a hard landing, a pilot raising the rifle from low ready to
-            fire and the target going down, then the squad celebrates at night
-     73-79  the climax: a leap frozen in time while the camera circles, then time snaps back
-     79-88  title */
+   The cut ("The Drop", 120 BPM, a bar is 2 s) is a list of scenes and when each starts (CUT, at
+   the end of the shot list): one match from the drop to the win.
+     0-14    the squad burns in from orbit; you ride your pod down from the cockpit and climb out
+     14-34   three rules, each on a black card then shown: speed (first person under fire, a thrust,
+             a slide), height (a blast gate, the pylon, a ground pound), nothing is safe (a frag)
+     34-56   five weapons in a running fight: the magnum drawn, a supply pod, the scattergun, the
+             sniper's scope, the rocket fired and reloaded, a charge and a melee, the overhand
+             grenade throw, air shots from a hover, a hover into a ground pound
+     56-79   every mode: the picker, capture the flag (a carrier, both hands on the flag), Team
+             Slayer (two squads meet), oddball (the skull's pod, a carry), free-for-all, both maps
+     79-91   under the hood: thousands of simulated matches, the free camera, play of the game over
+             the shoulder, friends
+     91-99   motion capture: a stop and pivot, a leap and a hard landing, hits and a crumple
+     99-112  a leap frozen in time, then the title
+*/
 (function () {
   const K = window.KA,
     THREE = K.THREE,
@@ -36,7 +31,6 @@
     V3 = THREE.Vector3,
     CTF = window.CTF,
     SC = K.trailerScore,
-    RM = K.trailerScore.remap,
     CINE = K.CINE;
   const PI = Math.PI,
     H = 1 / 120;
@@ -643,7 +637,7 @@
     [73, 0.35],
     [78.02, 0.8],
   ];
-  const TITLE = RM(79.6);
+  let TITLE = 105.4;
   function updOverlay() {
     let i = -1;
     for (let k = 0; k < CARDS.length; k++) {
@@ -853,8 +847,9 @@
             lerp(0.6, 0.32, k) + Math.sin(Math.PI * k) * 1.6 + h.y,
             lerp(-12, -4.4, k)
           ),
-          V(lerp(-21.6, -22.6, s2), clamp(lerp(Math.min(py, 46), 1.3, s2), 1.3, 46), lerp(-5.6, -5.6, s2)),
-          lerp(lerp(58, 46, k), 34, s2),
+          /* (the lens stays on the hero's pod all the way down, so the burn reads) */
+          V(lerp(-21.6, -22.6, s2), Math.max(1.3, lerp(py, 1.3, s2)), -5.6),
+          lerp(lerp(22, 44, k), 34, s2),
           0,
           dt
         );
@@ -1615,22 +1610,26 @@
       name: "oddball",
       ctf: true,
       setup() {
-        startCTF("oddball", "arena", g => g.ball && g.t >= g.ball.landAt - K.POD_TIME + 0.2);
+        startCTF("oddball", "arena", g => g.ball && g.t >= g.ball.landAt - K.POD_TIME + 0.9);
         this.aim = null;
       },
       update(lt, dt) {
-        /* low and wide, the lens on the burning pod all the way down, then on the skull */
+        /* low on the core, tilting up a little to meet the pod as it comes into frame, then the skull */
         const home = CTF.BALL_HOME,
           pod = K.PODS.find(p => !p.landed);
         this.pod = pod || this.pod;
-        const tgt = pod ? pod.g.position.clone() : V(home.x, home.y + 0.6, home.z);
+        const tgt = V(
+          home.x,
+          home.y + (pod ? clamp((pod.g.position.y - home.y) * 0.2, 0.6, 3.2) : 0.6),
+          home.z
+        );
         this.aim = this.aim || tgt.clone();
-        this.aim.lerp(tgt, pod ? 1 : Math.min(1, dt * 6));
+        this.aim.lerp(tgt, Math.min(1, dt * 5));
         const h = hand(lt, 0.02),
           up = pod ? clamp((pod.g.position.y - home.y) / 200, 0, 1) : 0;
-        cam(V(home.x + 5.5 + h.x, home.y + 2.5 + h.y, home.z + 9.5), this.aim, lerp(46, 26, up), 0, dt);
+        cam(V(home.x + h.x, home.y + 2.5 + h.y, home.z + 11), this.aim, lerp(50, 44, up), 0, dt);
       },
-      look: () => (K.PODS.some(p => !p.landed) ? { dof: 0 } : af(CTF.BALL_HOME, 6)),
+      look: () => af(CTF.BALL_HOME, 10),
     },
     /* in first person: the skull in hand (a carrier can't shoot; the team fights around them) */
     {
@@ -1661,7 +1660,7 @@
         pickFocus();
         const c = focus ? focus.body.pos : action(),
           a = 0.6 + lt * 0.1;
-        cam(V(c.x + Math.sin(a) * 12, 19, c.z + Math.cos(a) * 12), V(c.x, 0, c.z), 34, 2, dt);
+        cam(V(c.x + Math.sin(a) * 9, 11, c.z + Math.cos(a) * 9), V(c.x, 0.8, c.z), 40, 2, dt);
       },
       look: () => af(focus ? focus.body.pos : action(), 5, { near: 0.5 }),
     },
@@ -2972,43 +2971,351 @@
       look: () => (focus ? af(chest(focus), 4) : {}),
     },
   ];
-  const ACT_CARDS = [
-    { t: 28.5, d: 0.95, big: "Choose your weapon", kind: "black" },
+  /* ================= scenes written for "The Drop" ================= */
+  const SCENES = [
+    /* the squad climbs out of the craters and walks toward the camera at low ready */
     {
-      t: 47.3,
-      d: 2.4,
-      eb: "Seven weapons",
-      big: "Every one built",
-      sub: "Kick, actions and reloads of their own",
-      kind: "lower",
+      name: "squad-out",
+      mood: "cool",
+      setup() {
+        clearStage();
+        put(hero, [-21.4, 0, -6], -PI / 2);
+        put(ally, [-23.2, 0, -4.7], -PI / 2);
+        put(ally2, [-23.8, 0, -7.3], -PI / 2);
+        /* a walk, not a run: steer for the heading, then ease off the stick */
+        const walk = (a, z) => {
+          const x0 = a.body.pos.x;
+          return a2 => {
+            const inp = steer(
+              a2,
+              [
+                [x0, z],
+                [-10, z],
+              ],
+              { ...NO },
+              { sprint: false }
+            );
+            inp.f = Math.min(inp.f, 0.42);
+            return inp;
+          };
+        };
+        hero.ctl = walk(hero, -6);
+        ally.ctl = walk(ally, -4.7);
+        ally2.ctl = walk(ally2, -7.3);
+      },
+      update(lt, dt) {
+        for (const a of [hero, ally, ally2]) drive(a, dt);
+        const p = hero.body.pos,
+          k = ease(lt / 2.5);
+        cam(V(p.x + lerp(6.2, 4.6, k), 0.55, -6.3), V(p.x - 1.5, 1.35, -6), 40, 0, dt);
+      },
+      look: () => af(chest(hero), 4),
     },
-    { t: 69, d: 0.95, big: "Never stop moving", kind: "black" },
+    /* the overhand throw: a frag sent far down the lane onto a pair */
     {
-      t: 80.3,
-      d: 2.4,
-      eb: "One switch in the sandbox",
-      big: "Classic feel",
-      sub: "Floatier jumps, shorter thrusts",
-      kind: "lower",
+      name: "fp-nade",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        seed = 49;
+        put(foe1, [-13.6, 0, -6.6], PI / 2);
+        put(foe2, [-12.4, 0, -5.2], PI / 2 + 0.3);
+        for (const f of [foe1, foe2]) f.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 2 + a.id.length) * 0.3 });
+        fpTargets = [foe1, foe2];
+        F.begin({ pos: [-34, 0, -6], yaw: -PI / 2, pitch: 0.05, w: 0 });
+        this.thrown = false;
+        this.at = null;
+        this.boom = false;
+      },
+      ts() {
+        return this.boom ? 0.45 : 1;
+      },
+      update(lt, dt, st) {
+        for (const f of [foe1, foe2]) drive(f, dt);
+        const press = [];
+        if (!this.thrown && st > 0.25) {
+          this.thrown = true;
+          press.push("grenade");
+        }
+        const n = K.MAIN_NADES.list[0];
+        if (n) this.at = n.pos.clone();
+        else if (this.thrown && this.at && !this.boom) {
+          this.boom = true;
+          /* whoever it reaches goes down */
+          for (const f of [foe1, foe2]) if (f.body.pos.distanceTo(this.at) < 9) kill(f, this.at, 3.4);
+        }
+        const look = lookAt(V(-13, 0.8, -6), 0.08);
+        F.step(dt, { press, yaw: look.yaw, pitch: Math.max(look.pitch, st < 0.4 ? 0.1 : -1) });
+      },
     },
-    { t: 112.4, d: 1.8, eb: "Destructible cover", big: "Built to break", kind: "lower" },
-    { t: 114.9, d: 2.2, eb: "Blast gates", big: "The map moves", kind: "lower" },
-    { t: 117.9, d: 2.2, eb: "Capture the flag", big: "Twin Foundry", kind: "lower" },
-    { t: 120.9, d: 2.2, eb: "Every mode", big: "Proving Grounds", kind: "lower" },
-    { t: 139, d: 0.95, big: "Every match is different", kind: "black" },
+    /* Team Slayer: two squads meet across the lane; one goes down */
+    {
+      name: "slayer-push",
+      mood: "hot",
+      setup() {
+        stopCTF();
+        K.resetDestruction();
+        clearStage();
+        seed = 64;
+        put(hero, [-28, 0, -6], -PI / 2);
+        put(ally, [-29.4, 0, -4.7], -PI / 2);
+        put(ally2, [-29.8, 0, -7.3], -PI / 2);
+        put(foe1, [-16, 0, -6.6], PI / 2, 0, 20);
+        put(foe2, [-15.2, 0, -4.6], PI / 2);
+        put(foe3, [-15.6, 0, -7.5], PI / 2);
+        for (const a of [hero, ally, ally2]) a.ctl = (b, st) => ({ ...NO, f: st < 1 ? 0.45 : 0, aim: true });
+        for (const f of [foe1, foe2, foe3])
+          f.ctl = (b, st) => ({ ...NO, s: Math.sin(st * 2.4 + b.id.length) * 0.25 });
+        this.n = 0;
+      },
+      update(lt, dt, st) {
+        const ours = [hero, ally, ally2],
+          theirs = [foe1, foe2, foe3];
+        ours.forEach((a, i) => {
+          const tgt = theirs[i];
+          aimAt(a, tgt.dead ? head(theirs[(i + 1) % 3]) : chest(tgt), 0.3);
+          drive(a, dt);
+          if (st > 0.3 && rnd() < dt * 3.5) shoot(a, null, { at: chest(tgt), miss: 1.2, snd: "shot" });
+        });
+        theirs.forEach((f, i) => {
+          if (!f.dead) {
+            aimAt(f, chest(ours[i]), 0.3);
+            if (st > 0.2 && rnd() < dt * 3.5)
+              shoot(f, null, { at: chest(ours[i]), miss: 1.2, color: 0x9fdcff, snd: "shot" });
+          }
+          drive(f, dt);
+        });
+        /* the hero's bursts take the one in the middle */
+        if (triggerAt(this, st, [1.1, 1.5, 1.9]))
+          shoot(hero, foe1, { dmg: this.n === 3 ? 200 : 20, snd: "shot" });
+        const p = hero.body.pos,
+          h = hand(lt, 0.02);
+        cam(
+          V(p.x - 3.4 + h.x, 3.1 + h.y, p.z - 0.4),
+          _c.copy(chest(foe1)).lerp(chest(hero), 0.25),
+          44,
+          0,
+          dt
+        );
+      },
+      look: () => af(_c.copy(chest(foe1)).lerp(chest(hero), 0.5), 12),
+    },
+    /* spectating: the free camera glides over a live match */
+    {
+      name: "spectate-fly",
+      ctf: true,
+      mood: null,
+      setup() {
+        startCTF("ctf");
+      },
+      update(lt, dt) {
+        const k = ease(lt / 3);
+        cam(
+          V(lerp(-14, 10, k), lerp(16, 9, k), lerp(-30, -8, k)),
+          V(lerp(-4, 14, k), 1, lerp(-8, 10, k)),
+          56,
+          3,
+          dt
+        );
+      },
+      look: () => ({ dof: 0 }),
+    },
+    /* the play of the game, over the shoulder: three down in a few seconds */
+    {
+      name: "potg-shoulder",
+      mood: "hot",
+      setup() {
+        stopCTF();
+        clearStage();
+        K.resetDestruction();
+        seed = 88;
+        put(hero, [-30, 0, -6], -PI / 2);
+        hero.wpn = 1;
+        hero.ctl = (a, st) => ({ ...NO, f: 0.4, aim: true });
+        put(foe1, [-17, 0, -6.8], PI / 2);
+        put(foe2, [-15.4, 0, -5.4], PI / 2);
+        put(foe3, [-19.2, 0, -5.2], PI / 2);
+        for (const f of [foe1, foe2, foe3])
+          f.ctl = (b, st) => ({ ...NO, s: Math.sin(st * 2 + b.id.length) * 0.2 });
+        this.n = 0;
+      },
+      ts: lt => (lt > 0.6 && lt < 2.9 ? 0.55 : 1),
+      update(lt, dt, st) {
+        const fs = [foe1, foe2, foe3],
+          tgt = fs.find(f => !f.dead) || foe3;
+        aimAt(hero, head(tgt), 0.35);
+        drive(hero, dt);
+        for (const f of fs) {
+          if (!f.dead) {
+            aimAt(f, chest(hero), 0.3);
+            if (rnd() < dt * 3) shoot(f, null, { at: chest(hero), miss: 1.2, color: 0x9fdcff, snd: "shot" });
+          }
+          drive(f, dt);
+        }
+        /* the magnum's rhythm: each one two to the head */
+        if (triggerAt(this, st, [0.35, 0.6, 0.85, 1.1, 1.35, 1.6])) {
+          const f = fs.find(x => !x.dead);
+          if (f) shoot(hero, f, { headshot: this.n % 2 === 0, dmg: 40, snd: "pshot", power: 1.8 });
+        }
+        /* over the right shoulder, looking where the pilot aims */
+        const b = hero.body,
+          fx = -Math.sin(b.yaw),
+          fz = -Math.cos(b.yaw);
+        cam(
+          V(b.pos.x - fx * 2.6 - fz * 0.75, b.pos.y + 2.3, b.pos.z - fz * 2.6 + fx * 0.75),
+          V(b.pos.x + fx * 10, b.pos.y + 0.9, b.pos.z + fz * 10),
+          60,
+          8,
+          dt
+        );
+      },
+      look: () => af(chest(hero), 5),
+    },
   ];
-  /* the older cut's times move to make room for the four acts (the score's table, modes/trailer-score.js) */
-  for (const sh of SHOTS) sh.t = RM(sh.t);
-  SHOTS.push(...ACTS);
-  SHOTS.sort((a, b) => a.t - b.t);
-  for (const c of CARDS) c.t = RM(c.t);
-  CARDS.push(...ACT_CARDS);
-  CARDS.sort((a, b) => a.t - b.t);
-  for (const fd of FADES) {
-    fd[0] = RM(fd[0]);
-    fd[1] = RM(fd[1]);
+  /* ================= THE CUT: "The Drop" =================
+     Every shot above is a scene; the cut picks scenes and when each starts. One match from the drop to
+     the win: the squad burns in and you ride your pod down; three rules, each shown in one motivated
+     beat; a running fight through the five weapons; every mode; under the hood (the simulations, the
+     free camera, play of the game, friends); motion capture; the frozen-time finale and the title. */
+  const LIB = new Map([...SHOTS, ...ACTS, ...SCENES].map(sh => [sh.name, sh]));
+  const blackCard = name => ({ name, black: true, setup: clearStage, update() {} });
+  /** @type {[string, number][]} */
+  const CUT = [
+    /* the drop */
+    ["cold-open", 0],
+    ["drop", 5],
+    ["cockpit", 7.6],
+    ["squad-out", 10],
+    ["card-rules", 12.5],
+    /* three rules */
+    ["card-speed", 14],
+    ["fp-run", 15],
+    ["dodge", 17.2],
+    ["card-height", 19.5],
+    ["fp-gate", 20.5],
+    ["stairs", 21.7],
+    ["pylon", 22.45],
+    ["pound", 23.75],
+    ["impact", 25.8],
+    ["card-safe", 27],
+    ["frag", 28],
+    ["fp-reload", 32.5],
+    /* five weapons, one running fight */
+    ["card-weapons", 34],
+    ["fp-magnum", 35],
+    ["supply", 37],
+    ["fp-scatter", 39],
+    ["fp-sniper", 40.1],
+    ["fp-rocket", 42.1],
+    ["charge", 44.1],
+    ["melee-3p", 46.1],
+    ["fp-nade", 48.1],
+    ["air", 51.1],
+    ["fp-pound", 53.1],
+    /* every mode */
+    ["menu", 56.1],
+    ["ctf-crane", 58.1],
+    ["fp-flag", 60.6],
+    ["slayer-push", 62.6],
+    ["oddball", 65.6],
+    ["fp-skull", 68.6],
+    ["ffa", 70.6],
+    ["foundry-fly", 73.1],
+    ["arena-night", 76.1],
+    /* under the hood */
+    ["sim-tilt", 79.1],
+    ["spectate-fly", 83.1],
+    ["potg-shoulder", 86.1],
+    ["emotes", 89.6],
+    /* motion captured, then the finale */
+    ["pivot", 91.6],
+    ["leap", 94],
+    ["hits", 96.9],
+    ["run-up", 98.8],
+    ["freeze", 100.8],
+    ["aftermath", 104],
+    ["title", 104.8],
+  ];
+  SHOTS.length = 0;
+  for (const [name, at] of CUT) {
+    const sh = LIB.get(name) || (name.startsWith("card-") ? blackCard(name) : null);
+    if (!sh) throw new Error("trailer: no scene " + name);
+    SHOTS.push(Object.assign(sh, { t: at }));
   }
-  for (const fl of FLASH) fl[0] = RM(fl[0]);
+  CARDS.length = 0;
+  CARDS.push(
+    { t: 1.5, d: 3.1, eb: "Orbital proving ground", big: "", sub: "", kind: "low" },
+    { t: 12.5, d: 1.45, big: "Every pilot learns three rules", kind: "black" },
+    { t: 14, d: 0.95, big: "Speed is armor", kind: "black" },
+    { t: 19.5, d: 0.95, big: "Height is power", kind: "black" },
+    { t: 27, d: 0.95, big: "Nothing is safe", kind: "black" },
+    { t: 34, d: 0.95, big: "Five weapons", kind: "black" },
+    {
+      t: 58.4,
+      d: 1.9,
+      eb: "4 v 4",
+      big: "Capture the flag",
+      sub: "Both hands on the flag: carriers walk",
+      kind: "lower",
+    },
+    { t: 62.9, d: 2.3, eb: "Kill to win", big: "Team Slayer", kind: "lower" },
+    { t: 65.9, d: 2.3, eb: "Hold the skull", big: "Oddball", sub: "It drops in from orbit", kind: "lower" },
+    { t: 70.9, d: 1.8, eb: "Eight pilots", big: "Free for all", kind: "lower" },
+    { t: 73.4, d: 2.3, eb: "Two maps", big: "Twin Foundry", kind: "lower" },
+    { t: 76.4, d: 2.3, eb: "Two maps", big: "Proving Grounds", kind: "lower" },
+    {
+      t: 79.5,
+      d: 3.2,
+      eb: "Tuned by simulation",
+      big: "Thousands of matches",
+      sub: "Headless AI matches measure every number",
+      kind: "stats",
+    },
+    {
+      t: 83.4,
+      d: 2.3,
+      eb: "Spectate",
+      big: "Fly anywhere",
+      sub: "The free camera, over any match",
+      kind: "lower",
+    },
+    {
+      t: 86.4,
+      d: 2.8,
+      eb: "Play of the game",
+      big: "Over the shoulder",
+      sub: "V switches to first person",
+      kind: "lower",
+    },
+    {
+      t: 89.8,
+      d: 1.6,
+      eb: "Peer to peer",
+      big: "Bring friends",
+      sub: "No install. No accounts.",
+      kind: "lower",
+    },
+    {
+      t: 91.9,
+      d: 2.3,
+      eb: "Real performances",
+      big: "Motion captured",
+      sub: "Every stop, leap, landing, hit and fall",
+      kind: "lower",
+    }
+  );
+  FADES.length = 0;
+  FADES.push(
+    [0, 1.6, 1, 0],
+    [104.8, 105.4, 1, 1],
+    [105.4, 107.3, 1, 0.62],
+    [107.3, 110.5, 0.62, 0.62],
+    [110.5, 112, 0.62, 1]
+  );
+  FLASH.length = 0;
+  FLASH.push([35, 0.3], [56.1, 0.3], [98.8, 0.35], [103.82, 0.8]);
+  TITLE = 105.4;
   TR.shots = SHOTS.map(s => ({ t: s.t, name: s.name }));
 
   /* ---------------- CTF montage support ---------------- */

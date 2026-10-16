@@ -1,7 +1,6 @@
 /* ===== Trailer score: an original piece synthesized live with Web Audio (no samples), scored to the
-   picture in modes/trailer.js: a cold open on a drone and a heartbeat, a hit on each black card,
-   slow motion answered by sub drops and bells, a full-band drop for the action montage, the band
-   an octave up for the modes, new acts for the arsenal, the movement, the world and a battle, a
+   picture in modes/trailer.js ("The Drop"): a drone and a heartbeat for the drop, a hit on each black
+   card, slow motion answered by sub drops and bells, the full band for the weapons and the modes, a
    plucked breakdown for the numbers, a frozen-time climax and a choir on the title.
    score(ctx, out, t0) schedules everything on any AudioContext, including OfflineAudioContext for rendering to a file. ===== */
 (function () {
@@ -17,21 +16,11 @@
     );
   };
   const hz = n => 440 * Math.pow(2, ((typeof n === "string" ? midi(n) : n) - 69) / 12);
-  /* the cut grew by four acts inserted into the older 88-second arrangement: [where (old time), how long].
-     remap(old) is where an old moment plays now; the picture (modes/trailer.js) uses the same table */
+  /* no acts inserted: the arrangement below is written at the cut's own times (modes/trailer.js) */
   /** @type {[number, number][]} */
-  const INSERTS = [
-    [28.5, 28],
-    [41, 24],
-    [60, 14],
-    [73, 18],
-  ];
-  const remap = x => {
-    let y = x;
-    for (const [t, d] of INSERTS) if (x >= t) y += d;
-    return y;
-  };
-  const LENGTH = remap(88);
+  const INSERTS = [];
+  const remap = x => x;
+  const LENGTH = 112;
   /* chord tones for each bar of the drop and theme (D minor: i - VI - III - VII) */
   const PROG = [
     ["D3", "F3", "A3"],
@@ -733,85 +722,6 @@
         crash(at(x), 0.55 * v);
         taiko(at(x), v);
       };
-      /* ===== cold open (0-10): drone, heartbeat, a choir rising out of the dusk ===== */
-      drone(at(0), "D2", 10, 0.09);
-      drone(at(0.5), "A2", 9.5, 0.045);
-      pad(at(1.4), ["D3", "F3", "A3"], 8.6, 0.03);
-      for (let k = 1; k < 10; k++) heart(at(k), 0.1 + k * 0.025);
-      choir(at(5), "D4", 5, 0.06, "oo");
-      choir(at(5), "A3", 5, 0.05, "oo");
-      choir(at(7), "F4", 3, 0.055, "ah");
-      for (let x = 5; x < 10; x += x < 8 ? 0.5 : 0.25) hat(at(x), 0.12 + (x - 5) * 0.05);
-      tom(at(7), "D5", 0.25);
-      hat(at(7.03), 0.5);
-      for (const x of [9, 9.33, 9.66]) taiko(at(x), 0.45);
-      riser(at(8), 2, 0.26);
-      /* ===== speed is armor (10-15.5) ===== */
-      hit(10);
-      for (let x = 11; x < 12.1; x += 0.25) {
-        taiko(at(x), x % 0.5 ? 0.35 : 0.7);
-        bass(at(x), midi("D2"), 0.2, 0.8);
-      }
-      /* the dodge in slow motion: the floor drops out, a bell, a swell back in */
-      whoosh(at(12.12), 0.32);
-      subdrop(at(12.1), 0.4);
-      ping(at(12.2), "A5", 0.07);
-      riser(at(12.5), 0.7, 0.22);
-      for (let x = 13.2; x < 15.5; x += 0.25) {
-        const beat = Math.round((x - 13.2) / 0.25);
-        if (beat % 2 === 0) kick(at(x), 0.85);
-        if (beat % 4 === 2) snare(at(x), 0.7);
-        hat(at(x), 0.3);
-        bass(at(x), midi(beat % 8 < 4 ? "D2" : "F2"), 0.2, 0.8);
-      }
-      whoosh(at(14.5), 0.25);
-      for (let x = 15; x < 15.5; x += 0.125) snare(at(x), 0.3 + (x - 15) * 1.2);
-      /* ===== height is power (15.5-23) ===== */
-      hit(15.5, 1, ["Bb0", "Bb1", "F2", "Bb2"]);
-      for (let x = 16.5; x < 19.9; x += 0.25) {
-        const beat = Math.round((x - 16.5) / 0.25);
-        if (beat % 4 === 0) kick(at(x), 0.9);
-        if (beat % 8 === 4) {
-          snare(at(x), 0.8);
-          clap(at(x), 0.6);
-        }
-        hat(at(x), beat % 2 ? 0.25 : 0.4);
-        pulse(at(x), ["D3", "D3", "F3", "A3"][beat % 4], 0.04);
-      }
-      for (const [x, n] of [
-        [16.5, "D3"],
-        [17.5, "F3"],
-        [18.5, "G3"],
-        [19.0, "A3"],
-      ])
-        choir(at(x), n, 0.9, 0.07, "ah");
-      crash(at(18.42), 0.45);
-      whoosh(at(19.58), 0.28);
-      /* the ground pound charging in slow motion */
-      trem(at(19.9), ["A3", "D4", "Eb4"], 1.83, 0.06);
-      riser(at(19.9), 1.83, 0.32);
-      heart(at(20.25), 0.55);
-      heart(at(21.0), 0.6);
-      whoosh(at(21.7), 0.4);
-      boom(at(22.1), 1.35);
-      crash(at(22.1), 1);
-      subdrop(at(22.1), 0.9);
-      braam(at(22.1), 0.9, 0.2);
-      /* ===== nothing is safe (23-28.5) ===== */
-      hit(23, 1, ["C1", "C2", "G2", "C3"]);
-      drone(at(24), "D2", 4.5, 0.07);
-      for (let x = 24; x < 25.45; x += 0.125) pulse(at(x), "D2", 0.025 + (x - 24) * 0.02);
-      whoosh(at(24.4), 0.16);
-      boom(at(25.45), 1.25);
-      crash(at(25.45), 0.7);
-      ping(at(25.6), "D6", 0.06);
-      choir(at(25.5), "D4", 3, 0.06, "ah");
-      choir(at(25.5), "F4", 3, 0.05, "ah");
-      choir(at(26.5), "A4", 2, 0.05, "ah");
-      for (let x = 26.5; x < 28.5; x += x < 27.5 ? 0.125 : 0.0625) snare(at(x), 0.15 + (x - 26.5) * 0.35);
-      riser(at(26.5), 2, 0.36);
-      /* 28.5-29: silence */
-      /* ===== the drop (29-41): one bar per shot ===== */
       const THEME = [
         [
           ["D4", 1],
@@ -879,192 +789,175 @@
           lead(at(t0), line, 0.1);
         }
       };
-      groove(29, 6);
-      boom(at(29), 1.2);
-      boom(at(29.95), 0.6);
-      boom(at(34), 0.8);
-      crash(at(37.47), 0.6);
-      boom(at(40.45), 0.8);
+      /* ===== the drop (0-12.5): a drone and a heartbeat, the pods' impacts, your own ===== */
+      drone(at(0), "D2", 12.5, 0.09);
+      drone(at(0.5), "A2", 12, 0.045);
+      pad(at(1.4), ["D3", "F3", "A3"], 11, 0.03);
+      for (let k = 1; k < 7; k++) heart(at(k), 0.1 + k * 0.03);
+      choir(at(4.5), "D4", 5, 0.06, "oo");
+      choir(at(4.5), "A3", 5, 0.05, "oo");
+      whoosh(at(5), 0.3);
+      for (let x = 5; x < 7.3; x += 0.25) hat(at(x), 0.12 + (x - 5) * 0.08);
+      boom(at(7.35), 1.1);
+      subdrop(at(7.35), 0.5, 1.2);
+      for (let x = 7.6; x < 9.45; x += 0.125) pulse(at(x), "D2", 0.02 + (x - 7.6) * 0.02);
+      riser(at(7.9), 1.55, 0.3);
+      boom(at(9.45), 1.3);
+      crash(at(9.45), 0.8);
+      subdrop(at(9.45), 0.6, 1.6);
+      choir(at(10), "F4", 2.5, 0.055, "ah");
+      for (const x of [10, 10.5, 11, 11.5, 12, 12.25]) taiko(at(x), 0.4 + (x - 10) * 0.12);
+      /* ===== three rules (12.5-34) ===== */
+      hit(12.5, 0.9, ["D1", "D2", "A2", "D3"]);
+      hit(14);
+      for (let x = 15; x < 17.2; x += 0.25) {
+        taiko(at(x), x % 0.5 ? 0.35 : 0.7);
+        bass(at(x), midi("D2"), 0.2, 0.8);
+      }
+      whoosh(at(17.6), 0.32);
+      subdrop(at(17.7), 0.4);
+      ping(at(17.8), "A5", 0.07);
+      for (let x = 18.2; x < 19.5; x += 0.25) {
+        const beat = Math.round((x - 18.2) / 0.25);
+        if (beat % 2 === 0) kick(at(x), 0.85);
+        if (beat % 4 === 2) snare(at(x), 0.7);
+        hat(at(x), 0.3);
+      }
+      for (let x = 19; x < 19.5; x += 0.125) snare(at(x), 0.3 + (x - 19) * 1.2);
+      hit(19.5, 1, ["Bb0", "Bb1", "F2", "Bb2"]);
+      for (let x = 20.5; x < 23.9; x += 0.25) {
+        const beat = Math.round((x - 20.5) / 0.25);
+        if (beat % 4 === 0) kick(at(x), 0.9);
+        if (beat % 8 === 4) {
+          snare(at(x), 0.8);
+          clap(at(x), 0.6);
+        }
+        hat(at(x), beat % 2 ? 0.25 : 0.4);
+        pulse(at(x), ["D3", "D3", "F3", "A3"][beat % 4], 0.04);
+      }
+      crash(at(21.7), 0.5);
+      /* the ground pound charging in slow motion, and the slam */
+      trem(at(23.9), ["A3", "D4", "Eb4"], 2.2, 0.06);
+      riser(at(23.9), 2.2, 0.32);
+      heart(at(24.4), 0.55);
+      heart(at(25.2), 0.6);
+      boom(at(26.1), 1.35);
+      crash(at(26.1), 1);
+      subdrop(at(26.1), 0.9);
+      braam(at(26.1), 0.9, 0.2);
+      hit(27, 1, ["C1", "C2", "G2", "C3"]);
+      drone(at(28), "D2", 4.5, 0.07);
+      for (let x = 28; x < 29.45; x += 0.125) pulse(at(x), "D2", 0.025 + (x - 28) * 0.02);
+      boom(at(29.45), 1.25);
+      crash(at(29.45), 0.7);
+      ping(at(29.6), "D6", 0.06);
+      choir(at(29.5), "D4", 3, 0.06, "ah");
+      choir(at(29.5), "F4", 3, 0.05, "ah");
+      /* the breath: the reload, alone */
+      pad(at(32.5), ["D3", "A3"], 1.5, 0.03);
+      for (let x = 33; x < 34; x += 0.0625) snare(at(x), 0.15 + (x - 33) * 0.4);
+      riser(at(32.5), 1.5, 0.34);
+      /* ===== five weapons (34-56): the full band, a boom on every cut ===== */
+      hit(34, 1.1);
+      groove(35, 5);
+      groove(45, 5, { lift: 1 });
+      for (const x of [37, 39, 40.1, 42.1, 44.1, 46.1, 48.1, 51.1, 53.1]) boom(at(x), 0.55);
+      crash(at(45), 0.8);
+      for (let x = 55; x < 56.1; x += 0.0625) snare(at(x), 0.2 + (x - 55) * 0.6);
+      riser(at(54.1), 2, 0.38);
+      /* ===== every mode (56-79) ===== */
+      crash(at(56.1), 0.6);
+      whoosh(at(55.8), 0.3);
+      choir(at(56.1), "D4", 2, 0.06, "ah");
+      choir(at(56.1), "A3", 2, 0.05, "oh");
+      pad(at(56.1), ["D4", "F4", "A4"], 2, 0.035);
       for (const [x, n] of [
-        [40.5, "D4"],
-        [40.625, "A3"],
-        [40.75, "F3"],
-        [40.875, "D3"],
-      ])
-        tom(at(x), n, 0.9);
-      /* ===== every mode, live (41-60) ===== */
-      /* the mode picker: a lift, and a bell on each card picked */
-      crash(at(41), 0.6);
-      whoosh(at(40.7), 0.3);
-      choir(at(41), "D4", 2, 0.06, "ah");
-      choir(at(41), "A3", 2, 0.05, "oh");
-      pad(at(41), ["D4", "F4", "A4"], 2, 0.035);
-      for (const [x, n] of [
-        [41.15, "D5"],
-        [41.6, "F5"],
-        [42.05, "A5"],
-        [42.5, "D6"],
+        [56.25, "D5"],
+        [56.7, "F5"],
+        [57.15, "A5"],
+        [57.6, "D6"],
       ])
         ping(at(x), n, 0.06);
-      riser(at(42), 1, 0.3);
-      /* capture the flag, Slayer, oddball, free-for-all: the full band, the lead an octave up */
-      hit(43, 0.8);
-      groove(43, 6, { lift: 1 });
-      boom(at(45.5), 0.6);
-      crash(at(47.5), 0.7);
-      boom(at(47.5), 0.7);
-      /* the skull coming down from orbit: a swell into its landing */
-      whoosh(at(50.5), 0.35);
-      riser(at(51.3), 2, 0.34);
-      boom(at(53.35), 1.2);
-      subdrop(at(53.35), 0.6, 1.4);
-      crash(at(53.5), 0.6);
-      crash(at(55.5), 0.6);
-      groove(55, 2, { leadOn: false, lift: 1 });
-      /* the supply pod: a riser into its impact, a bell as the lid blows */
-      riser(at(58), 1.5, 0.36);
-      for (let x = 58.5; x < 59.5; x += 0.125) snare(at(x), 0.15 + (x - 58.5) * 0.5);
-      boom(at(59.5), 1.25);
-      crash(at(59.5), 0.8);
-      ping(at(59.75), "A5", 0.07);
-      /* ===== under the hood (60-73) ===== */
-      /* the numbers: pulses and plucked arpeggios over a held chord, a soft kick */
-      drone(at(60), "D2", 4, 0.06);
-      pad(at(60), ["D4", "F4", "A4", "C5"], 4, 0.035);
-      for (let x = 60; x < 64; x += 0.125) {
-        const s = Math.round((x - 60) * 8);
+      riser(at(57.1), 1, 0.3);
+      hit(58.1, 0.8);
+      groove(58.1, 7, { lift: 1 });
+      for (const x of [60.6, 62.6, 65.6, 68.6, 70.6]) boom(at(x), 0.6);
+      /* the two maps from the air: wide and slow, a choir over drums */
+      hit(73.1, 0.9);
+      drone(at(73.1), "D2", 6, 0.07);
+      pad(at(73.1), ["D3", "F3", "A3"], 6, 0.03);
+      for (let k = 0; k < 6; k++) taiko(at(73.1 + k), k % 3 === 0 ? 0.8 : 0.45);
+      braam(at(73.1), 2.4, 0.18, ["D1", "D2", "A2", "D3"]);
+      for (const [x, n] of [
+        [73.1, "D4"],
+        [75.1, "F4"],
+        [77.1, "A4"],
+      ]) {
+        choir(at(x), n, 1.9, 0.07, "ah");
+        choir(at(x), midi(n) - 12, 1.9, 0.05, "oh");
+      }
+      ping(at(77.4), "A5", 0.07);
+      /* ===== under the hood (79-91.6): the numbers, then the drive comes back ===== */
+      drone(at(79.1), "D2", 4, 0.06);
+      pad(at(79.1), ["D4", "F4", "A4", "C5"], 4, 0.035);
+      for (let x = 79.1; x < 83.1; x += 0.125) {
+        const s = Math.round((x - 79.1) * 8);
         pulse(at(x), ["D3", "A3", "F3", "C4"][s % 4], 0.035);
         if (s % 8 === 0) kick(at(x), 0.55);
         if (s % 4 === 2) hat(at(x), 0.22);
         if (s % 2 === 0) pluck(at(x), ["D5", "F5", "A5", "C6", "A5", "F5"][(s / 2) % 6], 0.045);
       }
-      /* motion captured: the drive comes back under a weighted stop, a leap and its landing, the hits */
-      hit(64, 0.75);
-      groove(64, 3);
-      whoosh(at(64.95), 0.3);
-      subdrop(at(65.12), 0.35, 0.8);
-      bass(at(66.0), midi("D2"), 0.3, 1);
-      whoosh(at(67.1), 0.35);
-      ping(at(67.25), "A5", 0.06);
-      whoosh(at(67.75), 0.4);
-      boom(at(68.78), 1.25);
-      subdrop(at(68.78), 0.6, 1.2);
-      crash(at(68.78), 0.7);
-      for (const x of [69.92, 70.16, 70.4]) taiko(at(x), 0.7);
-      boom(at(70.64), 1);
-      crash(at(70.64), 0.6);
-      /* the squad at night: the floor falls away, a choir and a bell for the shooting star */
-      subdrop(at(71.2), 0.45, 1.6);
-      drone(at(71.2), "D2", 1.8, 0.07);
-      choir(at(71.2), "D4", 1.8, 0.06, "oo");
-      choir(at(71.2), "A4", 1.8, 0.05, "oo");
-      ping(at(71.5), "A5", 0.07);
-      ping(at(72.1), "E6", 0.06);
-      for (let x = 71; x < 73; x += x < 72 ? 0.125 : 0.0625) snare(at(x), 0.2 + (x - 71) * 0.35);
-      for (let x = 71; x < 73; x += 0.5)
-        tom(at(x), ["D3", "F3", "A3", "C4"][Math.round((x - 71) * 2) % 4], 0.8);
-      riser(at(71), 2, 0.38);
-      /* ===== climax (73-79): drive, then a leap frozen in time ===== */
-      hit(73, 1);
-      for (let x = 73; x < 75; x += 0.125) {
-        pulse(at(x), ["D3", "F3", "A3", "D4"][Math.round((x - 73) * 8) % 4], 0.045);
-        if (Math.round((x - 73) * 8) % 4 === 0) kick(at(x), 0.9);
-        if (Math.round((x - 73) * 8) % 2 === 0) bass(at(x), midi("D2"), 0.1, 0.9);
+      hit(83.1, 0.75);
+      groove(83.1, 4);
+      boom(at(86.1), 0.7);
+      choir(at(89.6), "D4", 2, 0.06, "oo");
+      choir(at(89.6), "A4", 2, 0.05, "oo");
+      ping(at(89.9), "A5", 0.07);
+      /* ===== motion captured (91.6-98.8): the stop, the leap and its landing, the hits ===== */
+      hit(91.6, 0.75);
+      groove(91.6, 3);
+      whoosh(at(92.6), 0.3);
+      whoosh(at(95.3), 0.4);
+      boom(at(96.37), 1.25);
+      subdrop(at(96.37), 0.6, 1.2);
+      crash(at(96.37), 0.7);
+      for (const x of [97.52, 97.76, 98.0]) taiko(at(x), 0.7);
+      boom(at(98.24), 1);
+      /* ===== the finale (98.8-105.4): drive, then a leap frozen in time ===== */
+      hit(98.8, 1);
+      for (let x = 98.8; x < 100.8; x += 0.125) {
+        pulse(at(x), ["D3", "F3", "A3", "D4"][Math.round((x - 98.8) * 8) % 4], 0.045);
+        if (Math.round((x - 98.8) * 8) % 4 === 0) kick(at(x), 0.9);
+        if (Math.round((x - 98.8) * 8) % 2 === 0) bass(at(x), midi("D2"), 0.1, 0.9);
       }
-      choir(at(73), "A4", 2, 0.07, "ah");
-      whoosh(at(74.55), 0.3);
-      subdrop(at(75), 0.35, 2.4);
-      choir(at(75), "D5", 3, 0.05, "oo");
-      choir(at(75), "A4", 3, 0.045, "oo");
-      for (const x of [75.3, 76.3, 77.3]) heart(at(x), 0.5);
-      ping(at(75.55), "A5", 0.08);
-      ping(at(76.25), "C6", 0.08);
-      ping(at(76.95), "D6", 0.09);
-      riser(at(76.6), 1.42, 0.5);
-      hit(78.02, 1.1);
-      subdrop(at(78.02), 0.6, 2.2);
-      boom(at(79), 0.9);
-      /* ===== title (79.6-88) ===== */
-      drone(at(79.4), "D2", 7.5, 0.08);
-      for (const n of ["D3", "A3", "D4", "F4", "E4"]) choir(at(79.6), n, 6.4, 0.05, "ah");
-      pad(at(79.6), ["D4", "F4", "A4", "E5"], 6.6, 0.04);
+      choir(at(98.8), "A4", 2, 0.07, "ah");
+      whoosh(at(100.35), 0.3);
+      subdrop(at(100.8), 0.35, 2.4);
+      choir(at(100.8), "D5", 3, 0.05, "oo");
+      choir(at(100.8), "A4", 3, 0.045, "oo");
+      for (const x of [101.1, 102.1, 103.1]) heart(at(x), 0.5);
+      ping(at(101.35), "A5", 0.08);
+      ping(at(102.05), "C6", 0.08);
+      ping(at(102.75), "D6", 0.09);
+      riser(at(102.4), 1.42, 0.5);
+      hit(103.82, 1.1);
+      subdrop(at(103.82), 0.6, 2.2);
+      boom(at(104.8), 0.9);
+      /* ===== title (105.4-112) ===== */
+      drone(at(105.2), "D2", 6.8, 0.08);
+      for (const n of ["D3", "A3", "D4", "F4", "E4"]) choir(at(105.4), n, 6, 0.05, "ah");
+      pad(at(105.4), ["D4", "F4", "A4", "E5"], 6.2, 0.04);
       for (const [x, n] of [
-        [80.8, "D5"],
-        [81.05, "F5"],
-        [81.3, "A5"],
-        [81.55, "E6"],
-        [81.8, "D6"],
+        [106.6, "D5"],
+        [106.85, "F5"],
+        [107.1, "A5"],
+        [107.35, "E6"],
+        [107.6, "D6"],
       ])
         pluck(at(x), n, 0.06);
-      ping(at(82), "D5", 0.07);
-      ping(at(83.2), "A5", 0.05);
-      braam(at(79.6), 5, 0.1);
-      /* ================= the four new acts, at their own times ================= */
-      mapT = x => x;
-      /* ===== arsenal (28.5-56.5): a hit on the card, then the band; a boom on every cut ===== */
-      hit(28.5, 1, ["C1", "C2", "G2", "C3"]);
-      groove(29.5, 6);
-      groove(41.5, 6, { lift: 1 });
-      for (const x of [32, 34, 36, 41, 43, 45, 47, 50, 53]) boom(at(x), 0.55);
-      crash(at(41.5), 0.8);
-      /* the grenade going off, the melee's thud */
-      boom(at(38.45), 1.1);
-      subdrop(at(38.45), 0.45, 1);
-      taiko(at(41.55), 1);
-      /* the weapons on display: bells as each one comes up */
-      for (const [x, n] of [
-        [47.1, "D5"],
-        [47.6, "F5"],
-        [48.1, "A5"],
-        [48.6, "C6"],
-        [49.1, "D6"],
-      ])
-        ping(at(x), n, 0.05);
-      for (let x = 54.5; x < 56.5; x += x < 55.5 ? 0.125 : 0.0625) snare(at(x), 0.2 + (x - 54.5) * 0.35);
-      riser(at(54.5), 2, 0.38);
-      /* ===== movement (69-93): the band an octave up under the moves ===== */
-      hit(69, 1, ["Bb0", "Bb1", "F2", "Bb2"]);
-      groove(70, 5, { lift: 1 });
-      for (const x of [72.5, 75, 77.5]) boom(at(x), 0.6);
-      boom(at(76.9), 1.2);
-      subdrop(at(76.9), 0.5, 1.2);
-      /* the classic feel: the floor drops out, a long bell under the floaty jump */
-      subdrop(at(80), 0.45, 2.4);
-      drone(at(80), "D2", 3, 0.07);
-      choir(at(80.1), "A4", 2.8, 0.06, "oo");
-      ping(at(80.6), "A5", 0.07);
-      ping(at(81.6), "E6", 0.06);
-      groove(83, 5);
-      for (const x of [86, 89]) boom(at(x), 0.7);
-      for (let x = 91; x < 93; x += x < 92 ? 0.125 : 0.0625) snare(at(x), 0.2 + (x - 91) * 0.35);
-      riser(at(91), 2, 0.38);
-      /* ===== the world (112-126): wide and slow, a choir over drums ===== */
-      hit(112, 0.9);
-      drone(at(112), "D2", 14, 0.07);
-      pad(at(112.5), ["D3", "F3", "A3"], 13, 0.03);
-      for (let k = 0; k < 12; k++) taiko(at(112.5 + k), k % 4 === 0 ? 0.8 : 0.45);
-      boom(at(112.9), 1.2);
-      crash(at(112.9), 0.6);
-      braam(at(114.5), 2.4, 0.2, ["D1", "D2", "A2", "D3"]);
-      for (const [x, n] of [
-        [117.5, "D4"],
-        [119.5, "F4"],
-        [121.5, "A4"],
-        [123.5, "E4"],
-      ]) {
-        choir(at(x), n, 1.9, 0.07, "ah");
-        choir(at(x), midi(n) - 12, 1.9, 0.05, "oh");
-      }
-      ping(at(121), "A5", 0.07);
-      riser(at(124), 2, 0.34);
-      /* ===== the battle (139-157): the full band, the lead an octave up, a hit on every kill ===== */
-      hit(139, 1.1);
-      groove(139, 8, { lift: 1 });
-      for (const x of [142, 145, 148, 151, 154]) boom(at(x), 0.6);
-      for (let x = 155; x < 157; x += x < 156 ? 0.125 : 0.0625) snare(at(x), 0.2 + (x - 155) * 0.35);
-      for (let x = 155; x < 157; x += 0.5)
-        tom(at(x), ["D3", "F3", "A3", "C4"][Math.round((x - 155) * 2) % 4], 0.8);
-      riser(at(155), 2, 0.4);
+      ping(at(107.8), "D5", 0.07);
+      ping(at(109), "A5", 0.05);
+      braam(at(105.4), 5, 0.1);
     }
     if (live) {
       queue.sort((x, y) => x[0] - y[0]);

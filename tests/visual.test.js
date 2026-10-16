@@ -149,7 +149,7 @@ async function compare(p, a, b) {
       window.__seedRandom(7);
       KA.RNG.seed(7);
       KA.trailer.record();
-      KA.trailer.seek(12.2);
+      KA.trailer.seek(16.2);
       KA.trailer.step(1 / 30);
       /* the 3D picture only: title cards depend on the machine's fonts */
       document.getElementById("trCard").style.visibility = "hidden";
