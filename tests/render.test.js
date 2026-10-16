@@ -209,6 +209,138 @@ const stats = async p => {
         return { worst: +worst.toFixed(3), at };
       });
       check(grip.worst < 0.02, "a carried flag or skull is held: palms on it, wrists at the grips", grip);
+      /* every weapon is held by both hands: standing, running and aiming, each wrist reaches its grip
+         (the trigger grip and the weapon's own fore grip: a handguard, a pump, a vertical grip, or the
+         other hand on a pistol) */
+      const hold = await p.evaluate(() => {
+        const T = KA.THREE,
+          a = KA.addPilot(new KA.Pilot({ id: "actor:hold", color: "#4aa3ff", ctl: "script" })),
+          B = a.body,
+          bones = {};
+        a.rig.root.traverse(o => o.isBone && (bones[o.name] = o));
+        let worst = 0,
+          at = "";
+        for (let wpn = 0; wpn < 5; wpn++)
+          for (const [name, set, aim] of [
+            ["stand", () => {}, false],
+            ["run", () => B.vel.set(0, 0, -6.4), false],
+            ["aim", () => {}, true],
+            ["strafe aiming", () => B.vel.set(4, 0, 0), true],
+          ]) {
+            B.pos.set(0, 30, 0);
+            B.vel.set(0, 0, 0);
+            B.sprint = B.crouch = false;
+            B.ground = true;
+            B.aiming = aim;
+            for (let i = 0; i < 40; i++) {
+              set();
+              a.pose(1 / 60, { reload: -1, wpn });
+            }
+            a.rig.root.updateMatrixWorld(true);
+            for (const s of ["L", "R"]) {
+              const want = bones.chest.localToWorld((s === "L" ? a.rig.S.lh : a.rig.S.rh).clone()),
+                miss = new T.Vector3().setFromMatrixPosition(bones["hand" + s].matrixWorld).distanceTo(want);
+              if (miss > worst) {
+                worst = miss;
+                at = wpn + " " + name + " " + s;
+              }
+            }
+          }
+        a.dispose();
+        return { worst: +worst.toFixed(3), at };
+      });
+      check(
+        hold.worst < 0.02,
+        "every weapon is held: both wrists at their grips, standing, running and aiming",
+        hold
+      );
+      /* stairs: a pilot runs down a real flight (8 steps of 0.4 m) and back up it, stepped by the actual
+         physics Body. The body stays on the steps (it does not sail over them and land every third one),
+         the rig keeps running (never airborne, never landing), and its hips ride the flight without the
+         body's 0.4 m jolt at each step (the hips' frame-to-frame change of speed, over the flight) */
+      const stairs = await p.evaluate(() => {
+        const a = KA.addPilot(new KA.Pilot({ id: "actor:stairs", color: "#4aa3ff", ctl: "script" })),
+          B = a.body,
+          dt = 1 / 60,
+          ex = { reload: -1, wpn: 0 },
+          w = new KA.THREE.Vector3(),
+          ys = [],
+          rys = [],
+          zs = [];
+        let pel = null,
+          air = 0,
+          lands = 0;
+        B.pos.set(0, 3.2, 3.6);
+        B.vel.set(0, 0, 0);
+        B.ground = true;
+        B.yaw = Math.PI;
+        for (let i = 0; i < 40; i++) {
+          B.step(dt, { f: 0, s: 0 }, () => {});
+          a.pose(dt, ex);
+        }
+        a.rig.root.traverse(o => o.isBone && o.name === "pelvis" && (pel = o));
+        for (const [yaw, n] of [
+          [Math.PI, 150],
+          [0, 125],
+        ]) {
+          B.yaw = yaw;
+          for (let i = 0; i < n; i++) {
+            B.step(dt, { f: 1, s: 0 }, t => t === "land" && lands++);
+            a.pose(dt, ex);
+            a.rig.root.updateMatrixWorld(true);
+            if (a.rig.S.air) air++;
+            ys.push(w.setFromMatrixPosition(pel.matrixWorld).y);
+            rys.push(a.rig.root.position.y);
+            zs.push(B.pos.z);
+          }
+        }
+        a.dispose();
+        const jolt = v => {
+          let m = 0;
+          for (let i = 2; i < v.length; i++)
+            if (zs[i] > 5 && zs[i] < 11.5) m = Math.max(m, Math.abs(v[i] - 2 * v[i - 1] + v[i - 2]));
+          return +m.toFixed(3);
+        };
+        return {
+          air,
+          lands,
+          jolt: jolt(ys),
+          rootJolt: jolt(rys),
+          rise: +(Math.max(...rys) - Math.min(...rys)).toFixed(2),
+        };
+      });
+      check(
+        stairs.air === 0 && stairs.lands === 0 && stairs.rise > 3 && stairs.jolt < 0.75 * stairs.rootJolt,
+        "down and up a flight of stairs: on the steps, running all the way, the hips riding it smoothly",
+        stairs
+      );
+      /* the suit's heat (rig.heat, for the armour's vents): a thrust runs it up at once, and it bleeds off
+         over about a second */
+      const heat = await p.evaluate(() => {
+        const a = KA.addPilot(new KA.Pilot({ id: "actor:heat", color: "#4aa3ff", ctl: "script" })),
+          B = a.body,
+          ex = { reload: -1, wpn: 0 },
+          at = [];
+        B.pos.set(0, 30, 0);
+        B.ground = true;
+        for (let i = 0; i < 20; i++) a.pose(1 / 60, ex);
+        at.push(a.rig.heat);
+        for (let i = 0; i < 10; i++) {
+          B.thrustT = 0.2;
+          a.pose(1 / 60, ex);
+        }
+        at.push(a.rig.heat);
+        B.thrustT = 0;
+        for (let i = 0; i < 90; i++) a.pose(1 / 60, ex);
+        at.push(a.rig.heat);
+        a.dispose();
+        return at.map(v => +v.toFixed(2));
+      });
+      check(
+        heat[0] < 0.05 && heat[1] > 0.9 && heat[2] < 0.15,
+        "a thrust heats the suit, and it cools in about a second",
+        heat
+      );
       check(p.errors.length === 0, "budget scenes have no errors", p.errors.slice(0, 3));
       await p.close();
       /* CTF play at its heaviest: just after the opening drop, every pilot and every fresh wreck on

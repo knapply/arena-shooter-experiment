@@ -140,6 +140,8 @@ const KNOBS = {
   sbSprintRamp: { set: v => (K.TUNE.sprintRamp = v), def: 0, try: [0.8] },
   sbSlideT: { set: v => (K.TUNE.slideT = v), def: 0.8, try: [0.5] },
   sbClamber: { set: v => (K.TUNE.clamberK = v), def: 1, try: [2.3] },
+  /* bodies walking or running down stairs set down on each step (0: they sail off every edge) */
+  phStepDown: { set: v => (K.TUNE.stepDown = v), def: 1, try: [0] },
   /* a floatier jump with the same apex: air time 1 s (8 = grav 9.1, jump 4.56) or 1.33 s (grav 5.2, jump 3.87) */
   /* the Sandbox's recharge numbers: the simulation's recharge reads RULE (below), so set both */
   sbRegenDelay: { set: v => (K.TUNE.regenDelay = RULE.regenDelay = v), def: 3, try: [4] },

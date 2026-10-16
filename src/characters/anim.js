@@ -437,6 +437,7 @@ const ANIM = (() => {
       hipYaw: 0,
       sprintW: 0,
       drop: 0,
+      gnd: 0,
       ready: 1,
       hd: 0.075,
       tuck: 0,
@@ -509,6 +510,7 @@ const ANIM = (() => {
     L.fade = 0;
     L.mode = 0;
     L.drop = 0;
+    L.gnd = 0;
     L.ready = 1;
     L.tuck = 0;
     L.sc = null;
@@ -593,7 +595,10 @@ const ANIM = (() => {
           ? clamp((L.v0 - I.vy) / (2 * v0), 0, 0.92)
           : 0.5 + 0.35 * clamp(-I.vy / Math.sqrt(3 * Math.max(1, TUNE.grav)), 0, 1);
       if (I.vy < -3 && I.gd < 1.6) u = Math.max(u, 0.92);
-      sample(J, J.up + u * (J.down - J.up), 1, P, false);
+      /* (the first tenth of a second of a jump plays the capture's push-off, the legs extending from its
+         crouch while the body already rises: the jump itself never waits for it) */
+      const push = L.v0 > 1 ? clamp(1 - L.airT / 0.1, 0, 1) : 0;
+      sample(J, J.up + u * (J.down - J.up) - 0.12 * push * push, 1, P, false);
       finish(P);
       /* (the body rides the jump's own arc: the capture's hips may sink as the legs reach, never rise
          above the standing height) */
@@ -932,11 +937,22 @@ const ANIM = (() => {
       _ank[o + 1] += s ? I.gR : I.gL;
     }
     /* ---- the hips: the ground, a crouch, and feet that are out of reach pull them down ---- */
+    /* (the stance's lowered hips are held through a jump: the body leaves and lands at the height it
+       stands at, instead of popping up on its legs in the air) */
+    if (mode === 0) L.hd += (0.075 * (1 - 0.45 * L.sprintW) - L.hd) * Math.min(1, dt * 6);
+    const dropT = sink - L.hd;
+    L.drop += (dropT - L.drop) * Math.min(1, dt * (dropT < L.drop ? 30 : 10));
+    /* the ground under the lower foot (stairs, a ledge) takes the hips down evenly; a stair the body
+       stepped up or down at once leaves them where they were in the world, and the ground, which moved
+       with it, brings them along */
+    L.gnd -= I.stepDy || 0;
+    L.gnd += (Math.min(0, I.gL, I.gR) - L.gnd) * Math.min(1, dt * 20);
+    /* (reach is measured from the hips where the ground has already put them) */
     let need = 0;
     for (let s = 0; s < 2; s++) {
       const o = s * 3;
       const ddx = _ank[o] - _hip[o],
-        ddy = _ank[o + 1] - _hip[o + 1],
+        ddy = _ank[o + 1] - _hip[o + 1] - L.drop - L.gnd,
         ddz = _ank[o + 2] - _hip[o + 2];
       const d = Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz);
       if (d > REACH && mode === 0) {
@@ -947,12 +963,7 @@ const ANIM = (() => {
       }
     }
     /* (reach follows the pose exactly: it is as smooth as the pose is) */
-    /* (the stance's lowered hips are held through a jump: the body leaves and lands at the height it
-       stands at, instead of popping up on its legs in the air) */
-    if (mode === 0) L.hd += (0.075 * (1 - 0.45 * L.sprintW) - L.hd) * Math.min(1, dt * 6);
-    const dropT = Math.min(0, I.gL, I.gR) + sink - L.hd;
-    L.drop += (dropT - L.drop) * Math.min(1, dt * (dropT < L.drop ? 30 : 10));
-    L.pelP[1] += L.drop + Math.max(-0.3, need);
+    L.pelP[1] += L.drop + L.gnd + Math.max(-0.3, need);
     /* ---- results in the pelvis' frame ---- */
     qinv(L.pelQ, 0, _q, 0);
     for (let s = 0; s < 2; s++) {

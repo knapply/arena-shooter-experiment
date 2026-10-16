@@ -1574,5 +1574,59 @@ const fix = v => +v.toFixed(2);
     );
   }
 }
+/* ---------- stairs: walking and running stay on the steps, faster moves still launch ---------- */
+{
+  /* the arena's flight beside the middle (8 steps of 0.4 m down toward +z from the 3.2 m deck at z 5) */
+  const SOUTH = Math.PI;
+  const off = r => ({ lands: r.events.filter(e => e.type === "land") });
+  let air = 0;
+  const down = scenario({
+    pilots: { a: { pos: [0, 3.2, 4.6], yaw: SOUTH } },
+    seconds: 1.6,
+    input: () => ({ a: { f: 1 } }),
+    every: (t, P) => (air += P.a.ground ? 0 : 1),
+  });
+  check(
+    air === 0 && off(down).lands.length === 0 && down.P.a.pos.y < 0.01 && down.P.a.pos.z > 11,
+    "running down a flight of stairs stays on the steps (no take-off, no landing)",
+    { air, lands: off(down).lands.length, y: fix(down.P.a.pos.y), z: fix(down.P.a.pos.z) }
+  );
+  /* off the bottom step (0.4 m) at a walk: still on the ground */
+  air = 0;
+  const walkOff = scenario({
+    pilots: { a: { pos: [0, 0.4, 10.2], yaw: SOUTH } },
+    seconds: 0.6,
+    input: () => ({ a: { f: 0.5 } }),
+    every: (t, P) => (air += P.a.ground ? 0 : 1),
+  });
+  check(
+    air === 0 && off(walkOff).lands.length === 0 && walkOff.P.a.pos.y < 0.01,
+    "walking off a 0.4 m ledge sets down on the floor below",
+    { air, y: fix(walkOff.P.a.pos.y) }
+  );
+  /* a sprint into a slide off the same ledge, and a jump off the deck, still fly and land */
+  air = 0;
+  const slideOff = scenario({
+    pilots: { a: { pos: [0, 0.4, 9.2], yaw: SOUTH, vel: [0, 0, 9], sprint: true } },
+    seconds: 0.6,
+    input: t => ({ a: { f: 1, sprint: true, crouchP: t < 0.02, crouch: true } }),
+    every: (t, P) => (air += P.a.ground ? 0 : 1),
+  });
+  check(air > 2 && off(slideOff).lands.length === 1, "a slide off a 0.4 m ledge launches and lands", {
+    air,
+    lands: off(slideOff).lands.length,
+  });
+  const jumpOff = scenario({
+    pilots: { a: { pos: [0, 3.2, 4.6], yaw: SOUTH } },
+    seconds: 1.4,
+    input: t => ({ a: { f: 1, jumpP: t < 0.02 } }),
+  });
+  const jl = off(jumpOff).lands;
+  check(
+    jl.length >= 1 && jl[0].d.vy > 5,
+    "a jump down the flight still lands (hard)",
+    jl.map(e => fix(e.d.vy))
+  );
+}
 check(Date.now() - t0 < 15000, "scenarios run in seconds", Date.now() - t0 + " ms");
 finish("scenarios");
