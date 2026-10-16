@@ -257,7 +257,7 @@ Body-scale quantities are in body heights (bodyH); "ours" scales them to the 1.8
 | Jump | 1.30 to 1.38 s in the air (4); launch speed 3.04 world units/s (data-mined) → apex about 1.5 bodyH. Derived, not seen side-on | 0.62 s, apex 0.63 bodyH |
 | Thrust | burst 0.10 to 0.13 s, plume 0.4 to 0.5 s (9); about 1.6 bodyH (C, 1); follows the movement input, works in the air, no firing during it; gaps of at least 4 s | 17 m/s for 0.24 s, about 2.5 bodyH; 2.2 s recharge |
 | Ground pound | charge 0.64 to 0.70 s (4), dive 0.43 s (4); outer ring 1.8 bodyH, kill ring 0.6 (1) | 0.55 s; 5 m (2.8 bodyH) |
-| Spartan charge | lunge 0.40 s (5); full sprint after 0.83 to 0.95 s | 0.38 s after 0.85 s |
+| Shoulder charge | lunge 0.40 s (5); full sprint after 0.83 to 0.95 s | 0.38 s after 0.85 s |
 | Shields and health | 70 and 45 (data-mined, the same as ours); recharge after 4 s, shield full in 2 s, health in 6 s (measured from the HUD bar frame by frame: recharge starts 3.97 s after the last hit, IQR 3.96-4.02, n=29; empty to full in 1.90 s, linear, n=9) | after 3 s; 48/s and 28/s |
 | Melee | two blows kill: one takes a full shield | three: 40 a blow |
 | Magnum | 0.300 s between shots (no gap shorter in 160 spam gaps; data-mined 0.28); 1.5× sight; reload 1.15 s; kick about 0.5°, back in 0.17 s; 5-shot kill in 1.23 s | 0.26 s; 1.8×; 1.3 s; 2.6° kick |

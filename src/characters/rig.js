@@ -343,175 +343,10 @@ const SUIT = 0,
   ARM2 = 2,
   TRIM = 3,
   VISOR = 4,
-  GLOW = 5;
-/* ---- the armor: every part is [bone, geometry, role, position, rotation, scale, shield shell?] ---- */
-function pilotParts() {
-  const parts = [];
-  const P = (bone, g, role, x, y, z, rot, scl, shell = false) =>
-    parts.push({ bone, g, role, x, y, z, rot: rot || null, scl: scl || null, shell });
-  /* small parts stay plain boxes: rounding them costs triangles nobody sees */
-  const rb = (k, w, h, d, r) =>
-    geo("rb:" + k, () => (Math.min(w, h, d) < 0.03 ? new THREE.BoxGeometry(w, h, d) : rbox(w, h, d, r)));
-  const cap = (k, r, l) => geo("cap:" + k, () => capsule(r, l, 8));
-  const sph = (k, r, a = 12, b = 9) => geo("sph:" + k, () => new THREE.SphereGeometry(r, a, b));
-  const cyl = (k, a, b, h, s = 12) => geo("cyl:" + k, () => new THREE.CylinderGeometry(a, b, h, s));
-  /* hips: suit, armored belt with a lit buckle, codpiece, hip and rear plates, pouches */
-  P("pelvis", rb("pel", 0.33, 0.18, 0.22, 0.04), SUIT, 0, 0, 0, null, null, true);
-  P("pelvis", rb("belt", 0.39, 0.075, 0.27, 0.02), TRIM, 0, 0.06, 0);
-  P("pelvis", rb("buckle", 0.07, 0.03, 0.012, 0.004), GLOW, 0, 0.06, -0.138);
-  P("pelvis", rb("cod", 0.16, 0.14, 0.055, 0.016), ARM, 0, -0.03, -0.125);
-  for (const sd of [-1, 1]) {
-    P("pelvis", rb("hipPl", 0.055, 0.19, 0.2, 0.016), ARM2, sd * 0.2, -0.03, 0, [0, 0, sd * 0.16]);
-    P("pelvis", rb("pouch", 0.08, 0.07, 0.05, 0.012), TRIM, sd * 0.12, 0.03, 0.15);
-  }
-  P("pelvis", rb("rearPl", 0.26, 0.13, 0.04, 0.012), ARM2, 0, -0.03, 0.125);
-  /* the tabard's cloth in the darker team tone, a lit hem on the front */
-  for (const n of ["tabF", "tabB"]) {
-    P(n, rb("tab", 0.13, 0.17, 0.012), ARM2, 0, -0.08, 0);
-    P(n + "2", rb("tab2", 0.12, 0.15, 0.01), ARM2, 0, -0.07, 0);
-  }
-  P("tabF2", rb("tabHem", 0.1, 0.01, 0.004), GLOW, 0, -0.138, -0.007);
-  for (const s of ["L", "R"]) {
-    P("tas" + s, rb("tas", 0.13, 0.18, 0.035, 0.01), ARM, 0, -0.09, 0);
-    P("tas" + s, rb("tasLt", 0.07, 0.006, 0.006, 0.002), GLOW, 0, -0.14, -0.02);
-  }
-  /* lower and mid torso: suit core with segmented ab plates */
-  P("spine", cap("abs", 0.13, 0.3), SUIT, 0, 0.1, 0, null, null, true);
-  for (const sd of [-1, 1]) P("spine", rb("ab", 0.09, 0.06, 0.035, 0.01), ARM2, sd * 0.05, 0.07, -0.123);
-  P("spine2", rb("obl", 0.29, 0.12, 0.2, 0.04), SUIT, 0, 0.03, 0);
-  /* chest: a thick plate carrier with heavy split pectorals and a belly plate, lit seams, a high
-     collar ringing the neck with a gorget in front and a raised nape guard, and the jetpack */
-  P("chest", rb("chest", 0.5, 0.32, 0.3, 0.06), ARM, 0, 0.1, -0.01, null, null, true);
-  for (const sd of [-1, 1]) {
-    P("chest", rb("pec", 0.21, 0.2, 0.06, 0.022), ARM, sd * 0.11, 0.13, -0.17, [-0.2, -sd * 0.16, 0]);
-    P("chest", rb("pecLt", 0.08, 0.008, 0.01, 0.003), GLOW, sd * 0.16, 0.035, -0.19);
-    P("chest", rb("blade", 0.17, 0.17, 0.04, 0.015), ARM2, sd * 0.12, 0.12, 0.15, [0.12, sd * 0.2, 0]);
-  }
-  P("chest", rb("ridge", 0.035, 0.19, 0.05, 0.01), TRIM, 0, 0.12, -0.2, [-0.2, 0, 0]);
-  P("chest", rb("belly", 0.28, 0.1, 0.05, 0.015), ARM2, 0, -0.08, -0.14, [0.1, 0, 0]);
-  P("chest", rb("chest2", 0.38, 0.15, 0.24, 0.04), SUIT, 0, -0.08, -0.01);
-  P("chest", cyl("collar", 0.125, 0.15, 0.11, 12), TRIM, 0, 0.28, 0);
-  P("chest", rb("gorget", 0.2, 0.09, 0.04, 0.012), ARM2, 0, 0.28, -0.13, [0.35, 0, 0]);
-  P("chest", rb("nape", 0.26, 0.13, 0.05, 0.015), ARM2, 0, 0.31, 0.11, [-0.25, 0, 0]);
-  P("chest", rb("pack", 0.34, 0.36, 0.15, 0.03), TRIM, 0, 0.08, 0.21);
-  P("chest", rb("packCv", 0.28, 0.22, 0.04, 0.012), ARM2, 0, 0.12, 0.295);
-  for (const sd of [-1, 1]) {
-    P("chest", rb("packLt", 0.012, 0.17, 0.01, 0.003), GLOW, sd * 0.155, 0.1, 0.29);
-    P("chest", cyl("noz", 0.04, 0.06, 0.12), TRIM, sd * 0.1, -0.12, 0.27);
-    P("chest", cyl("nozIn", 0.03, 0.03, 0.02), GLOW, sd * 0.1, -0.185, 0.27);
-  }
-  for (let i = 0; i < 3; i++)
-    P("chest", rb("vent", 0.2, 0.012, 0.012, 0.003), TRIM, 0, -0.02 + i * 0.03, 0.29);
-  P("chest", rb("packRib", 0.36, 0.04, 0.17, 0.012), ARM, 0, 0.2, 0.21);
-  P("antenna", cyl("ant", 0.005, 0.008, 0.34, 6), TRIM, 0, 0.17, 0);
-  P("antenna", sph("antTip", 0.013, 8, 6), GLOW, 0, 0.345, 0);
-  /* neck and head: a full-face helmet with one wide wraparound visor under a heavy brow, a jaw
-     guard with a grille, flared cheek plates, ear modules with lights and a low crest */
-  P("neck", cap("neck", 0.06, 0.14), SUIT, 0, 0.0, 0);
-  P("head", sph("helm", 0.138, 14, 11), ARM, 0, 0.085, 0.01, null, [1.03, 1.02, 1.14], true);
-  /* (the visor is a band of a sphere, 220 degrees around the front, just proud of the shell) */
-  const visor = geo("visor", () => new THREE.SphereGeometry(0.14, 18, 5, 2.792, 3.84, 1.19, 0.63));
-  P("head", visor, VISOR, 0, 0.07, 0.01, null, [1.06, 1, 1.18]);
-  P("head", rb("brow", 0.25, 0.04, 0.08, 0.012), ARM2, 0, 0.145, -0.11, [0.35, 0, 0]);
-  P("head", rb("jaw", 0.16, 0.08, 0.1, 0.025), ARM, 0, 0.0, -0.1, [-0.25, 0, 0]);
-  P("head", rb("grille", 0.07, 0.035, 0.02, 0.006), TRIM, 0, 0.0, -0.152, [-0.25, 0, 0]);
-  for (const sd of [-1, 1]) {
-    P("head", rb("cheek", 0.035, 0.11, 0.13, 0.01), ARM2, sd * 0.125, 0.03, -0.06, [
-      0.1,
-      -sd * 0.35,
-      sd * 0.1,
-    ]);
-    P("head", rb("ear", 0.045, 0.07, 0.12, 0.012), TRIM, sd * 0.15, 0.08, 0.02);
-    P("head", rb("earLt", 0.008, 0.035, 0.035, 0.003), GLOW, sd * 0.174, 0.08, 0.03);
-  }
-  P("head", rb("crest", 0.04, 0.035, 0.2, 0.01), ARM2, 0, 0.225, 0.0);
-  P("head", rb("helmBk", 0.18, 0.08, 0.05, 0.015), ARM2, 0, 0.04, 0.14);
-  /* arms: yoke, broad layered pauldrons (a heavy shell, a cap plate and a skirt) with a lit edge,
-     sleeves, an elbow cop, heavy gauntlets, armored gloves and fingers */
-  for (const [s, sd] of SIDES) {
-    P("clav" + s, rb("yoke", 0.13, 0.06, 0.17, 0.015), TRIM, sd * 0.06, 0.005, 0);
-    P("sh" + s, rb("pad", 0.23, 0.15, 0.28, 0.07), ARM, sd * 0.05, 0.04, 0, [0, 0, sd * 0.32], null, true);
-    P("sh" + s, rb("pad2", 0.17, 0.05, 0.23, 0.016), ARM2, sd * 0.03, 0.115, 0, [0, 0, sd * 0.28]);
-    P("sh" + s, rb("pad3", 0.06, 0.15, 0.24, 0.015), ARM2, sd * 0.15, -0.06, 0, [0, 0, sd * 0.12]);
-    P("sh" + s, rb("padRim", 0.05, 0.035, 0.26, 0.01), TRIM, sd * 0.165, 0.0, 0, [0, 0, sd * 0.32]);
-    P("sh" + s, rb("padLt", 0.006, 0.02, 0.18, 0.002), GLOW, sd * 0.185, -0.08, 0);
-    P("sh" + s, cap("uarm", 0.06, 0.3), SUIT, 0, -0.15, 0, null, null, true);
-    P("sh" + s, rb("bicep", 0.08, 0.15, 0.1, 0.016), ARM, sd * 0.02, -0.16, 0);
-    P("el" + s, rb("elb", 0.09, 0.09, 0.1, 0.03), TRIM, 0, 0, 0.03);
-    P("el" + s, cap("farm", 0.058, 0.27), SUIT, 0, -0.13, 0, null, null, true);
-    P("el" + s, cap("gaunt", 0.078, 0.19), ARM, 0, -0.17, 0, null, [1, 1, 1.08], true);
-    P("el" + s, rb("gauntLt", 0.012, 0.08, 0.012, 0.003), GLOW, sd * 0.078, -0.18, 0);
-    for (let i = 0; i < 2; i++)
-      P("el" + s, rb("fvent", 0.012, 0.012, 0.07, 0.003), TRIM, -sd * 0.074, -0.15 - i * 0.03, 0);
-    P("hand" + s, rb("palm", 0.075, 0.09, 0.09, 0.02), SUIT, 0, -0.035, 0);
-    P("hand" + s, rb("handPl", 0.014, 0.06, 0.072, 0.005), ARM2, sd * 0.042, -0.03, 0);
-    P("hand" + s, rb("knuck", 0.08, 0.022, 0.095, 0.008), TRIM, 0, -0.074, 0);
-    for (const z of [-0.033, -0.011, 0.011, 0.033]) {
-      P("fing" + s, rb("f1", 0.024, 0.045, 0.019, 0.007), SUIT, 0, -0.022, z);
-      P("tip" + s, rb("f2", 0.022, 0.036, 0.018, 0.007), SUIT, 0, -0.017, z);
-    }
-    P("thumb" + s, rb("th", 0.022, 0.052, 0.022, 0.008), SUIT, 0, -0.026, 0);
-  }
-  /* legs: layered thigh plates over the undersuit, an armored knee cap, layered shin plates and a
-     calf guard, heavy boots with an ankle cuff and a toe joint */
-  for (const [s, sd] of SIDES) {
-    P("hip" + s, cap("thigh", 0.092, 0.44), SUIT, 0, -0.21, 0, null, null, true);
-    P("hip" + s, rb("thighPl", 0.17, 0.18, 0.09, 0.025), ARM, 0, -0.12, -0.075, [0.06, 0, 0], null, true);
-    P("hip" + s, rb("thighP2", 0.16, 0.15, 0.085, 0.025), ARM2, 0, -0.28, -0.08, [-0.05, 0, 0]);
-    P("hip" + s, rb("thighSd", 0.045, 0.26, 0.15, 0.012), ARM2, sd * 0.09, -0.19, 0);
-    P("hip" + s, rb("thighLt", 0.008, 0.16, 0.008, 0.003), GLOW, sd * 0.114, -0.2, -0.02);
-    P("kn" + s, rb("kneeCap", 0.13, 0.14, 0.08, 0.03), ARM, 0, 0, -0.07, [-0.15, 0, 0]);
-    P("kn" + s, cap("shin", 0.074, 0.43), SUIT, 0, -0.21, 0, null, null, true);
-    P("kn" + s, rb("shinPl", 0.14, 0.19, 0.08, 0.022), ARM, 0, -0.13, -0.065, null, null, true);
-    P("kn" + s, rb("shinP2", 0.13, 0.15, 0.075, 0.02), ARM2, 0, -0.3, -0.07);
-    P("kn" + s, rb("calf", 0.12, 0.24, 0.06, 0.015), ARM2, 0, -0.2, 0.065);
-    P("kn" + s, rb("shinLt", 0.04, 0.008, 0.008, 0.003), GLOW, 0, -0.21, -0.108);
-    P("an" + s, rb("foot", 0.15, 0.1, 0.24, 0.025), TRIM, 0, -0.03, -0.01);
-    P("an" + s, rb("ankle", 0.16, 0.1, 0.16, 0.022), ARM2, 0, 0.04, 0.0);
-    P("toe" + s, rb("toe", 0.15, 0.065, 0.12, 0.02), ARM, 0, 0.005, -0.05);
-  }
-  return parts;
-}
-/* ---- rigid skinning: every part's vertices follow its bone; one mesh per material ---- */
-let SKIN = null;
-function buildSkin(bones, byName) {
-  const parts = pilotParts();
-  const roles = [[], [], [], [], [], []],
-    shell = [];
-  const M = new THREE.Matrix4(),
-    Q = new THREE.Quaternion(),
-    E = new THREE.Euler(),
-    Sv = new V3(),
-    Tv = new V3();
-  for (const p of parts) {
-    const bi = bones.indexOf(byName[p.bone]);
-    Q.setFromEuler(E.set(p.rot ? p.rot[0] : 0, p.rot ? p.rot[1] : 0, p.rot ? p.rot[2] : 0));
-    Sv.set(p.scl ? p.scl[0] : 1, p.scl ? p.scl[1] : 1, p.scl ? p.scl[2] : 1);
-    M.compose(Tv.set(p.x, p.y, p.z), Q, Sv).premultiply(byName[p.bone].matrixWorld);
-    roles[p.role].push([p.g, M.clone(), bi]);
-    if (p.shell) shell.push([p.g, M.clone().multiply(_m1.makeScale(1.17, 1.17, 1.17)), bi]);
-  }
-  const merge = items => {
-    const g = mergeGeos(items.map(([gg, m]) => [gg, m]));
-    const n = g.attributes.position.count,
-      si = new Uint16Array(n * 4),
-      sw = new Float32Array(n * 4);
-    let o = 0;
-    for (const [gg, , bi] of items) {
-      const c = gg.attributes.position.count;
-      for (let i = 0; i < c; i++, o++) {
-        si[o * 4] = bi;
-        sw[o * 4] = 1;
-      }
-    }
-    g.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(si, 4));
-    g.setAttribute("skinWeight", new THREE.Float32BufferAttribute(sw, 4));
-    g.computeBoundingSphere();
-    g.boundingSphere.radius = Math.max(g.boundingSphere.radius, 1.9);
-    return g;
-  };
-  return { roles: roles.map(merge), shell: merge(shell) };
-}
+  GLOW = 5,
+  /* the vents' heat cores (characters/armour.js): dark at rest, hot with the movement kit */
+  HEAT = 6;
+/* (the armour itself, its distance levels and the skinning: characters/armour.js) */
 /* ---- weapons and the carried flag: ordinary meshes in the chest's frame (one is shown at a time) ---- */
 const WGEO = new Map();
 /* each weapon's model (weapons/models.js) moved so its grip sits where WPN_RIG puts the hand, drawn with
@@ -620,14 +455,15 @@ function flagCloth(color) {
   return m;
 }
 
+const HULL_MAT = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 function makePilot(color, label) {
-  /* layered look: dark undersuit, team-colored hard armor in two tones, gunmetal trim, a gold visor
-     and team-lit seams that catch the bloom */
-  const armorM = new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0.55 });
+  /* layered look: dark undersuit, team-coloured plates over a graphite second layer, gunmetal trim,
+     dark lit eye slits and team-lit seams that catch the bloom (physical lobes on High: look.js) */
+  const armorM = new THREE.MeshPhysicalMaterial({ color, roughness: 0.42, metalness: 0.55 });
   armorM.color.multiplyScalar(0.62);
-  const armor2M = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.45 });
+  const armor2M = new THREE.MeshPhysicalMaterial({ color, roughness: 0.55, metalness: 0.45 });
   armor2M.color.multiplyScalar(0.36);
-  const suitM = new THREE.MeshStandardMaterial({
+  const suitM = new THREE.MeshPhysicalMaterial({
     color: "#1b2125",
     roughness: 0.82,
     metalness: 0.1,
@@ -637,12 +473,12 @@ function makePilot(color, label) {
     roughness: 0.38,
     metalness: 0.8,
   });
-  const visorM = new THREE.MeshStandardMaterial({
-    color: "#5a3a0c",
-    emissive: "#ffa83a",
-    emissiveIntensity: 0.22,
-    roughness: 0.05,
-    metalness: 1,
+  const visorM = new THREE.MeshPhysicalMaterial({
+    color: "#0d1418",
+    emissive: "#7fe0ff",
+    emissiveIntensity: 0.6,
+    roughness: 0.08,
+    metalness: 0.9,
   });
   const glowM = new THREE.MeshStandardMaterial({
     color: "#000000",
@@ -650,7 +486,13 @@ function makePilot(color, label) {
     emissiveIntensity: 1.5,
     roughness: 0.5,
   });
-  const mats = [suitM, armorM, armor2M, trimM, visorM, glowM];
+  const heatM = new THREE.MeshStandardMaterial({
+    color: "#0c0d0e",
+    emissive: "#ff3a0c",
+    emissiveIntensity: 0.03,
+    roughness: 0.6,
+  });
+  const mats = [suitM, armorM, armor2M, trimM, visorM, glowM, heatM];
   /* weapons and the flag are plain meshes with their own copies of the materials (three.js compiles a
      skinned and an unskinned program either way; separate copies keep their settings apart) */
   const wmats = mats.map(m => m.clone());
@@ -669,21 +511,28 @@ function makePilot(color, label) {
   }
   root.updateMatrixWorld(true);
   if (!SKIN) SKIN = buildSkin(bones, byName);
+  /* (the near level to start with; rig.update picks the level by distance) */
   const skel = new THREE.Skeleton(bones);
   const ident = new THREE.Matrix4();
-  const skinned = SKIN.roles.map((g, r) => {
+  const skinned = SKIN.levels[0].roles.map((g, r) => {
     const m = new THREE.SkinnedMesh(g, mats[r]);
     m.bind(skel, ident);
-    m.castShadow = r !== GLOW && r !== VISOR;
+    /* (up close the shadow hull casts the shadow: see below) */
+    m.castShadow = false;
     root.add(m);
     return m;
   });
-  const shellMesh = new THREE.SkinnedMesh(SKIN.shell, shieldM);
+  const shellMesh = new THREE.SkinnedMesh(SKIN.levels[0].shell, shieldM);
   shellMesh.bind(skel, ident);
   shellMesh.visible = false;
   shellMesh.renderOrder = 5;
   root.add(shellMesh);
-  void skinned;
+  /* the shadow hull (characters/armour.js): drawn into the shadow map only (in the view it writes
+     neither colour nor depth), so a near pilot's shadow costs the far level's triangles */
+  const hullMesh = new THREE.SkinnedMesh(SKIN.hull, HULL_MAT);
+  hullMesh.bind(skel, ident);
+  hullMesh.castShadow = true;
+  root.add(hullMesh);
   const { pivot, pelvis, spine, spine2, chest, neck, head, antenna, tabF, tabF2, tabB, tabB2 } = byName;
   /* sprung attachments: each swings against its mount's acceleration (about x and z, in the mount's
      frame) on a spring, a few degrees at most; a pad also flaps its outer edge against a rise or fall.
@@ -790,6 +639,7 @@ function makePilot(color, label) {
   scene.add(root);
   /* animation state. Springs give lean, bounce, flinch, recoil and armor some follow-through. */
   const S = {
+    lod: 0,
     t: Math.random() * 10,
     pel: 0.96,
     /* motion-captured locomotion (characters/anim.js) and its per-frame input */
@@ -1095,6 +945,23 @@ function makePilot(color, label) {
     },
     update(dt, st) {
       S.t += dt;
+      /* the armour's distance level (characters/armour.js): a geometry swap, the draws stay the same */
+      {
+        const d2 = root.position.distanceToSquared(camera.position),
+          a = ARMOUR_LOD[0] * (S.lod === 0 ? 1.08 : 0.92),
+          b = ARMOUR_LOD[1] * (S.lod <= 1 ? 1.08 : 0.92),
+          lod = d2 < a * a ? 0 : d2 < b * b ? 1 : 2;
+        if (lod !== S.lod) {
+          S.lod = lod;
+          skinned.forEach((m, r) => {
+            m.geometry = SKIN.levels[lod].roles[r];
+            /* (near and mid, the hull casts the shadow; far off, the far level's own plates do) */
+            m.castShadow = lod === 2 && r !== GLOW && r !== VISOR;
+          });
+          shellMesh.geometry = SKIN.levels[lod].shell;
+          hullMesh.visible = lod < 2;
+        }
+      }
       /* a throw: from rig.throwNade, or played back from a recording (st.throw, which a live throw
          writes into the state it is drawn with, so replays and kill cams keep it) */
       if (st.throw >= 0 && (S.thT >= 0.5 || st.throw < S.thT - 0.1)) S.thT = st.throw;
@@ -1601,6 +1468,20 @@ function makePilot(color, label) {
         S.spKick.v += R.kick * 1.35;
       }
       const kick = spring(S.spKick, 0, dt, 9, 0.42);
+      /* the team seams flare with each shot and with the shield: up with a hit's shimmer, a weak
+         flicker with the shield down */
+      /* the vents glow with the suit's heat (rig.heat, above): dark at rest, then dull red, orange and a
+         pale yellow at the peak */
+      {
+        const h = rig.heat;
+        heatM.emissive.setRGB(1, 0.14 + 0.42 * h * h, 0.03 + 0.12 * h * h * h);
+        heatM.emissiveIntensity = 0.03 + 2.4 * h * Math.sqrt(h);
+      }
+      glowM.emissiveIntensity =
+        1.3 +
+        Math.min(2.4, Math.abs(kick) * 9) +
+        S.uI * 1.6 +
+        (S.sh <= 0 ? -0.5 + 0.4 * Math.sin(S.t * 13) : 0);
       /* the gun is shouldered to fire (or aim) and for a moment after, carried at the chest otherwise */
       S.hotT = st.fire || st.aim || st.melee >= 0 ? 1.4 : Math.max(0, S.hotT - dt);
       S.carry += ((S.hotT > 0 || st.stab || rocket ? 0 : 1) - S.carry) * Math.min(1, dt * 8);

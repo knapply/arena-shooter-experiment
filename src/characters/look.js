@@ -4,6 +4,10 @@
    - Armor (CHAR, with Surface detail): a rim light in the team color, panel lines cut into the
      plates (laid out on the bind pose, so they ride with the body), and a team pattern on the main
      plates (chevrons for warm teams, a digital camo for cool ones, stripes for the rest).
+   - Worn edges (CHAR): every plate's bevel carries a wear value (characters/armour.js); its outer
+     band is broken up and goes to lighter, glossier bare metal.
+   - Physical lobes on High: a clearcoat over the painted plates, a soft sheen on the undersuit, an
+     iridescent film on the eye slits.
    - The visor pulses with the shield: a steady warm glow when full, quicker and redder as it drops,
      a hard flicker with no shield at all.
    - The shield shell (Combat effects above Basic): a hex lattice that lights up and a ripple that
@@ -20,15 +24,26 @@ function charPatch(m, team, pat, main) {
     sh.uniforms.cTeam = { value: team };
     sh.uniforms.cPat = { value: pat };
     sh.vertexShader = sh.vertexShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vOP;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvOP=position;");
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying vec3 vOP;\n#ifdef CHAR\nattribute float wear;varying float vWear;\n#endif"
+      )
+      .replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nvOP=position;\n#ifdef CHAR\nvWear=wear;\n#endif"
+      );
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\n#ifdef CHAR\n" + CHAR_GLSL + "\n#endif")
+      .replace(
+        "#include <common>",
+        "#include <common>\n#ifdef CHAR\n" + CHAR_GLSL + "varying float vWear;\n#endif"
+      )
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
-float cLine=0.;
+float cLine=0.,cWear=0.;
 #ifdef CHAR
+cWear=smoothstep(.86,1.,vWear)*step(.45,ch1(floor(vOP*160.)));
+diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.6,.61,.63),cWear*.4);
 {vec3 p=vOP;
 float ly=abs(fract(p.y*7.3+.15*sin(p.x*9.))-.5);float lx=abs(p.x);
 cLine=max(smoothstep(.43,.49,ly),1.-smoothstep(.004,.009,lx))*step(.25,abs(fract(p.z*3.1)-.5)+.2);
@@ -42,6 +57,10 @@ diffuseColor.rgb*=1.-.28*pt;
 #endif
 }
 #endif`
+      )
+      .replace(
+        "#include <metalnessmap_fragment>",
+        "#include <metalnessmap_fragment>\nroughnessFactor=mix(roughnessFactor,.3,cWear*.7);metalnessFactor=mix(metalnessFactor,.92,cWear*.7);"
       )
       .replace(
         "#include <emissivemap_fragment>",
@@ -80,9 +99,31 @@ float hx=smoothstep(.36,.47,hexD(vec2(atan(vO.x,vO.z)*.55,vO.y)*16.));
 float ring=exp(-pow((r-age*3.2)*9.,2.))*exp(-age*2.5);float spot=exp(-r*7.)*exp(-age*6.);
 a=clamp(a*(.55+.9*hx)+(ring*(.35+hx)+spot)*step(0.,age)*1.4,0.,1.);}
 gl_FragColor=vec4(uC*(1.+f*1.5),a);}`;
+/* the physical lobes, on High only (each adds shader work per pixel) */
+const RIG_PHYS = new Set();
+function applyPhys(sk) {
+  const on = SET.textures === "high";
+  const a = sk[ARM].material,
+    a2 = sk[ARM2].material,
+    su = sk[SUIT].material,
+    v = sk[VISOR].material;
+  if (!a.isMeshPhysicalMaterial) return;
+  a.clearcoat = on ? 0.7 : 0;
+  a.clearcoatRoughness = 0.22;
+  a2.clearcoat = on ? 0.35 : 0;
+  a2.clearcoatRoughness = 0.35;
+  su.sheen = on ? 0.8 : 0;
+  su.sheenRoughness = 0.55;
+  su.sheenColor.set("#5a6670");
+  v.iridescence = on ? 1 : 0;
+  v.iridescenceIOR = 1.7;
+  v.iridescenceThicknessRange = [220, 620];
+}
 function styleRig(rig) {
   const sk = rig.root.children.filter(o => o.isSkinnedMesh);
-  if (sk.length < 7) return;
+  if (sk.length < 8) return;
+  RIG_PHYS.add(sk);
+  applyPhys(sk);
   const team = new THREE.Color(rig.color);
   const pat = teamPattern(team);
   charPatch(sk[ARM].material, team, pat, true);
@@ -105,7 +146,7 @@ function styleRig(rig) {
     visor.emissiveIntensity = 0.25 + pulse * (0.25 + (1 - k) * 0.9);
   };
   /* the shield shell: hex lattice and a ripple from the hit */
-  const shell = sk[6].material;
+  const shell = sk.find(o => o.material.isShaderMaterial).material;
   if (shell.uniforms && shell.fragmentShader.includes("uniform float uI")) {
     shell.uniforms.uH = { value: new THREE.Vector4(0, -99, 0, -9) };
     shell.uniforms.uHex = { value: 1 };
@@ -127,4 +168,5 @@ function styleRig(rig) {
 }
 SET_HOOKS.push(() => {
   for (const m of RIG_LOOK) applyCharLook(m);
+  for (const sk of RIG_PHYS) applyPhys(sk);
 });
