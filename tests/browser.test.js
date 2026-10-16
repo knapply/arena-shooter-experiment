@@ -1644,9 +1644,9 @@ const podSeats = map => {
       };
       /* live bots could kill the carrier while we look: keep them alive for the check */
       e.onHit = () => ({ died: false, sh: true });
-      /* ...and hold them still in the middle, away from their own stand (where they would capture) */
-      const think = e.think;
-      e.think = () => ({
+      /* ...and hold them (and every other bot: a grenade or a burst could still kill or knock the
+         flag loose) still, the carrier in the middle, away from their own stand (where they would capture) */
+      const idle = () => ({
         f: 0,
         s: 0,
         sprint: false,
@@ -1658,6 +1658,9 @@ const podSeats = map => {
         scoped: false,
         meleeP: false,
       });
+      const bots = g.agents.filter(a => !a.human && !a.remote);
+      const thinks = bots.map(a => a.think);
+      bots.forEach(a => (a.think = idle));
       e.body.pos.set(-18, 0, 0);
       e.body.vel.set(0, 0, 0);
       const f = g.flags[ht];
@@ -1677,7 +1680,7 @@ const podSeats = map => {
       out.heard2 = heard.slice();
       KA.sfx = sfx0;
       delete e.onHit;
-      e.think = think;
+      bots.forEach((a, i) => (a.think = thinks[i]));
       return out;
     });
     check(
