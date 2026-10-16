@@ -38,10 +38,14 @@ const podSeats = map => {
       /* a picked skill is remembered (its own browser profile, so the rest of the run stays on Recruit) */
       const c2 = await b.newContext();
       const q = await open(c2, { tag: "skill" });
-      await q.waitForTimeout(500);
+      /* (waits on the menu being up, not a fixed time: a slow machine loads it later) */
+      const menuUp = () => until(q, () => typeof KA === "object" && !!KA.STORE, null, 30000);
+      await menuUp();
       await q.selectOption("#botSkill", "heroic");
+      await until(q, () => /heroic/.test(JSON.stringify(KA.STORE.load("botLevel") || {})), null, 10000);
       await q.reload();
-      await q.waitForTimeout(500);
+      await menuUp();
+      await until(q, () => document.getElementById("botSkill").value === "heroic", null, 10000);
       check((await q.inputValue("#botSkill")) === "heroic", "the bot skill you pick is remembered");
       await c2.close();
     }
@@ -183,11 +187,20 @@ const podSeats = map => {
       await frames(2);
       return lv;
     };
-    await p.evaluate(() => (KA.SET.aimMode = "cycle"));
+    /* nothing may cut the sights in between (a drone kill, a reload): spawn-protected, full magazine, still */
+    await p.evaluate(() => {
+      KA.SET.aimMode = "cycle";
+      KA.me.spawnT = KA.now + 60;
+      KA.mag = Math.max(KA.mag, 4);
+      KA.me.vel.set(0, 0, 0);
+    });
     const c1 = await click(1),
       c2 = await click(2),
       c3 = await click(0);
-    await p.evaluate(() => (KA.SET.aimMode = "hold"));
+    await p.evaluate(() => {
+      KA.SET.aimMode = "hold";
+      KA.me.spawnT = -99;
+    });
     check(c1 === 1 && c2 === 2 && c3 === 0, "sniper, click-steps mode: 5x → 10x → off", [c1, c2, c3]);
     /* a controller: hold the trigger to keep the sights up, the left stick click for 10x (the scope says
        so with the controller's button), and the stick click doesn't start a sprint while scoped */
