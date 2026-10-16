@@ -1,5 +1,5 @@
 /* Contact sheets of the pilot rig's animation, for working on characters/rig.js and anim.js.
-     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves|climb|carry|react|emote|abilities|throw] [out.png]
+     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|hold|moves|climb|carry|react|emote|abilities|throw] [out.png]
    gait   a run, a sprint and a jump, seen from the side, six frames each (stepped at exactly 60 Hz)
    loco   the other motion-captured gaits: a walk, a strafe (from the front), a backpedal and a crouched run
    poses  idle, aiming down sights (carbine and magnum), a melee strike, the reload's slap and bolt;
@@ -360,6 +360,14 @@ if (!process.env.THREE_PATH) {
       await step(n);
       await take();
     }
+  } else if (mode === "hold") {
+    /* every weapon in both hands, at the hip and aiming */
+    for (let wpn = 0; wpn < 5; wpn++)
+      for (const aim of [false, true]) {
+        await set(Object.assign({}, base, { st: { wpn, aim } }), 0);
+        await step(40);
+        await take();
+      }
   } else if (mode === "poses") {
     for (const st of [
       {},

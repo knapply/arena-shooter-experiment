@@ -197,11 +197,11 @@ function meleeShape(u) {
   return MEL;
 }
 const WPN_RIG = [
-  { grip: new V3(0, -0.08, 0.1), fore: new V3(0, -0.06, -0.17), kick: 3, every: 0.1 },
-  { grip: new V3(0, -0.08, 0.09), fore: new V3(-0.035, -0.1, 0.075), kick: 8, every: 0.26, flip: 1 },
-  { grip: new V3(0, -0.08, 0.14), fore: new V3(0, -0.06, -0.32), kick: 9, every: 0.62 },
-  { grip: new V3(0, -0.15, 0.08), fore: new V3(0, -0.14, -0.3), kick: 12, every: 0.9 },
-  { grip: new V3(0, -0.08, 0.12), fore: new V3(0, -0.07, -0.24), kick: 10, every: 0.8 },
+  { grip: new V3(0, -0.08, 0.1), fore: new V3(0, -0.05, -0.22), kick: 3, every: 0.1 },
+  { grip: new V3(0, -0.08, 0.09), fore: new V3(-0.026, -0.093, 0.076), kick: 8, every: 0.26, flip: 1 },
+  { grip: new V3(0, -0.08, 0.14), fore: new V3(0, -0.05, -0.28), kick: 9, every: 0.62 },
+  { grip: new V3(0, -0.15, 0.08), fore: new V3(0, -0.14, -0.26), kick: 12, every: 0.9, foreGrip: 1 },
+  { grip: new V3(0, -0.08, 0.12), fore: new V3(0, -0.06, -0.31), kick: 10, every: 0.8 },
 ];
 const MAGSLOT = new V3(0, -0.11, -0.08);
 /* one reload, shared by the first-person viewmodel and every rig (fractions of the reload time):
@@ -328,6 +328,14 @@ const BONES = [["pivot", null, 0, 0, 0]];
     B(n, "pelvis", 0, 0.03, z);
     B(n + "2", n, 0, -0.16, 0);
   }
+  /* sprung attachments (the armour hangs its parts on them): the shoulder pads hinge at their top inner
+     edge, the belt pouches and the rear plate hang from the belt's top edge, the pack from its top edge */
+  for (const [s, sd] of SIDES) {
+    B("pad" + s, "sh" + s, sd * 0.03, 0.09, 0);
+    B("pouch" + s, "pelvis", sd * 0.12, 0.065, 0.15);
+  }
+  B("pouchB", "pelvis", 0, 0.035, 0.125);
+  B("pack", "chest", 0, 0.26, 0.21);
 })();
 /* material roles shared by every pilot's skinned geometry */
 const SUIT = 0,
@@ -677,6 +685,29 @@ function makePilot(color, label) {
   root.add(shellMesh);
   void skinned;
   const { pivot, pelvis, spine, spine2, chest, neck, head, antenna, tabF, tabF2, tabB, tabB2 } = byName;
+  /* sprung attachments: each swings against its mount's acceleration (about x and z, in the mount's
+     frame) on a spring, a few degrees at most; a pad also flaps its outer edge against a rise or fall.
+     jig(bone, swing per m/s^2, most radians, spring frequency, damping, flap side) */
+  /** @param {string} n @param {number} k @param {number} max @param {number} fq @param {number} z @param {number} flap */
+  const jig = (n, k, max, fq, z, flap) => ({
+    b: byName[n],
+    k,
+    max,
+    fq,
+    z,
+    flap,
+    p: new V3(),
+    v: new V3(),
+    sx: spr(),
+    sz: spr(),
+    on: false,
+  });
+  const JIG = [
+    ...SIDES.map(([s, sd]) => jig("pad" + s, 0.005, 0.1, 5, 0.4, sd)),
+    ...SIDES.map(([s]) => jig("pouch" + s, 0.007, 0.18, 4, 0.4, 0)),
+    jig("pouchB", 0.006, 0.15, 4, 0.4, 0),
+    jig("pack", 0.003, 0.06, 2.5, 0.45, 0),
+  ];
   const arms = SIDES.map(([s, side]) => ({
     clav: byName["clav" + s],
     sh: byName["sh" + s],
@@ -1495,6 +1526,27 @@ function makePilot(color, label) {
         tabF2.rotation.x = spring(S.spTF2, a * 0.5, dt, 2.4, 0.25) - a * 0.35;
         tabB2.rotation.x = spring(S.spTB2, b * 0.5, dt, 2.4, 0.25) - b * 0.35;
       }
+      /* pads, pouches and the pack: their mount's acceleration (from where it was drawn the last two
+         frames; a jump of more than a metre, such as a respawn, starts them over) */
+      for (const j of JIG) {
+        const par = j.b.parent;
+        _a.setFromMatrixPosition(par.matrixWorld);
+        if (!near || !j.on || dt <= 0 || _a.distanceToSquared(j.p) > 1) {
+          j.p.copy(_a);
+          j.v.set(0, 0, 0);
+          j.sx.x = j.sx.v = j.sz.x = j.sz.v = 0;
+          j.b.rotation.set(0, 0, 0);
+          j.on = near;
+          continue;
+        }
+        _b.copy(_a).sub(j.p).divideScalar(dt);
+        _c.copy(_b).sub(j.v).divideScalar(dt).clampLength(0, 30);
+        j.p.copy(_a);
+        j.v.copy(_b);
+        _c.applyQuaternion(_q1.setFromRotationMatrix(par.matrixWorld).invert());
+        j.b.rotation.x = spring(j.sx, clamp(_c.z * j.k, -j.max, j.max), dt, j.fq, j.z);
+        j.b.rotation.z = spring(j.sz, clamp((-_c.x - j.flap * _c.y) * j.k, -j.max, j.max), dt, j.fq, j.z);
+      }
       /* weapon or flag */
       const rl = st.flag ? -1 : st.reload;
       const wp = st.wpn | 0,
@@ -1618,6 +1670,8 @@ function makePilot(color, label) {
       gun.position.lerp(_c, kg);
       gun.quaternion.slerp(_q2, kg);
       gun.updateMatrix();
+      /* the support hand is on the gun's fore grip (not reloading, throwing, swinging or grabbing) */
+      let onFore = false;
       let curlL = 1,
         curlR = 1;
       if (S.flag) {
@@ -1706,12 +1760,31 @@ function makePilot(color, label) {
           /* the slam: the free arm straight out to the side, fist closed */
           _lk.set(-0.78, -0.04, -0.12);
           curlL = 1;
-        } else _lk.copy(R.fore).applyMatrix4(gun.matrix);
+        } else {
+          _lk.copy(R.fore).applyMatrix4(gun.matrix);
+          onFore = true;
+          /* (held low, a long gun's handguard can be beyond the arm: the hand slides back along it,
+             toward the trigger hand, to where it reaches) */
+          const A = arms[0];
+          _sp.copy(A.sh.position).add(A.clav.position);
+          if (_lk.distanceToSquared(_sp) > 0.57 * 0.57) {
+            _kA.copy(_lk);
+            let lo = 0,
+              hi = 1;
+            for (let i = 0; i < 7; i++) {
+              const m = (lo + hi) / 2;
+              if (_kB.copy(_kA).lerp(_rk, m).distanceToSquared(_sp) > 0.57 * 0.57) lo = m;
+              else hi = m;
+            }
+            _lk.copy(_kA).lerp(_rk, hi);
+          }
+        }
         /* (an emote frees the left hand: it does what the capture's does) */
         if (S.mocap && S.loco.emote > 0.01) {
           const h = S.loco.hand;
           _lk.lerp(_kA.set(h[0], h[1], h[2]), S.loco.emote);
           curlL = 1 - 0.6 * S.loco.emote;
+          onFore = false;
         }
         /* a grenade, overhand with the free hand: up beside the helmet, forward to the centre (it
            leaves the hand at about 0.12 s), down and across to the hip, then back to the gun */
@@ -1719,6 +1792,7 @@ function makePilot(color, label) {
           throwHand(S.thT, _kA);
           _lk.lerp(_kA, sstep(0, 0.04, S.thT) * (1 - sstep(0.3, 0.45, S.thT)));
           curlL = S.thT < 0.12 ? 1 : 0.35;
+          onFore = false;
         }
       }
       if (air && !st.thrust && !st.stab && st.vy < -6) curlL = Math.min(curlL, 0.4);
@@ -1740,7 +1814,9 @@ function makePilot(color, label) {
         handTo(arms[0], _gqL, 1, curlL);
       } else if (near) {
         handTo(arms[1], gun.quaternion, 0.85, curlR);
-        handTo(arms[0], gun.quaternion, curlL > 0.7 ? 0.7 : 0.2, curlL);
+        /* (a vertical fore grip is held like the trigger grip, the hand closed round it) */
+        if (R.foreGrip && onFore) handTo(arms[0], gun.quaternion, 0.85, 1);
+        else handTo(arms[0], gun.quaternion, curlL > 0.7 ? 0.7 : 0.2, curlL);
       }
       /* the reload's sounds, heard from anyone: seat, slap, bolt */
       if (rl >= 0 && S.lastRS >= 0) {

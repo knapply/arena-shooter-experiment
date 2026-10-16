@@ -52,6 +52,9 @@ const TUNE_DEF = {
   poundR: 5,
   /* seconds after the trigger breaks a held sprint before it picks up again (0: a fresh press) */
   sprintResume: 0.3,
+  /* 1: a body walking or running down stairs (or off a kerb) sets down on the step below (0: it sails
+     off every edge) */
+  stepDown: 1,
 };
 const TUNE = Object.assign({}, TUNE_DEF);
 /* pilots are solid to each other: modes say who else is in the world (anything with pos, h and dead) */
@@ -520,9 +523,22 @@ class Body {
       }
     }
     /* walking or running down stairs (or off a kerb) keeps the feet on the ground: a body that was
-       standing, did not jump or thrust, and finds a step within a stair's height below sets down on it
-       at once, instead of sailing over the flight and landing every third step */
-    if (!this.ground && wasGround && v.y <= 0 && !this.launched && this.thrustT <= 0 && this.pound === 0) {
+       standing, did not jump, thrust, slide, sprint or charge, and finds a step within a stair's height
+       below sets down on it at once (no landing: it never left), instead of sailing over the flight and
+       landing every third step. Anything faster than a run still launches off the edge */
+    if (
+      TUNE.stepDown &&
+      !this.ground &&
+      wasGround &&
+      v.y <= 0 &&
+      !this.launched &&
+      !this.sprint &&
+      this.thrustT <= 0 &&
+      this.slideT <= 0 &&
+      this.chargeT <= 0 &&
+      this.pound === 0 &&
+      v.x * v.x + v.z * v.z <= TUNE.run * TUNE.run * 1.1
+    ) {
       const g = groundBelow(p.x, p.z, p.y);
       if (p.y - g <= 0.46 && freeAt(p.x, g + 0.001, p.z, this.h)) {
         p.y = g;

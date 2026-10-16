@@ -200,6 +200,51 @@ const stats = async p => {
         return { worst: +worst.toFixed(3), at };
       });
       check(grip.worst < 0.02, "a carried flag or skull is held: palms on it, wrists at the grips", grip);
+      /* every weapon is held by both hands: standing, running and aiming, each wrist reaches its grip
+         (the trigger grip and the weapon's own fore grip: a handguard, a pump, a vertical grip, or the
+         other hand on a pistol) */
+      const hold = await p.evaluate(() => {
+        const T = KA.THREE,
+          a = KA.addPilot(new KA.Pilot({ id: "actor:hold", color: "#4aa3ff", ctl: "script" })),
+          B = a.body,
+          bones = {};
+        a.rig.root.traverse(o => o.isBone && (bones[o.name] = o));
+        let worst = 0,
+          at = "";
+        for (let wpn = 0; wpn < 5; wpn++)
+          for (const [name, set, aim] of [
+            ["stand", () => {}, false],
+            ["run", () => B.vel.set(0, 0, -6.4), false],
+            ["aim", () => {}, true],
+            ["strafe aiming", () => B.vel.set(4, 0, 0), true],
+          ]) {
+            B.pos.set(0, 30, 0);
+            B.vel.set(0, 0, 0);
+            B.sprint = B.crouch = false;
+            B.ground = true;
+            B.aiming = aim;
+            for (let i = 0; i < 40; i++) {
+              set();
+              a.pose(1 / 60, { reload: -1, wpn });
+            }
+            a.rig.root.updateMatrixWorld(true);
+            for (const s of ["L", "R"]) {
+              const want = bones.chest.localToWorld((s === "L" ? a.rig.S.lh : a.rig.S.rh).clone()),
+                miss = new T.Vector3().setFromMatrixPosition(bones["hand" + s].matrixWorld).distanceTo(want);
+              if (miss > worst) {
+                worst = miss;
+                at = wpn + " " + name + " " + s;
+              }
+            }
+          }
+        a.dispose();
+        return { worst: +worst.toFixed(3), at };
+      });
+      check(
+        hold.worst < 0.02,
+        "every weapon is held: both wrists at their grips, standing, running and aiming",
+        hold
+      );
       /* stairs: a pilot runs down a real flight (8 steps of 0.4 m) and back up it, stepped by the actual
          physics Body. The body stays on the steps (it does not sail over them and land every third one),
          the rig keeps running (never airborne, never landing), and its hips ride the flight without the
