@@ -305,6 +305,33 @@ const stats = async p => {
         "down and up a flight of stairs: on the steps, running all the way, the hips riding it smoothly",
         stairs
       );
+      /* the suit's heat (rig.heat, for the armour's vents): a thrust runs it up at once, and it bleeds off
+         over about a second */
+      const heat = await p.evaluate(() => {
+        const a = KA.addPilot(new KA.Pilot({ id: "actor:heat", color: "#4aa3ff", ctl: "script" })),
+          B = a.body,
+          ex = { reload: -1, wpn: 0 },
+          at = [];
+        B.pos.set(0, 30, 0);
+        B.ground = true;
+        for (let i = 0; i < 20; i++) a.pose(1 / 60, ex);
+        at.push(a.rig.heat);
+        for (let i = 0; i < 10; i++) {
+          B.thrustT = 0.2;
+          a.pose(1 / 60, ex);
+        }
+        at.push(a.rig.heat);
+        B.thrustT = 0;
+        for (let i = 0; i < 90; i++) a.pose(1 / 60, ex);
+        at.push(a.rig.heat);
+        a.dispose();
+        return at.map(v => +v.toFixed(2));
+      });
+      check(
+        heat[0] < 0.05 && heat[1] > 0.9 && heat[2] < 0.15,
+        "a thrust heats the suit, and it cools in about a second",
+        heat
+      );
       check(p.errors.length === 0, "budget scenes have no errors", p.errors.slice(0, 3));
       await p.close();
       /* CTF play at its heaviest: just after the opening drop, every pilot and every fresh wreck on

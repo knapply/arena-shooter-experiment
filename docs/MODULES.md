@@ -32,7 +32,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/data/anim-clips.js` | 280 | `ANIM_CLIPS` |
 | `src/characters/anim.js` | 1070 | `ANIM` |
 | `src/weapons/models.js` | 228 | `GUN_MODELS` `gunParts` `gunGeo` |
-| `src/characters/rig.js` | 1920 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+60) |
+| `src/characters/rig.js` | 1927 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+60) |
 | `src/characters/armour.js` | 457 | `ARMOUR_LOD` `wedge` `NO_SHIFT` `SPRUNG` `pilotParts` `helmet` `SKIN` `buildSkin` `skinMerge` |
 | `src/characters/look.js` | 173 | `RIG_LOOK` `_rh` `_rh2` `CHAR_GLSL` `charPatch` `applyCharLook` `teamPattern` `HEX_FRAG` `RIG_PHYS` `applyPhys` `styleRig` |
 | `src/game/recorder.js` | 226 | `REC` |
