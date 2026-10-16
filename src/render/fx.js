@@ -26,36 +26,99 @@ function fxPush(f) {
   if (FX.length >= FXMAX) fxKill(0);
   FX.push(f);
 }
-/* ---- batched particles: dust, puffs and sparks are points in two shared buffers (one draw call
-   each, however many are alive), instead of a sprite per particle ---- */
-const PT_N = 1200,
-  PT_K = 16;
+/* ---- particles on the GPU: dust, smoke, fire, sparks and flashes are instanced quads in two shared
+   pools (one draw call each: soft blended, glow additive). A particle is written once, when it is
+   spawned (where, how fast, when, how long, how it grows, drags and falls, its color and kind), and the
+   vertex shader works out where it is at any moment in closed form, so the CPU never touches it again.
+   Kinds: 0 a soft round blob, 1 smoke and 2 fire (a 4x4 flipbook of rolling noise, drawn once at load;
+   fire burns white-yellow, then orange, then red as it ages), 3 a spark (stretched along its motion),
+   4 a muzzle-flash star. ---- */
+const PT_N = 1200;
 const _ptC = new THREE.Color(),
   _ptV2 = new THREE.Vector2();
+const PT_T = { value: 0 };
+/** the flipbook: 16 frames of a billowing, thinning noise puff, 64 px each (alpha = density) */
+const FLIPBOOK = (() => {
+  const S = 64,
+    N = S * 4,
+    d = new Uint8Array(N * N * 4);
+  const h = (x, y) => {
+    const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+    return s - Math.floor(s);
+  };
+  const vn = (x, y) => {
+    const ix = Math.floor(x),
+      iy = Math.floor(y),
+      fx = x - ix,
+      fy = y - iy,
+      u = fx * fx * (3 - 2 * fx),
+      v = fy * fy * (3 - 2 * fy);
+    const a = h(ix, iy),
+      b = h(ix + 1, iy),
+      c = h(ix, iy + 1),
+      e = h(ix + 1, iy + 1);
+    return a + (b - a) * u + (c - a) * v + (a - b - c + e) * u * v;
+  };
+  for (let f = 0; f < 16; f++) {
+    const t = f / 15,
+      ox = (f % 4) * S,
+      oy = Math.floor(f / 4) * S;
+    for (let y = 0; y < S; y++)
+      for (let x = 0; x < S; x++) {
+        const px = (x + 0.5) / S - 0.5,
+          py = (y + 0.5) / S - 0.5;
+        const r = Math.hypot(px, py) * 2;
+        /* rolling noise, drifting outward over the frames */
+        const q = 3.2 + t * 1.5,
+          n =
+            vn(px * q + 7 + t * 1.3, py * q + 3 - t * 2) * 0.55 +
+            vn(px * q * 2.1 + 1, py * q * 2.1 + t * 3) * 0.3 +
+            vn(px * q * 4.3, py * q * 4.3 - t * 4) * 0.15;
+        const edge = 0.55 + 0.35 * t;
+        let a = Math.max(0, Math.min(1, (edge - r) / 0.35 + (n - 0.5) * 1.6));
+        /* (never reaching the frame's edge, so no puff shows a straight side) */
+        a *= (1 - t * 0.55) * Math.min(1, Math.max(0, (1 - r) / 0.18));
+        const o = ((oy + y) * N + ox + x) * 4;
+        d[o] = d[o + 1] = d[o + 2] = Math.round(255 * Math.min(1, 0.55 + n * 0.6));
+        d[o + 3] = Math.round(255 * a);
+      }
+  }
+  const tex = new THREE.DataTexture(d, N, N);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
+})();
 function makePts(additive) {
-  const geo = new THREE.BufferGeometry();
-  const at = (n, k) => {
-    const a = new THREE.BufferAttribute(new Float32Array(PT_N * k), k);
+  const base = new THREE.PlaneGeometry(1, 1);
+  const geo = new THREE.InstancedBufferGeometry();
+  geo.index = base.index;
+  geo.setAttribute("position", base.attributes.position);
+  const at = name => {
+    const a = new THREE.InstancedBufferAttribute(new Float32Array(PT_N * 4), 4);
     a.setUsage(THREE.DynamicDrawUsage);
-    geo.setAttribute(n, a);
+    geo.setAttribute(name, a);
     return a;
   };
+  /* a0 = spawn point, spawn time; a1 = velocity, life; a2 = size, growth, drag, gravity;
+     a3 = color, opacity; a4 = fade length, kind, spin, seed */
+  /* used: slots written since the pool last emptied (only those are drawn); end: when the last one dies */
   const P = {
-    pos: at("position", 3),
-    col: at("pcol", 3),
-    size: at("psize", 1),
-    alpha: at("palpha", 1),
-    /* PT_K floats per particle: position, velocity, color, size, opacity, life, max life, grow, drag, gravity */
-    d: new Float32Array(PT_N * PT_K),
-    n: 0,
+    a: [at("a0"), at("a1"), at("a2"), at("a3"), at("a4")],
     next: 0,
-    geo,
+    lo: PT_N,
+    hi: -1,
+    used: 0,
+    end: 0,
     mesh: null,
   };
-  geo.setDrawRange(0, 0);
+  geo.instanceCount = 0;
+  /* (everything starts long dead) */
+  P.a[1].array.fill(0);
+  for (let i = 0; i < PT_N; i++) P.a[0].array[i * 4 + 3] = -1e9;
   const mat = new THREE.ShaderMaterial({
     uniforms: Object.assign(
-      { uScale: { value: 500 }, map: { value: additive ? SOFT : SMOKE } },
+      { uT: PT_T, map: { value: FLIPBOOK }, star: { value: STAR } },
       additive
         ? {}
         : {
@@ -65,17 +128,43 @@ function makePts(additive) {
             fogDensity: { value: 0 },
           }
     ),
-    vertexShader: `attribute vec3 pcol;attribute float psize;attribute float palpha;uniform float uScale;
-varying vec3 vC;varying float vA;
+    vertexShader: `attribute vec4 a0;attribute vec4 a1;attribute vec4 a2;attribute vec4 a3;attribute vec4 a4;uniform float uT;
+varying vec4 vC;varying vec2 vUv;varying float vAge;varying float vKind;varying float vSeed;
 #include <fog_pars_vertex>
-void main(){vec4 mvPosition=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mvPosition;
-gl_PointSize=psize*uScale/max(.05,-mvPosition.z);vC=pcol;vA=palpha;
+void main(){float age=uT-a0.w;
+if(age<0.||age>a1.w){gl_Position=vec4(2.,2.,2.,1.);return;}
+float k=a2.z;vec3 g=vec3(0.,-a2.w,0.);vec3 p,v;
+if(k>1e-4){float e=exp(-k*age);p=a0.xyz+(a1.xyz-g/k)*(1.-e)/k+g*age/k;v=(a1.xyz-g/k)*e+g/k;}
+else{p=a0.xyz+a1.xyz*age+.5*g*age*age;v=a1.xyz+g*age;}
+float sz=a2.x*exp(a2.y*age);
+vec4 mvPosition=viewMatrix*vec4(p,1.);
+vec2 c=position.xy;
+if(a4.y>2.5&&a4.y<3.5){
+/* a spark: stretched along its motion on screen */
+vec3 vv=(viewMatrix*vec4(v,0.)).xyz;vec2 d=vv.xy;float L=length(d);
+vec2 ax=L>1e-4?d/L:vec2(1.,0.);vec2 ay=vec2(-ax.y,ax.x);
+mvPosition.xy+=ax*c.x*(sz+L*.035)+ay*c.y*sz*.35;}
+else{float r=a4.z*age+a4.w*6.28;float cs=cos(r),sn=sin(r);mvPosition.xy+=vec2(c.x*cs-c.y*sn,c.x*sn+c.y*cs)*sz;}
+gl_Position=projectionMatrix*mvPosition;
+vUv=c+.5;vAge=age/a1.w;vKind=a4.y;vSeed=a4.w;
+/* opacity falls with the time left, over the fade length (it may start below full) */
+vC=vec4(a3.rgb,a3.a*(a1.w-age)/max(a4.x,1e-3));
 #include <fog_vertex>
 }`,
-    fragmentShader: `uniform sampler2D map;varying vec3 vC;varying float vA;
+    fragmentShader: `uniform sampler2D map;uniform sampler2D star;varying vec4 vC;varying vec2 vUv;varying float vAge;varying float vKind;varying float vSeed;
 #include <fog_pars_fragment>
-void main(){vec4 t=texture2D(map,vec2(gl_PointCoord.x,1.-gl_PointCoord.y));
-gl_FragColor=vec4(vC*t.rgb,vA*t.a);
+vec4 book(float t){float f=min(t*15.,15.);float f0=floor(f);vec2 o0=vec2(mod(f0,4.),floor(f0/4.))/4.;float f1=min(f0+1.,15.);vec2 o1=vec2(mod(f1,4.),floor(f1/4.))/4.;
+vec2 uv=(vSeed>.5?vec2(1.-vUv.x,vUv.y):vUv)/4.;return mix(texture2D(map,o0+uv),texture2D(map,o1+uv),f-f0);}
+void main(){vec4 c;
+if(vKind<.5){float r=length(vUv-.5)*2.;c=vec4(vC.rgb,vC.a*(1.-smoothstep(0.,1.,r))*(1.-smoothstep(0.,1.,r)));}
+else if(vKind<1.5){vec4 b=book(vAge*.85+vSeed*.15);c=vec4(vC.rgb*(.7+.5*b.r),vC.a*b.a);}
+else if(vKind<2.5){vec4 b=book(vAge*.8);float hot=1.-vAge;
+/* white-hot, orange, deep red, then charred to smoke that fades */
+vec3 fire=mix(vec3(.06,.04,.035),mix(vec3(.75,.12,.03),mix(vec3(1.,.45,.09),vec3(1.,.93,.72),smoothstep(.6,.95,hot)),smoothstep(.3,.62,hot)),smoothstep(.12,.38,hot));
+c=vec4(fire*vC.rgb*(.6+.8*b.r)*(1.+2.*hot*hot),vC.a*b.a*smoothstep(0.,.35,hot));}
+else if(vKind<3.5){float r=length((vUv-.5)*vec2(1.,2.))*2.;c=vec4(vC.rgb,vC.a*(1.-smoothstep(.2,1.,r)));}
+else{vec4 s=texture2D(star,vUv);c=vec4(vC.rgb*s.rgb,vC.a*s.a);}
+gl_FragColor=c;
 #include <fog_fragment>
 }`,
     transparent: true,
@@ -83,138 +172,164 @@ gl_FragColor=vec4(vC*t.rgb,vA*t.a);
     blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
     fog: !additive,
   });
-  const m = new THREE.Points(geo, mat);
+  const m = new THREE.Mesh(geo, mat);
   m.frustumCulled = false;
   m.renderOrder = 2;
-  /* a point's size is in pixels: scale world size by the target's height and the field of view */
-  m.onBeforeRender = (r, sc, cam) => {
-    const rt = r.getRenderTarget();
-    const h = rt ? rt.height : r.getDrawingBufferSize(_ptV2).y;
-    mat.uniforms.uScale.value = (h * 0.5) / Math.tan(((cam.fov || 60) * Math.PI) / 360);
-  };
   scene.add(m);
   P.mesh = m;
   return P;
 }
 const PTS = { soft: makePts(false), glow: makePts(true) };
+/** the kind a particle is drawn as, by name */
+const PT_KIND = { blob: 0, smoke: 1, fire: 2, spark: 3, flash: 4 };
 /**
- * one particle. size: world diameter (m); grow: size growth per second; op: starting opacity. When the
- * buffer is full the oldest slots are written over in turn; nothing is allocated per particle.
+ * one particle. size: world diameter (m); grow: size growth per second; op: starting opacity; o.max:
+ * the time the fade is spread over (default its life); o.kind: blob, smoke, fire, spark or flash
+ * (default blob, or spark for a small fast glow); o.spin: radians per second. When a pool is full the
+ * oldest particle makes way; nothing is allocated per particle.
  * @param {any} P PTS.soft or PTS.glow
  */
 function ptAdd(P, pos, vel, size, hex, op, life, o = {}) {
-  let i;
-  if (P.n < PT_N) i = P.n++;
-  else {
-    i = P.next;
-    P.next = (P.next + 1) % PT_N;
-  }
+  const i = P.next;
+  P.next = (P.next + 1) % PT_N;
+  P.used = Math.max(P.used, i + 1);
+  P.end = Math.max(P.end, PT_T.value + life);
+  if (i < P.lo) P.lo = i;
+  if (i > P.hi) P.hi = i;
   _ptC.setHex(hex);
-  const d = P.d,
-    b = i * PT_K;
-  d[b] = pos.x;
-  d[b + 1] = pos.y;
-  d[b + 2] = pos.z;
-  d[b + 3] = vel.x;
-  d[b + 4] = vel.y;
-  d[b + 5] = vel.z;
-  d[b + 6] = _ptC.r;
-  d[b + 7] = _ptC.g;
-  d[b + 8] = _ptC.b;
-  d[b + 9] = size;
-  d[b + 10] = op;
-  d[b + 11] = life;
-  d[b + 12] = o.max || life;
-  d[b + 13] = o.grow || 0;
-  d[b + 14] = o.drag || 0;
-  d[b + 15] = o.g || 0;
+  const kind =
+    o.kind != null
+      ? PT_KIND[o.kind] || 0
+      : P === PTS.glow && o.g && size < 0.3 && vel.lengthSq() > 4
+        ? PT_KIND.spark
+        : PT_KIND.blob;
+  const k = i * 4,
+    A = P.a;
+  A[0].array.set([pos.x, pos.y, pos.z, PT_T.value], k);
+  A[1].array.set([vel.x, vel.y, vel.z, life], k);
+  A[2].array.set([size, o.grow || 0, o.drag || 0, o.g || 0], k);
+  A[3].array.set([_ptC.r, _ptC.g, _ptC.b, op], k);
+  A[4].array.set([o.max || life, kind, o.spin || (Math.random() - 0.5) * 1.5, Math.random()], k);
 }
 function updPts(dt) {
+  PT_T.value += dt;
   for (const P of [PTS.soft, PTS.glow]) {
-    const d = P.d,
-      pos = P.pos.array,
-      col = P.col.array,
-      size = P.size.array,
-      alpha = P.alpha.array;
-    let n = P.n;
-    for (let i = 0; i < n; ) {
-      const b = i * PT_K;
-      d[b + 11] -= dt;
-      if (d[b + 11] <= 0) {
-        /* the last particle takes the dead one's slot */
-        n--;
-        if (i < n) d.copyWithin(b, n * PT_K, n * PT_K + PT_K);
-        continue;
-      }
-      if (d[b + 14]) {
-        const k = Math.exp(-d[b + 14] * dt);
-        d[b + 3] *= k;
-        d[b + 4] *= k;
-        d[b + 5] *= k;
-      }
-      d[b + 4] -= d[b + 15] * dt;
-      d[b] += d[b + 3] * dt;
-      d[b + 1] += d[b + 4] * dt;
-      d[b + 2] += d[b + 5] * dt;
-      if (d[b + 13]) d[b + 9] *= 1 + d[b + 13] * dt;
-      pos[i * 3] = d[b];
-      pos[i * 3 + 1] = d[b + 1];
-      pos[i * 3 + 2] = d[b + 2];
-      col[i * 3] = d[b + 6];
-      col[i * 3 + 1] = d[b + 7];
-      col[i * 3 + 2] = d[b + 8];
-      size[i] = d[b + 9];
-      alpha[i] = (d[b + 10] * d[b + 11]) / d[b + 12];
-      i++;
+    /* all dead: draw nothing, and start the ring over */
+    if (P.used && PT_T.value > P.end) P.used = P.next = 0;
+    P.mesh.geometry.instanceCount = P.used;
+    P.mesh.visible = P.used > 0;
+    if (P.hi < 0) continue;
+    for (const a of P.a) {
+      a.clearUpdateRanges();
+      a.addUpdateRange(P.lo * 4, (P.hi - P.lo + 1) * 4);
+      a.needsUpdate = true;
     }
-    P.n = n;
-    if (P.next >= n) P.next = 0;
-    P.geo.setDrawRange(0, n);
-    P.mesh.visible = n > 0;
-    if (n)
-      for (const a of [P.pos, P.col, P.size, P.alpha]) {
-        /* only the live part goes to the GPU */
-        a.clearUpdateRanges();
-        a.addUpdateRange(0, n * a.itemSize);
-        a.needsUpdate = true;
-      }
+    P.lo = PT_N;
+    P.hi = -1;
   }
 }
-/** hide particles that were spawned below the given height (render/prewarm.js clears its samples) */
+/** end particles that were spawned below the given height (render/prewarm.js clears its samples) */
 function ptClearBelow(y) {
-  for (const P of [PTS.soft, PTS.glow])
-    for (let i = 0; i < P.n; i++) if (P.d[i * PT_K + 1] < y) P.d[i * PT_K + 11] = 0;
+  for (const P of [PTS.soft, PTS.glow]) {
+    const a0 = P.a[0].array;
+    for (let i = 0; i < PT_N; i++)
+      if (a0[i * 4 + 1] < y) {
+        a0[i * 4 + 3] = -1e9;
+        if (i < P.lo) P.lo = i;
+        if (i > P.hi) P.hi = i;
+      }
+  }
 }
 const tracerGeo = new THREE.BoxGeometry(0.035, 0.035, 1);
 /* how fast a tracer streak flies (m/s): quick enough to read as a bullet, slow enough to be seen */
 const TRACER_V = 360;
+/* the sniper's trail and the beam: a ribbon that keeps its width in pixels at any distance (a bright
+   core and a soft glow across it, pulses running along it, tapered at the ends) */
+const ribbonGeo = (() => {
+  const g = new THREE.PlaneGeometry(1, 1, 1, 24);
+  g.translate(0, 0.5, 0);
+  return g;
+})();
+const _rbA = new THREE.Vector2();
+function makeRibbon() {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      pa: { value: new THREE.Vector3() },
+      pb: { value: new THREE.Vector3() },
+      col: { value: new THREE.Color() },
+      op: { value: 1 },
+      px: { value: 6 },
+      res: { value: new THREE.Vector2(1, 1) },
+      t: { value: 0 },
+    },
+    vertexShader: `uniform vec3 pa;uniform vec3 pb;uniform float px;uniform vec2 res;varying vec2 vS;
+void main(){vec4 ca=projectionMatrix*viewMatrix*vec4(pa,1.),cb=projectionMatrix*viewMatrix*vec4(pb,1.);
+/* (an end behind the camera is pulled to just in front of it) */
+if(ca.w<.05)ca=mix(cb,ca,(cb.w-.05)/max(cb.w-ca.w,1e-4));if(cb.w<.05)cb=mix(ca,cb,(ca.w-.05)/max(ca.w-cb.w,1e-4));
+vec4 c=mix(ca,cb,position.y);vec2 d=(cb.xy/cb.w-ca.xy/ca.w)*res;float L=length(d);d=L>1e-4?d/L:vec2(1.,0.);
+c.xy+=vec2(-d.y,d.x)*position.x*px*2./res*c.w;gl_Position=c;vS=vec2(position.x*2.,position.y);}`,
+    fragmentShader: `uniform vec3 col;uniform float op;uniform float t;varying vec2 vS;
+void main(){float x=abs(vS.x);float core=exp(-x*x*28.),glow=exp(-x*x*4.);
+float end=smoothstep(0.,.04,vS.y)*smoothstep(1.,.9,vS.y);
+float pulse=.75+.25*sin(vS.y*90.-t*40.);
+gl_FragColor=vec4((col*glow*.7*pulse+vec3(1.)*core)*op*end,1.);}`,
+    transparent: true,
+    depthWrite: false,
+    /* (which way the strip faces depends on the line's direction on screen) */
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+  });
+  const m = new THREE.Mesh(ribbonGeo, mat);
+  m.frustumCulled = false;
+  m.onBeforeRender = r => {
+    const rt = r.getRenderTarget();
+    if (rt) mat.uniforms.res.value.set(rt.width, rt.height);
+    else mat.uniforms.res.value.copy(r.getDrawingBufferSize(_rbA));
+    mat.uniforms.op.value = mat.opacity;
+    mat.uniforms.t.value = PT_T.value;
+  };
+  return m;
+}
 function tracer(a, b, color, life) {
   life = life || 0.1;
-  const m = fxGet(
-    "tr",
-    () =>
-      new THREE.Mesh(
-        tracerGeo,
-        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false })
-      )
-  );
-  m.material.color.setHex(color);
   _fx.copy(b).sub(a);
   const L = _fx.length(),
-    s = Math.min(3.5, L * 0.3);
-  m.lookAt(b);
-  if (life <= 0.12 && L > 2) {
-    /* a round in flight: a short bright streak flying from the muzzle to where it hits */
-    m.position.copy(a).addScaledVector(_fx, s / 2 / L);
-    m.scale.set(0.8, 0.8, s);
-    m.material.opacity = 0.95;
-    const t = (L - s) / TRACER_V;
-    fxPush({ m, key: "tr", life: t, max: t, vel: _fx.clone().multiplyScalar(TRACER_V / L) });
+    s = Math.min(3.5, L * 0.3),
+    streak = life <= 0.12 && L > 2;
+  let m;
+  if (!streak && SET.fxDetail !== "low") {
+    /* a line drawn at once that fades: the sniper's trail, the beam (a ribbon above Basic effects) */
+    m = fxGet("rb", makeRibbon);
+    const U = m.material.uniforms;
+    U.pa.value.copy(a);
+    U.pb.value.copy(b);
+    U.col.value.setHex(color);
+    U.px.value = life > 0.4 ? 7 : 5;
+    m.material.opacity = 1;
+    fxPush({ m, key: "rb", life, max: life, fade: true, op: 1 });
   } else {
-    /* a line drawn at once that fades: the sniper's trail, the beam */
-    m.position.copy(a).addScaledVector(_fx, 0.5);
-    m.scale.set(1, 1, L);
-    fxPush({ m, key: "tr", life, max: life, fade: true });
+    m = fxGet(
+      "tr",
+      () =>
+        new THREE.Mesh(
+          tracerGeo,
+          new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false })
+        )
+    );
+    m.material.color.setHex(color);
+    m.lookAt(b);
+    if (streak) {
+      /* a round in flight: a short bright streak flying from the muzzle to where it hits */
+      m.position.copy(a).addScaledVector(_fx, s / 2 / L);
+      m.scale.set(0.8, 0.8, s);
+      m.material.opacity = 0.95;
+      const t = (L - s) / TRACER_V;
+      fxPush({ m, key: "tr", life: t, max: t, vel: _fx.clone().multiplyScalar(TRACER_V / L) });
+    } else {
+      m.position.copy(a).addScaledVector(_fx, 0.5);
+      m.scale.set(1, 1, L);
+      fxPush({ m, key: "tr", life, max: life, fade: true });
+    }
   }
   /* recorded for replays; while one plays, live shots elsewhere stay out of the picture */
   if (!REC.muted) {
@@ -267,7 +382,7 @@ function dust(p, n, spread, up = 0.6, size = 0.35) {
       0x8a8178,
       0.45,
       rnd(0.35, 0.7),
-      { max: 0.7, grow: 1.6, drag: 3 }
+      { max: 0.7, grow: 1.6, drag: 3, kind: "smoke" }
     );
   }
 }

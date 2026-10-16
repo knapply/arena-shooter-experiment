@@ -153,7 +153,9 @@ const ssrMat = new THREE.ShaderMaterial({
   fragmentShader: `uniform sampler2D tS;uniform mat4 pm;uniform vec3 upV;varying vec2 vUv;${VIEWPOS}
 float ign(vec2 p){return fract(52.9829189*fract(dot(p,vec2(.06711056,.00583715))));}
 vec2 suv(vec3 q){vec4 c=pm*vec4(q,1.);return c.xy/c.w*.5+.5;}
-void main(){float a=texture2D(tS,vUv).a;float w=clamp((1.-a)*2.,0.,1.);
+void main(){/* (sky, and smoke drawn over it, reflect nothing) */
+if(texture2D(tD,vUv).x>=1.){gl_FragColor=vec4(0.);return;}
+float a=texture2D(tS,vUv).a;float w=clamp((1.-a)*2.,0.,1.);
 if(a<.25||w<.04){gl_FragColor=vec4(0.);return;}
 float rough=clamp(1.-w*1.3,0.,1.);
 vec3 P=vp(vUv);vec3 V=normalize(P);float j=ign(gl_FragCoord.xy),j2=ign(gl_FragCoord.yx+17.);
@@ -186,6 +188,8 @@ const MAP_LOOK = {
     sun: [30, 30, 18, "#ffe2c0", 2.3],
     hemi: ["#b4cbe0", "#5a4a3c", 1.35],
     fog: ["#141e24", 1, 1],
+    haze: [0.6, 0.02, 0, 0.35, 0.22, 2.2],
+    cones: 0.7,
     sky: {
       lo: [0.07, 0.1, 0.13],
       mid: [0.36, 0.26, 0.24],
@@ -207,6 +211,8 @@ const MAP_LOOK = {
     sun: [-20, 34, 26, "#a9bde6", 1.05],
     hemi: ["#3a4868", "#85522a", 1.35],
     fog: ["#2b2118", 0.55, 0.85],
+    haze: [0.7, 0.03, 0, 0.35, 0.18, 2.2],
+    cones: 0.5,
     storm: true,
     envK: 0.8,
     envSky: 0.35,
@@ -230,6 +236,8 @@ const MAP_LOOK = {
     sun: [6, 60, 10, "#8fdfe6", 1.5],
     hemi: ["#2d6f86", "#0b1a22", 1.25],
     fog: ["#06222d", 0.3, 0.7],
+    haze: [0.85, 0.04, 0, 0.08, 0.35, 1.8],
+    cones: 1.4,
     sky: {
       lo: [0.01, 0.05, 0.07],
       mid: [0.02, 0.12, 0.16],
@@ -295,6 +303,14 @@ const compMat = new THREE.ShaderMaterial({
     grain: { value: 0.04 },
     time: { value: 0 },
     /* ambient occlusion, light shafts and the map's grade */
+    tZ: { value: null },
+    hz: { value: new THREE.Vector4() },
+    hzF: { value: new THREE.Vector4(0.35, 0, 0, 0) },
+    hzC: { value: new THREE.Vector3() },
+    camP: { value: new THREE.Vector3() },
+    camW: { value: new THREE.Matrix3() },
+    zClip: { value: new THREE.Vector2(0.1, 300) },
+    zProj: { value: new THREE.Vector2(1, 1) },
     tA: { value: null },
     aoK: { value: 0 },
     tR: { value: null },
@@ -314,6 +330,7 @@ const compMat = new THREE.ShaderMaterial({
   },
   fragmentShader: [
     "uniform sampler2D tS;uniform sampler2D tB;uniform vec2 texel;uniform float fx;uniform float sharp;uniform float bloom;uniform float expo;uniform float sat;uniform float vig;uniform float grain;uniform float time;varying vec2 vUv;",
+    "uniform sampler2D tZ;uniform vec4 hz;uniform vec4 hzF;uniform vec3 hzC;uniform vec3 camP;uniform mat3 camW;uniform vec2 zClip;uniform vec2 zProj;",
     "uniform vec4 heat[6];uniform float heatN;uniform float hT;uniform float aspect;uniform sampler2D tR;uniform float ssrK;uniform sampler2D tA;uniform float aoK;uniform sampler2D tSh;uniform float shaftK;uniform float gOn;uniform vec3 gLift;uniform vec3 gGain;uniform float gVib;uniform float split;",
     /* the cinematic look (render/cine-look.js, trailer build) splices in at these markers, compiled in
        only while a look is on (CINE) */
@@ -340,6 +357,11 @@ const compMat = new THREE.ShaderMaterial({
     "#endif",
     /* occlusion darkens everything but what glows */
     " if(aoK>0.){float a=texture2D(tA,uv).r;c*=mix(1.,a,aoK*(1.-smoothstep(.75,1.,luma(c))));}",
+    /* haze: thicker with distance and toward the ground (hz = amount, density per m, base height,
+       falloff per m), never more than hzF.x, so a pilot across the map stays readable */
+    " if(hz.x>0.){float zd=texture2D(tZ,uv).x;if(zd<1.){float z=zClip.x*zClip.y/(zClip.y-zd*(zClip.y-zClip.x));vec3 vq=vec3((uv*2.-1.)*zProj*z,-z);vec3 wq=camP+camW*vq;",
+    /* (and none within fighting range: it starts at hzF.y metres, full by hzF.z) */
+    "  float dq=length(vq);float f=hz.x*(1.-exp(-dq*hz.y))*exp(-max(wq.y-hz.z,0.)*hz.w)*smoothstep(hzF.y,hzF.z,dq);c=mix(c,aces(hzC*expo),min(f,hzF.x));}}",
     /* reflections: rough ones blurred by the roughness the reflection pass left in alpha */
     " if(ssrK>0.){vec4 r=texture2D(tR,uv);vec3 rc=r.rgb;if(r.a>.05){vec2 o=texel*(1.5+5.*r.a);rc=mix(rc,(texture2D(tR,uv+o).rgb+texture2D(tR,uv-o).rgb+texture2D(tR,uv+vec2(o.x,-o.y)).rgb+texture2D(tR,uv-vec2(o.x,-o.y)).rgb)*.25,min(1.,r.a*1.5));}c+=aces(rc*expo)*ssrK;}",
     " if(shaftK>0.)c+=aces(texture2D(tSh,uv).rgb*expo)*vec3(1.,.86,.66)*shaftK;",
@@ -375,7 +397,8 @@ function gfxResize() {
     ssrQ = GFX.webgl2 ? { ssr: 1, ssrhi: 2 }[SET.reflections] || 0 : 0,
     wantSsr = ssrQ > 0;
   /* the scene's depth as a texture (depth of field, occlusion); WebGL2 resolves it from MSAA too */
-  const wantDepth = wantDof || wantAo || wantSsr;
+  const wantHaze = !!SET.haze && GFX.webgl2;
+  const wantDepth = wantDof || wantAo || wantSsr || wantHaze;
   const key =
     w +
     "x" +
@@ -385,7 +408,8 @@ function gfxResize() {
     (wantDof ? "d" : "") +
     (wantAo ? "a" : "") +
     (wantSh ? "s" : "") +
-    (wantSsr ? "r" + ssrQ : "");
+    (wantSsr ? "r" + ssrQ : "") +
+    (wantHaze ? "h" : "");
   if (key === GFX.lastKey && GFX.rt) return;
   GFX.lastKey = key;
   for (const k of ["rt", "b1", "b2", "b3", "b4", "ao1", "ao2", "sh", "ssr"])
@@ -465,6 +489,7 @@ function smaaSize(W, H) {
   }
   GFX.smaa.setSize(W, H);
 }
+const _hzC = new THREE.Color();
 const _sunS = new THREE.Vector3(),
   _sunF = new THREE.Vector3();
 function fsPass(mat, target) {
@@ -621,6 +646,23 @@ function renderFrame() {
     U.heatN.value = SET.fxDetail === "ultra" && !L ? heatUniforms() : (CFX.heat.length = 0);
     U.hT.value = CFX.t;
     U.aspect.value = GFX.w / GFX.h;
+    /* the map's light cones (world/bake.js), with Haze */
+    LIGHT_CONE_K.value = SET.haze && look ? look.cones || 0 : 0;
+    if (cur && cur.cones) cur.cones.visible = LIGHT_CONE_K.value > 0;
+    /* the map's haze, from the depth buffer (High and Ultra) */
+    const hzL = look && look.haze;
+    if (SET.haze && hzL && GFX.rt.depthTexture && !L) {
+      const tanY = Math.tan((camera.fov * Math.PI) / 360);
+      U.tZ.value = GFX.rt.depthTexture;
+      U.hz.value.set(hzL[0], hzL[1], hzL[2], hzL[3]);
+      U.hzF.value.set(hzL[4], 30, 80, 0);
+      _hzC.set(look.fog[0]);
+      U.hzC.value.set(_hzC.r, _hzC.g, _hzC.b).multiplyScalar(hzL[5]);
+      camera.getWorldPosition(U.camP.value);
+      U.camW.value.setFromMatrix4(camera.matrixWorld);
+      U.zClip.value.set(camera.near, camera.far);
+      U.zProj.value.set(tanY * camera.aspect, tanY);
+    } else U.hz.value.x = 0;
     if (smaa) {
       fsPass(compMat, GFX.ldr);
       if (GPUQ) GPUQ.end();
@@ -727,15 +769,10 @@ function radialTex(size, stops) {
   return t;
 }
 const SOFT = radialTex(64, [
-    [0, 1],
-    [0.35, 0.75],
-    [1, 0],
-  ]),
-  SMOKE = radialTex(64, [
-    [0, 0.85],
-    [0.5, 0.4],
-    [1, 0],
-  ]);
+  [0, 1],
+  [0.35, 0.75],
+  [1, 0],
+]);
 const STAR = (() => {
   const c = document.createElement("canvas");
   c.width = c.height = 64;

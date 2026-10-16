@@ -124,7 +124,9 @@ function chipBox(b, at) {
   const w = _cv.copy(_cp).add(c);
   const out = _cp.clone().normalize();
   const n = Math.round(rnd(3, 6) * SET.debris);
-  for (let k = 0; k < n; k++) {
+  /* pieces of the crate itself, in one draw call (render/combat-fx.js) */
+  if (typeof chunkChips === "function") chunkChips(w, out, n, true);
+  for (let k = 0; k < (typeof chunkChips === "function" ? 0 : n); k++) {
     const m = fxGet("db", () => {
       const o = new THREE.Mesh(debrisGeo, MATS.cover);
       o.castShadow = true;
@@ -169,6 +171,7 @@ function damageRadius(c, r, dmg, render) {
 }
 function chips(p, n) {
   n = pc(n);
+  if (typeof chunkChips === "function") return chunkChips(p, _cv.set(rnd(-1, 1), 0, rnd(-1, 1)), n, false);
   for (let i = 0; i < n; i++) {
     const m = fxGet("db", () => {
       const o = new THREE.Mesh(debrisGeo, MATS.cover);
@@ -213,7 +216,9 @@ function breakBox(b, at, render, local) {
     const vol = sx * sy * sz;
     const n = Math.round(Math.min(40, 10 * Math.sqrt(vol)) * SET.debris);
     const from = at || new V3(cx, cy - 1, cz);
-    for (let k = 0; k < n; k++) {
+    /* the box in pieces of itself, in one draw call (render/combat-fx.js) */
+    if (typeof chunkBurst === "function") chunkBurst(b, from);
+    for (let k = 0; k < (typeof chunkBurst === "function" ? 0 : n); k++) {
       const m = fxGet("db", () => {
         const o = new THREE.Mesh(debrisGeo, MATS.cover);
         o.castShadow = true;

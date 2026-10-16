@@ -21,6 +21,7 @@ function prewarmEffects() {
   const dec = { next: decals.next, n: decals.n, vis: decals.mesh.visible };
   const nFx = FX.length;
   tracer(p, q, 0xffd28a);
+  tracer(p, q, 0x9fd8ff, 0.6);
   blast(q, 0xffa040, 3);
   shock(q);
   shieldPop(q);
