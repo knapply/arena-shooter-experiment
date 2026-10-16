@@ -272,8 +272,18 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     K.STORE.setBackend(K.STORE.memoryBackend());
     const G = CTF.Game({ mode: "sim", render: false, seed, rules, map });
     const ev = {},
-      log = [];
+      log = [],
+      /* where each skull pod came down, and how close the nearest pilot stood when it was picked */
+      spots = [];
     G.onEvent = (t, d) => {
+      if (t === "ballPod") spots.push([d.pos.x, d.pos.y, d.pos.z]);
+      if (t === "ballReset") {
+        const h = CTF.BALL_HOME;
+        const near = Math.min(
+          ...G.agents.filter(a => a.alive).map(a => Math.hypot(a.pos.x - h.x, a.pos.z - h.z))
+        );
+        log.push([G.t.toFixed(3), "reset", near >= 4 ? "clear" : "near"]);
+      }
       ev[t] = (ev[t] || 0) + 1;
       /* pilots by team and slot (ids count up across matches) */
       const who = a => (a ? a.team + "." + a.idx : "-");
@@ -285,7 +295,10 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     return {
       G,
       ev,
+      spots,
+      log,
       sig: JSON.stringify([
+        spots,
         log,
         G.teams.map(t => [t.score, +t.held.toFixed(3)]),
         G.agents.map(a => a.body.pos.toArray().map(v => v.toFixed(4))),
@@ -308,6 +321,40 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
         `${rules} on ${map}: the skull comes down by pod and changes hands`,
         { taken: r.ev.ballTaken, pods: r.ev.ballPod, drops: r.ev.ballDrop }
       );
+    if (G.ball) {
+      /* somewhere new each time: one of the map's skull places, 15 m or more from the last, never
+         picked within 4 m of a pilot */
+      const all = CTF.skullSpots();
+      const on = list => list.every(p => all.some(q => q[0] === p[0] && q[2] === p[2]));
+      const clear = r.log.filter(l => l[1] === "reset").every(l => l[2] === "clear");
+      /* and twelve drops in a row from a fresh match: varied, apart, the same again from the same seed */
+      const drops = seed => {
+        K.STORE.setBackend(K.STORE.memoryBackend());
+        const M = CTF.Game({ mode: "sim", render: false, seed, rules, map });
+        M.start();
+        const out = [];
+        for (let i = 0; i < 12; i++) {
+          M.nextBallSpot();
+          out.push([CTF.BALL_HOME.x, CTF.BALL_HOME.y, CTF.BALL_HOME.z]);
+        }
+        return out;
+      };
+      const d1 = drops(41),
+        d2 = drops(41);
+      const apart = d1.every((p, i) => !i || Math.hypot(p[0] - d1[i - 1][0], p[2] - d1[i - 1][2]) >= 15);
+      const places = new Set(d1.map(p => p[0] + "," + p[2])).size;
+      check(
+        on(r.spots) &&
+          on(d1) &&
+          clear &&
+          apart &&
+          places >= 4 &&
+          JSON.stringify(d1) === JSON.stringify(d2) &&
+          all.length >= 8,
+        `${rules} on ${map}: the skull drops somewhere new each time (seeded), never on a pilot`,
+        { choices: all.length, places, apart, clear, same: JSON.stringify(d1) === JSON.stringify(d2) }
+      );
+    }
     const a = play(rules, map, 31, 60),
       b = play(rules, map, 31, 60);
     check(a.sig === b.sig, `${rules} on ${map}: the same seed replays the same match`, a.sig.length);

@@ -321,13 +321,13 @@
         if (G.render !== false && d.pos) K.dropPod(d.pos, CTF.teamHex(d.a.team), { dur: K.POD_TIME });
         break;
       case "ballPod":
-        /* the skull comes down by pod into the middle */
-        if (G.render !== false && d.pos) K.dropPod(d.pos, SKULL_HEX, { dur: K.POD_TIME });
+        /* the skull comes down by pod, somewhere new each time (CTF.skullSpots) */
+        if (G.render !== false && d.pos) K.dropPod(d.pos, SKULL_HEX, { dur: K.POD_TIME, kind: "skull" });
         line("sys", "Skull incoming");
         say("Skull incoming");
         break;
       case "ballSpawn":
-        line("sys", "The skull is down in the middle");
+        line("sys", `The skull is down: ${CTF.zoneName(ht >= 0 ? ht : 0, d.pos)}`);
         K.sfx("flagReturn", 0.7);
         break;
       case "ballTaken": {

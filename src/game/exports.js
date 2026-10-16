@@ -55,6 +55,7 @@ const KA_API = {
   podSpots,
   PODS,
   SUPPLY,
+  launchSupply,
   clearPods,
   ITEMS,
   ARENA_PICKS,

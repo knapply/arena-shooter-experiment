@@ -110,17 +110,24 @@
       dropT: 0,
       pulls: 0,
     }));
-    /* oddball on a map with several skull spots (balls): every drop, the first included, picks one at
-       random (never the spot it came down on last), so matches open in different places. Otherwise
-       the map's ball point. CTF.BALL_HOME follows, so everything that waits for the skull does */
-    const SPOTS = odd && CTF.MAP.balls ? CTF.MAP.balls : null,
+    /* oddball: every drop, the first included, comes down somewhere new on the map (CTF.skullSpots:
+       open sky, room for the pod, reachable, away from the spawns and as far from one team as from
+       the other), picked with the match's seeded random so a replayed match drops in the same places:
+       never within 4 m of a pilot, nor within 15 m of where it came down last. A map with too few
+       such places uses its listed balls, or its ball point. CTF.BALL_HOME follows, so everything that
+       waits for the skull does */
+    const SPOTS = odd ? CTF.skullSpots() : null,
       home = CTF.MAP.ball || [0, 0, 0];
     CTF.BALL_HOME.set(home[0], home[1], home[2]);
     G.ballSpot = -1;
     G.nextBallSpot = function () {
-      if (!SPOTS) return;
+      if (!SPOTS || !SPOTS.length) return;
+      const last = G.ballSpot >= 0 ? SPOTS[G.ballSpot] : null;
+      const clear = s =>
+        (!last || Math.hypot(s[0] - last[0], s[2] - last[2]) >= 15) &&
+        !(G.agents || []).some(a => a.alive && Math.hypot(a.pos.x - s[0], a.pos.z - s[2]) < 4);
       let i = Math.floor(K.rand() * SPOTS.length);
-      if (SPOTS.length > 1 && i === G.ballSpot) i = (i + 1) % SPOTS.length;
+      for (let k = 0; k < SPOTS.length && !clear(SPOTS[i]); k++) i = (i + 1) % SPOTS.length;
       G.ballSpot = i;
       CTF.BALL_HOME.set(SPOTS[i][0], SPOTS[i][1], SPOTS[i][2]);
     };

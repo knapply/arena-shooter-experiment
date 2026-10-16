@@ -140,9 +140,9 @@ MAPS.arena = {
   },
   /* oddball: where the skull's pod comes down (the core's roof, beside the power weapon) */
   ball: [3, 3.2, 0],
-  /* every drop, the first included, picks one of these instead (never the last one again): the core's
-     roof and the alcoves behind the east and west pillars, all the same distance from both teams. The
-     one spot east of centre left the west of the arena empty (docs/TUNING.md) */
+  /* every drop picks one of the map's skull places (CTF.skullSpots, found from the map itself); these
+     are the fallback if too few are found: the core's roof and the alcoves behind the east and west
+     pillars, all the same distance from both teams */
   balls: [
     [3, 3.2, 0],
     [32.5, 0, 0],
@@ -350,8 +350,8 @@ MAPS.ctf = {
     [0, 2.4, -43],
     [0, 2.4, 43],
   ],
-  /* oddball: the skull comes down on the mid tower's roof, level with both bases; with balls, every
-     drop picks one of them: the roof or either catwalk (which nothing else brings anyone to) */
+  /* oddball: every drop picks one of the map's skull places (CTF.skullSpots); if too few are found,
+     one of these: the mid tower's roof, level with both bases, or either catwalk */
   ball: [3, 3, 0],
   balls: [
     [3, 3, 0],

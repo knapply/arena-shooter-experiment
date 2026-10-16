@@ -158,6 +158,74 @@
     const wx = CTF.MAP.lanes ? CTF.MAP.lanes.x[lane] : 0;
     return team === 0 ? wx : -wx;
   };
+  /* oddball: the places on the current map the skull can come down (a 3 m lattice of walkable ground,
+     cached per map): open sky above, room for the pod (level ground and standing room a metre round),
+     6 m or more from every spawn, off the weapon pads, and fair: as far from one team's spawns as from the other's (within
+     15%, and 15 m or more from both), or on a map whose teams share spawns, within half its half-width
+     of the middle. Too few, and the map's listed balls (or its ball point) are used instead */
+  const SKULL_SPOTS = new Map();
+  CTF.skullSpots = function () {
+    const doc = CTF.MAP,
+      NAV = CTF.NAV;
+    if (SKULL_SPOTS.has(doc.id)) return SKULL_SPOTS.get(doc.id);
+    const mid = t => {
+      const s = CTF.SPAWNS[t];
+      let x = 0,
+        z = 0;
+      for (const p of s) {
+        x += p[0];
+        z += p[2];
+      }
+      return [x / s.length, z / s.length];
+    };
+    const c0 = mid(0),
+      c1 = mid(1),
+      split = Math.hypot(c0[0] - c1[0], c0[1] - c1[1]) > 10;
+    const B = doc.bounds,
+      mx = (B.x0 + B.x1) / 2,
+      mz = (B.z0 + B.z1) / 2,
+      half = Math.min(B.x1 - B.x0, B.z1 - B.z0) / 2;
+    const spawns = CTF.FFA_SPAWNS.concat(CTF.SPAWNS.flat());
+    const up = new T.Vector3(0, 1, 0),
+      o = new T.Vector3(),
+      out = [];
+    for (let x = B.x0 + 1.5; x < B.x1; x += 3)
+      for (let z = B.z0 + 1.5; z < B.z1; z += 3) {
+        const c = NAV.cell(x, z);
+        if (c < 0 || !NAV.ok[c]) continue;
+        const p = NAV.pos(c);
+        if (K.rayWorld(o.set(p.x, p.y + 2.2, p.z), up, 60) < 59) continue;
+        let room = true;
+        for (const [dx, dz] of [
+          [1, 1],
+          [1, -1],
+          [-1, 1],
+          [-1, -1],
+        ])
+          if (
+            Math.abs(K.groundBelow(p.x + dx, p.z + dz, p.y + 0.3, 0.05) - p.y) > 0.1 ||
+            !K.freeAt(p.x + dx, p.y + 0.05, p.z + dz, K.H_STAND)
+          ) {
+            room = false;
+            break;
+          }
+        if (
+          !room ||
+          spawns.some(s => Math.hypot(s[0] - p.x, s[2] - p.z) < 6) ||
+          (doc.pickups || []).some(q => Math.hypot(q.p[0] - p.x, q.p[2] - p.z) < 3)
+        )
+          continue;
+        const d0 = Math.hypot(p.x - c0[0], p.z - c0[1]),
+          d1 = Math.hypot(p.x - c1[0], p.z - c1[1]);
+        const fair = split
+          ? Math.abs(d0 - d1) <= 0.15 * ((d0 + d1) / 2) && Math.min(d0, d1) >= 15
+          : Math.hypot(p.x - mx, p.z - mz) <= half / 2;
+        if (fair) out.push([p.x, p.y, p.z]);
+      }
+    const list = out.length >= 4 ? out : doc.balls || [doc.ball || [0, 0, 0]];
+    SKULL_SPOTS.set(doc.id, list);
+    return list;
+  };
   CTF.useMap("ctf");
 
   /* flag visuals */
