@@ -24,6 +24,7 @@ const ACTIONS = [
   ["netHud", "Network panel"],
   ["interact", "Pick up weapon (hold)"],
   ["ping", "Ping (mark enemy, weapon or place)"],
+  ["replayView", "Play of the game: first / third person"],
 ];
 const DEF_BIND = {
   forward: ["KeyW", "ArrowUp"],
@@ -51,6 +52,7 @@ const DEF_BIND = {
   netHud: ["F4"],
   interact: ["KeyE"],
   ping: ["KeyZ", "Mouse1"],
+  replayView: ["KeyV"],
 };
 const PAD_NAMES = [
   "A",
@@ -89,6 +91,7 @@ const DEF_PAD = {
   swapNade: [14, 15],
   interact: [2],
   ping: [13],
+  replayView: [3],
 };
 const T_GFX = "Graphics",
   T_CTL = "Controls",

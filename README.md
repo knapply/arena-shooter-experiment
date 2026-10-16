@@ -55,7 +55,7 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 - **Flag clarity:** a named waypoint on every flag carrier, a score bar that says who has each flag, and distinct sounds and announcer lines for taken, dropped and returned
 - **Match stats:** hold Tab for a sortable table of every pilot (AI included): kills, deaths, assists, K/D, damage, accuracy, headshots, medals, spree, power weapon held, and captures, returns, carries and flag time in CTF, with team totals
 - **Results screen:** after Play of the Game, the winner and score, your match (kills by weapon, accuracy, best spree, damage, medals), awards (MVP, most damage, best accuracy, top flag runner), a timeline of the big moments, and Play again, Change mode or Leave
-- **Play of the Game:** every match ends with a cinematic replay of its best moment (multikills, sprees, clutch captures)
+- **Play of the Game:** every match ends with a cinematic replay of its best moment, over the player's shoulder (V or Y switches to their eyes and back while it plays) (multikills, sprees, clutch captures)
 - **Match intros:** a five-second flyover of the map, both teams at their spawns, the objective and the power weapon
 - **HUD:** clean, angular glass panels: grenades top left (each type's icon and count, the selected one lit, and the key or D-pad that swaps them, following the device you're using and your bindings), shield over hull top middle, both weapons and the ammo counter (magazine and reserve) top right, the motion tracker bottom left. It scales with the HUD size setting, fits a phone, and gets out of the way during pod drops and kill cams
 - **Motion tracker:** a 25 m radar showing enemies only while they sprint, thrust or hover (stabilize in the air); walking, crouching and firing keep you off it. Teammates always show, dimmer. It sits bottom left by default, or in whichever spot you choose, at the size you choose, and in capture the flag it takes the minimap's place while you play
@@ -127,6 +127,7 @@ All bindings can be changed in **Settings → Keys / Controller**.
 | Throw grenade | G / Mouse 5 | RB |
 | Swap grenade type | T | D-pad left / right |
 | Ping (enemy, weapon or place; double-tap: danger) | Z / middle click | D-pad down |
+| Play of the Game: first / third person | V | Y |
 | Weapon slot 1 / 2 | 1 / 2 | |
 | Switch weapon | Mouse wheel | Y |
 | Roster (hold) | Tab | View |

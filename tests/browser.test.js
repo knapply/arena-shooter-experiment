@@ -970,6 +970,38 @@ const podSeats = map => {
         top: KA.HL.top.length,
         card: document.querySelector("#cine .card").textContent,
       };
+      /* over the shoulder to begin with; the Replay view key (V) switches to their eyes and back, and
+         the hint on screen says so (waits run on the replay's own clock) */
+      const eyeDist = () => {
+        const st = KA.REPLAY.state,
+          c = KA.HL.top[0];
+        if (!st || !c || !st.p) return -1;
+        const sp = KA.REC.sampleIn(c.clip, st.subject, st.t);
+        return sp ? Math.hypot(st.p[0] - sp.x, st.p[1] - (sp.y + KA.H_STAND - 0.12), st.p[2] - sp.z) : -1;
+      };
+      const replayFor = async secs => {
+        const t0 = KA.REPLAY.state ? KA.REPLAY.state.t : 0;
+        for (let i = 0; i < 100 && KA.REPLAY.state && KA.REPLAY.state.t < t0 + secs; i++)
+          await new Promise(r => setTimeout(r, 50));
+      };
+      const pressV = async () => {
+        dispatchEvent(new KeyboardEvent("keydown", { code: "KeyV" }));
+        await new Promise(r => setTimeout(r, 40));
+        dispatchEvent(new KeyboardEvent("keyup", { code: "KeyV" }));
+      };
+      const hintText = () => (document.getElementById("potgHint") || { textContent: "" }).textContent;
+      const view = {};
+      if (KA.HL.playing) {
+        await replayFor(0.15);
+        view.third = { fp: KA.HL.fp, d: eyeDist(), hint: hintText() };
+        await pressV();
+        await replayFor(0.15);
+        view.first = { fp: KA.HL.fp, d: eyeDist(), hint: hintText() };
+        await pressV();
+        await replayFor(0.15);
+        view.back = { fp: KA.HL.fp, d: eyeDist() };
+      }
+      potg.view = view;
       KA.REPLAY.skip();
       /* then the results screen; Play again starts a new match */
       const el = id => document.getElementById(id);
@@ -1018,6 +1050,23 @@ const podSeats = map => {
       "the match ends with a Play of the Game replay of the best moment",
       ffa.potg
     );
+    {
+      const v = ffa.potg.view || {};
+      check(
+        !!v.third &&
+          !v.third.fp &&
+          v.third.d > 0.3 &&
+          /V · First person/.test(v.third.hint) &&
+          v.first.fp &&
+          v.first.d >= 0 &&
+          v.first.d < 0.3 &&
+          /V · Third person/.test(v.first.hint) &&
+          !v.back.fp &&
+          v.back.d > 0.3,
+        "Play of the Game starts over the shoulder (off their eyes, nearer by a wall); V switches it to their eyes and back, with a hint on screen",
+        v
+      );
+    }
     check(
       ffa.post.shown &&
         /Victory/.test(ffa.post.win) &&
