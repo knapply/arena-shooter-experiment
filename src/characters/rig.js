@@ -150,7 +150,7 @@ const POSE = {
   pistol: { p: new V3(0.05, 0.1, -0.38), r: [0, 0, 0] },
 };
 /* the free hand's path through a grenade throw (chest frame), t in seconds */
-const THROW_KEYS = [
+const RIG_THROW_KEYS = [
   [0, -0.18, 0.05, -0.3],
   [0.08, -0.22, 0.45, 0.08],
   [0.13, -0.06, 0.32, -0.5],
@@ -158,7 +158,7 @@ const THROW_KEYS = [
   [0.45, -0.22, -0.05, -0.28],
 ];
 function throwHand(t, out) {
-  const K = THROW_KEYS;
+  const K = RIG_THROW_KEYS;
   let i = 0;
   while (i < K.length - 2 && t > K[i + 1][0]) i++;
   const a = K[i],
