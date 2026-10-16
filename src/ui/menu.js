@@ -231,6 +231,69 @@ function renderMenu() {
   $("watchAI").textContent = `Watch AI play ${P.short}`;
   /* the room line: who else is here */
   if (L) $("lobby").textContent = L.text || "";
+  renderLobby(L, h, P);
+}
+/* the room lobby: everyone here (you first), who hosts the room, who is hosting or playing the match,
+   teams in a team mode, connection quality, and what the room is doing */
+const MAX_ROOM = 8;
+function renderLobby(L, h, P) {
+  const list = $("lobbyList"),
+    st = $("lobbyState");
+  const people = L && L.room && L.people ? L.people : [];
+  list.hidden = st.hidden = !people.length;
+  if (!people.length) return;
+  const teams = (h ? menuMode(h.mode) : P).teams;
+  const key = JSON.stringify([people, teams, h && h.mid]);
+  if (list.dataset.k !== key) {
+    list.dataset.k = key;
+    list.textContent = "";
+    for (const p of people) {
+      const li = document.createElement("li");
+      if (p.me) li.className = "me";
+      li.dataset.peer = p.peer || "";
+      li.dataset.kind = p.me ? "you" : "human";
+      const sw = document.createElement("span");
+      sw.className = "sw";
+      sw.style.background = p.color;
+      const badges = document.createElement("span");
+      badges.className = "badges";
+      const badge = (t, cls) => {
+        const b = document.createElement("span");
+        b.className = "bdg" + (cls ? " " + cls : "");
+        b.textContent = t;
+        badges.appendChild(b);
+      };
+      if (p.hub) badge("Room host", "host");
+      if (p.hosting) badge("Hosting the match", "match");
+      else if (p.inMatch) badge("In the match", "match");
+      if (teams) badge(p.team ? "Blue" : "Red", "t" + p.team);
+      const ping = document.createElement("span");
+      ping.className = "ping";
+      if (!p.me) {
+        const ms = pingOf(p.peer);
+        ping.append(pingBars(ms), ms == null ? "…" : ms + " ms");
+      }
+      li.append(sw, pilotName(p.name, p.me ? "you" : "human"), badges, ping);
+      list.appendChild(li);
+    }
+  } else
+    /* pings change all the time: just those */
+    for (const li of list.querySelectorAll("li:not(.me)")) {
+      const ms = pingOf(/** @type {HTMLElement} */ (li).dataset.peer);
+      const sp = li.querySelector(".ping");
+      sp.textContent = "";
+      sp.append(pingBars(ms), ms == null ? "…" : ms + " ms");
+    }
+  const n = people.length;
+  const meHub = people[0].hub;
+  st.className = "lobbyState" + (h ? " live" : n >= MAX_ROOM ? " full" : "");
+  st.textContent = h
+    ? `Match in progress: ${h.name}'s ${menuMode(h.mode).name} on ${mapName(h.map)}. Join it below.`
+    : n >= MAX_ROOM
+      ? `Room full · ${n} of ${MAX_ROOM} players`
+      : meHub
+        ? `You host this room · ${n} of ${MAX_ROOM} here. Pick a mode and start: everyone here can join.`
+        : `Waiting for a match to start · ${n} of ${MAX_ROOM} here. Anyone can start one; the others can join it.`;
 }
 MENU.refresh = renderMenu;
 /** start what the menu shows: join the room's match, or the picked mode */

@@ -132,7 +132,7 @@ function makeBots() {
       firedT: -9,
     });
     spawn(b.body);
-    b.rig.setLabel(b.name, "practice drone");
+    b.rig.setLabel(b.name, "practice drone", "ai");
     bots.push(b);
   }
 }
@@ -436,11 +436,14 @@ function hurtMe(n, src) {
 /* the kill feed is a subscriber; spectator modes keep it quiet */
 EVENTS.on("kill", e => {
   if (!/spectate|trailer/.test(e.mode))
-    pushFeed(e.killerName, e.victimName, e.killer === "local", e.victim === "local", e.zone || "");
+    pushFeed(e.killerName, e.victimName, e.killer === "local", e.victim === "local", e.zone || "", [
+      pilotKind(e.killer),
+      pilotKind(e.victim),
+    ]);
 });
 /** zone: where it happened (the map's callout zones), shown small after the names */
-function pushFeed(a, b, mine, victim, zone) {
-  feed.unshift({ a, b, mine, victim, z: zone || "", t: now });
+function pushFeed(a, b, mine, victim, zone, kinds) {
+  feed.unshift({ a, b, mine, victim, z: zone || "", t: now, k: kinds || ["", ""] });
   if (feed.length > 5) feed.pop();
   renderFeed();
 }
@@ -449,15 +452,14 @@ function renderFeed() {
   el.textContent = "";
   for (const f of feed) {
     const d = document.createElement("div");
-    const A = document.createElement("span");
-    A.textContent = f.a;
-    if (f.mine) A.className = "me";
+    /* players, AI and you, marked (ui/pilot-kind.js) */
+    const A = pilotName(f.a, f.k[0]);
+    if (f.mine) A.classList.add("me");
     const X = document.createElement("span");
     X.className = "x";
     X.textContent = "›";
-    const Bn = document.createElement("span");
-    Bn.textContent = f.b;
-    if (f.victim) Bn.className = "me";
+    const Bn = pilotName(f.b, f.k[1]);
+    if (f.victim) Bn.classList.add("me");
     d.append(A, X, Bn);
     if (f.z) {
       const Z = document.createElement("small");

@@ -900,15 +900,35 @@ function makePilot(color, label) {
     /** the pilot's stable id and team (posePilot sets them; characters/gaze.js reads them) */
     pid: "",
     team: -1,
-    setLabel(t, sub) {
+    /** the name over their head; kind "human" or "ai" marks real players and AI (ui/pilot-kind.js):
+        a ◆ and warm white for a player, muted with an AI tag for AI, a stripe in their armor colour */
+    labelKind: "",
+    setLabel(t, sub, kind) {
+      rig.labelKind = kind || "";
       x.clearRect(0, 0, 256, 64);
       x.font = "600 28px Chakra Petch, Arial Narrow, sans-serif";
       x.textAlign = "center";
       x.fillStyle = "#0b1216cc";
-      const w = Math.min(250, x.measureText(t).width + 24);
+      const text = kind === "human" ? PK.human.glyph + " " + t : t;
+      const tw = x.measureText(text).width,
+        tagW = kind === "ai" ? 34 : 0;
+      const w = Math.min(250, tw + tagW + 24);
       x.fillRect(128 - w / 2, 8, w, 36);
-      x.fillStyle = color;
-      x.fillText(t, 128, 36);
+      if (kind) {
+        /* their armor (or team) colour, as a stripe under the name */
+        x.fillStyle = color;
+        x.fillRect(128 - w / 2, 40, w, 4);
+      }
+      x.fillStyle = kind === "human" ? PK.human.color : kind === "ai" ? PK.ai.color : color;
+      x.fillText(text, 128 - tagW / 2, 36);
+      if (kind === "ai") {
+        const tx = 128 - tagW / 2 + tw / 2 + 6;
+        x.strokeStyle = PK.ai.color;
+        x.lineWidth = 2;
+        x.strokeRect(tx, 16, 28, 20);
+        x.font = "600 14px IBM Plex Mono, monospace";
+        x.fillText(PK.ai.tag, tx + 14, 31);
+      }
       if (sub) {
         x.font = "500 15px IBM Plex Mono, monospace";
         x.fillStyle = "#dbe6ea";

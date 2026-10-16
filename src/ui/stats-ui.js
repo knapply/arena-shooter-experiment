@@ -56,7 +56,10 @@ function statsTable(box, rows, onSort) {
   const cell = (tr, c, r) => {
     const td = document.createElement("td");
     if (c.k === "name") {
-      td.textContent = r.name + (r.me ? " (you)" : "");
+      /* players, AI and you, marked (ui/pilot-kind.js); team totals are plain */
+      td.appendChild(
+        r.id ? pilotName(r.name, r.me ? "you" : pilotKind(r.id)) : document.createTextNode(r.name)
+      );
       if (String(r.id).startsWith("peer:")) td.appendChild(pingBars(pingOf(String(r.id).slice(5))));
     } else {
       const v = r[c.k];

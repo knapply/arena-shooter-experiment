@@ -83,7 +83,13 @@ function addPing(p) {
   }
   if (p.kind === "danger") {
     dangerSfx(p.by === "local" ? 1 : 0.8);
-    hudCallout(p.by === "local" ? "Danger marked" : `Danger · ${p.byName || "teammate"}`, true, 1.8);
+    hudCallout(
+      p.by === "local"
+        ? "Danger marked"
+        : `Danger · ${p.byName ? pilotText(p.byName, pilotKind(p.by)) : "teammate"}`,
+      true,
+      1.8
+    );
     if (p.by !== "local") say("Danger", false);
   } else sfx("magin", 0.5);
 }
@@ -130,7 +136,8 @@ function updPings() {
       p.el = document.createElement("div");
       p.el.className = "ping " + p.kind;
       p.el.innerHTML = "<i></i><b></b><span></span>";
-      p.el.querySelector("b").textContent = p.label + (p.by !== "local" && p.byName ? " · " + p.byName : "");
+      p.el.querySelector("b").textContent =
+        p.label + (p.by !== "local" && p.byName ? " · " + pilotText(p.byName, pilotKind(p.by)) : "");
       pingLayer.appendChild(p.el);
     }
     const src = p.ref && p.ref.body ? p.ref.body.pos : p.ref && p.ref.rig ? p.ref.rig.root.position : p.pos;

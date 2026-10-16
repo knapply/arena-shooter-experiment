@@ -19,7 +19,7 @@ const MSG = (() => {
   /* 7: the match modes (Team Slayer, free for all, oddball) on the room's start and presence messages */
   /* 8: hit claims carry the shot's ray, when it was fired and what the shooter saw (net/hitcheck.js) */
   /* 11: the held weapon takes three state bits (8192, 32768, 131072: the scattergun is weapon 4) */
-  const PROTOCOL = 11;
+  const PROTOCOL = 12;
   const TWO_PI = Math.PI * 2;
   const BAD = /[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g;
   const enc = new TextEncoder(),
