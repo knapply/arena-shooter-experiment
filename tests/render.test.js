@@ -200,6 +200,66 @@ const stats = async p => {
         return { worst: +worst.toFixed(3), at };
       });
       check(grip.worst < 0.02, "a carried flag or skull is held: palms on it, wrists at the grips", grip);
+      /* stairs: a pilot runs down a real flight (8 steps of 0.4 m) and back up it, stepped by the actual
+         physics Body. The body stays on the steps (it does not sail over them and land every third one),
+         the rig keeps running (never airborne, never landing), and its hips ride the flight without the
+         body's 0.4 m jolt at each step (the hips' frame-to-frame change of speed, over the flight) */
+      const stairs = await p.evaluate(() => {
+        const a = KA.addPilot(new KA.Pilot({ id: "actor:stairs", color: "#4aa3ff", ctl: "script" })),
+          B = a.body,
+          dt = 1 / 60,
+          ex = { reload: -1, wpn: 0 },
+          w = new KA.THREE.Vector3(),
+          ys = [],
+          rys = [],
+          zs = [];
+        let pel = null,
+          air = 0,
+          lands = 0;
+        B.pos.set(0, 3.2, 3.6);
+        B.vel.set(0, 0, 0);
+        B.ground = true;
+        B.yaw = Math.PI;
+        for (let i = 0; i < 40; i++) {
+          B.step(dt, { f: 0, s: 0 }, () => {});
+          a.pose(dt, ex);
+        }
+        a.rig.root.traverse(o => o.isBone && o.name === "pelvis" && (pel = o));
+        for (const [yaw, n] of [
+          [Math.PI, 150],
+          [0, 125],
+        ]) {
+          B.yaw = yaw;
+          for (let i = 0; i < n; i++) {
+            B.step(dt, { f: 1, s: 0 }, t => t === "land" && lands++);
+            a.pose(dt, ex);
+            a.rig.root.updateMatrixWorld(true);
+            if (a.rig.S.air) air++;
+            ys.push(w.setFromMatrixPosition(pel.matrixWorld).y);
+            rys.push(a.rig.root.position.y);
+            zs.push(B.pos.z);
+          }
+        }
+        a.dispose();
+        const jolt = v => {
+          let m = 0;
+          for (let i = 2; i < v.length; i++)
+            if (zs[i] > 5 && zs[i] < 11.5) m = Math.max(m, Math.abs(v[i] - 2 * v[i - 1] + v[i - 2]));
+          return +m.toFixed(3);
+        };
+        return {
+          air,
+          lands,
+          jolt: jolt(ys),
+          rootJolt: jolt(rys),
+          rise: +(Math.max(...rys) - Math.min(...rys)).toFixed(2),
+        };
+      });
+      check(
+        stairs.air === 0 && stairs.lands === 0 && stairs.rise > 3 && stairs.jolt < 0.75 * stairs.rootJolt,
+        "down and up a flight of stairs: on the steps, running all the way, the hips riding it smoothly",
+        stairs
+      );
       check(p.errors.length === 0, "budget scenes have no errors", p.errors.slice(0, 3));
       await p.close();
       /* CTF play at its heaviest: just after the opening drop, every pilot and every fresh wreck on

@@ -84,11 +84,12 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
   check(run(42) === a, "a match plays the same after other matches broke cover");
   check(a !== c, "a different seed plays differently");
 }
-/* Recruit is the gentle start: a Recruit team loses most fights to Normal */
+/* Recruit is the gentle start: a Recruit team loses most fights to Normal (over four matches, each
+   side once more: two alone swing with any change to how bodies move) */
 {
   let kR = 0,
     kN = 0;
-  for (let m = 0; m < 2; m++) {
+  for (let m = 0; m < 4; m++) {
     K.STORE.setBackend(K.STORE.memoryBackend());
     const R = m % 2;
     const G = CTF.Game({

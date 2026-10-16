@@ -2330,9 +2330,9 @@
       mood: null,
       setup() {
         /* play the seeded match to its first capture, then the same match again to just before it */
-        startCTF("ctf", undefined, 21, g => g.teams.some(t => t.score > 0), 9000);
+        startCTF("ctf", undefined, 4, g => g.teams.some(t => t.score > 0), 9000);
         const tCap = G.t;
-        startCTF("ctf", undefined, 21, g => g.t >= tCap - 1.7, 9000);
+        startCTF("ctf", undefined, 4, g => g.t >= tCap - 1.7, 9000);
         this.c = G.agents.find(x => x.carrying) || null;
         this.score0 = G.teams.map(t => t.score);
       },

@@ -519,6 +519,17 @@ class Body {
         if (this.chargeT > 0) this.chargeT = 0;
       }
     }
+    /* walking or running down stairs (or off a kerb) keeps the feet on the ground: a body that was
+       standing, did not jump or thrust, and finds a step within a stair's height below sets down on it
+       at once, instead of sailing over the flight and landing every third step */
+    if (!this.ground && wasGround && v.y <= 0 && !this.launched && this.thrustT <= 0 && this.pound === 0) {
+      const g = groundBelow(p.x, p.z, p.y);
+      if (p.y - g <= 0.46 && freeAt(p.x, g + 0.001, p.z, this.h)) {
+        p.y = g;
+        v.y = 0;
+        this.ground = true;
+      }
+    }
     if (pilotsFn) this.pushPilots(pilotsFn(this) || NO_PILOTS);
     if (this.ground) {
       this.stabT = 0;
