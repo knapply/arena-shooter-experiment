@@ -1026,6 +1026,9 @@ const podSeats = map => {
         beep: await until(() => heard.includes("shlow")),
       };
       KA.hurtMe(20, { w: "rifle" });
+      /* the recharge countdown starts full (it runs down over the delay) */
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const timer = +(/scaleX\(([\d.]+)/.exec(document.getElementById("shT").style.transform) || [0, 0])[1];
       const brk = {
         burst: document.getElementById("shbreak").classList.contains("on"),
         sound: heard.includes("shbreak"),
@@ -1038,7 +1041,7 @@ const podSeats = map => {
       KA.sfxTap(null);
       me.shield = 70;
       me.health = 45;
-      return { low, brk, down };
+      return { low, brk, down, timer };
     });
     check(
       shs.low.warn && shs.low.beep,
@@ -1051,8 +1054,8 @@ const podSeats = map => {
       shs
     );
     check(
-      shs.down.edge && shs.down.label === "Shield down" && shs.down.alarm,
-      "with the shield down: a red edge, 'Shield down' and the alarm",
+      shs.down.edge && shs.down.label === "Shield down" && shs.down.alarm && shs.timer > 0.8,
+      "with the shield down: a red edge, 'Shield down', the alarm and the recharge countdown starting",
       shs
     );
     /* directional damage: an arc points where the hit came from (a drone to your right: +90°) */

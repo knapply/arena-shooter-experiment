@@ -133,6 +133,7 @@ function chargeCheck() {
     if (meleeHit(1.6, 85, "charge")) me.chargeT = 0;
   }
 }
+let vmCrackle = 0;
 function myFeel(dt) {
   const hs = Math.hypot(me.vel.x, me.vel.z);
   if (me.ground && me.slideT <= 0 && !me.clamber) {
@@ -169,6 +170,15 @@ function myFeel(dt) {
     sfx("recharge", 0.9);
     rechargeShown = 0.9;
   }
+  /* shield down: arcs crawl over your arms (the armor on your viewmodel flickers gold), now and then
+     with a crackle */
+  if (me.shield <= 0 && !me.dead && playing && Math.random() < dt * 12) {
+    vmCrackle = 0.5 + Math.random() * 0.9;
+    if (Math.random() < 0.3) sfx("crackle", 0.25);
+  }
+  vmCrackle *= Math.exp(-14 * dt);
+  vmArmor.emissive.setRGB(1, 0.6, 0.2);
+  vmArmor.emissiveIntensity = vmCrackle;
   /* shield down: the alarm, every 0.55 s; running low (under 30%): a softer warning, every second */
   if (me.shield <= 0 && !me.dead && playing) {
     alarmT -= dt;

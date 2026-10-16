@@ -55,7 +55,7 @@ body {
   background: radial-gradient(ellipse at center, transparent 48%, var(--energy) 140%);
   opacity: 0;
 }
-/* your shield breaking: the screen's edge bursts white-blue with cracks, once (hurtMe, game/state.js) */
+/* your shield breaking: the screen washes gold-white from the edge in, with cracks, once (hurtMe) */
 #shbreak {
   position: absolute;
   inset: 0;
@@ -65,12 +65,12 @@ body {
     repeating-conic-gradient(
       from 7deg at 50% 50%,
       transparent 0deg 9deg,
-      #e6faffd0 9deg 9.7deg,
+      #fff6e0d8 9deg 9.7deg,
       transparent 9.7deg 23deg
     ),
-    radial-gradient(ellipse at center, transparent 40%, #bfefff 118%);
-  -webkit-mask-image: radial-gradient(circle at center, transparent 30%, #000 80%);
-  mask-image: radial-gradient(circle at center, transparent 30%, #000 80%);
+    radial-gradient(ellipse at center, #ffe9b830 0%, #ffe2a0 110%);
+  -webkit-mask-image: radial-gradient(circle at center, #0006 20%, #000 75%);
+  mask-image: radial-gradient(circle at center, #0006 20%, #000 75%);
 }
 #shbreak.on {
   animation: shBreak 0.6s ease-out;
@@ -501,6 +501,19 @@ body {
 }
 #shb {
   background: linear-gradient(180deg, #c6f0ff, var(--shield) 45%, #2b9fe0);
+}
+/* the recharge countdown along the bar's top (hud.js); red while the shield is empty */
+#shT {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 0;
+  height: 2px;
+  background: #ffe9a8;
+  transform: scaleX(0);
+}
+.vitals.low #shT {
+  background: var(--hud-hot);
 }
 .shrow .bar {
   filter: drop-shadow(0 0 6px #62cdff90);
