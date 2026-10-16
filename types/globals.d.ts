@@ -111,6 +111,7 @@ interface KAExtensions {
   /** the trailer's first-person stretches (game/trailer-fp.js, trailer build only) */
   trailerFP: {
     on: boolean;
+    quiet: boolean;
     keep: any;
     begin(o: any): void;
     step(dt: number, inp?: { hold?: string[]; press?: string[]; yaw?: number; pitch?: number }): void;
@@ -130,7 +131,7 @@ interface KAExtensions {
     readonly t: number;
     END: number;
     /** what went wrong in the last run: pilots hitting walls, the camera inside geometry, and an event log */
-    diag: { bumps: any[]; cam: any[]; log: any[] };
+    diag: { bumps: any[]; cam: any[]; log: any[]; beats: any[] };
     /** sound effects heard during a capture: [seconds, kind, volume] */
     sfxLog: [number, string, number][];
     shots?: { t: number; name: string }[];
