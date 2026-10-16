@@ -661,6 +661,14 @@ const SCHEMA = [
     desc: "Rays of sunlight through the skyline and over walls when you look toward the sun.",
   },
   {
+    k: "haze",
+    tab: T_GFX,
+    label: "Haze and light cones",
+    type: "toggle",
+    def: true,
+    desc: "Air you can see: haze settling low on each map and soft cones of light under its lamps. Thin enough that players stay easy to spot.",
+  },
+  {
     k: "grade",
     tab: T_GFX,
     label: "Map color grade",
@@ -1471,6 +1479,7 @@ const PRESETS = {
   low: {
     ao: "baked",
     lightShafts: false,
+    haze: false,
     grade: false,
     sky: "low",
     mapDetail: "low",
@@ -1491,6 +1500,7 @@ const PRESETS = {
   medium: {
     ao: "baked",
     lightShafts: false,
+    haze: false,
     grade: true,
     sky: "high",
     mapDetail: "high",
@@ -1511,6 +1521,7 @@ const PRESETS = {
   high: {
     ao: "ssao",
     lightShafts: false,
+    haze: true,
     grade: true,
     sky: "high",
     mapDetail: "high",
@@ -1531,6 +1542,7 @@ const PRESETS = {
   ultra: {
     ao: "ssao",
     lightShafts: true,
+    haze: true,
     grade: true,
     sky: "high",
     mapDetail: "high",

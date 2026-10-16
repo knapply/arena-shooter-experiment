@@ -406,7 +406,7 @@ function podTrail(p, heat, near = 1) {
         T.burn[(Math.random() * T.burn.length) | 0],
         0.9 * heat,
         rnd(0.6, 1.4),
-        { max: 1.4, grow: -0.5, drag: 2 }
+        { max: 1.4, grow: -0.5, drag: 2, kind: "fire" }
       );
     /* smoke: a dark column that lingers and spreads */
     if (!podHidden(p) && Math.random() < 0.7)
@@ -418,7 +418,7 @@ function podTrail(p, heat, near = 1) {
         T.smoke[Math.random() < 0.5 ? 0 : 1],
         0.55 * heat,
         rnd(2.5, 4),
-        { max: 4, grow: 0.5, drag: 0.6 }
+        { max: 4, grow: 0.5, drag: 0.6, kind: "smoke" }
       );
     /* embers flung off the sheath */
     if (!podHidden(p) && Math.random() < 0.5)
@@ -430,7 +430,7 @@ function podTrail(p, heat, near = 1) {
         T.ember[Math.random() < 0.5 ? 0 : 1],
         1,
         rnd(0.8, 1.6),
-        { max: 1.6, g: 9, drag: 0.8 }
+        { max: 1.6, g: 9, drag: 0.8, kind: "spark" }
       );
     /* the skull's spiral: two strands of bright sparks wound round the trail, left hanging */
     if (T.spiral && !podHidden(p))
@@ -586,7 +586,7 @@ function podCrater(p, c, size = 1) {
       0x8a8178,
       0.5,
       rnd(0.8, 1.3),
-      { max: 1.3, grow: 1.5, drag: 2.4 }
+      { max: 1.3, grow: 1.5, drag: 2.4, kind: "smoke" }
     );
   }
 }
@@ -773,7 +773,7 @@ function updPods(dt) {
         0x5c534b,
         0.35,
         2.5,
-        { grow: 0.6, drag: 0.5 }
+        { grow: 0.6, drag: 0.5, kind: "smoke" }
       );
     if (p.life < 1.5 && Math.random() < dt * 10)
       ptAdd(

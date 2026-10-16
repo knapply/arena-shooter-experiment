@@ -6,6 +6,7 @@
    --fx     fire a burst and set off an explosion in front of the camera before each shot
    --pilot  put a pilot 3.5 m in front of the camera, its shield just hit
    --set=k:v  override a setting after the preset (e.g. --set=aa:smaa)
+   --fxwait=ms  how long after the effects to take the shot
    --cmd=c  run a developer console command first (e.g. --cmd="bake on")
    --only=v only the views whose name contains v
    Writes <outDir>/<preset>-<view>.png (default tools/out/) and prints draw calls per view. */
@@ -107,6 +108,13 @@ const VIEWS = [
         const at = c.clone().addScaledVector(d, 9);
         at.y = Math.max(0.3, at.y - 1);
         KA.blast(at, 0xffa040, 4);
+        /* a sniper trail across the view */
+        KA.tracer(
+          c.clone().add(new KA.THREE.Vector3(1, -0.5, 0)),
+          at.clone().add(new KA.THREE.Vector3(-6, 2, -10)),
+          0x9fd8ff,
+          0.6
+        );
         for (let i = 0; i < 6; i++)
           KA.tracer(
             c.clone().add(new KA.THREE.Vector3(2, -0.4, 0)),
@@ -137,7 +145,8 @@ const VIEWS = [
         for (let i = 0; i < 6; i++) q.pose(1 / 60, { wpn: 1 });
         K.CON.run("timescale 0");
       });
-    if (flags.has("--fx") || flags.has("--pilot")) await p.waitForTimeout(hw ? 120 : 400);
+    if (flags.has("--fx") || flags.has("--pilot"))
+      await p.waitForTimeout(+(args.find(a => a.startsWith("--fxwait=")) || "").slice(9) || (hw ? 120 : 400));
     const file = path.join(OUT, `${preset}-${name}.png`);
     await p.screenshot({ path: file });
     const info = await p.evaluate(() => ({
