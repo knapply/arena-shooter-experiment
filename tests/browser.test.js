@@ -141,21 +141,89 @@ const podSeats = map => {
       KA.me.pos.set(-30, 0, 30);
     });
     await p.waitForTimeout(200);
-    const zoom = async () => {
-      await p.mouse.down({ button: "right" });
-      await p.waitForTimeout(80);
-      await p.mouse.up({ button: "right" });
-      await p.waitForTimeout(250);
+    /* (waits on the game: a slow machine draws fewer, longer frames) */
+    const lvlIs = async n => {
+      for (let i = 0; i < 40 && (await p.evaluate(() => KA.zoomLvl)) !== n; i++) await p.waitForTimeout(50);
       return p.evaluate(() => KA.zoomLvl);
     };
-    const z1 = await zoom(),
-      z2 = await zoom(),
-      z3 = await zoom();
-    check(z1 === 1 && z2 === 2 && z3 === 0, "sniper cycles 5x → 10x → off", [z1, z2, z3]);
-    await zoom();
+    const hint = () => p.evaluate(() => document.getElementById("zHint").textContent);
+    /* holding aim keeps the scope up at 5x; the extra zoom key steps to 10x and back; letting go drops it */
+    await p.mouse.down({ button: "right" });
+    const s1 = await lvlIs(1);
+    for (let i = 0; i < 40 && !/10×/.test(await hint()); i++) await p.waitForTimeout(50);
+    const sk1 = await hint();
+    await p.keyboard.press("ShiftLeft");
+    const s2 = await lvlIs(2);
+    const sk2 = await hint();
+    await p.keyboard.press("ShiftLeft");
+    const s3 = await lvlIs(1);
+    await p.mouse.up({ button: "right" });
+    const s4 = await lvlIs(0);
+    check(
+      s1 === 1 && s2 === 2 && s3 === 1 && s4 === 0 && /Shift.*10×/.test(sk1) && /Shift.*5×/.test(sk2),
+      "sniper: hold aim for 5x, the extra zoom key (shown in the scope) steps to 10x and back, letting go drops it",
+      [s1, s2, s3, s4, sk1, sk2]
+    );
+    /* the click-steps-the-zoom mode keeps the old cycle: 5x, 10x, off */
+    const click = async n => {
+      await p.mouse.down({ button: "right" });
+      await p.waitForTimeout(60);
+      await p.mouse.up({ button: "right" });
+      return lvlIs(n);
+    };
+    await p.evaluate(() => (KA.SET.aimMode = "cycle"));
+    const c1 = await click(1),
+      c2 = await click(2),
+      c3 = await click(0);
+    await p.evaluate(() => (KA.SET.aimMode = "hold"));
+    check(c1 === 1 && c2 === 2 && c3 === 0, "sniper, click-steps mode: 5x → 10x → off", [c1, c2, c3]);
+    /* a controller: hold the trigger to keep the sights up, the left stick click for 10x (the scope says
+       so with the controller's button), and the stick click doesn't start a sprint while scoped */
+    await p.evaluate(p => (window.__pad = p), pad({ 6: 1 }));
+    const g1 = await lvlIs(1);
+    for (let i = 0; i < 40 && !/L stick/i.test(await hint()); i++) await p.waitForTimeout(50);
+    const gh = await hint();
+    await p.evaluate(p => (window.__pad = p), pad({ 6: 1, 10: 1 }));
+    const g2 = await lvlIs(2);
+    await p.evaluate(p => (window.__pad = p), pad({ 6: 1 }));
+    await p.waitForTimeout(100);
+    const sprint = await p.evaluate(() => KA.GP.sprint);
+    await p.evaluate(p => (window.__pad = p), pad());
+    const g3 = await lvlIs(0);
+    check(
+      g1 === 1 && g2 === 2 && g3 === 0 && /L stick.*10×/i.test(gh) && !sprint,
+      "sniper on a controller: hold the trigger for 5x, the stick click (shown in the scope) for 10x, release drops it",
+      [g1, g2, g3, gh, sprint]
+    );
+    /* the controller's toggle aim: pull once to scope, again to stop */
+    await p.evaluate(() => (KA.SET.padAimMode = "toggle"));
+    const tap = async btns => {
+      await p.evaluate(p => (window.__pad = p), pad(btns));
+      await p.waitForTimeout(120);
+      await p.evaluate(p => (window.__pad = p), pad());
+      await p.waitForTimeout(80);
+    };
+    await tap({ 6: 1 });
+    const t1 = await lvlIs(1);
+    await tap({ 10: 1 });
+    const t2 = await lvlIs(2);
+    await tap({ 6: 1 });
+    const t3 = await lvlIs(0);
+    await p.evaluate(() => {
+      KA.SET.padAimMode = "hold";
+      window.__pad = null;
+    });
+    check(
+      t1 === 1 && t2 === 2 && t3 === 0,
+      "controller toggle aim: pull to scope, stick click for 10x, pull again to stop",
+      [t1, t2, t3]
+    );
+    await p.mouse.down({ button: "right" });
+    await lvlIs(1);
     await p.evaluate(() => KA.hurtMe(5, { name: "test" }));
-    await p.waitForTimeout(120);
-    check((await p.evaluate(() => KA.zoomLvl)) === 0, "taking damage descopes");
+    const hurt = await lvlIs(0);
+    await p.mouse.up({ button: "right" });
+    check(hurt === 0, "taking damage descopes");
     check(
       await p.evaluate(() => Number.isFinite(KA.camera.fov) && KA.camera.fov > 10),
       "camera FOV stays valid"
@@ -163,6 +231,39 @@ const podSeats = map => {
     await p.keyboard.press("Digit2");
     await p.waitForTimeout(500);
     check((await p.evaluate(() => KA.wi)) === 0, "slot 2 switches to the carbine");
+    /* every weapon has its own reticle, and the hit marker sits outside it */
+    const kinds = {};
+    for (const [key, want] of [
+      ["pistol", "smart"],
+      ["carbine", "holo"],
+      ["sniper", "sniper"],
+      ["rocket", "rocket"],
+      ["scatter", "shotgun"],
+      ["shotgun", "shotgun"],
+    ]) {
+      const t = await p.evaluate(k => KA.WEAPON_DATA.findIndex(w => w.key === k), key);
+      if (t < 0) continue;
+      await p.evaluate(t => KA.giveWeapon(t, null), t);
+      let got = "";
+      for (let i = 0; i < 30 && got !== want; i++) {
+        await p.waitForTimeout(50);
+        got = await p.evaluate(() => document.getElementById("xh").dataset.kind);
+      }
+      kinds[key] = [got, want, await p.evaluate(() => document.querySelectorAll("#xh svg *").length)];
+    }
+    check(
+      Object.values(kinds).every(([g, w, n]) => g === w && n > 1),
+      "each weapon draws its own reticle (pistol ring, rifle arcs, sniper ticks, rocket brackets, shotgun spread ring)",
+      kinds
+    );
+    /* (the carbine back in that slot for what follows) */
+    await p.evaluate(() =>
+      KA.giveWeapon(
+        KA.WEAPON_DATA.findIndex(w => w.key === "carbine"),
+        null
+      )
+    );
+    await p.waitForTimeout(450);
     /* event stream: a kill carries stable ids, weapon, map and mode; feed and medals follow it */
     const ev = await p.evaluate(() => {
       const b = KA.bots[0];

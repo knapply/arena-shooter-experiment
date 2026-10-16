@@ -594,9 +594,6 @@ body[data-trk="bl"] #ctfHud.play #cComms {
   display: inline-flex;
   align-items: center;
 }
-#xh i {
-  background: var(--xh, var(--ink));
-}
 @media (max-width: 640px) {
   .srow {
     grid-template-columns: minmax(0, 1fr) 64px;
@@ -615,23 +612,132 @@ body[data-trk="bl"] #ctfHud.play #cComms {
   }
 }
 
-/* ---------- reticle, scopes, pickups ---------- */
-#xh.red i {
-  background: #ff4b3e;
-}
+/* ---------- sights while aiming (ui/reticle.js draws them in screen pixels) ---------- */
 #scope {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  --sc: #8fe3ff;
 }
-#scope .lens,
-#scope .ret {
+#scope > svg {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--sc);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
 }
-#scope .ret i {
+#scope .ring {
+  stroke-width: 2px;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 4px #5ab8ff);
+}
+#scope .ring.thin {
+  stroke-width: 1.2px;
+  opacity: 0.6;
+}
+#scope .faint {
+  opacity: 0.4;
+}
+#scope .line {
+  opacity: 0.7;
+}
+#scope .warm {
+  stroke: #ffc06a;
+  stroke-width: 2px;
+  filter: drop-shadow(0 0 3px #ff9a3a);
+}
+/* the smart-link sights: a glowing lens edge and a dim rim round the ring */
+.sc-smart,
+.sc-rocket,
+.sc-shotgun,
+.sc-holo {
+  --r: 15vh;
+}
+.sc-rocket {
+  --r: 17vh;
+}
+.sc-shotgun {
+  --r: 24vh;
+}
+.sc-holo {
+  --r: 20vh;
+}
+.sc-smart::before,
+.sc-rocket::before,
+.sc-shotgun::before,
+.sc-holo::before {
+  content: "";
   position: absolute;
-  display: block;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(120, 210, 255, 0.04) 0 calc(var(--r) - 0.6vh),
+    rgba(120, 210, 255, 0.3) var(--r),
+    rgba(120, 210, 255, 0.05) calc(var(--r) + 1vh),
+    rgba(5, 10, 16, 0.18) calc(var(--r) + 3vh),
+    rgba(5, 10, 16, 0.42) 100%
+  );
+}
+.sc-holo::before {
+  background: radial-gradient(
+    circle at center,
+    transparent 0 calc(var(--r) + 1vh),
+    rgba(5, 10, 16, 0.12) calc(var(--r) + 6vh),
+    rgba(5, 10, 16, 0.32) 100%
+  );
+}
+/* the sniper's visor */
+#scope .frame {
+  fill: #03070a;
+  fill-opacity: 0.93;
+  stroke: none;
+}
+#scope .edge {
+  stroke-width: 2px;
+  opacity: 0.7;
+  filter: drop-shadow(0 0 6px #5ab8ff);
+}
+#scope .cross {
+  stroke: #d8f4ff;
+  stroke-width: 1.2px;
+  opacity: 0.9;
+}
+#scope .arc {
+  opacity: 0.32;
+  stroke-linecap: butt;
+}
+#scope .light {
+  fill: #bff0ff;
+  stroke: none;
+  filter: drop-shadow(0 0 6px #7fdcff);
+}
+#scope .zbox {
+  stroke-width: 1px;
+  opacity: 0.6;
+}
+#scope .zbox.on {
+  fill: #8fe3ff33;
+  opacity: 1;
+}
+#scope .ztxt {
+  fill: var(--sc);
+  stroke: none;
+  text-anchor: middle;
+  font-family: var(--f-mono);
+  font-weight: 600;
+  opacity: 0.6;
+}
+#scope .ztxt.on {
+  fill: #fff;
+  opacity: 1;
+}
+#scope.lock .cross,
+#scope.lock .ring {
+  stroke: #ff4b3e;
+  filter: drop-shadow(0 0 4px #ff4b3e);
 }
 #scope .sinfo {
   position: absolute;
@@ -643,106 +749,25 @@ body[data-trk="bl"] #ctfHud.play #cComms {
   letter-spacing: 0.12em;
   color: #9fe1ff;
   text-shadow: 0 0 6px #000;
+  white-space: nowrap;
 }
-.sc-smart .lens {
-  background: radial-gradient(
-    circle at center,
-    transparent 0 29vmin,
-    rgba(110, 200, 255, 0.14) 29.4vmin,
-    rgba(110, 200, 255, 0.55) 29.9vmin,
-    rgba(110, 200, 255, 0.08) 30.6vmin,
-    rgba(8, 14, 20, 0.38) 31vmin
-  );
+/* which button gives the other zoom level, on the device in use */
+#zHint {
+  position: absolute;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #cfeeff;
+  text-shadow: 0 0 6px #000;
+  white-space: nowrap;
 }
-.sc-smart .ret .o {
-  left: 50%;
-  top: 50%;
-  width: 26px;
-  height: 26px;
-  margin: -13px 0 0 -13px;
-  border: 1.5px solid #9fe1ff;
-  border-radius: 50%;
-  box-shadow: 0 0 6px #5ab8ff;
-}
-.sc-smart .ret .a,
-.sc-smart .ret .b {
-  top: 50%;
-  height: 1.5px;
-  width: 9vmin;
-  background: linear-gradient(90deg, transparent, #9fe1ff);
-}
-.sc-smart .ret .a {
-  right: calc(50% + 20px);
-}
-.sc-smart .ret .b {
-  left: calc(50% + 20px);
-  transform: scaleX(-1);
-}
-.sc-smart .ret .c,
-.sc-smart .ret .d {
-  left: 50%;
-  width: 1.5px;
-  height: 5vmin;
-  background: #9fe1ff;
-  opacity: 0.7;
-}
-.sc-smart .ret .c {
-  bottom: calc(50% + 20px);
-}
-.sc-smart .ret .d {
-  top: calc(50% + 20px);
-}
-.sc-smart .sinfo {
-  top: calc(50% + 22vmin);
-}
-.sc-sniper .lens {
-  background: radial-gradient(circle at center, transparent 0 41vmin, #05080a 41.4vmin);
-}
-.sc-sniper .ret .a,
-.sc-sniper .ret .b {
-  top: 50%;
-  height: 1px;
-  width: 38vmin;
-  background: #0b1216;
-}
-.sc-sniper .ret .a {
-  right: calc(50% + 2.5vmin);
-}
-.sc-sniper .ret .b {
-  left: calc(50% + 2.5vmin);
-}
-.sc-sniper .ret .c,
-.sc-sniper .ret .d {
-  left: 50%;
-  width: 1px;
-  height: 38vmin;
-  background: #0b1216;
-}
-.sc-sniper .ret .c {
-  bottom: calc(50% + 2.5vmin);
-}
-.sc-sniper .ret .d {
-  top: calc(50% + 2.5vmin);
-}
-.sc-sniper .ret .o {
-  left: 50%;
-  top: 50%;
-  width: 5vmin;
-  height: 5vmin;
-  margin: -2.5vmin 0 0 -2.5vmin;
-  border: 1px solid #0b1216;
-  border-radius: 50%;
-}
-.sc-sniper .sinfo {
-  top: calc(50% + 30vmin);
-  color: #cfe9ff;
-}
-#scope.lock .ret .o {
-  border-color: #ff4b3e;
-  box-shadow: 0 0 6px #ff4b3e;
-}
-#scope.sc-sniper.lock .ret i:not(.o) {
-  background: #ff4b3e;
+#zHint kbd {
+  font: 700 10px var(--f-mono);
+  color: var(--void);
+  background: var(--sc, #8fe3ff);
+  padding: 1px 6px;
+  margin-right: 6px;
+  clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
 }
 #thrustArc {
   position: absolute;
