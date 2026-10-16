@@ -18,7 +18,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/render/environment.js` | 173 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyGfx` `pc` `scaleBoxUV` |
 | `src/render/surfaces.js` | 328 | `SURF_MATS` `SURF_DEBUG` `SURF_U` `SURF_GLSL` `surfMat` `applySurf` `bakeMarkings` |
 | `src/render/perf.js` | 118 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
-| `src/data/modes.js` | 265 | `MODE_DATA` `PLAY_MODES` `AI_SKILL` `POD_TIME` `POD_HEIGHT` `POD_EARLY` `SANDBOX_PRESETS` |
+| `src/data/modes.js` | 266 | `MODE_DATA` `PLAY_MODES` `AI_SKILL` `POD_TIME` `POD_HEIGHT` `POD_EARLY` `SANDBOX_PRESETS` |
 | `src/data/maps.js` | 620 | `MAP_SCHEMA` `MAPS` `mapZone` `SIDE_NAMES` `zoneLabel` `PLAY_MAP` `setPlayMap` `zoneAt` `mapPieces` `ringPieces` `MAP_MODS` `MOD_DOCS` `mapDoc` |
 | `src/world/destruction.js` | 343 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `CHIP_STAGES` `_cp` `_cv` `chipGeo` `chipBox` `unchipBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` … (+5) |
 | `src/world/dress.js` | 183 | `DRESS_MATS` `zoneMat` `dressMap` |

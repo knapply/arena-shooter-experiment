@@ -140,7 +140,7 @@ const KNOBS = {
   /* a floatier jump with the same apex: air time 1 s (8 = grav 9.1, jump 4.56) or 1.33 s (grav 5.2, jump 3.87) */
   /* the Sandbox's recharge numbers: the simulation's recharge reads RULE (below), so set both */
   sbRegenDelay: { set: v => (K.TUNE.regenDelay = RULE.regenDelay = v), def: 3, try: [4] },
-  sbShieldRate: { set: v => (K.TUNE.shieldRate = RULE.shieldRate = v), def: 48, try: [35] },
+  sbShieldRate: { set: v => (K.TUNE.shieldRate = RULE.shieldRate = v), def: 48, try: [37] },
   sbHealthRate: { set: v => (K.TUNE.healthRate = RULE.healthRate = v), def: 28, try: [7.5] },
   sbMeleeShield: { set: v => (K.MELEE.shield = v), def: 40, try: [70] },
   sbCarbHead: { set: v => (W("carbine").head = Math.round(W("carbine").body * v)), def: 11 / 9, try: [2] },

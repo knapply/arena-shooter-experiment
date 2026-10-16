@@ -228,9 +228,10 @@ export const SANDBOX_PRESETS = {
          comes back only with a fresh sprint press; no slowdown while scoped */
       sbSprintResume: 0,
       sbAdsMove: 1,
-      /* shields come back after 4 s and refill in 2 s, health in 6 s; two melee blows kill */
+      /* shields come back after 4 s (measured from the HUD bar: 3.97 s) and refill linearly in 1.9 s
+         (37 a second), health in 6 s; two melee blows kill */
       sbRegenDelay: 4,
-      sbShieldRate: 35,
+      sbShieldRate: 37,
       sbHealthRate: 7.5,
       sbMeleeShield: 70,
       /* magnum: 0.3 s between shots, 1.5x sight, 1.15 s reload, a small kick */

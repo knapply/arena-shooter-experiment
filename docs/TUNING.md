@@ -258,7 +258,7 @@ Body-scale quantities are in body heights (bodyH); "ours" scales them to the 1.8
 | Thrust | burst 0.10 to 0.13 s, plume 0.4 to 0.5 s (9); about 1.6 bodyH (C, 1); follows the movement input, works in the air, no firing during it; gaps of at least 4 s | 17 m/s for 0.24 s, about 2.5 bodyH; 2.2 s recharge |
 | Ground pound | charge 0.64 to 0.70 s (4), dive 0.43 s (4); outer ring 1.8 bodyH, kill ring 0.6 (1) | 0.55 s; 5 m (2.8 bodyH) |
 | Spartan charge | lunge 0.40 s (5); full sprint after 0.83 to 0.95 s | 0.38 s after 0.85 s |
-| Shields and health | 70 and 45 (data-mined, the same as ours); recharge after 4 s, shield full in 2 s, health in 6 s | after 3 s; 48/s and 28/s |
+| Shields and health | 70 and 45 (data-mined, the same as ours); recharge after 4 s, shield full in 2 s, health in 6 s (measured from the HUD bar frame by frame: recharge starts 3.97 s after the last hit, IQR 3.96-4.02, n=29; empty to full in 1.90 s, linear, n=9) | after 3 s; 48/s and 28/s |
 | Melee | two blows kill: one takes a full shield | three: 40 a blow |
 | Magnum | 0.300 s between shots (no gap shorter in 160 spam gaps; data-mined 0.28); 1.5× sight; reload 1.15 s; kick about 0.5°, back in 0.17 s; 5-shot kill in 1.23 s | 0.26 s; 1.8×; 1.3 s; 2.6° kick |
 | Automatic rifle (our carbine) | 0.100 s; 7.8 a round, headshots ×2 once shields are down; 36 rounds; spread 0.15 to 2.3° from the hip; reload 1.5 s; kick about 0.3° a round | 9, ×1.22; 32; 0.7° base; 1.8 s; 0.9° |
@@ -288,7 +288,7 @@ The recharge numbers moved from fixed constants into `TUNE`; the ground pound's 
 | Thrust, slide, clamber | thrust 12 m/s (about 2.9 m), 4 s recharge; slide 0.5 s; clamber ×2.3 |
 | Ground pound | charge 0.65 s, radius 3.2 m |
 | Sprint and scope | 0.15 s from sprint to fire; no slowdown when scoped |
-| Recharge and melee | recharge after 4 s at 35 shield/s and 7.5 health/s; 70 shield per melee blow |
+| Recharge and melee | recharge after 4 s at 37 shield/s (measured: 3.97 s, empty to full in 1.90 s) and 7.5 health/s; 70 shield per melee blow |
 | Magnum | 0.30 s, 1.5×, reload 1.15 s, kick 0.009 rad |
 | Carbine | 7.8 damage, headshots ×2, spread 0.003, reload 1.5 s, kick 0.006 rad |
 | Sniper | 0.78 s |
