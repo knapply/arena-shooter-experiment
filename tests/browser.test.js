@@ -1228,7 +1228,9 @@ const podSeats = map => {
       const from = new KA.THREE.Vector3(Math.cos(KA.me.yaw) * 8, 0, -Math.sin(KA.me.yaw) * 8).add(KA.me.pos);
       KA.hurtMe(5, { pos: from, w: "rifle" });
       await new Promise(r => setTimeout(r, 120));
-      const el = document.querySelector("#dmgDir .darc");
+      /* the newest arc (a live drone may have hit you a moment before) */
+      const all = document.querySelectorAll("#dmgDir .darc"),
+        el = all[all.length - 1];
       /* where it should point now (you may have turned or moved a little since) */
       const ang = Math.atan2(-(from.x - KA.me.pos.x), -(from.z - KA.me.pos.z)) - KA.me.yaw;
       let want = (-ang * 180) / Math.PI;
