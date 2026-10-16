@@ -819,29 +819,28 @@ const fix = v => +v.toFixed(2);
     "weapon-lock simulations keep endless ammo"
   );
 }
-/* ---------- lab content (docs/PROPOSALS.md): off by default, usable by the AI when on ---------- */
+/* ---------- the roster: five weapons, the scattergun in the power rotation; Labs (map changes) off by
+   default and offline only ---------- */
 {
   const W = k => K.WEAPON_DATA.find(w => w.key === k);
-  const kb = K.killStats(W("burst")),
-    ks = K.killStats(W("scatter")),
-    kbm = K.killStats(W("beam"));
   check(
-    kb.best.shots === 11 && Math.abs(kb.best.time - 1.14) < 0.01,
-    "burst rifle: four bursts kill",
-    kb.best
+    K.WEAPON_DATA.map(w => w.key).join() === "carbine,pistol,sniper,rocket,scatter",
+    "five weapons: carbine, magnum, sniper, rocket launcher, scattergun",
+    K.WEAPON_DATA.map(w => w.key)
   );
+  check(
+    K.POWER_ROTATION.join() === "sniper,rocket,scatter",
+    "the scattergun is in the power rotation",
+    K.POWER_ROTATION
+  );
+  const ks = K.killStats(W("scatter"));
   check(ks.best.shots === 1, "scattergun: every pellet up close kills", ks.best);
   check(
     Math.abs(K.falloffAt(W("scatter"), 16) - 0.25) < 1e-9 && K.falloffAt(W("scatter"), 4) === 1,
     "scattergun falls off to a quarter by 16 m"
   );
-  check(
-    kbm.best.shots === kbm.body.shots && between(kbm.best.time, 1.2, 1.6),
-    "arc beam: ~1.4 s on target",
-    kbm
-  );
   const L = K.LABS;
-  check(!L.burst && !L.scatter && !L.beam && !L.pulse && !L.mods.length, "every lab is off by default", L);
+  check(!L.gates && !L.mods.length, "every lab is off by default", L);
   const m1 = [
     K.meleeDamage(70, false),
     K.meleeDamage(30, false),
@@ -864,43 +863,18 @@ const fix = v => +v.toFixed(2);
     for (let i = 0; i < steps; i++) G.step(1 / 30);
     return { G, kills };
   };
-  check(
-    play({}, 1).G.pickups.every(p => !p.lab),
-    "lab pickups stay off the map while their labs are off"
-  );
-  for (const lock of ["burst", "scatter", "beam"]) {
-    const r = play({ map: "arena", lock, scoreLimit: 1e9 }, 30 * 40);
-    check((r.kills[lock] || 0) >= 3, `the AI fights with the ${lock} (weapon lock)`, r.kills);
+  {
+    const r = play({ map: "arena", lock: "scatter", scoreLimit: 1e9 }, 30 * 40);
+    check((r.kills.scatter || 0) >= 3, "the AI fights with the scatter (weapon lock)", r.kills);
   }
-  Object.assign(L, { burst: true, pulse: true, mods: ["doors"] });
+  L.mods = ["doors"];
   try {
-    const r = play({}, 30);
-    check(
-      r.G.pickups.some(p => p.lab === "burst"),
-      "burst rifle pickups appear while the lab is on"
-    );
+    play({}, 30);
     check(CTF.MAP.id === "twin-foundry-doors", "a map mod builds its own map", CTF.MAP.id);
-    const [a] = r.G.teams[0].agents,
-      e = r.G.teams[1].agents[0];
-    check(a.nadeInv.pulse >= 1, "pilots carry a pulse grenade while its lab is on", a.nadeInv);
-    e.body.pos.set(a.pos.x + 2, a.pos.y, a.pos.z);
-    e.body.shield = 70;
-    e.body.health = 45;
-    e.body.spawnT = -9;
-    a.nadeOwner().onExplode(e.body.pos.clone().add(new K.THREE.Vector3(0, 1, 0)), "pulse", null);
-    check(
-      e.body.shield === 0 && e.body.health === 45 && e.body.thrustCD >= 2.4,
-      "a pulse strips shields and jams thrust without touching health",
-      { sh: e.body.shield, hp: e.body.health, cd: e.body.thrustCD }
-    );
-    const off = play({ labs: false }, 1);
-    check(
-      off.G.pickups.every(p => !p.lab) && CTF.MAP.id === "twin-foundry",
-      "online matches (labs: false) play the shipped game",
-      CTF.MAP.id
-    );
+    play({ labs: false }, 1);
+    check(CTF.MAP.id === "twin-foundry", "online matches (labs: false) play the shipped game", CTF.MAP.id);
   } finally {
-    Object.assign(L, { burst: false, pulse: false, mods: [] });
+    L.mods = [];
   }
 }
 /* ---------- blast gates (world/gates.js): the arena's north gate stands across x = 0, z 10.8 to 17.

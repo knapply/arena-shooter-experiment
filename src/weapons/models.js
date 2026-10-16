@@ -6,7 +6,7 @@
      shape     b box, r bevelled box (a b c = width height depth), c cylinder along z (a = front radius,
                b = back radius, c = length), v upright cylinder, s cylinder across, n the ammo counter
      material  D dark metal, P light plate, A armor (the pilot's colour), S polymer, G light (it flares
-               on each shot and turns red on low ammo), C amber paint, X arc emitter
+               on each shot and turns red on low ammo), C amber paint
      flags     f first person only, m the magazine (it moves through the reload), a the action (a slide or
                pump: it cycles after each shot in first person)
      e         the tilt about x, or a cylinder's number of sides
@@ -152,34 +152,6 @@ const GUN_MODELS = [
     "cCm .062 .062 .1 0 0 .36 16",
     "cCm .042 .042 .1 0 -.11 .36 14",
   ],
-  /* burst rifle: a bullpup with an armored top shell, a squared shroud with glowing slits, flash
-     hider, holo sight on a riser, magazine behind the grip */
-  [
-    "rD .076 .08 .5 0 -.015 -.06",
-    "rA .07 .045 .34 0 .045 .01",
-    "bD .072 .047 .006 0 .045 -.06 *2 0 0 .12",
-    "rD .07 .09 .14 0 .005 -.37",
-    "rP .062 .07 .05 0 .005 -.465",
-    "bG .074 .006 .1 0 .025 -.37 *2 0 -.03 0",
-    "cD .014 .016 .17 0 .012 -.56",
-    "cD .02 .02 .04 0 .012 -.64 6",
-    "bD .024 .012 .12 0 .05 -.3",
-    "bD .03 .008 .3 0 .06 -.17",
-    "bD .06 .012 .06 0 .064 -.12",
-    "bD .008 .044 .01 -.03 .09 -.12 *2 .06 0 0",
-    "bD .068 .008 .01 0 .116 -.12",
-    "bP .03 .012 .02 -.048 .03 -.26",
-    "bG .078 .004 .14 0 -.03 .06",
-    "bC .078 .006 .12 0 -.03 -.24",
-    "nG .03 .014 0 -.036 .045 .06 0 -1.5708",
-    "rS .07 .11 .03 0 -.01 .205",
-    "rS .045 .11 .055 0 -.1 -.02 .25",
-    "bDf .048 .005 .05 0 -.071 -.013 .25 *4 0 -.0194 -.0049",
-    "bD .01 .008 .08 0 -.075 -.08",
-    "bP .006 .022 .006 0 -.065 -.06 .3",
-    "rSm .05 .13 .07 0 -.11 .12",
-    "bSm .056 .016 .076 0 -.172 .12",
-  ],
   /* scattergun: an octagonal shroud vented with light over a wide barrel, a glowing bore, ghost ring
      and bead on a vent rib, ridged pump, shells strapped to the left side */
   [
@@ -208,32 +180,6 @@ const GUN_MODELS = [
     "bD .01 .008 .08 0 -.078 -.01",
     "bP .006 .022 .006 0 -.068 .01 .3",
     "cCm .012 .012 .06 0 -.07 -.12 8",
-  ],
-  /* arc beam: twin prongs with glowing tips around a coil-wound emitter, an arc seam down the body,
-     heat-sink fins at the back, a glowing power cell */
-  [
-    "rD .074 .095 .42 0 0 -.06",
-    "rA .066 .02 .24 0 .052 .03",
-    "bD .068 .022 .006 0 .052 -.02 *2 0 0 .1",
-    "rD .06 .11 .16 0 -.01 .24",
-    "bX .078 .012 .3 0 .01 -.12",
-    "bG .076 .004 .14 0 -.03 .06",
-    "rP .05 .06 .08 0 .01 -.3",
-    "cP .016 .016 .3 0 .01 -.43",
-    "cX .042 .042 .016 0 .01 -.36 12 *4 0 0 -.055",
-    "rD .012 .012 .26 0 .06 -.45 *2 0 -.1 0",
-    "bX .014 .02 .02 0 .05 -.57 *2 0 -.08 0",
-    "bD .05 .014 .006 0 .05 .2 *4 0 0 .025",
-    "bD .06 .012 .06 0 .059 -.06",
-    "bD .008 .044 .01 -.03 .085 -.06 *2 .06 0 0",
-    "bD .068 .008 .01 0 .111 -.06",
-    "nG .03 .014 0 -.0385 -.022 .06 0 -1.5708",
-    "rS .045 .11 .055 0 -.1 .08 .25",
-    "bDf .048 .005 .05 0 -.071 .087 .25 *4 0 -.0194 -.0049",
-    "bD .01 .008 .08 0 -.075 .01",
-    "bP .006 .022 .006 0 -.062 .02 .3",
-    "rXm .05 .09 .1 0 -.1 -.14",
-    "bXm .056 .014 .106 0 -.148 -.14",
   ],
 ];
 /** the parts of weapon i, repeats expanded */

@@ -148,7 +148,7 @@ const CON = (() => {
   }
 
   /* ---- commands ---- */
-  const WEAPON_NAMES = { carbine: 0, pistol: 1, sniper: 2, burst: 4, scatter: 5, beam: 6 };
+  const WEAPON_NAMES = { carbine: 0, pistol: 1, sniper: 2, rocket: 3, scatter: 4 };
   /** @type {Record<string, [string, (a: string[]) => any]>} */
   const CMDS = {
     help: [
@@ -179,7 +179,7 @@ const CON = (() => {
           .join(" ")} yaw ${me.yaw.toFixed(2)}`,
     ],
     give: [
-      "give carbine|pistol|sniper",
+      "give carbine|pistol|sniper|rocket|scatter",
       a => {
         const w = WEAPON_NAMES[a[0]];
         if (w == null) return "unknown weapon";

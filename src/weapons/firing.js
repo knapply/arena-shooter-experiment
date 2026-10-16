@@ -110,8 +110,6 @@ function perfectKill(id) {
   const w = WEAPONS[r.w];
   return !!w.precision && !w.headAlways && r.hits === killStats(w).best.shots;
 }
-/** rounds left in the burst in progress (burst weapons fire the rest without the trigger) */
-let burstLeft = 0;
 /** this frame's length (set by the loop): a shot is "on time" if the gun became ready this frame */
 let fireStep = 1 / 60;
 /** pulling the trigger on an empty gun with nothing to reload: a click, and the other weapon comes
@@ -127,7 +125,6 @@ function dryFire() {
 function fire(src) {
   if (reloadT > 0) return;
   if (mag <= 0) {
-    burstLeft = 0;
     if (reserve[wi] <= 0) dryFire();
     else startReload();
     return;
@@ -141,11 +138,6 @@ function fire(src) {
      9 at 60). A shot after a pause starts a fresh interval, so pausing never banks time */
   const late = fireCD > -fireStep ? fireCD : 0;
   fireCD = late + Wd.rate;
-  /* a burst: the rounds inside it come at its gap, and the next burst starts `rate` after this one */
-  if (Wd.burst) {
-    burstLeft = burstLeft > 0 ? burstLeft - 1 : Wd.burst - 1;
-    fireCD = late + (burstLeft > 0 ? Wd.burstGap : Wd.rate - (Wd.burst - 1) * Wd.burstGap);
-  } else burstLeft = 0;
   lastFireT = now;
   /* firing ends spawn protection */
   if (!src) {
@@ -190,7 +182,7 @@ function fire(src) {
   SHOT.t = now;
   const R = Wd.range || 120,
     muzzle = src ? src.muzzle : VMW[wi].g.localToWorld(Wd.muzzle.clone()),
-    col = wi === 2 ? 0x9fd8ff : Wd.key === "beam" ? 0xb98aff : 0xffd28a,
+    col = wi === 2 ? 0x9fd8ff : 0xffd28a,
     /** damage per target over every pellet of this shot (one hit marker each) */
     dealt = new Map();
   let anyHit = null;
@@ -210,7 +202,7 @@ function fire(src) {
       if (h && (!best || h.t < best.h.t)) best = { t, h };
     }
     const end = o.clone().addScaledVector(pd, best ? best.h.t : Math.min(wt, R));
-    if (p < 5) tracer(muzzle, end, col, wi === 2 ? 0.6 : Wd.key === "beam" ? 0.13 : 0.1);
+    if (p < 5) tracer(muzzle, end, col, wi === 2 ? 0.6 : 0.1);
     if (best) {
       const shielded = best.t.ref.body ? best.t.ref.body.shield > 0 : best.t.ref.sh > 0;
       const hd = best.h.head && (Wd.headAlways || !shielded);

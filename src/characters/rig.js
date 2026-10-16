@@ -174,9 +174,7 @@ const WPN_RIG = [
   { grip: new V3(0, -0.08, 0.09), fore: new V3(-0.035, -0.1, 0.075), kick: 8, every: 0.26, flip: 1 },
   { grip: new V3(0, -0.08, 0.14), fore: new V3(0, -0.06, -0.32), kick: 9, every: 0.62 },
   { grip: new V3(0, -0.15, 0.08), fore: new V3(0, -0.14, -0.3), kick: 12, every: 0.9 },
-  { grip: new V3(0, -0.08, 0.06), fore: new V3(0, -0.06, -0.22), kick: 3, every: 0.36 },
   { grip: new V3(0, -0.08, 0.12), fore: new V3(0, -0.07, -0.24), kick: 10, every: 0.8 },
-  { grip: new V3(0, -0.08, 0.1), fore: new V3(0, -0.06, -0.2), kick: 1, every: 0.05 },
 ];
 const MAGSLOT = new V3(0, -0.11, -0.08);
 /* one reload, shared by the first-person viewmodel and every rig (fractions of the reload time):
@@ -490,11 +488,9 @@ const WPN_FIT = [
   [-0.008, 0.042, [TRIM, SUIT, GLOW]],
   [0.02, 0.02, [TRIM, GLOW, SUIT, ARM2]],
   [0.06, 0.04, [ARM2, TRIM, GLOW, SUIT]],
-  [0.02, 0.08, [TRIM, ARM, GLOW, SUIT, ARM2]],
   [0.02, 0.06, [TRIM, ARM2, SUIT, ARM, GLOW]],
-  [0.02, 0.02, [TRIM, GLOW, SUIT, ARM2]],
 ];
-const WPN_ROLE = { D: TRIM, P: ARM2, A: ARM, S: SUIT, G: GLOW, X: GLOW, C: ARM };
+const WPN_ROLE = { D: TRIM, P: ARM2, A: ARM, S: SUIT, G: GLOW, C: ARM };
 function weaponParts(i) {
   if (i >= 0) {
     const [oy, oz, has] = WPN_FIT[i];

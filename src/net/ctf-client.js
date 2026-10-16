@@ -311,7 +311,7 @@
     function mirrorBits(a, st) {
       NET.applyBits(a.body, st);
       a.firing = !!(st & 4096);
-      a.wpn = (st & 40960) === 40960 ? 3 : st & 32768 ? 2 : st & 8192 ? 1 : 0;
+      a.wpn = (st & 8192 ? 1 : 0) | (st & 32768 ? 2 : 0) | (st & 131072 ? 4 : 0);
       if (st & 64) {
         if (a.reloadT <= 0) a.reloadT = K.RELOAD_TIME;
       } else a.reloadT = 0;

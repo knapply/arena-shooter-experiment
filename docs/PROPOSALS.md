@@ -2,7 +2,9 @@
 
 Ideas to make the game more dynamic and competitive, the ones worth building prototyped behind flags, and simulations of each. The goal throughout: easy to pick up, an extremely high skill ceiling, and play that feels smooth and responsive.
 
-Everything here is **off by default**. Turn prototypes on in **Settings → Labs** (offline matches only; online rooms always play the shipped game) or in simulation with `tools/tune.js` knobs (below). No existing default was changed.
+**The weapon prototypes are gone:** the burst rifle, the arc beam and the pulse grenade were removed, and the scattergun shipped as the third power weapon in the centre rotation. Their sections below are kept as a record.
+
+Everything else here is **off by default**. Turn prototypes on in **Settings → Labs** (offline matches only; online rooms always play the shipped game) or in simulation with `tools/tune.js` knobs (below). No existing default was changed.
 
 ## Summary
 

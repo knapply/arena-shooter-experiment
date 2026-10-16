@@ -130,8 +130,9 @@
       (b.chargeT > 0 ? 1024 : 0) |
       (b.pound === 2 ? 2048 : 0) |
       (o.fire ? 4096 : 0) |
-      (o.wpn === 1 || o.wpn === 3 ? 8192 : 0) |
-      (o.wpn >= 2 ? 32768 : 0) |
+      (o.wpn & 1 ? 8192 : 0) |
+      (o.wpn & 2 ? 32768 : 0) |
+      (o.wpn & 4 ? 131072 : 0) |
       (o.carry ? 16384 : 0) |
       (b.aiming ? 65536 : 0)
     );
@@ -163,7 +164,7 @@
   const _s = new V3(),
     _t = new V3();
   /** how far each hitscan weapon reaches, with some slack (claims without a ray are checked by this) */
-  const HITSCAN_RANGE = { rifle: 95, pistol: 95, burst: 95, beam: 60, scatter: 45 };
+  const HITSCAN_RANGE = { rifle: 95, pistol: 95, scatter: 45 };
   NET.plausible = function (shooterPos, target, w, at) {
     if (!target || !target.alive) return false;
     _s.copy(shooterPos);
@@ -241,7 +242,7 @@
         NET.applyBits(a.body, st);
         a.firing = !!(st & 4096);
         a.reloading = !!(st & 64);
-        a.wpn = (st & 40960) === 40960 ? 3 : st & 32768 ? 2 : st & 8192 ? 1 : 0;
+        a.wpn = (st & 8192 ? 1 : 0) | (st & 32768 ? 2 : 0) | (st & 131072 ? 4 : 0);
       }
     };
     const _pbs = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, s: null };
@@ -606,7 +607,7 @@
         const st = pr.st | 0;
         a.firing = !!(st & 4096);
         a.reloading = !!(st & 64);
-        a.wpn = (st & 40960) === 40960 ? 3 : st & 32768 ? 2 : st & 8192 ? 1 : 0;
+        a.wpn = (st & 8192 ? 1 : 0) | (st & 32768 ? 2 : 0) | (st & 131072 ? 4 : 0);
       }
       if (Array.isArray(pr.br)) K.applyBreaks(pr.br, true, "c:" + peer);
       if (Array.isArray(pr.pk) && a.init) {

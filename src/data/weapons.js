@@ -119,40 +119,8 @@ const WEAPON_DATA = [
     scope: "smart",
     power: true,
   },
-  /* ---- lab weapons (docs/PROPOSALS.md): only on the maps' lab pickups and in the power rotation
-     while their LABS flag is on ---- */
-  {
-    key: "burst",
-    lab: "burst",
-    name: "MR-3 burst rifle",
-    /* three-round bursts: each round goes where the reticle is at that instant, so tracking through
-       the burst is the skill. Four bursts kill (the last two rounds to the head once shields drop) */
-    mag: 36,
-    reserve: 180,
-    rate: 0.36,
-    burst: 3,
-    burstGap: 0.06,
-    auto: true,
-    precision: true,
-    body: 8,
-    head: 22,
-    reload: 2.0,
-    spread: 0,
-    adsSpread: 0,
-    bloom: 0,
-    recoil: 0.022,
-    recover: 14,
-    zoom: [2],
-    muzzle: [0, 0.012, -0.66],
-    dmg: "burst",
-    snd: "bshot",
-    rum: [0.12, 0.22, 45],
-    kick: 0.035,
-    scope: "holo",
-  },
   {
     key: "scatter",
-    lab: "scatter",
     name: "SG-12 scattergun",
     /* nine pellets in a cone, full damage to 5 m, falling to a quarter by 16 m: one shot kills up
        close, two at mid range, and the pump between shots is the opening */
@@ -181,64 +149,23 @@ const WEAPON_DATA = [
     scope: "smart",
     power: true,
   },
-  {
-    key: "beam",
-    lab: "beam",
-    name: "AR-1 arc beam",
-    /* a continuous beam: no spread and no headshots, damage only while it stays on target, so
-       tracking a strafing pilot is the whole skill. The cell vents (reloads) after 2.5 s of beam */
-    mag: 50,
-    reserve: 300,
-    rate: 0.05,
-    auto: true,
-    precision: true,
-    body: 4,
-    head: 4,
-    falloff: [22, 40, 0.4],
-    range: 50,
-    reload: 1.6,
-    spread: 0,
-    adsSpread: 0,
-    bloom: 0,
-    recoil: 0.002,
-    recover: 100,
-    zoom: [1.5],
-    muzzle: [0, 0.01, -0.58],
-    dmg: "beam",
-    snd: "beam",
-    rum: [0.05, 0.12, 30],
-    kick: 0.004,
-    scope: "holo",
-  },
 ];
 /* seconds to bring the other gun up (players and AI) */
 const SWITCH_TIME = 0.36;
 /* the power weapons the centre spawn rotates through */
-const POWER_ROTATION = ["sniper", "rocket"];
-/* ---- LABS: prototype content from docs/PROPOSALS.md, all off by default. The Labs settings turn
-   it on for offline matches (online play always uses the shipped game: LABS.on is false there), and
-   tools/tune.js turns it on for simulations.
-     burst    burst rifle pickups on the maps        scatter  the scattergun joins the power rotation
-     beam     arc beam pickups on the maps           pulse    pulse grenades (strip shields, jam thrust)
-
+const POWER_ROTATION = ["sniper", "rocket", "scatter"];
+/* ---- LABS: prototype map changes from docs/PROPOSALS.md, all off by default. The Labs settings turn
+   them on for offline matches (online play always uses the shipped game: LABS.on is false there), and
+   tools/tune.js turns them on for simulations.
      gates    blast gates rise and sink on both maps (world/gates.js)
      mods     map changes by name (MAP_MODS, data/maps.js) */
 const LABS = {
   on: true,
-  burst: false,
-  scatter: false,
-  beam: false,
-  pulse: false,
-
   gates: false,
   mods: /** @type {string[]} */ ([]),
 };
 /** is a lab feature live right now? */
 const labOn = k => LABS.on && !!LABS[k];
-/** the power rotation, with any live lab power weapons added */
-function powerRotation() {
-  return POWER_ROTATION.concat(WEAPON_DATA.filter(w => w.power && w.lab && labOn(w.lab)).map(w => w.key));
-}
 /** damage share at range d for a weapon with falloff [full to, lowest from, lowest share] */
 function falloffAt(w, d) {
   const f = w.falloff;
@@ -260,9 +187,7 @@ function killStats(w) {
       d -= s;
       hp -= d;
     }
-    /* a burst weapon: whole bursts at its rate, the rounds inside a burst at its gap */
-    const b = w.burst || 1,
-      t = Math.floor((n - 1) / b) * w.rate + ((n - 1) % b) * (w.burstGap || 0);
+    const t = (n - 1) * w.rate;
     return { shots: n, time: +t.toFixed(2) };
   };
   return { best: run(true), body: run(false) };

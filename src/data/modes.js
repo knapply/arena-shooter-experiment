@@ -245,14 +245,6 @@ export const SANDBOX_PRESETS = {
       sbCarbSpread: 0.003,
       sbCarbReload: 1.5,
       sbCarbRecoil: 0.006,
-      /* burst rifle (Labs): a burst every 0.4 s, rounds 0.035 s apart, 11 rounds take the shield and a
-         headshot kills, 1.4 s reload, about 0.6 degrees of kick a burst */
-      sbBurstRate: 0.4,
-      sbBurstGap: 0.035,
-      sbBurstDmg: 6.5,
-      sbBurstHead: 45,
-      sbBurstReload: 1.4,
-      sbBurstRecoil: 0.0035,
       /* sniper: 0.78 s between shots */
       sbSnipeRate: 0.78,
     },

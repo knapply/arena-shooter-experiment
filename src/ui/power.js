@@ -69,7 +69,7 @@ function arenaPowerHolders() {
   for (const r of remotes.values()) {
     if (!r.has || r.dead || !r.rig) continue;
     const s = r.st | 0,
-      w = (s & 40960) === 40960 ? 3 : s & 32768 ? 2 : 0;
+      w = (s & 8192 ? 1 : 0) | (s & 32768 ? 2 : 0) | (s & 131072 ? 4 : 0);
     if (w >= 2)
       out.push({
         id: r.id,

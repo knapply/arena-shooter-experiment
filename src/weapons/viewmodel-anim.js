@@ -201,7 +201,7 @@ function updVM(dt, c) {
     vmS.shot = 0;
     vmS.jy = rnd(-1, 1) * V.kj;
     vmS.jz = rnd(-1, 1) * V.kj;
-    if (fxOn() && vmRoot.visible && W().key !== "beam") {
+    if (fxOn() && vmRoot.visible) {
       flashSprite.getWorldPosition(_cA);
       ptAdd(
         PTS.soft,

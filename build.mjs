@@ -108,10 +108,10 @@ export function sandboxDoc() {
     "| Weapon | Body | Head | Fire interval | Best kill (shots / time) | Body shots only | Precision |\n|---|---|---|---|---|---|---|\n";
   for (const w of ctx.W) {
     const k = ctx.K(w);
-    md += `| ${w.name}${w.lab ? " (lab)" : ""}${w.pellets ? ` (${w.pellets} pellets, at close range)` : ""}${w.burst ? ` (${w.burst}-round bursts)` : ""} | ${w.body} | ${w.head >= 999 ? "kill" : w.head}${w.headAlways ? " (head always)" : ""} | ${w.rate} s | ${k.best.shots} / ${k.best.time} s | ${k.body.shots} / ${k.body.time} s | ${w.precision ? "yes" : "no (spread and bloom)"} |\n`;
+    md += `| ${w.name}${w.pellets ? ` (${w.pellets} pellets, at close range)` : ""} | ${w.body} | ${w.head >= 999 ? "kill" : w.head}${w.headAlways ? " (head always)" : ""} | ${w.rate} s | ${k.best.shots} / ${k.best.time} s | ${k.body.shots} / ${k.body.time} s | ${w.precision ? "yes" : "no (spread and bloom)"} |\n`;
   }
   md +=
-    "\nWeapons marked *(lab)* are prototypes, off unless turned on in Settings → Labs (see `docs/PROPOSALS.md`). Shots for burst weapons count rounds; for pellet weapons, a shot is every pellet hitting at close range.\n" +
+    "\nFor pellet weapons, a shot is every pellet hitting at close range.\n" +
     "\n**Perfect** medal: a kill with a precision weapon in its minimum shot count with no missed shots in between (the magnum's is 4 body or head shots to break shields, then a headshot: 5 shots, 1.04 s).\n";
   return md;
 }

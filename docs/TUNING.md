@@ -190,7 +190,7 @@ In short, the reference runs a little quicker for its size and sprints about as 
 
 ### Presentation (direct; the feel tests pass)
 
-- **Zoom timing per weapon.** The zoom takes 0.06 s on the magnum, 0.08 s on the burst rifle, 0.09 s on the sniper and 0.1 s on the others. Magnification builds nearly linearly, settling only at the very end, and letting go or being knocked out takes 0.05 s. The gun still leads the optic to the eye.
+- **Zoom timing per weapon.** The zoom takes 0.06 s on the magnum, 0.09 s on the sniper and 0.1 s on the others. Magnification builds nearly linearly, settling only at the very end, and letting go or being knocked out takes 0.05 s. The gun still leads the optic to the eye.
 - **A thrust drops the scope** on its first frame; aim again to come back in.
 - **The camera barely bobs.** The step bob is down to about a quarter (0.6 cm walking, 1.2 cm sprinting) and the sprint roll to a third. The weapon's own sway carries the stride.
 
@@ -262,7 +262,7 @@ Body-scale quantities are in body heights (bodyH); "ours" scales them to the 1.8
 | Melee | two blows kill: one takes a full shield | three: 40 a blow |
 | Magnum | 0.300 s between shots (no gap shorter in 160 spam gaps; data-mined 0.28); 1.5× sight; reload 1.15 s; kick about 0.5°, back in 0.17 s; 5-shot kill in 1.23 s | 0.26 s; 1.8×; 1.3 s; 2.6° kick |
 | Automatic rifle (our carbine) | 0.100 s; 7.8 a round, headshots ×2 once shields are down; 36 rounds; spread 0.15 to 2.3° from the hip; reload 1.5 s; kick about 0.3° a round | 9, ×1.22; 32; 0.7° base; 1.8 s; 0.9° |
-| Burst rifle (our Labs burst rifle) | a burst every 0.40 s (A); rounds 0.033 s apart on video (audio suggests 0.075); 11 rounds take the shield, a headshot kills; reload about 1.4 s; about 0.6° of kick a burst | 0.36 s; 0.06 s; 8 and 22; 2 s; about 3.8° a burst |
+| Burst rifle (no counterpart here since the roster went to five weapons) | a burst every 0.40 s (A); rounds 0.033 s apart on video (audio suggests 0.075); 11 rounds take the shield, a headshot kills; reload about 1.4 s; about 0.6° of kick a burst | (removed) |
 | Sniper | 0.78 s between shots (data-mined 0.75) | 0.62 s |
 
 Not measured, or not reliably: thrust distance beyond one sample, slide speed, clamber reach, the stabilize hover (1.05 to 1.78 s, C), melee lunge range, and the magnum's small bloom (0 to 0.6° data-mined; its recovery is unknown, so no knob was added).
@@ -274,7 +274,6 @@ Not measured, or not reliably: thrust distance beyond one sample, slide speed, c
 - **Ground pound:** charge time and radius. The damage scales with the radius: it kills at the centre and falls to a light hit at the edge.
 - **Carbine:** headshot multiplier, reload and kick.
 - **Magnum:** reload, sight zoom and kick.
-- **Burst rifle:** burst interval, round gap, damage, headshot damage, reload and kick.
 - **Ranges:** ground acceleration and strafe reversal now go down to 20.
 
 The recharge numbers moved from fixed constants into `TUNE`; the ground pound's charge time and radius too.
@@ -292,7 +291,6 @@ The recharge numbers moved from fixed constants into `TUNE`; the ground pound's 
 | Recharge and melee | recharge after 4 s at 35 shield/s and 7.5 health/s; 70 shield per melee blow |
 | Magnum | 0.30 s, 1.5×, reload 1.15 s, kick 0.009 rad |
 | Carbine | 7.8 damage, headshots ×2, spread 0.003, reload 1.5 s, kick 0.006 rad |
-| Burst rifle | a burst every 0.40 s, 0.035 s gap, 6.5 / 45 damage, reload 1.4 s, kick 0.0035 rad |
 | Sniper | 0.78 s |
 
 The previous pass's floatier jump to the same height is gone. The reference jump is both floaty and high, and it reaches ledges our maps were not built around: about 2.7 m by jump and about 5 m with a clamber. So the preset changes routes, which is the point of playing it. The AI's paths still assume the default jump.
@@ -424,7 +422,7 @@ No weapon has endless reserve ammo. The starting guns carry about what a pilot f
 | Arena 2 v 2 | 18 / 55 / 76 | 3 / 12 / 21 | 990 |
 | Arena duels (1 v 1) | 21 / 52 / 63 | 4 / 13 / 16 | 360 |
 
-Capture the flag at normal skill has the longest lives and the most shooting, so its 95th percentile sets the loads, rounded to whole magazines: **carbine 32 + 96 reserve (128 rounds), magnum 12 + 36 reserve (48)**. The lab rifles were measured with `LOCK` (every pilot holds only that gun, so these overstate a life that also has the magnum): burst rifle p95 221 rounds, arc beam p95 512. They get **burst 36 + 180 (216)** and **beam 50 + 300 (350)**: the beam's reserve stays under what a dropped weapon can carry online (a weapon drop's rounds travel as fixed-point numbers up to 327), and in normal play it shares a life with the magnum. Power weapons keep their loads (sniper 4 + 8, rockets 2 + 4, scattergun 6 + 12). The practice drones and the CTF AI carry the same reserves and reload from them; a dry gun means switching, and an AI pilot down to its last magazine detours to a dropped gun of the kind it carries. The `LOCK` simulations keep endless ammo: they measure a weapon, not a life.
+Capture the flag at normal skill has the longest lives and the most shooting, so its 95th percentile sets the loads, rounded to whole magazines: **carbine 32 + 96 reserve (128 rounds), magnum 12 + 36 reserve (48)**. Power weapons keep their loads (sniper 4 + 8, rockets 2 + 4, scattergun 6 + 12). The practice drones and the CTF AI carry the same reserves and reload from them; a dry gun means switching, and an AI pilot down to its last magazine detours to a dropped gun of the kind it carries. The `LOCK` simulations keep endless ammo: they measure a weapon, not a life.
 
 With the finite reserves in place the same capture-the-flag runs come out within noise of before (kills per minute 15.0 against 15.4, skill share 0.848 against 0.854), and the arena is unchanged: a normal life very rarely runs out.
 
