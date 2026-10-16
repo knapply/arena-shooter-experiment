@@ -16,7 +16,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/render/renderer.js` | 231 | `LIGHT_K` `canvas` `renderer` `scene` `camera` `resize` `hemi` `sun` `_skyP` `skyTint` `SKY_TIME` `SKY_SUN` `SKY_Q` `SKY_U` |
 | `src/render/shadow-fit.js` | 54 | `SHADOW_FIT` `_sfC` `_sfF` `_sfR` `_sfI` `_sfO` `_sfU` `sunDir` `fitShadow` |
 | `src/render/tone.js` | 96 | `TONE` `TONE_CURVES` `toneLut` `TONE_GLSL` |
-| `src/render/pipeline.js` | 1018 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `VIEWPOS` `VIEWNRM` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `REPROJ` `taaMat` `mbMat` `MAP_LOOK` `LOOK_NOW` `applyLook` `HEAT_U` … (+28) |
+| `src/render/pipeline.js` | 1016 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `VIEWPOS` `VIEWNRM` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `REPROJ` `taaMat` `mbMat` `MAP_LOOK` `LOOK_NOW` `applyLook` `HEAT_U` … (+28) |
 | `src/render/environment.js` | 199 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyFog` `applyGfx` `pc` `scaleBoxUV` |
 | `src/render/map-env.js` | 116 | `MAP_ENV` `_meV` `PROBE_HEMI` `PROBE_K` `mapEnvCapture` `mapSH` `mapEnvFrame` |
 | `src/render/surfaces.js` | 328 | `SURF_MATS` `SURF_DEBUG` `SURF_U` `SURF_GLSL` `surfMat` `applySurf` `bakeMarkings` |

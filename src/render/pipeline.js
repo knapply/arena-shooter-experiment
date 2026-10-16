@@ -231,14 +231,13 @@ const taaMat = new THREE.ShaderMaterial({
     pvp: { value: new THREE.Matrix4() },
     camW: { value: new THREE.Matrix3() },
     camP: { value: new THREE.Vector3() },
-    jit: { value: new THREE.Vector2() },
     size: { value: new THREE.Vector2(1, 1) },
     hOk: { value: 0 },
   },
   vertexShader: FSV,
   depthTest: false,
   depthWrite: false,
-  fragmentShader: `uniform sampler2D tC;uniform sampler2D tH;uniform vec2 jit;uniform vec2 size;uniform float hOk;varying vec2 vUv;${VIEWPOS}${REPROJ}
+  fragmentShader: `uniform sampler2D tC;uniform sampler2D tH;uniform vec2 size;uniform float hOk;varying vec2 vUv;${VIEWPOS}${REPROJ}
 vec3 tm(vec3 c){return c/(1.+max(c.r,max(c.g,c.b)));}
 vec3 itm(vec3 c){return c/max(1e-4,1.-max(c.r,max(c.g,c.b)));}
 vec3 yc(vec3 c){return vec3(.25*c.r+.5*c.g+.25*c.b,.5*c.r-.5*c.b,-.25*c.r+.5*c.g-.25*c.b);}
@@ -248,7 +247,7 @@ vec2 w0=f*(-.5+f*(1.-.5*f)),w1=1.+f*f*(-2.5+1.5*f),w2=f*(.5+f*(2.-1.5*f)),w3=f*f
 vec2 t0=(tp-1.)/size,t3=(tp+2.)/size,t12=(tp+w2/w12)/size;
 vec3 r=tm(texture2D(tH,vec2(t12.x,t0.y)).rgb)*w12.x*w0.y+tm(texture2D(tH,vec2(t0.x,t12.y)).rgb)*w0.x*w12.y+tm(texture2D(tH,t12).rgb)*w12.x*w12.y+tm(texture2D(tH,vec2(t3.x,t12.y)).rgb)*w3.x*w12.y+tm(texture2D(tH,vec2(t12.x,t3.y)).rgb)*w12.x*w3.y;
 return max(r/(w12.x*w0.y+w0.x*w12.y+w12.x*w12.y+w3.x*w12.y+w12.x*w3.y),0.);}
-void main(){vec2 cu=vUv+jit;vec4 c0=texture2D(tC,cu);vec3 c=tm(c0.rgb);
+void main(){vec2 cu=vUv;vec4 c0=texture2D(tC,cu);vec3 c=tm(c0.rgb);
 vec3 m1=vec3(0.),m2=vec3(0.);
 for(int i=-1;i<=1;i++)for(int j=-1;j<=1;j++){vec3 y=yc(tm(texture2D(tC,cu+vec2(float(i),float(j))/size).rgb));m1+=y;m2+=y*y;}
 m1/=9.;vec3 sd=sqrt(max(m2/9.-m1*m1,0.));
@@ -671,7 +670,6 @@ function temporalPasses(taa) {
     const T = taaMat.uniforms;
     T.tC.value = GFX.rt.texture;
     T.tH.value = GFX.taaB.texture;
-    T.jit.value.set(-GFX.jx / GFX.w, GFX.jy / GFX.h);
     T.size.value.set(GFX.w, GFX.h);
     T.hOk.value = GFX.taaOk && !cut ? 1 : 0;
     fsPass(taaMat, GFX.taaA);
