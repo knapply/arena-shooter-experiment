@@ -54,8 +54,10 @@ function podGeo() {
     const a = (i * Math.PI) / 3;
     hull.push(at(new THREE.BoxGeometry(0.1, 0.9, 0.08), Math.sin(a) * 0.7, 1.0, Math.cos(a) * 0.7, a));
   }
-  /* four swept wedge fins on the collar, each with a nozzle at its foot lit in the pod's colour
-     (in the bands' mesh); once the pod is buried they stand out of the crater */
+  /* four swept wedge fins on the collar, each with a thruster vent at its foot (the game's vent
+     motif, render/item-models.js): the vent's body in the hull, its throat in the nose, so it glows
+     with the descent's heat and goes dark as the wreck cools; once the pod is buried the fins and
+     vents stand out of the crater */
   const fin = new THREE.Shape();
   fin.moveTo(0, 0);
   fin.lineTo(0.3, 0.12);
@@ -67,18 +69,27 @@ function podGeo() {
     g.translate(0, 0, -0.03);
     return g;
   };
-  const nozzles = [];
+  const throats = [];
   for (let i = 0; i < 4; i++) {
     const a = Math.PI / 4 + (i * Math.PI) / 2,
       s = Math.sin(a),
       c = Math.cos(a);
     hull.push(at(finGeo(), s * 0.66, 0.9, c * 0.66, a - Math.PI / 2));
-    nozzles.push(at(new THREE.BoxGeometry(0.075, 0.06, 0.11), s * 0.92, 0.98, c * 0.92, a));
+    const v = ventParts(
+      new THREE.Matrix4()
+        .makeRotationY(a)
+        /* (exhaust angled down and out, so its throat shows from the side) */
+        .multiply(new THREE.Matrix4().makeRotationX(-0.8))
+        .multiply(new THREE.Matrix4().makeScale(1.8, 1.8, 1.8))
+        .setPosition(s * 0.95, 1.22, c * 0.95)
+    );
+    hull.push(...v.body);
+    throats.push(...v.throat);
   }
   POD_GEO.hull = mergeGeos(hull);
-  POD_GEO.nose = mergeGeos([at(nose, 0, 0, 0)]);
+  POD_GEO.nose = mergeGeos([at(nose, 0, 0, 0), ...throats]);
   const band = () => new THREE.CylinderGeometry(0.735, 0.735, 0.08, 14, 1, true);
-  POD_GEO.bands = mergeGeos([at(band(), 0, 1.3, 0), at(band(), 0, 0.75, 0), ...nozzles]);
+  POD_GEO.bands = mergeGeos([at(band(), 0, 1.3, 0), at(band(), 0, 0.75, 0)]);
   /* the skull's pod alone wears a crown of bone spikes round its collar */
   const spikes = [];
   for (let i = 0; i < 6; i++) {

@@ -139,6 +139,17 @@ fs.mkdirSync(out, { recursive: true });
   });
   await look(p, [0, 0, -17], [0, 0.8, -27]);
   await shot(p, "pods-landed");
+  /* a pilot pod up close just after it lands: fins, and thruster vents still hot from the descent */
+  await p.evaluate(async () => {
+    KA.CON.run("timescale 1");
+    const V = KA.THREE.Vector3;
+    window.__close = KA.dropPod(new V(-3, 0.02, -24), "#62cdff");
+    for (let i = 0; i < 600 && !(window.__close.landed && window.__close.life > 0.6); i++)
+      await new Promise(r => setTimeout(r, 10));
+    KA.CON.run("timescale 0");
+  });
+  await look(p, await lookClear(p, [-3, 0, -24], 3.4), [-3, 0.5, -24]);
+  await shot(p, "pod-vents");
   await p.close();
 
   /* ---- capture the flag: a flag on its stand ---- */
