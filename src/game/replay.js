@@ -123,7 +123,7 @@ const REPLAY = (() => {
         tr.seen = true;
         if (R.eye && tr.i === 0 && _v.set(a.a.x, a.a.y, a.a.z).distanceToSquared(R.eye) < 6.5) {
           if (tr.type === 4) subjectShot("rocket");
-          else if (tr.type <= 3) vmS.throwT = 0.42;
+          else if (tr.type <= 3) vmS.throwT = THROW_T;
         }
       }
     }

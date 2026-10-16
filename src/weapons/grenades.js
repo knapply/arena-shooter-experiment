@@ -268,7 +268,7 @@ function throwNade() {
   nadeInv[type]--;
   nadeCD = 0.9;
   me.spawnT = -1e9; /* attacking ends spawn protection */
-  vmS.throwT = 0.42;
+  vmS.throwT = THROW_T;
   nadeAuto();
   updNadeHud();
   const d = new V3();

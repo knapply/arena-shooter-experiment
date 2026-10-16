@@ -111,6 +111,15 @@ function vmHolo(g, y, z, w, h) {
 const HOLO = new V3(0, 0.128, -0.08);
 // magnum iron sights: front post and rear notch tops share y = PIS.y
 const PIS = new V3(0, 0.0585, -0.135);
+/* a grenade throw: how long it lasts (s), and the off hand's path through it (camera space, by time) */
+const THROW_T = 0.42;
+/** @type {[number, number[]][]} */
+const THROW_KEYS = [
+  [0, [-0.26, 0.12, -0.2]],
+  [0.035, [-0.07, 0.03, -0.5]],
+  [0.12, [-0.17, -0.2, -0.42]],
+  [0.2, [-0.28, -0.48, -0.25]],
+];
 /* the support hand through a reload (RELOAD_T in characters/rig.js): out, pouch, in, a palm slap,
    then the charging handle (carbine) or the slide (magnum) pulled back and let go */
 const VM_RELOAD = [
