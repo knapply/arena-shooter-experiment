@@ -1141,7 +1141,8 @@
           at.z -= (dz / x) * short;
         }
       }
-      const v = type === "plasma" ? K.solveThrow(o, at, 17, 20) : arcVel(o, at, 38, 20);
+      const g = K.NADE_TUNE.grav,
+        v = type === "plasma" ? K.solveThrow(o, at, (17 * K.NADE_TUNE.throw) / 19, g) : arcVel(o, at, 38, g);
       if (!v) {
         this.nadeCD = 1.5;
         return;

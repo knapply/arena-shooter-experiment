@@ -157,6 +157,24 @@ const KNOBS = {
     def: 0,
     try: [1],
   },
+  sbNadeGrav: { set: v => (K.NADE_TUNE.grav = v), def: 9, try: [20] },
+  sbNadeContact: { set: v => (K.NADES.frag.contact = v), def: 0.7, try: [0] },
+  sbFragDmg: { set: v => (K.NADES.frag.dmg = v), def: 129, try: [105] },
+  sbPlasmaLand: { set: v => (K.NADES.plasma.land = v), def: 1.5, try: [0] },
+  sbPlasmaStick: { set: v => (K.NADES.plasma.stick = v), def: 1, try: [0] },
+  sbPlasmaDmg: { set: v => (K.NADES.plasma.dmg = v), def: 163, try: [115] },
+  sbPlasmaRadius: { set: v => (K.NADES.plasma.r = v), def: 6.1, try: [4.2] },
+  /* the grenades from before they were measured from footage (docs/TUNING.md, "Grenades from footage") */
+  sbNadeOld: {
+    set: v => {
+      if (!v) return;
+      Object.assign(K.NADE_TUNE, { grav: 20, throw: 19 });
+      Object.assign(K.NADES.frag, { fuse: 2.6, contact: 0, r: 4.2, dmg: 105 });
+      Object.assign(K.NADES.plasma, { land: 0, stick: 0, r: 4.2, dmg: 115 });
+    },
+    def: 0,
+    try: [1],
+  },
   sbSprintResume: { set: v => (K.TUNE.sprintResume = v), def: 0.3, try: [0] },
   sbPoundCharge: { set: v => (K.TUNE.poundCharge = v), def: 0.55, try: [0.65] },
   sbPoundRadius: { set: v => (K.TUNE.poundR = v), def: 5, try: [3.2] },
@@ -186,8 +204,19 @@ const KNOBS = {
     set: v => {
       if (!v) return;
       Object.assign(W("carbine"), {
-        mag: 32, reserve: 96, rate: 0.1, burst: 0, precision: false, body: 9, head: 11, reload: 1.8,
-        spread: 0.012, adsSpread: 0.004, bloom: 0.004, recoil: 0.016, recover: 8,
+        mag: 32,
+        reserve: 96,
+        rate: 0.1,
+        burst: 0,
+        precision: false,
+        body: 9,
+        head: 11,
+        reload: 1.8,
+        spread: 0.012,
+        adsSpread: 0.004,
+        bloom: 0.004,
+        recoil: 0.016,
+        recover: 8,
       });
       Object.assign(W("pistol"), { reserve: 36, rate: 0.26, reload: 1.3 });
       Object.assign(W("sniper"), { rate: 0.62, reload: 2.4 });
@@ -207,10 +236,10 @@ const KNOBS = {
   sbSnipeRate: { set: v => (W("sniper").rate = v), def: 0.78, try: [0.62, 0.9] },
   sbRocketSplash: { set: v => (W("rocket").splash = v), def: 150, try: [120, 180] },
   sbRocketRadius: { set: v => (W("rocket").radius = v), def: 4.2, try: [3.4, 5] },
-  sbNadeThrow: { set: v => (K.NADE_TUNE.throw = v), def: 19, try: [16, 22] },
+  sbNadeThrow: { set: v => (K.NADE_TUNE.throw = v), def: 25.5, try: [19, 29] },
   sbNadeBounce: { set: v => (K.NADE_TUNE.bounce = v), def: 0.38, try: [0.25, 0.5] },
-  sbNadeFuse: { set: v => (K.NADES.frag.fuse = v), def: 2.6, try: [2.2, 3] },
-  sbNadeRadius: { set: v => (K.NADES.frag.r = v), def: 4.2, try: [3.6, 4.8] },
+  sbNadeFuse: { set: v => (K.NADES.frag.fuse = v), def: 1.4, try: [1.2, 1.8] },
+  sbNadeRadius: { set: v => (K.NADES.frag.r = v), def: 5.6, try: [4.2, 6.5] },
   /* the most of a shield a melee blow takes (data/weapons.js MELEE; 999: the whole shield, as before the
      skill-ladder pass) */
   ruMeleeShield: { set: v => (K.MELEE.shield = v), def: 40, try: [999, 25] },
@@ -642,14 +671,18 @@ for (const [k, f] of [
 KNOBS.sbNadeThrow.def = K.NADE_TUNE.throw;
 KNOBS.sbNadeBounce.def = K.NADE_TUNE.bounce;
 let CUR_MINUS_TEAM = -1;
-/* every weapon's numbers as loaded: a variant that changes fields no knob resets (sbWeapOld) is undone */
+/* every weapon's and grenade's numbers as loaded: a variant that changes fields no knob resets
+   (sbWeapOld, sbNadeOld) is undone */
 const WEAP_DEF = K.WEAPON_DATA.map(w => JSON.parse(JSON.stringify(w)));
+const NADE_DEF = JSON.parse(JSON.stringify({ n: K.NADES, t: K.NADE_TUNE }));
 function resetAll() {
   RP.minus = RP.prefer = "";
   K.WEAPON_DATA.forEach((w, i) => {
     for (const k of Object.keys(w)) if (!(k in WEAP_DEF[i])) delete w[k];
     Object.assign(w, JSON.parse(JSON.stringify(WEAP_DEF[i])));
   });
+  for (const k of Object.keys(NADE_DEF.n)) Object.assign(K.NADES[k], NADE_DEF.n[k]);
+  Object.assign(K.NADE_TUNE, NADE_DEF.t);
   K.MELEE.range = 2.3;
   K.MELEE.back = -0.35;
   for (const k of Object.keys(KNOBS)) KNOBS[k].set(KNOBS[k].def);

@@ -170,7 +170,10 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     gb = mean(between),
     want = C.rate - (C.burst - 1) * C.burstGap;
   check(
-    inside.length > 60 && between.length > 30 && Math.abs(gi - C.burstGap) < 0.015 && Math.abs(gb - want) < 0.03,
+    inside.length > 60 &&
+      between.length > 30 &&
+      Math.abs(gi - C.burstGap) < 0.015 &&
+      Math.abs(gb - want) < 0.03,
     "AI carbine fire holds the burst rhythm (pauses to re-aim aside)",
     gi.toFixed(3) + " " + gb.toFixed(3) + " " + inside.length + "/" + between.length
   );

@@ -19,6 +19,11 @@ let physAcc = 0,
 let last = performance.now(),
   menuT = 0,
   landDip = 0,
+  /* a landing's dip, shaped like the reference's (docs/TUNING.md, "Classic feel"): the view keeps
+     sinking for 0.11 s to its depth, holds a moment, then eases back up over 0.17 s, with no
+     overshoot; deeper for harder landings */
+  landT = 9,
+  landD = 0,
   fovK = 0,
   prevReload = 0,
   stepAcc = 0,
@@ -157,7 +162,8 @@ function meEvent(type, d) {
     if (d.slid) fovK = 0.5;
   } else if (type === "land") {
     if (d.vy > 4) {
-      landDip = Math.min(0.28, d.vy * 0.014);
+      landT = 0;
+      landD = Math.min(0.28, d.vy * 0.018);
       sfx(footKind("land", me.pos), clamp(d.vy / 14, 0.2, 1));
     }
     if (d.vy > 10) {
@@ -740,6 +746,16 @@ function frameBody(t) {
     landDip = Math.max(landDip, 0.13);
   }
   landDip = Math.max(0, landDip - dt * 1.2);
+  landT += dt;
+  const lk =
+    landT < 0.11
+      ? 1 - (1 - landT / 0.11) ** 2
+      : landT < 0.16
+        ? 1
+        : landT < 0.33
+          ? 0.5 + 0.5 * Math.cos((Math.PI * (landT - 0.16)) / 0.17)
+          : 0;
+  const dip = Math.max(landDip, landD * lk);
   shakeT = Math.max(0, shakeT - dt);
   const bobY =
     me.ground && me.slideT <= 0
@@ -752,7 +768,7 @@ function frameBody(t) {
   thrK = Math.max(0, thrK - dt * 4);
   camera.position.set(
     rpos.x + rnd(-sh, sh),
-    smY + eyeH - landDip * SET.bob + bobY + rnd(-sh, sh),
+    smY + eyeH - dip * SET.bob + bobY + rnd(-sh, sh),
     rpos.z + rnd(-sh, sh)
   );
   const rollT =
@@ -772,7 +788,7 @@ function frameBody(t) {
     vmS.punch * 0.04 -
     (clK >= 0 ? 0.12 * Math.sin(Math.PI * clK) : 0) -
     /* (a landing nods the view, and a hard one more) */
-    landDip * 0.16 * SET.bob;
+    dip * 0.08 * SET.bob;
   camera.rotation.z = camRoll + (me.stabbing ? Math.sin(now * 6) * 0.01 : 0) + vmS.punch * 0.035;
   fovK = Math.max(0, fovK - dt * 3);
   const fb = SET.fov;
@@ -808,7 +824,7 @@ function frameBody(t) {
     strafe: clamp(lr / 6, -1, 1),
     stepPh: stepAcc,
     moving: hs > 1 && me.ground,
-    landDip,
+    landDip: dip,
     vel: me.vel,
     yaw: me.yaw,
     ground: me.ground,
