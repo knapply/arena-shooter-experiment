@@ -937,6 +937,9 @@ function makePilot(color, label) {
     color,
     /* sprint assist (0..1, from rig.update) and the two exhaust sprites, for the effects in rigEvents */
     jet: 0,
+    /** the suit's heat, 0 to 1, for its vents' glow: a thrust or a ground pound runs it up at once, a
+        slide nearly so, a charge and a sprint less; it bleeds off over about a second (rig.update) */
+    heat: 0,
     jets: glows,
     /** where the last footstep came down (world) */
     stepAt: new V3(),
@@ -1257,6 +1260,10 @@ function makePilot(color, label) {
         ANIM.update(LO, I);
       }
       S.mocap = mocap;
+      {
+        const h = st.thrust || st.pound ? 1 : st.slide ? 0.75 : st.charge ? 0.6 : st.sprint ? 0.2 : 0;
+        rig.heat += (h - rig.heat) * Math.min(1, dt * (h > rig.heat ? 18 : 1.6));
+      }
       /* the body's lean: a fighting hunch, forward over the gun, in every stance (the capture leans
          into its own gait, so speed adds less of it here); hard into a sprint */
       let pel = 0.96,
