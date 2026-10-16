@@ -121,7 +121,7 @@ function applyPhys(sk) {
 }
 function styleRig(rig) {
   const sk = rig.root.children.filter(o => o.isSkinnedMesh);
-  if (sk.length < 7) return;
+  if (sk.length < 8) return;
   RIG_PHYS.add(sk);
   applyPhys(sk);
   const team = new THREE.Color(rig.color);
@@ -146,7 +146,7 @@ function styleRig(rig) {
     visor.emissiveIntensity = 0.25 + pulse * (0.25 + (1 - k) * 0.9);
   };
   /* the shield shell: hex lattice and a ripple from the hit */
-  const shell = sk[6].material;
+  const shell = sk.find(o => o.material.isShaderMaterial).material;
   if (shell.uniforms && shell.fragmentShader.includes("uniform float uI")) {
     shell.uniforms.uH = { value: new THREE.Vector4(0, -99, 0, -9) };
     shell.uniforms.uHex = { value: 1 };

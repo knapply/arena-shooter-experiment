@@ -1,14 +1,12 @@
 /* ============ PILOT ARMOUR ============
-   The pilot's armour, designed from the game's own language rather than from any one source:
-   - Angular wedge plates. Every hard plate is a bevelled block that tapers and leans (wedge), so
-     the body reads as faceted, prow-shaped forms: a keeled chest, swept-back shoulder wedges, a
-     prow on the knees and shins.
-   - Graphite and one bright colour. The big plates carry the team colour; the second layer, the
-     trim and the undersuit are graphite and gunmetal; thin emissive seams carry the team colour too.
-   - Visible thrusters. The pack's two main nozzles, small nozzles on the backs of the shoulders and
-     on the calves: the movement kit is something you can see on the body.
+   The pilot's armour, designed from the game's own language rather than from any one source
+   (docs/DESIGN.md). Its signature is the thruster vents: louvred clusters on the back, the calves
+   and the forearms, dark at rest, their heat cores glowing with a thrust, a slide or a ground pound
+   (rig.update). Everything else stays plain so the vents carry the identity: chamfered plates with
+   a gentle taper (wedge) in the team colour and a darker team tone, gunmetal trim, thin team-lit
+   seams, a dark undersuit at the joints.
    Detail is layered the usual way: big plates, then a second layer and panel lines (look.js), then
-   small mechanical parts (pistons, bolts, cables, vents), then wear on the edges (wear: every plate's
+   small mechanical parts (pistons, bolts, cables), then wear on the edges (wear: every plate's
    bevel remembers it is an edge; look.js lightens it to bare metal on High).
    Three distance levels share one skeleton and one draw per material: up close everything; at mid
    range the small parts go; far off every plate is a plain block and the fingers are a mitten. */
@@ -44,19 +42,70 @@ function wedge(w, h, d, o) {
 }
 /* ---- the armour at one distance level (0 near, 1 mid, 2 far): [bone, geometry, role, position,
    rotation, scale, shield shell?] per part ---- */
+/** the sprung bones (rig.js BONES) and where they sit in their mount's frame, at rest unrotated: the
+    shoulder plates, the belt pouches and rear plate, the pack */
+const NO_SHIFT = [0, 0, 0];
+const SPRUNG = {
+  padL: [-0.03, 0.09, 0],
+  padR: [0.03, 0.09, 0],
+  pouchL: [-0.12, 0.065, 0.15],
+  pouchR: [0.12, 0.065, 0.15],
+  pouchB: [0, 0.035, 0.125],
+  pack: [0, 0.26, 0.21],
+};
 function pilotParts(lod = 0) {
   const parts = [];
   /* hi: the furthest level a part is kept at (small parts go first); lo: the nearest (a stand-in for
      detail that has gone) */
   const P = (bone, g, role, x, y, z, rot, scl, shell = false, hi = 2, lo = 0) => {
+    /* (positions are given in the mount's frame: a part on a sprung bone is moved to that bone's) */
+    const v = SPRUNG[bone] || NO_SHIFT;
     if (lod <= hi && lod >= lo)
-      parts.push({ bone, g, role, x, y, z, rot: rot || null, scl: scl || null, shell });
+      parts.push({
+        bone,
+        g,
+        role,
+        x: x - v[0],
+        y: y - v[1],
+        z: z - v[2],
+        rot: rot || null,
+        scl: scl || null,
+        shell,
+      });
   };
   const far = lod > 1;
+  /* (plates are chamfered blocks with only a gentle taper: the signature is the vents, not the plates) */
   const W = (k, w, h, d, o = {}) =>
     geo(`wd${far ? "f" : ""}:${k}:${w}:${h}:${d}`, () =>
-      wedge(w, h, d, far ? Object.assign({}, o, { flat: 1 }) : o)
+      wedge(w, h, d, {
+        r: o.r,
+        tx: (o.tx || 0) * 0.45,
+        tz: (o.tz || 0) * 0.45,
+        lean: (o.lean || 0) * 0.45,
+        flat: far || o.flat,
+      })
     );
+  /* the signature: a vent cluster, a frame round louvred slats over a heat core that is dark at rest
+     and glows with the movement kit (rig.update). ry turns its face (which looks down -z); w by h, n
+     slats; far off only the frame and the core are left */
+  const _vq = new THREE.Quaternion(),
+    _vt = new THREE.Quaternion(),
+    _ve = new THREE.Euler(),
+    _vo = new V3();
+  const vent = (bone, x, y, z, ry, w, h, n) => {
+    _vq.setFromEuler(_ve.set(0, ry, 0));
+    const put = (g, role, ox, oy, oz, tilt, hi = 2) => {
+      _vo.set(ox, oy, oz).applyQuaternion(_vq);
+      _ve.setFromQuaternion(_vt.setFromEuler(_ve.set(tilt, 0, 0)).premultiply(_vq));
+      P(bone, g, role, x + _vo.x, y + _vo.y, z + _vo.z, [_ve.x, _ve.y, _ve.z], null, false, hi);
+    };
+    put(W("vCore", w, h, 0.006), HEAT, 0, 0, 0.004, 0);
+    for (const sy of [-1, 1])
+      put(W("vBarH", w + 0.018, 0.009, 0.026), TRIM, 0, sy * (h / 2 + 0.0045), -0.006, 0);
+    for (const sx of [-1, 1]) put(W("vBarV", 0.009, h, 0.026), TRIM, sx * (w / 2 + 0.0045), 0, -0.006, 0);
+    for (let i = 0; i < n; i++)
+      put(W("vSlat", w, (h / n) * 0.55, 0.004), TRIM, 0, -h / 2 + (i + 0.5) * (h / n), -0.01, 0.65, 1);
+  };
   const cap = (k, r, l) => geo(`cap${lod}:${k}`, () => capsule(r, l, [8, 6, 5][lod]));
   const cyl = (k, a, b, h, s = 12) =>
     geo(`cyl${far ? "f" : ""}:${k}`, () => new THREE.CylinderGeometry(a, b, h, far ? 6 : s));
@@ -70,9 +119,20 @@ function pilotParts(lod = 0) {
   P("pelvis", W("cod", 0.13, 0.14, 0.06, { tx: -0.5, lean: -0.2 }), ARM, 0, -0.035, -0.12);
   for (const sd of [-1, 1]) {
     P("pelvis", W("hipPl", 0.05, 0.19, 0.2, { tz: 0.35 }), ARM2, sd * 0.195, -0.04, 0, [0, 0, sd * 0.18]);
-    P("pelvis", W("pouch", 0.08, 0.07, 0.05), TRIM, sd * 0.12, 0.03, 0.15, null, null, false, 1);
+    P(
+      sd < 0 ? "pouchL" : "pouchR",
+      W("pouch", 0.08, 0.07, 0.05),
+      TRIM,
+      sd * 0.12,
+      0.03,
+      0.15,
+      null,
+      null,
+      false,
+      1
+    );
   }
-  P("pelvis", W("rearPl", 0.26, 0.13, 0.04, { tx: 0.3 }), ARM2, 0, -0.03, 0.125);
+  P("pouchB", W("rearPl", 0.26, 0.13, 0.04, { tx: 0.3 }), ARM2, 0, -0.03, 0.125);
   for (const n of ["tabF", "tabB"]) {
     P(n, W("tab", 0.13, 0.17, 0.012), ARM2, 0, -0.08, 0);
     P(n + "2", W("tab2", 0.12, 0.15, 0.01), ARM2, 0, -0.07, 0);
@@ -131,15 +191,27 @@ function pilotParts(lod = 0) {
   P("chest", W("chest2", 0.36, 0.15, 0.23, { tx: -0.15 }), SUIT, 0, -0.08, -0.01);
   P("chest", W("gorget", 0.17, 0.07, 0.04, { tx: 0.35 }), ARM2, 0, 0.27, -0.12, [0.3, 0, 0]);
   P("chest", W("nape", 0.24, 0.12, 0.05, { tx: 0.4 }), ARM2, 0, 0.3, 0.11, [-0.3, 0, 0]);
-  P("chest", W("pack", 0.33, 0.35, 0.15, { tx: 0.3 }), TRIM, 0, 0.08, 0.21);
-  P("chest", W("packCv", 0.25, 0.22, 0.04, { tx: 0.4 }), ARM2, 0, 0.12, 0.295);
+  P("pack", W("pack", 0.33, 0.35, 0.15, { tx: 0.3 }), TRIM, 0, 0.08, 0.21);
+  P("pack", W("packCv", 0.05, 0.24, 0.04, { tx: 0.2 }), ARM2, 0, 0.1, 0.295);
+  for (const sd of [-1, 1]) vent("pack", sd * 0.085, 0.07, 0.293, Math.PI, 0.09, 0.17, 5);
   for (const sd of [-1, 1]) {
-    P("chest", W("packLt", 0.012, 0.17, 0.01), GLOW, sd * 0.14, 0.1, 0.29, [0, 0, sd * 0.12], null, false, 1);
-    P("chest", cyl("noz", 0.045, 0.065, 0.13), TRIM, sd * 0.1, -0.13, 0.27);
-    P("chest", cyl("nozIn", 0.035, 0.035, 0.02), GLOW, sd * 0.1, -0.2, 0.27);
+    P(
+      "pack",
+      W("packLt", 0.012, 0.17, 0.01),
+      GLOW,
+      sd * 0.155,
+      0.1,
+      0.285,
+      [0, 0, sd * 0.12],
+      null,
+      false,
+      1
+    );
+    P("pack", cyl("noz", 0.045, 0.065, 0.13), TRIM, sd * 0.1, -0.13, 0.27);
+    P("pack", cyl("nozIn", 0.035, 0.035, 0.02), GLOW, sd * 0.1, -0.2, 0.27);
     /* (small steering nozzles high on the pack) */
     P(
-      "chest",
+      "pack",
       cyl("nozS", 0.018, 0.026, 0.05, 8),
       TRIM,
       sd * 0.19,
@@ -151,9 +223,7 @@ function pilotParts(lod = 0) {
       1
     );
   }
-  for (let i = 0; i < 3; i++)
-    P("chest", W("vent", 0.18, 0.012, 0.012), TRIM, 0, -0.02 + i * 0.03, 0.29, null, null, false, 0);
-  P("chest", W("packRib", 0.34, 0.04, 0.17), ARM, 0, 0.2, 0.21);
+  P("pack", W("packRib", 0.34, 0.04, 0.17), ARM, 0, 0.2, 0.21);
   /* cables from the pack over the shoulders to the helmet's back */
   for (const sd of [-1, 1])
     P("chest", cap("cable", 0.012, 0.22), TRIM, sd * 0.07, 0.31, 0.1, [0.9, 0, 0], null, false, 0);
@@ -168,7 +238,7 @@ function pilotParts(lod = 0) {
   for (const [s, sd] of SIDES) {
     P("clav" + s, W("yoke", 0.13, 0.06, 0.17, { tx: 0.3 }), TRIM, sd * 0.06, 0.005, 0, null, null, false, 1);
     P(
-      "sh" + s,
+      "pad" + s,
       W("pad", 0.2, 0.12, 0.27, { tx: 0.4, tz: 0.15, lean: 0.12, r: 0.03 }),
       ARM,
       sd * 0.04,
@@ -178,16 +248,27 @@ function pilotParts(lod = 0) {
       null,
       true
     );
-    P("sh" + s, W("padEdge", 0.18, 0.035, 0.06, { tx: 0.2 }), ARM2, sd * 0.045, 0.07, -0.13, [
+    P("pad" + s, W("padEdge", 0.18, 0.035, 0.06, { tx: 0.2 }), ARM2, sd * 0.045, 0.07, -0.13, [
       0.35,
       0,
       sd * 0.4,
     ]);
-    P("sh" + s, W("padSk", 0.05, 0.13, 0.22, { tz: 0.25 }), ARM2, sd * 0.13, -0.055, 0.01, [0, 0, sd * 0.1]);
-    P("sh" + s, W("padLt", 0.006, 0.02, 0.18), GLOW, sd * 0.158, -0.075, 0.01, null, null, false, 1);
-    P("sh" + s, cyl("padNoz", 0.02, 0.028, 0.05, 8), TRIM, sd * 0.075, 0.05, 0.14, [X, 0, 0], null, false, 1);
+    P("pad" + s, W("padSk", 0.05, 0.13, 0.22, { tz: 0.25 }), ARM2, sd * 0.13, -0.055, 0.01, [0, 0, sd * 0.1]);
+    P("pad" + s, W("padLt", 0.006, 0.02, 0.18), GLOW, sd * 0.158, -0.075, 0.01, null, null, false, 1);
     P(
-      "sh" + s,
+      "pad" + s,
+      cyl("padNoz", 0.02, 0.028, 0.05, 8),
+      TRIM,
+      sd * 0.075,
+      0.05,
+      0.14,
+      [X, 0, 0],
+      null,
+      false,
+      1
+    );
+    P(
+      "pad" + s,
       cyl("padNozIn", 0.016, 0.016, 0.01, 8),
       GLOW,
       sd * 0.075,
@@ -216,19 +297,7 @@ function pilotParts(lod = 0) {
       true
     );
     P("el" + s, W("gauntLt", 0.012, 0.08, 0.012), GLOW, sd * 0.07, -0.17, -0.02, null, null, false, 1);
-    for (let i = 0; i < 2; i++)
-      P(
-        "el" + s,
-        W("fvent", 0.012, 0.012, 0.07),
-        TRIM,
-        -sd * 0.07,
-        -0.15 - i * 0.03,
-        0,
-        null,
-        null,
-        false,
-        0
-      );
+    vent("el" + s, sd * 0.066, -0.16, 0.0, -sd * Math.PI * 0.5, 0.055, 0.11, 3);
     P("hand" + s, W("palm", 0.075, 0.09, 0.09, { r: 0.02 }), SUIT, 0, -0.035, 0);
     P("hand" + s, W("handPl", 0.014, 0.06, 0.072, { tz: 0.2 }), ARM2, sd * 0.042, -0.03, 0);
     P("hand" + s, W("knuck", 0.08, 0.022, 0.095), TRIM, 0, -0.074, 0, null, null, false, 1);
@@ -284,8 +353,7 @@ function pilotParts(lod = 0) {
     P("kn" + s, W("shinP2", 0.12, 0.12, 0.07, { tx: 0.2 }), ARM2, 0, -0.33, -0.07);
     P("kn" + s, W("calf", 0.12, 0.22, 0.06, { tx: 0.2 }), ARM2, 0, -0.17, 0.065);
     P("kn" + s, W("shinLt", 0.04, 0.008, 0.008), GLOW, 0, -0.06, -0.115, null, null, false, 1);
-    P("kn" + s, cyl("cnoz", 0.024, 0.034, 0.06, 8), TRIM, 0, -0.29, 0.1, [X, 0, 0], null, false, 1);
-    P("kn" + s, cyl("cnozIn", 0.02, 0.02, 0.01, 8), GLOW, 0, -0.29, 0.131, [X, 0, 0], null, false, 1);
+    vent("kn" + s, 0, -0.2, 0.098, Math.PI, 0.075, 0.14, 4);
     P("an" + s, W("foot", 0.15, 0.1, 0.25, { tx: 0.2 }), TRIM, 0, -0.03, -0.01);
     P("an" + s, W("ankle", 0.16, 0.1, 0.16, { tx: -0.15 }), ARM2, 0, 0.04, 0);
     P("an" + s, cyl("apiston", 0.009, 0.009, 0.1, 6), TRIM, sd * 0.06, 0.06, 0.06, null, null, false, 0);
@@ -345,7 +413,7 @@ function buildSkin(bones, byName) {
      every caster again, so the detail would cost its triangles twice) */
   const hull = [];
   const level = lod => {
-    const roles = [[], [], [], [], [], []],
+    const roles = [[], [], [], [], [], [], []],
       shell = [];
     for (const p of pilotParts(lod)) {
       const bi = bones.indexOf(byName[p.bone]);
@@ -353,7 +421,8 @@ function buildSkin(bones, byName) {
       Sv.set(p.scl ? p.scl[0] : 1, p.scl ? p.scl[1] : 1, p.scl ? p.scl[2] : 1);
       M.compose(Tv.set(p.x, p.y, p.z), Q, Sv).premultiply(byName[p.bone].matrixWorld);
       roles[p.role].push([p.g, M.clone(), bi]);
-      if (lod === 2 && p.role !== GLOW && p.role !== VISOR) hull.push([p.g, M.clone(), bi]);
+      if (lod === 2 && p.role !== GLOW && p.role !== VISOR && p.role !== HEAT)
+        hull.push([p.g, M.clone(), bi]);
       if (p.shell) shell.push([p.g, M.clone().multiply(_m1.makeScale(1.17, 1.17, 1.17)), bi]);
     }
     return { roles: roles.map(skinMerge), shell: skinMerge(shell) };

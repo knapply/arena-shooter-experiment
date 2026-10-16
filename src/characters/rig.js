@@ -343,7 +343,9 @@ const SUIT = 0,
   ARM2 = 2,
   TRIM = 3,
   VISOR = 4,
-  GLOW = 5;
+  GLOW = 5,
+  /* the vents' heat cores (characters/armour.js): dark at rest, hot with the movement kit */
+  HEAT = 6;
 /* (the armour itself, its distance levels and the skinning: characters/armour.js) */
 /* ---- weapons and the carried flag: ordinary meshes in the chest's frame (one is shown at a time) ---- */
 const WGEO = new Map();
@@ -459,8 +461,8 @@ function makePilot(color, label) {
      dark lit eye slits and team-lit seams that catch the bloom (physical lobes on High: look.js) */
   const armorM = new THREE.MeshPhysicalMaterial({ color, roughness: 0.42, metalness: 0.55 });
   armorM.color.multiplyScalar(0.62);
-  const armor2M = new THREE.MeshPhysicalMaterial({ color: "#2b3035", roughness: 0.5, metalness: 0.5 });
-  armor2M.color.lerp(new THREE.Color(color).multiplyScalar(0.4), 0.45);
+  const armor2M = new THREE.MeshPhysicalMaterial({ color, roughness: 0.55, metalness: 0.45 });
+  armor2M.color.multiplyScalar(0.36);
   const suitM = new THREE.MeshPhysicalMaterial({
     color: "#1b2125",
     roughness: 0.82,
@@ -484,7 +486,13 @@ function makePilot(color, label) {
     emissiveIntensity: 1.5,
     roughness: 0.5,
   });
-  const mats = [suitM, armorM, armor2M, trimM, visorM, glowM];
+  const heatM = new THREE.MeshStandardMaterial({
+    color: "#0c0d0e",
+    emissive: "#ff3a0c",
+    emissiveIntensity: 0.03,
+    roughness: 0.6,
+  });
+  const mats = [suitM, armorM, armor2M, trimM, visorM, glowM, heatM];
   /* weapons and the flag are plain meshes with their own copies of the materials (three.js compiles a
      skinned and an unskinned program either way; separate copies keep their settings apart) */
   const wmats = mats.map(m => m.clone());
@@ -632,6 +640,7 @@ function makePilot(color, label) {
   /* animation state. Springs give lean, bounce, flinch, recoil and armor some follow-through. */
   const S = {
     lod: 0,
+    heat: 0,
     t: Math.random() * 10,
     pel: 0.96,
     /* motion-captured locomotion (characters/anim.js) and its per-frame input */
@@ -1455,6 +1464,25 @@ function makePilot(color, label) {
       const kick = spring(S.spKick, 0, dt, 9, 0.42);
       /* the team seams flare with each shot and with the shield: up with a hit's shimmer, a weak
          flicker with the shield down */
+      /* the vents heat up with the movement kit (a thrust, a slide, a ground pound, the sprint assist) in a
+         moment and cool off over a second or two: dark, then dull red, orange, a pale yellow at the peak */
+      {
+        const want =
+          st.thrust || st.pound === 2
+            ? 1
+            : st.slide
+              ? 0.75
+              : st.pound === 1
+                ? 0.6
+                : st.stab
+                  ? 0.5
+                  : rig.jet * 0.35;
+        S.heat =
+          want > S.heat ? S.heat + (want - S.heat) * Math.min(1, dt * 14) : Math.max(want, S.heat - dt * 0.6);
+        const h = S.heat;
+        heatM.emissive.setRGB(1, 0.14 + 0.42 * h * h, 0.03 + 0.12 * h * h * h);
+        heatM.emissiveIntensity = 0.03 + 2.4 * h * Math.sqrt(h);
+      }
       glowM.emissiveIntensity =
         1.3 +
         Math.min(2.4, Math.abs(kick) * 9) +
