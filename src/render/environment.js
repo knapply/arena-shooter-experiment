@@ -85,9 +85,12 @@ function applyGfx() {
     lastRefl = refl;
     if (refl !== "off" && !GFX.env) deferEnv();
     scene.environment = refl === "off" ? null : GFX.env;
+    /* (the showing map's own capture goes back in on the next frame: render/map-env.js) */
+    MAP_ENV.cur = null;
     /* glossy surfaces reflect a sharper, GGX-filtered sky than they did on three r128 (less of the warm
        horizon): a little more of it keeps their brightness */
-    scene.environmentIntensity = refl !== "off" && refl !== "env" ? 1.25 : 1;
+    GFX.envI = refl !== "off" && refl !== "env" ? 1.25 : 1;
+    scene.environmentIntensity = GFX.envI * LOOK_NOW.envK;
     scene.traverse(o => {
       const m = o.material;
       if (!m || !m.isMeshStandardMaterial) return;

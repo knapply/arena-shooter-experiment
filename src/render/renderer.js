@@ -133,7 +133,7 @@ float col=floor(az*14.);th=-.02+.07*pow(h1(vec2(col,7.)),3.)+.02*n2(vec2(az*4.,1
 if(h<th){vec3 sk=vec3(.01,.025,.035);vec2 w=vec2(az*120.,h*120.);
 sk+=step(.93,h1(floor(w)))*smoothstep(.3,.5,fract(w.x))*smoothstep(.3,.5,fract(w.y))*glowC*.5;
 if(h>th-.004&&h1(vec2(col,9.))>.5)sk+=vec3(.3,.9,1.)*.7*step(.5,fract(tm*.5+h1(vec2(col,4.))));c=sk;}
-gl_FragColor=vec4(pow(c,vec3(2.2))*1.5*tint,0.);return;}
+gl_FragColor=vec4(pow(max(c,vec3(0.)),vec3(2.2))*1.5*tint,0.);return;}
 /* nebula band and stars, fading in with height */
 float up=smoothstep(.12,.55,h);
 /* sampled on a plane overhead, not by azimuth (which would leave a seam where it wraps) */
@@ -207,7 +207,7 @@ vec2 w=vec2(az*240.,h*190.);float win=step(.84,h1(floor(w)))*smoothstep(.2,.4,fr
 sk+=win*mix(glowC,vec3(.4,.8,1.),h1(vec2(col,3.)))*.4;
 if(h>th-.004&&h1(vec2(col,9.))>.6)sk+=vec3(1.,.25,.2)*.9;
 c=sk;}
-vec3 lin=pow(c,vec3(2.2))*1.5;
+vec3 lin=pow(max(c,vec3(0.)),vec3(2.2))*1.5;
 /* the sun: a hot disc, a tight glow and a wide warm haze (alpha 0 marks sky for the light shafts) */
 float sd=max(dot(d,sunD),0.);
 /* (a small cool disc with no haze is a moon) */
@@ -218,6 +218,7 @@ gl_FragColor=vec4(lin*tint,0.);}`,
   }); /* the sky follows whichever camera renders it and draws behind everything, so it is never clipped by the far plane */
   const sky = new THREE.Mesh(g, m);
   sky.renderOrder = -10;
+  sky.userData.sky = true;
   sky.frustumCulled = false;
   sky.onBeforeRender = (r, sc, cam) => {
     sunDir(SKY_SUN.value);
