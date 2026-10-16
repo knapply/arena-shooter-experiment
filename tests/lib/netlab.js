@@ -371,6 +371,7 @@ async function mark(I) {
     x.base = await x.page.evaluate(() => {
       window.__lab.collect();
       window.KAHOST.net.traffic(true, true);
+      const markT = Date.now();
       window.KAHOST.prof.read(true);
       const g = window.CTF && CTF.UI.game();
       return {
@@ -381,6 +382,7 @@ async function mark(I) {
             ? Object.assign(JSON.parse(JSON.stringify(CTF.NET.hitStats)), { recentT: KA.now })
             : null,
         claims: g && g.map ? g.hsS || 0 : 0,
+        markT,
       };
     });
     x.cpu0 = await metrics(x);
@@ -399,6 +401,7 @@ async function collect(I) {
     const d = await x.page.evaluate(() => {
       const g = window.CTF && CTF.UI.game();
       return {
+        collectT: Date.now(),
         rec: window.__lab.collect(),
         traffic: window.KAHOST.net.traffic(false),
         prof: window.KAHOST.prof.read(false),
@@ -718,8 +721,13 @@ function analyze(D, secs, mode) {
       };
     }
   }
-  /* kill to display: from the first instance that showed a kill to each of the others */
+  /* kill to display: from the first instance that showed a kill to each of the others. The instances are
+     reset and read one after another (a page round trip each, longer when software rendering is busy):
+     only kills after the last reset, and long enough before the first read for the others to show them,
+     count, or a kill caught between two reads would look missed */
   {
+    const from = Math.max(...D.map(d => (d.base && d.base.markT) || 0)),
+      to = Math.min(...D.map(d => d.collectT || Infinity)) - 1500;
     const seen = new Map();
     for (const d of D)
       for (const [t, k, v] of d.rec.kills) {
@@ -737,14 +745,17 @@ function analyze(D, secs, mode) {
       for (let i = 0; i < l.length; i++) {
         if (used.has(i)) continue;
         const first = l[i];
-        const insts = new Set([first[1]]);
+        const insts = new Set([first[1]]),
+          dl = [];
         used.add(i);
         for (let j = i + 1; j < l.length; j++)
           if (!used.has(j) && !insts.has(l[j][1]) && l[j][0] - first[0] < 4000) {
             insts.add(l[j][1]);
             used.add(j);
-            lat.push(l[j][0] - first[0]);
+            dl.push(l[j][0] - first[0]);
           }
+        if (first[0] < from || first[0] > to) continue;
+        lat.push(...dl);
         missed += Math.max(0, D.length - insts.size);
       }
     }
