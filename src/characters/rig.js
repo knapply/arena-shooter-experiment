@@ -533,7 +533,8 @@ const wpnScale = i =>
     .multiply(
       new THREE.Matrix4().makeTranslation(-WPN_RIG[i].grip.x, -WPN_RIG[i].grip.y, -WPN_RIG[i].grip.z)
     );
-const WPN_ROLE = { D: TRIM, P: ARM2, A: ARM, S: SUIT, G: GLOW, C: ARM };
+/* (the heat vents draw with the weapon's lights, which flare as it fires) */
+const WPN_ROLE = { D: TRIM, P: ARM2, A: ARM, S: SUIT, G: GLOW, C: ARM, H: GLOW };
 function weaponParts(i, far = false) {
   if (i >= 0) {
     const [oy, oz, has] = WPN_FIT[i];

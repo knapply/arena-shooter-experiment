@@ -7,7 +7,8 @@
                b = back radius, c = length), v upright cylinder, s cylinder across, n the ammo counter
      material  D dark metal, P light plate, A armor (the pilot's colour), S polymer, G light (it flares
                on each shot and turns red on low ammo), C amber paint, E fine lights (indicator strips,
-               readouts: first person only, with Surface detail on High)
+               readouts: first person only, with Surface detail on High), H heat vents (the armour's
+               thruster-vent shape: dark at rest, glowing with heat as the weapon fires)
      flags     f first person only, m the magazine (it moves through the reload), a the action (a slide or
                pump: it cycles after each shot in first person)
      e         the tilt about x, or a cylinder's number of sides
@@ -31,9 +32,9 @@ const GUN_MODELS = [
     "bD .036 .012 .03 0 .072 0",
     "nG .028 .014 0 0 .08 0 -.9",
     "cD .044 .046 .24 0 .005 -.34 8",
-    "bG .094 .008 .14 0 .005 -.34",
-    "bD .096 .016 .01 0 .005 -.4 *4 0 0 .04",
-    "cG .012 .012 .1 0 .01 -.51",
+    "bH .094 .03 .14 0 .005 -.34",
+    "rDf .098 .006 .14 0 -.006 -.34 *3 0 .011 0",
+    "cH .012 .012 .1 0 .01 -.51",
     "cD .028 .028 .006 0 .01 -.475 10 *5 0 0 -.017",
     "cD .016 .016 .03 0 .01 -.56",
     "cD .022 .02 .04 0 .01 -.58 6",
@@ -54,10 +55,7 @@ const GUN_MODELS = [
     "bSm .054 .1 .012 0 -.13 -.16",
     /* machined detail, clustered top-rear by the optic (the forward lower body stays plain): screws
        on the panels, an exposed energy cell on the right with its window lit, the optic's turret
-       and illumination dial, an indicator strip along the handguard, lit ports in the brake, and
-       the wedge language: forward chevrons cut into the handguard */
-    "bAf .003 .004 .034 -.046 .016 -.3 .65 *2 0 0 -.05",
-    "bAf .003 .004 .034 -.046 -.006 -.3 -.65 *2 0 0 -.05",
+       and illumination dial, an indicator strip along the handguard, lit ports in the brake */
     "sDf .0032 .0032 .003 -.0395 .045 .07 6 *3 0 0 -.03",
     "sDf .0032 .0032 .003 -.0395 .045 -.12 6 *2 0 0 -.04",
     "rDf .02 .032 .07 .046 -.012 .05",
@@ -74,7 +72,7 @@ const GUN_MODELS = [
   [
     "rDa .042 .042 .19 0 .027 -.03",
     "rD .044 .044 .035 0 .026 -.14",
-    "bG .046 .005 .006 0 .038 -.145 *2 0 0 .014",
+    "bH .046 .005 .006 0 .038 -.145 *2 0 0 .014",
     "cP .009 .009 .02 0 .026 -.152 10",
     "bPa .022 .008 .17 0 .05 -.04",
     "bPfa .044 .03 .004 0 .027 .02 *5 0 0 .01",
@@ -93,9 +91,7 @@ const GUN_MODELS = [
     "rDm .026 .08 .034 0 -.09 .05",
     "bDm .04 .014 .06 0 -.132 .035 .22",
     /* machined detail: screws on the frame, a lit cell indicator in the grip's top, the slide's lit
-       cocking indicator, a forward chevron cut into the slide */
-    "bAfa .003 .003 .022 -.0215 .034 -.08 .65",
-    "bAfa .003 .003 .022 -.0215 .02 -.08 -.65",
+       cocking indicator */
     "sDf .003 .003 .003 -.0195 -.006 -.08 6 *3 0 0 .04",
     "bEf .002 .008 .016 -.0205 -.04 .045",
     "bEfa .002 .004 .008 -.0215 .04 .045",
@@ -107,7 +103,9 @@ const GUN_MODELS = [
     "rD .072 .09 .38 0 0 .02",
     "rP .066 .072 .34 0 -.005 -.33",
     "rA .004 .044 .26 -.034 -.005 -.33 *2 .068 0 0",
-    "bG .074 .008 .026 0 -.005 -.24 *4 0 0 -.06",
+    "bH .074 .03 .05 0 -.005 -.24 *4 0 0 -.06",
+    "rDf .078 .006 .05 0 -.012 -.24 *4 0 0 -.06",
+    "rDf .078 .006 .05 0 .002 -.24 *4 0 0 -.06",
     "bC .074 .006 .3 0 .02 .02",
     "bD .04 .01 .4 0 .05 -.1",
     "cD .026 .026 .26 0 .115 -.07 14",
@@ -147,19 +145,17 @@ const GUN_MODELS = [
     "rSm .05 .1 .07 0 -.1 -.02",
     "bSm .056 .014 .078 0 -.152 -.02",
     /* machined detail: screws down the receiver, the illuminator's cable to the rail and its lit
-       range readout, an energy cell in the stock with its window lit, a lit band between two of the
-       shroud's fins, forward chevrons cut into the fore-end's armor panels */
-    "bDf .003 .004 .036 -.0365 .008 -.29 .65 *2 0 0 -.07",
-    "bDf .003 .004 .036 -.0365 -.016 -.29 -.65 *2 0 0 -.07",
+       range readout, an energy cell in the stock with its window lit, a band between two of the
+       shroud's fins that heats with firing */
     "sDf .0035 .0035 .003 -.0375 .02 .1 6 *3 0 0 -.06",
     "vSf .003 .003 .044 -.045 .077 -.06 6",
     "bEf .018 .009 .002 -.04 .115 -.0385",
     "rDf .02 .04 .06 .04 0 .3",
     "bEf .002 .026 .04 .0505 0 .3",
-    "cEf .031 .031 .004 0 .015 -.8125 8",
+    "cHf .031 .031 .004 0 .015 -.8125 8",
   ],
-  /* rocket launcher: one heavy tube in a six-sided faceted shroud (the wedge language) with vent
-     slats down its flanks (the thruster motif) and a glowing warhead in the mouth, an armor band,
+  /* rocket launcher: one heavy tube in a six-sided faceted shroud with heat vents down its flanks
+     (slats over a recess that glows after a launch) and a glowing warhead in the mouth, an armor band,
      a flared venturi, a spine with both grips under it, a side optic whose back is the counter */
   [
     "cP .068 .068 .86 0 0 -.2 16",
@@ -167,6 +163,7 @@ const GUN_MODELS = [
     "cD .096 .092 .05 0 0 -.715 6",
     "cC .098 .098 .016 0 0 -.68 6",
     "cG .058 .058 .004 0 0 -.741 16",
+    "bH .004 .026 .17 -.081 0 -.575 *2 .162 0 0",
     "bD .006 .03 .012 -.083 0 -.5 *4 0 0 -.05",
     "bD .006 .03 .012 .083 0 -.5 *4 0 0 -.05",
     "cA .074 .074 .05 0 0 .05 16",
@@ -189,14 +186,11 @@ const GUN_MODELS = [
     "rS .04 .1 .05 0 -.2 -.3",
     "cCm .062 .062 .1 0 0 .36 16",
     /* machined detail: screws along the spine, the optic's cable to the tube, arming lights down
-       the tube, a lit ring inside the venturi (the thruster motif), forward chevrons on the
-       shroud's flanks */
-    "bAf .003 .004 .04 -.0815 .016 -.66 .65",
-    "bAf .003 .004 .04 -.0815 -.016 -.66 -.65",
+       the tube, a ring inside the venturi that heats with the launch */
     "sDf .004 .004 .003 -.026 -.06 -.35 6 *4 0 0 .1",
     "cSf .004 .004 .14 -.075 .03 -.06 6",
     "bEf .002 .01 .03 -.0695 .02 -.3 *3 0 0 .05",
-    "cEf .07 .07 .006 0 0 .232 16",
+    "cHf .07 .07 .006 0 0 .232 16",
   ],
   /* scattergun: an octagonal shroud vented with light over a wide barrel, a glowing bore, ghost ring
      and bead on a vent rib, ridged pump, shells strapped to the left side */
@@ -204,7 +198,9 @@ const GUN_MODELS = [
     "rD .086 .11 .3 0 -.01 -.07",
     "rA .004 .06 .2 -.044 0 -.08 *2 .088 0 0",
     "cD .046 .046 .34 0 .02 -.4 8",
-    "bG .096 .012 .03 0 .02 -.3 *4 0 0 -.07",
+    "bH .096 .02 .03 0 .02 -.3 *4 0 0 -.07",
+    "rDf .1 .005 .034 0 .015 -.3 *4 0 0 -.07",
+    "rDf .1 .005 .034 0 .025 -.3 *4 0 0 -.07",
     "cD .034 .034 .16 0 .02 -.64",
     "cD .046 .042 .05 0 .02 -.705 8",
     "cG .026 .026 .004 0 .02 -.731",
@@ -227,9 +223,7 @@ const GUN_MODELS = [
     "bP .006 .022 .006 0 -.068 .01 .3",
     "cCm .012 .012 .06 0 -.07 -.12 8",
     /* machined detail: screws on the armor plates, a row of shell lights on the left plate, a cable
-       along the magazine tube, forward chevrons cut into the shroud */
-    "bAf .003 .004 .034 -.0465 .038 -.36 .65 *2 0 0 -.07",
-    "bAf .003 .004 .034 -.0465 .016 -.36 -.65 *2 0 0 -.07",
+       along the magazine tube */
     "sDf .0035 .0035 .003 -.0475 .02 -.15 6 *3 0 0 .07",
     "bEf .002 .006 .006 -.0465 -.035 -.15 *6 0 0 .012",
     "cSf .003 .003 .2 .03 -.06 -.43 6",

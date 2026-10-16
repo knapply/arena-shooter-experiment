@@ -19,11 +19,11 @@ const vmKnuckle = new THREE.MeshStandardMaterial({ color: "#3a454c", roughness: 
 /* the weapon's lights: the held weapon's colour, a flare on each shot, red and blinking on low ammo (vmLights) */
 const vmGlow = new THREE.MeshStandardMaterial({
   color: "#000000",
-  emissive: "#ffa53a",
+  emissive: "#5ad2ff",
   emissiveIntensity: 1.2,
 });
 const vmGlass = new THREE.MeshBasicMaterial({
-  color: 0xffd9a8,
+  color: 0x7fd4ff,
   transparent: true,
   opacity: 0.07,
   depthWrite: false,
@@ -41,10 +41,13 @@ vmCtr.color.setScalar(1.8);
    breathing slowly; drawn only with Surface detail on High (vmDetail) */
 const vmFine = new THREE.MeshStandardMaterial({
   color: "#000000",
-  emissive: "#ffa53a",
+  emissive: "#5ad2ff",
   emissiveIntensity: 0.9,
 });
-const VM_MAT = { D: vmDark, P: vmPlate, A: vmArmor, S: vmSuit, G: vmGlow, C: vmAcc, E: vmFine };
+/* the heat vents (H parts): dark at rest, glowing with heat as the weapon fires and cooling over a few
+   seconds (vmLights), like the armour's thrusters */
+const vmHeat = new THREE.MeshStandardMaterial({ color: "#000000", emissive: "#000000", roughness: 0.6 });
+const VM_MAT = { D: vmDark, P: vmPlate, A: vmArmor, S: vmSuit, G: vmGlow, C: vmAcc, E: vmFine, H: vmHeat };
 /* Surface detail = High: the gunmetal and plate are brushed metal (anisotropic highlights that run
    along each part) and the glove is fabric with a soft sheen; Flat swaps the plain materials back in,
    so the Low preset pays nothing for them */
@@ -220,9 +223,6 @@ const RKT_RELOAD = [
   [RELOAD_T.release, [0, -0.17, -0.2]],
   [1, "F"],
 ];
-/* every weapon's lights, counter and fine lights share the game's one accent, amber (graphite and amber:
-   the weapon design language; low ammo still turns them red) */
-const WEAPON_AMBER = 0xffa53a;
 /* per weapon (WEAPON_DATA order): hand points, reload path, poses, light colour, and how a shot looks
    from behind the gun: kr the kick's recovery (s), kj the random twist of each shot (rad), cyc the
    slide or pump's travel (m) and when it cycles after the shot ([start, length] s), fl and fc the
@@ -238,7 +238,7 @@ const VMW = [
       hip: { p: new V3(0.2, -0.18, -0.38), r: [0, 0.05, 0] },
       aim: { p: new V3(0, -HOLO.y * 1.15, -0.24), r: [0, 0, 0] },
     }),
-    glow: WEAPON_AMBER,
+    glow: 0x5ad2ff,
     kr: 0.06,
     kj: 0.02,
     fl: 0.15,
@@ -263,7 +263,7 @@ const VMW = [
       reload: { p: new V3(0.07, -0.1, -0.34), r: [0.55, 0.25, 0.65] },
       low: { p: new V3(0.15, -0.36, -0.28), r: [-0.8, 0.2, 0.2] },
     },
-    glow: WEAPON_AMBER,
+    glow: 0x8cffb0,
     kr: 0.14,
     kj: 0.02,
     cyc: [0.028, 0, 0.09],
@@ -280,7 +280,7 @@ const VMW = [
       hip: { p: new V3(0.19, -0.16, -0.33), r: [0, 0.05, 0] },
       aim: { p: new V3(0.06, -0.24, -0.2), r: [0, 0, 0] },
     },
-    glow: WEAPON_AMBER,
+    glow: 0x4a9bff,
     kr: 0.38,
     kj: 0.01,
     fl: 0.3,
@@ -299,7 +299,7 @@ const VMW = [
       reload: { p: new V3(0.16, -0.16, -0.46), r: [0.55, 0.15, 0.2] },
       low: { p: new V3(0.18, -0.36, -0.3), r: [-0.5, 0.3, 0.3] },
     },
-    glow: WEAPON_AMBER,
+    glow: 0xff7a3a,
     kr: 0.5,
     kj: 0.03,
     fl: 0.42,
@@ -318,7 +318,7 @@ const VMW = [
     P: Object.assign(rifleP(0.085 * 1.25, -0.3), {
       hip: { p: new V3(0.17, -0.15, -0.33), r: [0.03, 0.07, 0] },
     }),
-    glow: WEAPON_AMBER,
+    glow: 0xffb347,
     kr: 0.3,
     kj: 0.025,
     cyc: [0.075, 0.22, 0.34],
@@ -335,7 +335,7 @@ const LQ_RIFLE = new THREE.Quaternion().setFromRotationMatrix(
 );
 for (const V of VMW) if (!V.whip && !V.lgrip) V.lq = LQ_RIFLE;
 vmHolo(VMW[0].g, HOLO.y, HOLO.z, 0.062, 0.046);
-dot(VMW[1].g, WEAPON_AMBER, 0.0035, 0, PIS.y - 0.002, PIS.z + 0.001);
+dot(VMW[1].g, 0x8cffb0, 0.0035, 0, PIS.y - 0.002, PIS.z + 0.001);
 /* gloved hands. A hand is a palm, four fingers of three bevelled segments and a two-segment thumb,
    with armored plates over the knuckles and the back of the hand (two draws: glove and plate); its
    forearm (suit sleeve, gauntlet, a lit strip: three draws) runs from the wrist back to an elbow
@@ -552,6 +552,10 @@ const vmS = {
   kick: 0,
   /* time since the last shot, its random twist, and the weapon posed last frame */
   shot: 9,
+  /* the vents' heat (0..1), the shot that last fed it and when it last cooled */
+  heat: 0,
+  heatAt: -9,
+  heatT: 0,
   jy: 0,
   jz: 0,
   lastV: null,
@@ -574,6 +578,17 @@ function vmLights() {
     c = low ? 0xff3a1e : VMW[wi].glow;
   vmGlow.emissive.setHex(c);
   vmFine.emissive.setHex(VMW[wi].glow);
+  /* heat: each shot adds by how hard the weapon kicks, and it cools exponentially; the colour runs from
+     a dull red to an orange-white as it builds */
+  if (lastFireT !== vmS.heatAt) {
+    vmS.heatAt = lastFireT;
+    vmS.heat = Math.min(1, vmS.heat + 0.15 + w.kick * 4);
+  }
+  vmS.heat *= Math.exp(-0.9 * (now - vmS.heatT));
+  vmS.heatT = now;
+  const ht = vmS.heat;
+  vmHeat.emissive.setRGB(1, 0.18 + 0.5 * ht, 0.05 + 0.3 * ht * ht);
+  vmHeat.emissiveIntensity = 2.6 * ht;
   vmFine.emissiveIntensity = 0.7 + 0.25 * Math.sin(now * 2.2);
   /* the muzzle flash: the weapon's own size and colour, a little different every shot */
   if (flashT > 0) {
