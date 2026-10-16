@@ -1942,3 +1942,7 @@ table.stats tr.total td {
   vertical-align: 0.1em;
   opacity: 0.85;
 }
+/* with the tracker in the middle-right spot, five feed rows would reach it: the newest three show */
+body[data-trk="mr"] #feed div:nth-child(n + 4) {
+  display: none;
+}
