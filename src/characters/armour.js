@@ -340,6 +340,10 @@ function buildSkin(bones, byName) {
     E = new THREE.Euler(),
     Sv = new V3(),
     Tv = new V3();
+  /* the shadow hull: the far level's opaque plates and undersuit in one geometry, which casts the
+     shadow of a near or mid pilot in place of its detailed meshes (in the shadow pass three draws
+     every caster again, so the detail would cost its triangles twice) */
+  const hull = [];
   const level = lod => {
     const roles = [[], [], [], [], [], []],
       shell = [];
@@ -349,11 +353,13 @@ function buildSkin(bones, byName) {
       Sv.set(p.scl ? p.scl[0] : 1, p.scl ? p.scl[1] : 1, p.scl ? p.scl[2] : 1);
       M.compose(Tv.set(p.x, p.y, p.z), Q, Sv).premultiply(byName[p.bone].matrixWorld);
       roles[p.role].push([p.g, M.clone(), bi]);
+      if (lod === 2 && p.role !== GLOW && p.role !== VISOR) hull.push([p.g, M.clone(), bi]);
       if (p.shell) shell.push([p.g, M.clone().multiply(_m1.makeScale(1.17, 1.17, 1.17)), bi]);
     }
     return { roles: roles.map(skinMerge), shell: skinMerge(shell) };
   };
-  return [0, 1, 2].map(level);
+  const levels = [0, 1, 2].map(level);
+  return { levels, hull: skinMerge(hull) };
 }
 /** merge one material's parts, each skinned rigidly to its bone, with the edge wear */
 function skinMerge(items) {

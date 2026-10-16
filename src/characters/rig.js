@@ -445,6 +445,7 @@ function flagCloth(color) {
   return m;
 }
 
+const HULL_MAT = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 function makePilot(color, label) {
   /* layered look: dark undersuit, team-coloured plates over a graphite second layer, gunmetal trim,
      dark lit eye slits and team-lit seams that catch the bloom (physical lobes on High: look.js) */
@@ -497,18 +498,25 @@ function makePilot(color, label) {
   /* (the near level to start with; rig.update picks the level by distance) */
   const skel = new THREE.Skeleton(bones);
   const ident = new THREE.Matrix4();
-  const skinned = SKIN[0].roles.map((g, r) => {
+  const skinned = SKIN.levels[0].roles.map((g, r) => {
     const m = new THREE.SkinnedMesh(g, mats[r]);
     m.bind(skel, ident);
-    m.castShadow = r !== GLOW && r !== VISOR;
+    /* (up close the shadow hull casts the shadow: see below) */
+    m.castShadow = false;
     root.add(m);
     return m;
   });
-  const shellMesh = new THREE.SkinnedMesh(SKIN[0].shell, shieldM);
+  const shellMesh = new THREE.SkinnedMesh(SKIN.levels[0].shell, shieldM);
   shellMesh.bind(skel, ident);
   shellMesh.visible = false;
   shellMesh.renderOrder = 5;
   root.add(shellMesh);
+  /* the shadow hull (characters/armour.js): drawn into the shadow map only (in the view it writes
+     neither colour nor depth), so a near pilot's shadow costs the far level's triangles */
+  const hullMesh = new THREE.SkinnedMesh(SKIN.hull, HULL_MAT);
+  hullMesh.bind(skel, ident);
+  hullMesh.castShadow = true;
+  root.add(hullMesh);
   const { pivot, pelvis, spine, spine2, chest, neck, head, antenna, tabF, tabF2, tabB, tabB2 } = byName;
   const arms = SIDES.map(([s, side]) => ({
     clav: byName["clav" + s],
@@ -889,8 +897,13 @@ function makePilot(color, label) {
           lod = d2 < a * a ? 0 : d2 < b * b ? 1 : 2;
         if (lod !== S.lod) {
           S.lod = lod;
-          skinned.forEach((m, r) => (m.geometry = SKIN[lod].roles[r]));
-          shellMesh.geometry = SKIN[lod].shell;
+          skinned.forEach((m, r) => {
+            m.geometry = SKIN.levels[lod].roles[r];
+            /* (near and mid, the hull casts the shadow; far off, the far level's own plates do) */
+            m.castShadow = lod === 2 && r !== GLOW && r !== VISOR;
+          });
+          shellMesh.geometry = SKIN.levels[lod].shell;
+          hullMesh.visible = lod < 2;
         }
       }
       /* a throw: from rig.throwNade, or played back from a recording (st.throw, which a live throw

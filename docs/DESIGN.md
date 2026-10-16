@@ -22,7 +22,7 @@ Every model is designed from the game's own design language and from general pri
 - Thruster nozzles sit on the backs of the shoulders and calves as well as on the pack.
 - The palette is graphite plus the team colour, with cool-white eye slits.
 
-**Distance levels.** Up close every part is drawn (about 7,300 triangles). At mid range the small mechanical parts go (about 6,000). Far off every plate is a plain block and the hand is a mitten (about 2,300). The draw calls are the same at every level.
+**Distance levels.** Up close every part is drawn (about 7,300 triangles). At mid range the small mechanical parts go (about 6,000). Far off every plate is a plain block and the hand is a mitten (about 2,300). The draw calls are the same at every level. The shadow of a near or mid pilot is cast by a shadow hull (the far level's opaque parts, about 2,200 triangles) instead of its detailed meshes, since the shadow pass draws every caster again. A near pilot costs about 11,600 triangles in all (view plus shadow), against about 13,500 for the old armour; a far one about 4,400.
 
 ### Helmet
 
