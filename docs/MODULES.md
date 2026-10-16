@@ -43,7 +43,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/arsenal.js` | 88 | `WEAPONS` `slots` `cur` `wi` `switchT` `semiLatch` `zoomLvl` `descoped` `flinch` `zoomNow` `adsP` `ammo` `reserve` `W` `zoomK` `lookSens` `showVM` `wpnHud` … (+4) |
 | `src/render/fx.js` | 424 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `PT_N` `PT_K` `_ptC` `_ptV2` `makePts` `PTS` `ptAdd` `updPts` `ptClearBelow` `tracerGeo` `TRACER_V` … (+16) |
 | `src/render/combat-fx.js` | 551 | `CFX` `_cf` `_cf2` `_cq` `_cm` `_cz` `_cs` `fxOn` `syncDynLights` `dynLight` `heatAt` `HEAT_POOL` `heatDone` `tumblers` `casings` `chunks` `toss` `ejectCasing` … (+25) |
-| `src/render/item-models.js` | 317 | `ITEM_MAT` `ITEM_GEO` `_imAt` `ventParts` `fragGeos` `plasmaGeos` `PLASMA_HEX` `nadeModel` `nadeFloorParts` `standGeos` `ITEM_AMBER` `STAND_BEAM` `standModel` `skullGeos` `skullModel` `flagGeos` `flagBanner` |
+| `src/render/item-models.js` | 335 | `ITEM_MAT` `ITEM_GEO` `_imAt` `ventParts` `fragGeos` `plasmaGeos` `PLASMA_HEX` `nadeModel` `nadeFloorParts` `standGeos` `ITEM_AMBER` `STAND_BEAM` `standModel` `skullGeos` `skullModel` `flagGeos` `flagBanner` |
 | `src/render/cinema.js` | 193 | `CINE` |
 | `src/render/atmosphere.js` | 88 | `ATMO` `MOTE_BOX` `makeMotes` `updAtmosphere` |
 | `src/weapons/grenades.js` | 288 | `NADES` `NADE_TUNE` `_n1` `_n2` `plasMat` `fxPut` `losClear` `inBox` `solveThrow` `nadeDmg` `NadeWorld` `MAIN_NADES` `nadeInv` `nadeSel` `nadeCD` `NADE_TYPES` `nadeRefill` `updNadeHud` … (+4) |
@@ -70,7 +70,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/highlights.js` | 182 | `HL` `HL_KEEP` `HL_BEFORE` `HL_AFTER` `HL_POWER` `hlConsider` `hlTick` `_hlE` `_hlD` `_hlP` `HL_SHOULDER` `overShoulder` `hlHintEl` `hlHintTxt` `hlHint` `playOfTheGame` |
 | `src/game/stats.js` | 341 | `ASSIST_WINDOW` `GUN_WEAPONS` `STATS` `WEAPON_NAMES` `endCarry` `endBall` `statRoster` `powerHeld` `statScore` |
 | `src/game/intro.js` | 126 | `INTRO` `_ic` `centroid` `playIntro` `endIntro` `introFrame` |
-| `src/game/pods.js` | 859 | `PODS` `podsOn` `podLeft` `podSpeed` `podHeat` `podHidden` `POD_R` `POD_NOSE` `POD_BURY` `POD_EYE` `POD_BLOW` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `inSolid` `solidDepth` … (+41) |
+| `src/game/pods.js` | 863 | `PODS` `podsOn` `podLeft` `podSpeed` `podHeat` `podHidden` `POD_R` `POD_NOSE` `POD_BURY` `POD_EYE` `POD_BLOW` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `inSolid` `solidDepth` … (+41) |
 | `src/game/supply-pods.js` | 338 | `SUPPLY` `SUP_STATE` `SUPPLY_FALL` `SUPPLY_EARLY` `SUPPLY_H` `SUPPLY_BURY` `SUPPLY_N` `SUP_BEACON` `supplyAtlas` `atlasUv` `SUP_GREY` `SUP_STRIPE` `SUP_GLOW` `SUP_DRAW` `_spM` `supplyDraw` `launchSupply` `disposeSupply` … (+5) |
 | `src/game/pod-view.js` | 292 | `PV` `PV_OPEN` `PV_RISE` `PV_END` `pvEl` `pvLerp` `pvBuild` `pvSet` `pvShow` `pvHide` `podOpening` `podEndOpening` `_pvA` `_pvB` `_pvL` `podOpeningShot` `_pvP` `podCockpit` … (+2) |
 | `src/ui/pings.js` | 160 | `PINGS` `PING_LIFE` `PING_TAP` `_pgD` `_pgO` `_pgV` `pingTarget` `dangerTarget` `dangerSfx` `addPing` `sharePing` `pingNow` `pingLayer` `updPings` |

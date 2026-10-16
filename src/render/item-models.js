@@ -29,29 +29,44 @@ const _imAt = (g, x, y, z, rx = 0, ry = 0, rz = 0) => [
   g,
   new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz, "YXZ")).setPosition(x, y, z),
 ];
-/* ---- the thruster vent: the game's signature motif (the design language's one picked trait). The
-   same shape as the pilots' pack thrusters: a louvred wedge cowl over a flared nozzle with a throat
-   that is dark at rest and glows with heat when the thing is working. Drop pods carry four at their
-   fins' feet (their throats glow with the descent's heat), pickup stands three round the plinth
-   (amber while the weapon is up). Exhaust along -y; about 0.17 m across at scale 1. ---- */
+/* ---- the thruster vent: the game's signature motif (the design language's one picked trait), one
+   shape for every model that uses it (docs/DESIGN.md "The vent"): a rectangular gunmetal frame, a
+   frame at least 2.6 cm deep, round n louvred slats tilted 0.65 rad (each about half its pitch thick),
+   over a flat heat core set just behind them. The core is dark at rest and glows with heat when the
+   thing is working. Drop pods carry one on each fin's tip over a nozzle of their own (the core glows
+   with the descent's heat), pickup stands three on the plinth's faces (amber while the weapon is up).
+   The panel faces -z, centred on its origin. ---- */
 /**
- * a vent's pieces as [geometry, matrix] pairs: body (cowl, nozzle, louvres) and throat (the part that
- * glows), placed by `m` (a Matrix4), for merging into a model's own meshes
+ * a vent panel's pieces as [geometry, matrix] pairs: frame, slats and core (the part that glows),
+ * placed by `m` (a Matrix4), for merging into a model's own meshes
  * @param {any} m
+ * @param {number} w width
+ * @param {number} h height
+ * @param {number} n slats (3 to 5)
  */
-function ventParts(m) {
+function ventParts(m, w, h, n) {
   const at = (g, x, y, z, rx = 0) => [
     g,
     m.clone().multiply(new THREE.Matrix4().makeRotationX(rx).setPosition(x, y, z)),
   ];
-  const body = [
-    at(new THREE.BoxGeometry(0.17, 0.08, 0.13), 0, 0.05, 0),
-    at(new THREE.CylinderGeometry(0.038, 0.058, 0.08, 8, 1, true), 0, -0.03, 0),
-  ];
-  for (let i = 0; i < 3; i++)
-    body.push(at(new THREE.BoxGeometry(0.15, 0.012, 0.022), 0, 0.022 + i * 0.024, 0.07));
-  const throat = new THREE.CircleGeometry(0.05, 8);
-  return { body, throat: [at(throat, 0, -0.066, 0, Math.PI / 2)] };
+  /* the armour's numbers (bars 0.009 thick and 0.026 deep, slats 0.004 and the core 0.006 thick),
+     scaled up with the bars for bigger panels */
+  const t = Math.max(0.009, Math.min(w, h) * 0.09),
+    k = t / 0.009,
+    d = Math.max(0.026, w / 6),
+    pitch = h / n;
+  const frame = [];
+  for (const sy of [-1, 1])
+    frame.push(at(new THREE.BoxGeometry(w + 2 * t, t, d), 0, sy * (h / 2 + t / 2), -0.006 * k));
+  for (const sx of [-1, 1])
+    frame.push(at(new THREE.BoxGeometry(t, h, d), sx * (w / 2 + t / 2), 0, -0.006 * k));
+  const slats = [];
+  for (let i = 0; i < n; i++)
+    slats.push(
+      at(new THREE.BoxGeometry(w, pitch * 0.55, 0.004 * k), 0, -h / 2 + (i + 0.5) * pitch, -0.01 * k, 0.65)
+    );
+  const core = [at(new THREE.BoxGeometry(w, h, 0.006 * k), 0, 0, 0.004 * k)];
+  return { frame, slats, core };
 }
 /** the frag's body (graphite puck and caps) and band (lit) */
 function fragGeos() {
@@ -165,18 +180,21 @@ function standGeos(power) {
     _imAt(new THREE.CylinderGeometry(0.46, 0.6, 0.06, 6), 0, 0.15, 0),
   ];
   const light = [_imAt(new THREE.TorusGeometry(0.53, 0.02, 3, 6), 0, 0.125, 0, Math.PI / 2, Math.PI / 6)];
-  /* three thruster vents on the plinth's faces, their exhausts angled down and out (the throats
-     share the stand's light: dark while it waits, glowing while the weapon is up) */
+  /* three vent panels on the plinth's sloped faces (their cores share the stand's light: dark while
+     it waits, glowing while the weapon is up) */
   for (let i = 0; i < 3; i++) {
     const a = (i * Math.PI * 2) / 3 - Math.PI / 6;
     const v = ventParts(
       new THREE.Matrix4()
-        .makeRotationY(a)
-        .multiply(new THREE.Matrix4().makeRotationX(-0.9))
-        .setPosition(Math.sin(a) * 0.66, 0.12, Math.cos(a) * 0.66)
+        .makeRotationY(a + Math.PI)
+        .multiply(new THREE.Matrix4().makeRotationX(0.69))
+        .setPosition(Math.sin(a) * 0.57, 0.065, Math.cos(a) * 0.57),
+      0.3,
+      0.085,
+      3
     );
-    body.push(...v.body);
-    light.push(...v.throat);
+    body.push(...v.frame, ...v.slats);
+    light.push(...v.core);
   }
   if (power)
     for (let i = 0; i < 3; i++) {

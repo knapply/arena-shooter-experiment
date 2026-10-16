@@ -54,10 +54,10 @@ function podGeo() {
     const a = (i * Math.PI) / 3;
     hull.push(at(new THREE.BoxGeometry(0.1, 0.9, 0.08), Math.sin(a) * 0.7, 1.0, Math.cos(a) * 0.7, a));
   }
-  /* four swept wedge fins on the collar, each with a thruster vent at its foot (the game's vent
-     motif, render/item-models.js): the vent's body in the hull, its throat in the nose, so it glows
-     with the descent's heat and goes dark as the wreck cools; once the pod is buried the fins and
-     vents stand out of the crater */
+  /* four swept wedge fins on the collar, each tipped with a vent panel over a nozzle angled down and
+     out (the game's vent motif, render/item-models.js): frame, slats and nozzle in the hull, the
+     panel's core and the nozzle's throat in the nose, so they glow with the descent's heat and go dark
+     as the wreck cools; once the pod is buried the fins and vents stand out of the crater */
   const fin = new THREE.Shape();
   fin.moveTo(0, 0);
   fin.lineTo(0.3, 0.12);
@@ -75,16 +75,20 @@ function podGeo() {
       s = Math.sin(a),
       c = Math.cos(a);
     hull.push(at(finGeo(), s * 0.66, 0.9, c * 0.66, a - Math.PI / 2));
-    const v = ventParts(
-      new THREE.Matrix4()
-        .makeRotationY(a)
-        /* (exhaust angled down and out, so its throat shows from the side) */
-        .multiply(new THREE.Matrix4().makeRotationX(-0.8))
-        .multiply(new THREE.Matrix4().makeScale(1.8, 1.8, 1.8))
-        .setPosition(s * 0.95, 1.22, c * 0.95)
-    );
-    hull.push(...v.body);
-    throats.push(...v.throat);
+    const tip = new THREE.Matrix4().makeRotationY(a + Math.PI).setPosition(s * 0.985, 1.16, c * 0.985);
+    const v = ventParts(tip, 0.2, 0.22, 4);
+    hull.push(...v.frame, ...v.slats);
+    throats.push(...v.core);
+    /* the pod's own thruster under the panel, exhaust down and out */
+    const noz = new THREE.Matrix4()
+      .makeRotationY(a)
+      .multiply(new THREE.Matrix4().makeRotationX(-0.8))
+      .setPosition(s * 0.95, 0.97, c * 0.95);
+    hull.push([new THREE.CylinderGeometry(0.05, 0.085, 0.13, 8, 1, true), noz]);
+    throats.push([
+      new THREE.CircleGeometry(0.06, 8),
+      noz.clone().multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2).setPosition(0, -0.04, 0)),
+    ]);
   }
   POD_GEO.hull = mergeGeos(hull);
   POD_GEO.nose = mergeGeos([at(nose, 0, 0, 0), ...throats]);
