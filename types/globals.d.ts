@@ -175,7 +175,7 @@ interface NetApi {
   applyBits(body: any, bits: number): void;
   readBody(body: any, presence: Record<string, any>): void;
   plausible(shooterPos: any, target: any, weapon: string, at?: any): boolean;
-  hitStats?: { ok: number; bad: number };
+  hitStats?: { ok: number; bad: number; moot?: number; why?: Record<string, number>; recent?: any[] };
 }
 interface CTFUI {
   [key: string]: any;

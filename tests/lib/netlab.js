@@ -315,6 +315,15 @@ async function startMode(I, mode) {
         play: document.getElementById("play").textContent,
         lobby: (document.getElementById("lobby") || {}).textContent,
         p2p: document.getElementById("p2pMsg").textContent.slice(0, 80),
+        /* the match room as this client knows it: each pilot's phase and, for a host, its snapshot's keys */
+        room: window.CTF
+          ? CTF.NET.ctfPeers().map(q => ({
+              peer: q.peer.slice(0, 8),
+              ph: q.presence.ph,
+              mid: q.presence.mid,
+              H: q.presence.H ? Object.keys(q.presence.H).slice(0, 12) : q.presence.H,
+            }))
+          : null,
       }))
       .catch(e => String(e));
   let k = 0;
@@ -339,6 +348,22 @@ async function startMode(I, mode) {
       throw new Error(`instance ${x.i} did not join the host's match: ${JSON.stringify(await menu(x))}`);
   return Date.now() - t0;
 }
+/** hit claims made since the measured window started (clients in a mode; everyone in the arena) */
+async function claimsSoFar(I, mode) {
+  let n = 0;
+  for (const x of I) {
+    if (x.dead || !x.base) continue;
+    n += await x.page
+      .evaluate(arena => {
+        if (arena) return KA.HITCHK ? KA.HITCHK.me.sent : 0;
+        const g = window.CTF && CTF.UI.game();
+        return g && g.map ? g.hsS || 0 : 0;
+      }, mode === "arena")
+      .then(v => v - (mode === "arena" ? (x.base.hc ? x.base.hc.sent : 0) : x.base.claims || 0))
+      .catch(() => 0);
+  }
+  return n;
+}
 /** reset the counters at the start of the measured window */
 async function mark(I) {
   for (const x of I) {
@@ -351,7 +376,10 @@ async function mark(I) {
       return {
         hc: KA.HITCHK ? JSON.parse(JSON.stringify(KA.HITCHK.me)) : null,
         ht: KA.HITCHK ? Object.assign({}, KA.HITCHK.total) : null,
-        hs: window.CTF && CTF.NET.hitStats ? Object.assign({}, CTF.NET.hitStats) : null,
+        hs:
+          window.CTF && CTF.NET.hitStats
+            ? Object.assign(JSON.parse(JSON.stringify(CTF.NET.hitStats)), { recentT: KA.now })
+            : null,
         claims: g && g.map ? g.hsS || 0 : 0,
       };
     });
@@ -379,7 +407,10 @@ async function collect(I) {
         hc: KA.HITCHK ? JSON.parse(JSON.stringify(KA.HITCHK.me)) : null,
         ht: KA.HITCHK ? Object.assign({}, KA.HITCHK.total) : null,
         hrows: KA.HITCHK ? KA.HITCHK.rows() : [],
-        hs: window.CTF && CTF.NET.hitStats ? Object.assign({}, CTF.NET.hitStats) : null,
+        hs:
+          window.CTF && CTF.NET.hitStats
+            ? Object.assign(JSON.parse(JSON.stringify(CTF.NET.hitStats)), { recentT: KA.now })
+            : null,
         claims: g && g.map ? g.hsS || 0 : 0,
         role: g ? (g.map ? "client" : "host") : window.__p2p.state.hub ? "hub" : "peer",
       };
@@ -667,15 +698,23 @@ function analyze(D, secs, mode) {
       );
       const ok = host ? dd(host, "hs", "ok") : 0,
         bad = host ? dd(host, "hs", "bad") : 0;
+      /* why each rejection happened (the host's count by reason, over the measured window), the
+         last few in detail (weapon, distance, how old the view was against the rewind cap, how far
+         the ray passed), and claims on a target already down there (moot: neither applied nor refused) */
       const why = {};
-      if (host)
-        for (const r of host.hrows) for (const [k, n] of Object.entries(r.why)) why[k] = (why[k] || 0) + n;
+      if (host && host.hs && host.hs.why) {
+        const b = (host.base && host.base.hs && host.base.hs.why) || {};
+        for (const [k, n] of Object.entries(host.hs.why)) if (n - (b[k] || 0) > 0) why[k] = n - (b[k] || 0);
+      }
+      const t0 = host && host.base && host.base.hs ? host.base.hs.recentT || 0 : 0;
       rep.hits = {
         claimed: claims,
         applied: ok,
         rejected: bad,
+        moot: host ? dd(host, "hs", "moot") : 0,
         falseRejectRate: r3(bad / Math.max(1, ok + bad)),
         why,
+        recent: host && host.hs && host.hs.recent ? host.hs.recent.filter(r => r.t >= t0).slice(-6) : [],
       };
     }
   }
@@ -783,6 +822,13 @@ async function runLab(o) {
       await new Promise(r => setTimeout(r, 3000));
       await mark(I);
       await new Promise(r => setTimeout(r, secs * 1000));
+      /* a few hit claims say little about the false rejection rate: keep playing (5 s at a time, up
+         to o.maxSecs) until there are o.minClaims of them */
+      let played = secs;
+      while (o.minClaims && played < (o.maxSecs || secs) && (await claimsSoFar(I, mode)) < o.minClaims) {
+        await new Promise(r => setTimeout(r, 5000));
+        played += 5;
+      }
       const D = await collect(I);
       /* the relay running late is the lab, not the netcode: those moments count as stalls of the
          instance it delivered to */
@@ -791,7 +837,8 @@ async function runLab(o) {
         d.rec.hitches = (d.rec.hitches || []).concat(late);
       }
       relay.late = [];
-      const rep = analyze(D, secs, mode);
+      const rep = analyze(D, played, mode);
+      rep.playedSecs = played;
       if (o.raw) rep.raw = D;
       rep.joinMs = room.joinMs;
       rep.startMs = startMs;

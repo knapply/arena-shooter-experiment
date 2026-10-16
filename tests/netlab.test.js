@@ -13,6 +13,9 @@ const { runLab, markdown } = require("./lib/netlab.js");
       modes: ["arena", "ctf"],
       profile: "bad",
       secs: 20,
+      /* enough hit claims for the false rejection rate to mean something */
+      minClaims: 20,
+      maxSecs: 60,
       migrate: true,
       log: s => console.log("  " + s.slice(0, 220)),
     });
