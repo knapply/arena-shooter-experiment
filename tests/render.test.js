@@ -140,6 +140,17 @@ const stats = async p => {
           a = { calls: Math.max(a.calls, v.calls), tris: Math.max(a.tris, v.tris) };
         }
       check(a.calls <= B.arena.drawCalls && a.tris <= B.arena.triangles, "arena view within draw budget", a);
+      /* other pilots' weapons carry their detail in first person only: in their hands each stays
+         within its budget, and its far level costs less */
+      const wt = await p.evaluate(
+        n => [...Array(n)].map((_, i) => [KA.weaponTris(i), KA.weaponTris(i, true)]),
+        B.weaponTris.length
+      );
+      check(
+        wt.every(([n, f], i) => n <= B.weaponTris[i] && f < n),
+        "other pilots' weapons within their triangle budgets, the far level lighter",
+        { wt, budget: B.weaponTris }
+      );
       /* a carried flag or skull is really held: through standing, running, sprinting, jumping, crouching
          and every phase of a carry blow, each palm stays on the object (on the pole's surface, 2 cm off
          its axis; on the skull's side, 15.5 cm from its centre) and each wrist reaches its grip. Posed
