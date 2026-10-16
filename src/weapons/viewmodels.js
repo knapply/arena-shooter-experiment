@@ -180,13 +180,18 @@ const RKT_RELOAD = [
 /* per weapon (WEAPON_DATA order): hand points, reload path, poses, light colour, and how a shot looks
    from behind the gun: kr the kick's recovery (s), kj the random twist of each shot (rad), cyc the
    slide or pump's travel (m) and when it cycles after the shot ([start, length] s), fl and fc the
-   muzzle flash's size and colour */
+   muzzle flash's size and colour; sc a size for the whole gun in first person */
 const VMW = [
   {
     grip: new V3(0, -0.1, 0.08),
     fore: new V3(0, -0.07, -0.24),
     keys: VM_RELOAD,
-    P: RIFLE_P,
+    /* drawn a size up and a little higher, as chunky in the view as the reference's automatic */
+    sc: 1.15,
+    P: Object.assign({}, RIFLE_P, {
+      hip: { p: new V3(0.2, -0.18, -0.38), r: [0, 0.05, 0] },
+      aim: { p: new V3(0, -HOLO.y * 1.15, -0.24), r: [0, 0, 0] },
+    }),
     glow: 0x5ad2ff,
     kr: 0.06,
     kj: 0.02,
@@ -260,7 +265,11 @@ const VMW = [
     pump: true,
     flip: 2,
     keys: VM_RELOAD,
-    P: rifleP(0.085, -0.3),
+    /* a big, boxy gun high in the view, its muzzle near the centre (the reference's shotgun) */
+    sc: 1.25,
+    P: Object.assign(rifleP(0.085 * 1.25, -0.3), {
+      hip: { p: new V3(0.17, -0.15, -0.33), r: [0.03, 0.07, 0] },
+    }),
     glow: 0xffb347,
     kr: 0.3,
     kj: 0.025,
@@ -269,6 +278,8 @@ const VMW = [
     fc: 0xffb860,
   },
 ].map((o, i) => Object.assign(vmModel(i), o));
+/* (a weapon drawn a size up: sights, muzzle, hand points and reload path all scale with it) */
+for (const V of VMW) if (V.sc) V.g.scale.setScalar(V.sc);
 /* the support hand under a handguard, palm up, fingers round its far side (the magnum's cups the
    other hand instead) */
 const LQ_RIFLE = new THREE.Quaternion().setFromRotationMatrix(

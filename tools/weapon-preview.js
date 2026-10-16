@@ -49,6 +49,13 @@ fs.mkdirSync(out, { recursive: true });
       K.me.pitch = -0.06;
       K.me.dead = false;
     });
+  /* waits are on game state and game time, not the clock (software rendering runs a few frames a
+     second, and a frame counts at most 50 ms of game time) */
+  const until = async (cond, arg) => {
+    for (let n = 0; n < 1500 && !(await p.evaluate(cond, arg)); n++) await p.waitForTimeout(15);
+  };
+  /** let 0.7 s of game time pass (a draw or a pose settles) */
+  const settle = async () => until(t => KA.now > t + 0.7, await p.evaluate(() => KA.now));
   /* every weapon, in WEAPON_DATA order */
   const NW = await p.evaluate(() => KA.WEAPON_DATA.length);
   const key = (type, code) =>
@@ -56,7 +63,7 @@ fs.mkdirSync(out, { recursive: true });
   for (let i = 0; i < NW; i++) {
     await place();
     await p.evaluate(i => KA.giveWeapon(i), i);
-    await p.waitForTimeout(900);
+    await settle();
     await shot(`fp${i}-hip`);
     await shot(`fp${i}-hip-zoom`, { x: 420, y: 230, width: 540, height: 310 });
     await key("keydown", "Mouse2");
@@ -64,14 +71,11 @@ fs.mkdirSync(out, { recursive: true });
     await shot(`fp${i}-ads`);
     await key("keyup", "Mouse2");
     await p.evaluate(i => KA.giveWeapon(i, [1, 99]), i);
-    await p.waitForTimeout(900);
+    await settle();
     await shot(`fp${i}-low`);
   }
   /* in motion, each frozen mid-way (timescale 0): coming up after a draw, the frame of a shot (flash,
      kick, tracer), a sprint, and the middle of a reload. Waits are on game state, not the clock */
-  const until = async (cond, arg) => {
-    for (let n = 0; n < 400 && !(await p.evaluate(cond, arg)); n++) await p.waitForTimeout(15);
-  };
   const freeze = async (name, clip) => {
     await p.evaluate(() => KA.CON.run("timescale 0"));
     await p.waitForTimeout(250);
@@ -85,7 +89,7 @@ fs.mkdirSync(out, { recursive: true });
     const t0 = await p.evaluate(() => KA.now);
     await until(t => KA.now > t + 0.12, t0);
     await freeze(`fp${i}-draw`);
-    await p.waitForTimeout(900);
+    await settle();
     const m0 = await p.evaluate(() => KA.mag);
     /* (slowed, so the flash and the streak outlive a frame of software rendering) */
     await p.evaluate(() => KA.CON.run("timescale 0.1"));
@@ -97,13 +101,13 @@ fs.mkdirSync(out, { recursive: true });
     await p.waitForTimeout(600);
     await key("keydown", "KeyW");
     await key("keydown", "ShiftLeft");
-    await p.waitForTimeout(900);
+    await settle();
     await freeze(`fp${i}-sprint`);
     await key("keyup", "ShiftLeft");
     await key("keyup", "KeyW");
     await place();
     await p.evaluate(i => KA.giveWeapon(i, [1, 99]), i);
-    await p.waitForTimeout(900);
+    await settle();
     /* (the last round fired starts it: R may be the pickup key where this stands) */
     await key("keydown", "Mouse0");
     await until(() => KA.reloadT > 0);
@@ -117,7 +121,7 @@ fs.mkdirSync(out, { recursive: true });
      follow-through and the gun coming back up (slowed: the swing is a few frames long) */
   await place();
   await p.evaluate(() => KA.giveWeapon(0));
-  await p.waitForTimeout(900);
+  await settle();
   await p.evaluate(() => KA.CON.run("timescale 0.05"));
   const g0 = await p.evaluate(() => KA.now);
   await key("keydown", "KeyG");
