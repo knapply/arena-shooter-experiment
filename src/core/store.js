@@ -189,6 +189,11 @@ export const STORE = (() => {
   });
   /* the menu's last pick: the mode, and each mode's map and team size (ui/menu.js) */
   const MODE_IDS = ["ctf", "slayer", "ffa", "oddball"];
+  /* the spectator's camera: the next AI-vs-AI match starts on the one picked last */
+  define("specCam", {
+    version: 1,
+    clean: d => ({ mode: ["director", "tactical", "free"].includes(d?.mode) ? d.mode : "director" }),
+  });
   define("menu", {
     version: 1,
     clean: d => {

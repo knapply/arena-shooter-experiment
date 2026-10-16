@@ -209,7 +209,7 @@ function padMenu(dt) {
         ? $("pause")
         : !$("menu").hidden
           ? $("menu")
-          : EXT && EXT.full
+          : EXT && EXT.full && !(EXT.padOwn && EXT.padOwn())
             ? $("ctfHud")
             : null;
   if (!ov) return;
