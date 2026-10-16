@@ -2411,6 +2411,8 @@ const podSeats = map => {
     await SP.waitForTimeout(600);
     await SP.evaluate(() => {
       Object.assign(KA.SET, { intros: false, dropIn: true });
+      /* on the director (the free-camera test before this one leaves its own camera remembered) */
+      KA.STORE.save("specCam", { mode: "director" });
       KA.startMode("spectate", { rules: "oddball", map: "arena" });
     });
     const specOpen = await SP.evaluate(async () => {
