@@ -698,6 +698,8 @@
     setSpeed(1);
     const ext = {
       full: simFrame,
+      /* while flying the free camera, the controller flies it instead of moving through the buttons */
+      padOwn: () => camMode === "free",
       pickups: () => (G ? G.pickups : []),
       exit() {
         $("cBanner").hidden = true;
@@ -708,6 +710,13 @@
         }
         UI.detach();
         $("ctfHud").hidden = true;
+        /* the free camera's hint and captured mouse don't outlast spectating */
+        $("cFreeHint").hidden = true;
+        FREE.keys.clear();
+        if (document.pointerLockElement === $("game"))
+          try {
+            document.exitPointerLock();
+          } catch (e) {}
         CTF.exitMap();
         G = null;
         mode = null;
@@ -717,6 +726,9 @@
     K.camera.fov = 70;
     K.camera.updateProjectionMatrix();
     newMatch();
+    /* the camera picked last time */
+    const sc = K.STORE.load("specCam");
+    setCam(sc ? sc.mode : "director");
     K.say("Simulation online", true);
   }
   /* the director cuts to big moments, in slow motion when it's a capture or a multikill */
@@ -884,6 +896,136 @@
     );
     cv.addEventListener("touchend", () => (TAC.pinch = 0));
   }
+  /* ---------------- free camera: fly anywhere ----------------
+     Keyboard: WASD or the arrows move, Space up, C or Ctrl down, Shift faster; click the view to
+     look with the mouse (Esc lets the mouse go), or drag to look without capturing it. Controller:
+     left stick moves, right stick looks, RT or RB up, LT or LB down, click the left stick for speed.
+     It passes through walls but stays over the map, and eases into and out of moving. */
+  const FREE = {
+    pos: new V3(0, 30, 50),
+    vel: new V3(),
+    yaw: 0,
+    pitch: -0.4,
+    keys: new Set(),
+    drag: null,
+    fast: false,
+    /** metres a second (Shift or the stick click makes it FREE_FAST times that) */
+    speed: 14,
+  };
+  const FREE_FAST = 3;
+  /** when the captured mouse was last let go (the Esc that did it must not also leave) */
+  let freeLockOff = -1e9;
+  const freeOn = () => mode === "sim" && camMode === "free";
+  /** start flying from wherever the camera is now, looking the same way */
+  function freeFrom(cam) {
+    FREE.pos.copy(cam.position);
+    FREE.vel.set(0, 0, 0);
+    const d = cam.getWorldDirection(new V3());
+    FREE.yaw = Math.atan2(-d.x, -d.z);
+    FREE.pitch = Math.asin(Math.max(-1, Math.min(1, d.y)));
+    FREE.keys.clear();
+  }
+  const freeLook = (dx, dy) => {
+    FREE.yaw -= dx;
+    FREE.pitch = Math.max(-1.5, Math.min(1.5, FREE.pitch - dy));
+  };
+  {
+    const cv = $("game");
+    const FLY = [
+      "KeyW",
+      "KeyA",
+      "KeyS",
+      "KeyD",
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight",
+      "Space",
+      "KeyC",
+      "ControlLeft",
+      "ControlRight",
+      "ShiftLeft",
+      "ShiftRight",
+      "KeyQ",
+      "KeyE",
+    ];
+    addEventListener("keydown", e => {
+      if (!freeOn() || !FLY.includes(e.code)) return;
+      FREE.keys.add(e.code);
+      e.preventDefault();
+    });
+    addEventListener("keyup", e => FREE.keys.delete(e.code));
+    addEventListener("blur", () => FREE.keys.clear());
+    cv.addEventListener("pointerdown", e => {
+      if (!freeOn()) return;
+      FREE.drag = { x: e.clientX, y: e.clientY };
+      /* a click captures the mouse for looking (Esc lets it go) */
+      if (document.pointerLockElement !== cv && cv.requestPointerLock)
+        try {
+          const r = /** @type {any} */ (cv.requestPointerLock());
+          if (r && r.catch) r.catch(() => {});
+        } catch (err) {}
+    });
+    addEventListener("pointermove", e => {
+      if (!freeOn()) return;
+      if (document.pointerLockElement === cv) freeLook(e.movementX * 0.0025, e.movementY * 0.0025);
+      else if (FREE.drag) {
+        freeLook((e.clientX - FREE.drag.x) * 0.005, (e.clientY - FREE.drag.y) * 0.005);
+        FREE.drag = { x: e.clientX, y: e.clientY };
+      }
+    });
+    addEventListener("pointerup", () => (FREE.drag = null));
+    document.addEventListener("pointerlockchange", () => {
+      if (!document.pointerLockElement) freeLockOff = performance.now();
+    });
+  }
+  const _fw = new V3(),
+    _fr = new V3(),
+    _fv = new V3();
+  /** one frame of flying: input → a wished velocity, eased toward it, then kept inside the map */
+  function freeStep(dt) {
+    const k = FREE.keys,
+      has = (...c) => c.some(x => k.has(x));
+    let f = (has("KeyW", "ArrowUp") ? 1 : 0) - (has("KeyS", "ArrowDown") ? 1 : 0),
+      s = (has("KeyD", "ArrowRight") ? 1 : 0) - (has("KeyA", "ArrowLeft") ? 1 : 0),
+      u = (has("Space", "KeyE") ? 1 : 0) - (has("KeyC", "ControlLeft", "ControlRight", "KeyQ") ? 1 : 0),
+      fast = has("ShiftLeft", "ShiftRight");
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const g = pads && [...pads].find(x => x && x.connected);
+    if (g) {
+      const dz = v => (Math.abs(v) < 0.15 ? 0 : v),
+        btn = i => (g.buttons[i] ? g.buttons[i].value || (g.buttons[i].pressed ? 1 : 0) : 0);
+      f -= dz(g.axes[1] || 0);
+      s += dz(g.axes[0] || 0);
+      freeLook(dz(g.axes[2] || 0) * dt * 2.4, dz(g.axes[3] || 0) * dt * 1.8);
+      u += Math.max(btn(7), btn(5)) - Math.max(btn(6), btn(4));
+      /* the left stick click toggles fast flying */
+      const click = btn(10) > 0.5;
+      if (click && !FREE.padClick) FREE.fast = !FREE.fast;
+      FREE.padClick = click;
+      /* Y: the next camera (the buttons aren't reachable with the pad while flying) */
+      const y = btn(3) > 0.5;
+      if (y && !FREE.padY) setTimeout(() => $("cCam").click(), 0);
+      FREE.padY = y;
+      fast = fast || FREE.fast;
+    }
+    /* forward follows the look (pitch included), strafing stays level */
+    const cp = Math.cos(FREE.pitch);
+    _fw.set(-Math.sin(FREE.yaw) * cp, Math.sin(FREE.pitch), -Math.cos(FREE.yaw) * cp);
+    _fr.set(Math.cos(FREE.yaw), 0, -Math.sin(FREE.yaw));
+    _fv.set(0, 0, 0).addScaledVector(_fw, f).addScaledVector(_fr, s);
+    _fv.y += u;
+    if (_fv.lengthSq() > 1) _fv.normalize();
+    _fv.multiplyScalar(FREE.speed * (fast ? FREE_FAST : 1));
+    /* smooth: ease toward the wished velocity (quicker to stop than to start) */
+    FREE.vel.lerp(_fv, 1 - Math.exp(-(_fv.lengthSq() ? 5 : 8) * dt));
+    FREE.pos.addScaledVector(FREE.vel, dt);
+    /* through walls, but over the map: inside its bounds (a little margin), above the floor */
+    const B = CTF.MAP.bounds;
+    FREE.pos.x = Math.max(B.x0 - 4, Math.min(B.x1 + 4, FREE.pos.x));
+    FREE.pos.z = Math.max(B.z0 - 4, Math.min(B.z1 + 4, FREE.pos.z));
+    FREE.pos.y = Math.max(0.6, Math.min(70, FREE.pos.y));
+  }
   /* for tests and tools: the spectator camera's state */
   CTF.spectator = {
     get tac() {
@@ -895,6 +1037,9 @@
     get mode() {
       return camMode;
     },
+    get free() {
+      return FREE;
+    },
     event: simEvent,
   };
   function camera(dt) {
@@ -905,6 +1050,21 @@
       _b.set(0, 0, 0);
       cam.position.lerp(_a, 1 - Math.exp(-2 * dt));
       cam.lookAt(_b);
+      return;
+    }
+    if (camMode === "free") {
+      freeStep(dt);
+      const cp = Math.cos(FREE.pitch);
+      cam.position.copy(FREE.pos);
+      cam.lookAt(
+        _b.set(
+          FREE.pos.x - Math.sin(FREE.yaw) * cp,
+          FREE.pos.y + Math.sin(FREE.pitch),
+          FREE.pos.z - Math.cos(FREE.yaw) * cp
+        )
+      );
+      cpos.copy(cam.position);
+      clook.copy(_b);
       return;
     }
     let want = _a,
@@ -1142,14 +1302,25 @@
   }
   [1, 2, 4].forEach(n => ($("cSpd" + n).onclick = () => setSpeed(n)));
   function setCam(m) {
+    if (m === "free" && camMode !== "free") freeFrom(K.camera);
+    if (m !== "free" && document.pointerLockElement === $("game"))
+      try {
+        document.exitPointerLock();
+      } catch (e) {}
     camMode = m;
     $("cCam").textContent = "Camera: " + (m === "follow" ? G.agents[followIdx].name : m);
+    /* the keys and buttons for flying, while flying */
+    $("cFreeHint").hidden = m !== "free";
     snap = true;
+    /* the next spectated match starts on the same camera (a followed pilot: on the director) */
+    K.STORE.save("specCam", { mode: m === "follow" ? "director" : m });
   }
+  /* the cameras in turn: director, tactical, free, then each pilot, then back to the director */
   $("cCam").onclick = () => {
     if (!G) return;
     if (camMode === "director") setCam("tactical");
-    else if (camMode === "tactical") {
+    else if (camMode === "tactical") setCam("free");
+    else if (camMode === "free") {
       followIdx = 0;
       setCam("follow");
     } else if (followIdx < G.agents.length - 1) {
@@ -1210,9 +1381,14 @@
     if (n >= 1 && n <= Math.min(9, G.agents.length)) {
       followIdx = n - 1;
       setCam("follow");
-    } else if (e.code === "KeyC") $("cCam").click();
+    } else if (e.code === "KeyV" || (e.code === "KeyC" && camMode !== "free")) $("cCam").click();
     else if (e.code === "KeyI") $("cInt").click();
-    else if (e.code === "Escape") K.extStop();
+    /* Esc while flying lets the captured mouse go; it only leaves when the mouse is free */ else if (
+      e.code === "Escape"
+    ) {
+      if (document.pointerLockElement || performance.now() - freeLockOff < 400) return;
+      K.extStop();
+    }
   });
   /* ---------------- the modes ---------------- */
   for (const P of K.PLAY_MODES)

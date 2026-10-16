@@ -6,7 +6,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 
 | Module | Lines | Top-level declarations |
 |---|---|---|
-| `src/core/store.js` | 222 | `STORE` |
+| `src/core/store.js` | 227 | `STORE` |
 | `src/core/rng.js` | 29 | `RNG` `rand` |
 | `src/core/vec3.js` | 94 | `Vec3` |
 | `src/core/prelude.js` | 41 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
@@ -96,6 +96,6 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/modes/ctf/ui.js` | 765 |  |
 | `src/net/ctf-host.js` | 847 |  |
 | `src/net/ctf-client.js` | 782 |  |
-| `src/modes/ctf/modes.js` | 1232 |  |
+| `src/modes/ctf/modes.js` | 1408 |  |
 | `src/modes/trailer-score.js` | 1092 |  |
 | `src/modes/trailer.js` | 3322 |  |

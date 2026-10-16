@@ -443,6 +443,107 @@ const { launch, open, text, visible, until } = require("./lib/browser.js");
       (await p.evaluate(() => document.activeElement.id)) === "play",
       "Change mode returns to the menu, on Play"
     );
+    /* ---------- watching AI play: the free camera ---------- */
+    await p.click("#mode-slayer");
+    await p.selectOption("#mapPick", "arena");
+    await p.click("#watchAI");
+    check(await until(p, () => !!(CTF.UI.game() && CTF.spectator)), "Watch AI starts AI vs AI");
+    /* the camera button cycles director, tactical, free, then each pilot */
+    for (let i = 0; i < 12 && (await p.evaluate(() => CTF.spectator.mode)) !== "free"; i++)
+      await p.click("#cCam");
+    const fc = await p.evaluate(() => ({
+      mode: CTF.spectator.mode,
+      label: document.getElementById("cCam").textContent,
+      hint: !document.getElementById("cFreeHint").hidden && document.getElementById("cFreeHint").textContent,
+    }));
+    check(
+      fc.mode === "free" && /free/.test(fc.label) && /WASD/.test(fc.hint) && /RT/.test(fc.hint),
+      "the camera cycles to a free camera, with its keys and buttons on screen",
+      fc
+    );
+    /* flying: W moves the way it looks, Space climbs, it eases in (game-state waits, not time) */
+    const camAt = () => p.evaluate(() => KA.camera.position.toArray());
+    await p.evaluate(() => {
+      const F = CTF.spectator.free;
+      F.pos.set(0, 20, 0);
+      F.vel.set(0, 0, 0);
+      F.yaw = 0;
+      F.pitch = 0;
+    });
+    await p.keyboard.down("KeyW");
+    const slow = await p.evaluate(() => CTF.spectator.free.vel.length());
+    check(await until(p, () => CTF.spectator.free.pos.z < -6, null, 20000), "W flies forward", await camAt());
+    const vmax = await p.evaluate(() => CTF.spectator.free.vel.length());
+    await p.keyboard.up("KeyW");
+    check(slow < vmax && vmax <= 14.01, "it speeds up smoothly to its cruising speed", { slow, vmax });
+    await p.keyboard.down("Space");
+    check(await until(p, () => CTF.spectator.free.pos.y > 26, null, 20000), "Space climbs", await camAt());
+    await p.keyboard.up("Space");
+    check(
+      await until(p, () => CTF.spectator.free.vel.length() < 0.5, null, 20000),
+      "letting go eases it to a stop"
+    );
+    /* through walls, but kept over the map */
+    await p.evaluate(() => {
+      CTF.spectator.free.pos.set(500, -40, -500);
+    });
+    check(
+      await until(
+        p,
+        () => {
+          const q = CTF.spectator.free.pos,
+            B = CTF.MAP.bounds;
+          return q.x <= B.x1 + 4 && q.z >= B.z0 - 4 && q.y >= 0.5;
+        },
+        null,
+        10000
+      ),
+      "it stays inside the map's bounds and above the floor",
+      await camAt()
+    );
+    /* a controller: the left stick flies, the right stick looks */
+    await p.evaluate(() => {
+      const F = CTF.spectator.free;
+      F.pos.set(0, 20, 0);
+      F.vel.set(0, 0, 0);
+      F.yaw = 0;
+      F.pitch = 0;
+      const btn = () => ({ pressed: false, value: 0 });
+      const pad = { connected: true, axes: [0, -1, 0.6, 0], buttons: Array.from({ length: 17 }, btn) };
+      window.__padNav = navigator.getGamepads;
+      navigator.getGamepads = () => [pad];
+    });
+    check(
+      await until(
+        p,
+        () =>
+          CTF.spectator.free.pos.distanceTo(new KA.THREE.Vector3(0, 20, 0)) > 4 &&
+          CTF.spectator.free.yaw < -0.2,
+        null,
+        20000
+      ),
+      "a controller flies it (left stick) and turns it (right stick)",
+      await p.evaluate(() => [CTF.spectator.free.pos.toArray(), CTF.spectator.free.yaw])
+    );
+    await p.evaluate(() => (navigator.getGamepads = window.__padNav));
+    /* the camera picked last is where the next spectated match starts */
+    await p.evaluate(() => KA.extStop());
+    await until(p, () => !document.getElementById("menu").hidden);
+    check((await visible(p, "#cFreeHint")) === false, "the free camera's hint goes with the spectator");
+    await p.click("#watchAI");
+    check(
+      await until(p, () => !!CTF.UI.game() && CTF.spectator.mode === "free", null, 20000),
+      "watching again starts on the free camera picked last time",
+      await p.evaluate(() => CTF.spectator.mode)
+    );
+    await p.keyboard.press("KeyV");
+    check(
+      await until(p, () => CTF.spectator.mode === "follow", null, 5000),
+      "V moves on to the next camera",
+      await p.evaluate(() => CTF.spectator.mode)
+    );
+    await p.evaluate(() => KA.extStop());
+    await until(p, () => !document.getElementById("menu").hidden);
     /* ---------- online: the host's mode is the room's ---------- */
     await p.evaluate(() => KA.CON.run("god off"));
     const A = await open(ctx, { tag: "A", init: ["fake-peer.js"] });

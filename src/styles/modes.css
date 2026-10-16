@@ -185,3 +185,31 @@
   letter-spacing: 0.04em;
   color: var(--thrust);
 }
+/* the free camera's keys and buttons, over the spectator's controls */
+#cFreeHint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  max-width: calc(100% - 32px);
+  padding: 7px 14px;
+  background: var(--slab);
+  font: 500 11px var(--f-mono);
+  color: var(--dim);
+}
+#cFreeHint b {
+  color: var(--thrust);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+#cFreeHint kbd {
+  font: inherit;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 0 4px;
+}
