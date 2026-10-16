@@ -82,10 +82,16 @@ function hlTick() {
       HL.top.length = Math.min(HL.top.length, HL_KEEP);
     }
 }
-/** a recorded pose seen from just behind and to the right of its shoulder, looking where it aims
-    (pulled in front of walls) */
+/** a recorded pose seen from just behind and to the right of its shoulder, looking where it aims.
+    Against a wall it tries the left shoulder, then higher and closer, and only then pulls in */
 const _hlE = new V3(),
-  _hlD = new V3();
+  _hlD = new V3(),
+  _hlP = new V3();
+const HL_SHOULDER = [
+  [2.5, 0.7, 0.32],
+  [2.5, -0.7, 0.32],
+  [1.7, 0.45, 0.9],
+];
 function overShoulder(s, fov = 62) {
   const eye = _hlE.set(s.x, s.y + (s.st && s.st.crouch ? H_CROUCH : H_STAND) - 0.12, s.z),
     cp = Math.cos(s.pitch),
@@ -94,15 +100,22 @@ function overShoulder(s, fov = 62) {
     dz = -Math.cos(s.yaw) * cp,
     rx = Math.cos(s.yaw),
     rz = -Math.sin(s.yaw);
-  const p = new V3(eye.x - dx * 2.5 + rx * 0.7, eye.y - dy * 1.2 + 0.32, eye.z - dz * 2.5 + rz * 0.7);
-  _hlD.copy(p).sub(eye);
-  const L = _hlD.length();
-  if (L > 0.01) {
+  let best = null,
+    bestK = -1;
+  for (const [back, side, up] of HL_SHOULDER) {
+    _hlP.set(eye.x - dx * back + rx * side, eye.y - dy * back * 0.48 + up, eye.z - dz * back + rz * side);
+    _hlD.copy(_hlP).sub(eye);
+    const L = _hlD.length();
     _hlD.multiplyScalar(1 / L);
-    const hit = rayWorld(eye, _hlD, L);
-    if (hit < L) p.copy(eye).addScaledVector(_hlD, Math.max(0.35, hit - 0.25));
+    const hit = rayWorld(eye, _hlD, L),
+      k = Math.min(1, (hit - 0.25) / L);
+    if (k > bestK) {
+      bestK = k;
+      best = eye.clone().addScaledVector(_hlD, Math.max(0.35, Math.min(L, hit - 0.25)));
+    }
+    if (k >= 1) break;
   }
-  return { p, l: new V3(eye.x + dx * 10, eye.y + dy * 10, eye.z + dz * 10), fov, smooth: 9 };
+  return { p: best, l: new V3(eye.x + dx * 10, eye.y + dy * 10, eye.z + dz * 10), fov, smooth: 9 };
 }
 /** the hint while the play of the game runs: which key or button switches the view, and skips it */
 let hlHintEl = null,

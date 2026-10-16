@@ -945,15 +945,15 @@ const podSeats = map => {
       check(
         !!v.third &&
           !v.third.fp &&
-          v.third.d > 1 &&
+          v.third.d > 0.3 &&
           /V · First person/.test(v.third.hint) &&
           v.first.fp &&
           v.first.d >= 0 &&
           v.first.d < 0.3 &&
           /V · Third person/.test(v.first.hint) &&
           !v.back.fp &&
-          v.back.d > 1,
-        "Play of the Game starts over the shoulder; V switches it to their eyes and back, with a hint on screen",
+          v.back.d > 0.3,
+        "Play of the Game starts over the shoulder (off their eyes, nearer by a wall); V switches it to their eyes and back, with a hint on screen",
         v
       );
     }
