@@ -12,11 +12,17 @@ const TUNE_DEF = {
   grav: 24,
   accel: 80,
   reverse: 95,
+  /* slowing down with no input or less of it (0: the same as accel) */
+  decel: 0,
   airAccel: 18,
   thrust: 17,
   thrustCD: 2.2,
   slideBoost: 3.2,
   slideCap: 15,
+  /* the share of a slide's speed kept after a second of sliding */
+  slideKeep: 0.32,
+  /* how long a thrust's burst lasts */
+  thrustT: 0.24,
   /* speed while aiming a low-zoom optic, and a sniper scope (a share of run speed) */
   adsMove: 0.9,
   scopeMove: 0.72,
@@ -272,7 +278,7 @@ class Body {
       v.x = dir.x * TUNE.thrust;
       v.z = dir.z * TUNE.thrust;
       if (!this.ground) v.y = Math.max(v.y, 0);
-      this.thrustT = 0.24;
+      this.thrustT = TUNE.thrustT;
       this.launched = true;
       this.thrustCD = TUNE.thrustCD;
       this.sprint = false;
@@ -376,7 +382,7 @@ class Body {
       /* charging: the lunge velocity was set when the charge started; no other movement applies */
     } else if (this.slideT > 0) {
       this.slideT -= dt;
-      const k = Math.pow(0.32, dt);
+      const k = Math.pow(TUNE.slideKeep, dt);
       v.x *= k;
       v.z *= k;
       v.x += wish.x * 6 * dt;
@@ -404,7 +410,9 @@ class Body {
         } else {
           /* strafing as a skill: reversing direction bites harder (95) than speeding up (80), so a
              well-timed change of direction is quick enough to make someone miss, but not instant */
-          const a = (tx * v.x + tz * v.z < 0 ? TUNE.reverse : TUNE.accel) * dt;
+          const rev = tx * v.x + tz * v.z < 0,
+            slow = !rev && tx * tx + tz * tz < hs * hs - 0.01;
+          const a = (rev ? TUNE.reverse : slow && TUNE.decel > 0 ? TUNE.decel : TUNE.accel) * dt;
           v.x += clamp(tx - v.x, -a, a);
           v.z += clamp(tz - v.z, -a, a);
         }

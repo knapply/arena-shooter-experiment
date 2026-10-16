@@ -57,6 +57,30 @@ const fix = v => +v.toFixed(2);
     "starting from rest to full strafe takes ~0.08 s",
     upT && fix(upT)
   );
+  /* letting go: by default you stop at the acceleration rate; a ground deceleration (Sandbox, the
+     Classic feel preset) stops you on its own rate */
+  const stopT = decel => {
+    const d0 = K.TUNE.decel;
+    K.TUNE.decel = decel;
+    let st = null;
+    scenario({
+      pilots: { a: { pos: [-22, 0, -6], yaw: 0 } },
+      seconds: 1.5,
+      input: t => ({ a: { s: t < 1 ? 1 : 0 } }),
+      every: (t, P) => {
+        if (st == null && t > 1 && Math.abs(P.a.vel.x) < 0.3) st = t - 1;
+      },
+    });
+    K.TUNE.decel = d0;
+    return st;
+  };
+  const s0 = stopT(0),
+    s1 = stopT(30);
+  check(
+    s0 != null && between(s0, 0.06, 0.12) && s1 != null && between(s1, 0.18, 0.26),
+    "stopping takes the acceleration's ~0.08 s, or a ground deceleration's own time when set",
+    [s0, s1].map(v => v && fix(v))
+  );
   const ads = ran(
     scenario({
       pilots: { a: { pos: RUN, yaw: 0 } },
@@ -99,6 +123,54 @@ const fix = v => +v.toFixed(2);
     "jump reaches ~1.1 m and lands",
     fix(apex)
   );
+  /* the Classic feel preset's thrust and slide cover what the reference's do on Forge test footage:
+     a thrust out of a sprint about 7.5 m over its burst, a slide about 7 m over its 0.8 s */
+  {
+    const C = K.SANDBOX_PRESETS.classic.values,
+      T0 = { ...K.TUNE };
+    Object.assign(K.TUNE, {
+      run: C.sbRun,
+      sprint: C.sbSprint,
+      sprintRamp: C.sbSprintRamp,
+      accel: C.sbAccel,
+      decel: C.sbDecel,
+      thrust: C.sbThrust,
+      thrustT: C.sbThrustT,
+      slideBoost: C.sbSlide,
+      slideT: C.sbSlideT,
+      slideKeep: C.sbSlideKeep,
+    });
+    const along = (input, t0, t1) => {
+      let x0 = null,
+        x1 = null;
+      scenario({
+        pilots: { a: { pos: RUN, yaw: EAST } },
+        seconds: t1 + 0.05,
+        input,
+        every: (t, P) => {
+          if (x0 == null && t >= t0) x0 = P.a.pos.clone();
+          if (x1 == null && t >= t1) x1 = P.a.pos.clone();
+        },
+      });
+      return Math.hypot(x1.x - x0.x, x1.z - x0.z);
+    };
+    const th = along(
+        t => ({ a: { f: 1, sprint: t < 1.5, thrust: Math.abs(t - 1.5) < 0.005 } }),
+        1.5,
+        1.5 + C.sbThrustT
+      ),
+      sl = along(
+        t => ({ a: { f: 1, sprint: true, crouchP: Math.abs(t - 1.5) < 0.005, crouch: t > 1.5 && t < 1.7 } }),
+        1.5,
+        1.5 + C.sbSlideT
+      );
+    Object.assign(K.TUNE, T0);
+    check(
+      between(th, 6.9, 8.1) && between(sl, 6.5, 7.6),
+      "Classic feel: a thrust covers ~7.5 m and a slide ~7 m, as on the reference's Forge tests",
+      { thrust: fix(th), slide: fix(sl) }
+    );
+  }
   const slide = ran(
     scenario({
       pilots: { a: { pos: RUN, yaw: EAST } },

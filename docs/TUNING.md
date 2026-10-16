@@ -423,6 +423,61 @@ That is about the same as before; no default changed.
 
 The rule for sprinting and recharge belongs to the shields work in progress elsewhere; these numbers went to it.
 
+### Pass five: synced input overlays only
+
+**Sources.** From this pass on, how the reference *responds* is measured only from footage with a software input display drawn in sync with the game: stick positions and button presses, frame by frame. Hand and claw cams don't show stick positions or the exact press frame, so they are supporting only.
+
+- **Search:** about 45 more searches and the full upload lists of the channels behind the known overlay videos. That found three more overlay videos, for five in all: about 75 min, 60 fps except one.
+- **Sync check:** each overlay was checked against the game by frame-stepping presses spread over the video (jumps, shots, thrusts, crouches, zooms) and by correlating the stick with the turn rate minute by minute.
+  - The overlays run 1 to 15 frames ahead of the game image, depending on the capture setup.
+  - Within a video the offset holds to ±1 frame, with no drift.
+- **Data:** 1,124 measurements, with each video's offset removed.
+
+Thrust, slide and ground-pound reach were measured separately:
+- on Forge test footage, scaled two independent ways that agree within 1%: marker lines, and the run speed from a Forge speed readout;
+- from the kill positions in 207 pro matches' event logs.
+
+| | Reference (n, quality) | Classic feel before | Classic feel now |
+|---|---|---|---|
+| Look below full tilt | almost no turn to about 45% of the stick's throw, then steep: about 4–13 deg/s at 50–55%, 28–32 at 60–65%, 30–75 at 70–80% (two players; about 9,000 frames in pooled bins, B/C) | dead zone 12%, curve 3: about 12 deg/s at 50%, 44 at 70%, 71 at 80% | **dead zone 30%, curve 2.6** (the best fit within the settings' ranges): about 6 at 50%, 34 at 70%, 61 at 80% |
+| Look at full tilt, acceleration, stop | about 105–130 deg/s at once; 120–150 at 0.1 s, 230–320 at 0.5 s, cap 300–390; stops in 1–2 frames (hundreds of holds) | as measured | unchanged (confirmed) |
+| Jump, thrust, fire after the press | 0–33 ms; fire 17–67 ms (about 600 presses) | on the press | unchanged (confirmed) |
+| Start to full run | 0.25–0.30 s (Forge speed readout A; overlays C) | 0.2 s (35 m/s²) | **0.29 s (24 m/s²)** |
+| Stop | 0.08–0.13 s (overlay, B/C) | 0.2 s (the same rate) | **0.11 s: new Ground deceleration setting, 65 m/s²** |
+| Strafe reversal | across zero in 0.12–0.27 s, full the other way in 0.33–0.5 s (C) | 0.4 s | about 0.5 s (reversal 35, then acceleration 24) |
+| Thrust | out of a sprint: a 0.6 s burst at 14.6 m/s (12.9 at our scale), 8.6 m (7.5 m ours), full speed within 1–2 frames (B, 1 clean run); plume 0.5 s (9); recharge 4.0 s from the press, and presses inside it are dropped (overlay, B) | 12 m/s for 0.24 s, about 2.9 m (from 1 rough sample) | **13 m/s for 0.58 s: about 7.5 m** (new **Thrust length** setting); recharge 4 s |
+| Slide | 0.80 s (B, 2); holds sprint speed the whole way (no boost, no slowing), then stops in about 0.2 s; 8 m (7 m ours) | 0.5 s with a 3.2 m/s boost that bleeds off | **0.8 s, no boost, speed kept** (new **Slide glide** setting, 1): about 7.1 m |
+| Ground pound | kills out to 1.27 world units horizontally = 3.9 m (3.4 m ours), n = 45 pro-match kills (B, a lower bound); charge about 0.6 s (B, 6) | radius 3.2 m, charge 0.65 s | **radius 3.4 m**, charge 0.65 s |
+
+**New Sandbox settings.** Each defaults to today's behaviour, so the defaults don't move:
+
+- **Ground deceleration:** 0 means stopping at the acceleration rate, as before.
+- **Thrust length:** 0.24 s.
+- **Slide glide:** 0.32, the share of a slide's speed left after a second.
+
+**Measured.** The four cells and both pairings, with null controls:
+
+| Variant | Round one (24 matches), skill share | Round two (48 matches) | Time to kill |
+|---|---|---|---|
+| **The revised Classic feel preset** | **−0.011**; 3 of 16 positive | **−0.008**; 2 of 16 | −0.47 s both rounds |
+| Acceleration 24 | −0.002; 8 of 16 | +0.001; 8 of 16 | the same |
+| Deceleration 65 | −0.008; 4 of 16 | 0.000; 8 of 16 | the same |
+| Slide glide 1 | −0.003; 6 of 16 | −0.001; 8 of 16 | the same |
+
+The preset costs less than half the skill share the pass-four version did (−0.021 to −0.026). Fights are as short as before; most of that comes from the recharge and melee rules, as in pass four. Teamkills fall a little.
+
+**Decision:** no default changes. No single setting raises skill share on both rounds.
+
+The simulations can't test the look curve: the AI doesn't use a stick.
+
+**Still not measured cleanly:**
+- thrust from standing, from a run and in the air;
+- the ground pound's one-hit radius (about 1.1 m ours, 1 rough sample) and its lowest height;
+- the jump, the sprint wind-up and clamber reach, which no overlay can show;
+- whether releasing crouch ends a slide early. In the reference a 10-frame crouch tap gives the full 0.8 s slide; here, letting go after 0.25 s ends it.
+
+The cleanest way to settle these is the user's own PC recording with an input display, plus the Forge position readout.
+
 ## Grenades from footage
 
 The grenades flew wrong: "the distance and bounce is totally off". They were measured from two frame-by-frame grenade analysis videos (the game's own on-screen figures plus tracked flights) and from match footage, then set as the defaults. Distances in the game's own metres are scaled to this game by eye height (×0.88).
