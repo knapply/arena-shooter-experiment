@@ -31,6 +31,7 @@
     "characters/anim.js",
     "weapons/models.js",
     "characters/rig.js",
+    "characters/armour.js",
     "characters/look.js",
     "game/recorder.js",
     "game/pilot.js",
