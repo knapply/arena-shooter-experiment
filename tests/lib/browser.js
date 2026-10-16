@@ -128,9 +128,18 @@ async function routeThree(p, real = true) {
       core = fs.readFileSync(path.join(path.dirname(process.env.THREE_PATH), "three.core.min.js"), "utf8");
     await p.route("**/three.module.min.js", r => r.fulfill({ ...js, body: mod }));
     await p.route("**/three.core.min.js", r => r.fulfill({ ...js, body: core }));
+    /* addons the page loads on demand (examples/jsm): from a jsm/ folder beside THREE_PATH if it has
+       them, otherwise from the CDN */
+    await p.route("**/examples/jsm/**", r => {
+      const rel = new URL(r.request().url()).pathname.split("/examples/jsm/")[1] || "",
+        f = path.join(path.dirname(process.env.THREE_PATH), "jsm", rel);
+      return fs.existsSync(f) ? r.fulfill({ ...js, body: fs.readFileSync(f, "utf8") }) : r.continue();
+    });
   } else {
     const stub = fs.readFileSync(path.join(__dirname, "..", "stubs", "three-browser.js"), "utf8");
     await p.route("**/three.module.min.js", r => r.fulfill({ ...js, body: stub }));
+    /* (no addons with the stub: the page falls back to what it has built in) */
+    await p.route("**/examples/jsm/**", r => r.fulfill({ ...js, body: "export {};" }));
   }
 }
 /** wait for fn(arg) in the page to be true (false after the timeout): waits on game state, not time,

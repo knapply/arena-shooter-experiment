@@ -72,12 +72,14 @@ export function build({ dev = false, trailer = false } = {}) {
 /** three.js, pinned (manifest.three), from jsDelivr: its ES module build sets the global THREE the engine
     reads. three.module.min.js imports "./three.core.js"; the import map points that at the minified core,
     so the page downloads about 0.8 MB of minified script instead of 2.1 MB (and the CDN compresses it).
-    A test stub served in its place may have set THREE already. */
+    A test stub served in its place may have set THREE already. "three" is mapped too, so addons loaded
+    on demand from the same CDN (examples/jsm, e.g. SMAA in render/pipeline.js) share this instance;
+    window.THREE_URL is the build folder they are found beside. */
 export function threeTags(v) {
   const base = `https://cdn.jsdelivr.net/npm/three@${v}/build/`;
   return (
-    `<script type="importmap">${JSON.stringify({ imports: { [base + "three.core.js"]: base + "three.core.min.js" } })}</script>\n` +
-    `<script type="module">import * as THREE from "${base}three.module.min.js";window.THREE ??= THREE;</script>`
+    `<script type="importmap">${JSON.stringify({ imports: { [base + "three.core.js"]: base + "three.core.min.js", three: base + "three.module.min.js" } })}</script>\n` +
+    `<script type="module">import * as THREE from "${base}three.module.min.js";window.THREE ??= THREE;window.THREE_URL = "${base}";</script>`
   );
 }
 

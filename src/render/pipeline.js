@@ -28,6 +28,15 @@ const GFX = {
   /* the environment capture is waiting for the first frames (render/environment.js) */
   envWait: false,
   frame: 0,
+  /* SMAA (three's addon, loaded from the CDN the first time it is chosen): the pass, the composite's
+     output it reads (ldr), and whether loading failed (then FXAA stands in) */
+  smaa: null,
+  smaaLoad: null,
+  ldr: null,
+  /* a map look shown instead of the map's own (the developer console's "look" command) */
+  lookId: "",
+  /* a tone curve that overrides the map's (the developer console's "tone" command) */
+  tone: "",
 };
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
@@ -159,10 +168,101 @@ gl_FragColor=vec4(min(hit,vec3(8.))*found*w*fres,rough);}`,
 });
 /* each map's own color mood, applied after tone mapping: shadow tint (lift), highlight tint (gain),
    vibrance. Picked by whichever map group is showing (MAP_GROUPS, world/bake.js). */
-const MAP_GRADE = {
-  arena: { lift: [-0.012, 0.008, 0.03], gain: [1.05, 1.0, 0.94], vib: 0.18 },
-  "twin-foundry": { lift: [0.018, -0.004, 0.04], gain: [1.06, 0.98, 0.9], vib: 0.22 },
+/* each map's time of day and weather: tone curve (render/tone.js), grade (shadow and highlight tints,
+   vibrance), sun (direction, color, brightness in the old light units), sky and ground ambient, fog
+   (color, and its near and far as shares of the usual), the sky (see SKY_U in render/renderer.js) and
+   whether a storm throws lightning. Applied when the map that is showing changes (applyLook). */
+const MAP_LOOK = {
+  /* Proving Grounds at dusk */
+  arena: {
+    tone: "neutral",
+    lift: [-0.012, 0.008, 0.03],
+    gain: [1.05, 1.0, 0.94],
+    vib: 0.18,
+    sun: [30, 30, 18, "#ffe2c0", 2.3],
+    hemi: ["#b4cbe0", "#5a4a3c", 1.35],
+    fog: ["#141e24", 1, 1],
+    sky: {
+      lo: [0.07, 0.1, 0.13],
+      mid: [0.36, 0.26, 0.24],
+      hi: [0.04, 0.06, 0.11],
+      k: [1, 1, 0, 0],
+      cloudA: [0.15, 0.12, 0.16],
+      cloudB: [0.66, 0.44, 0.33],
+      sun: [1, 0.84, 0.62, 1],
+      glow: [1, 0.7, 0.35],
+    },
+  },
+  /* Twin Foundry: a hazy night under a storm, lit by moonlight from above and sodium lamps from the
+     city below; lightning in the clouds now and then */
+  "twin-foundry": {
+    tone: "neutral",
+    lift: [0.02, 0.0, 0.035],
+    gain: [1.08, 0.97, 0.86],
+    vib: 0.25,
+    sun: [-20, 34, 26, "#a9bde6", 1.05],
+    hemi: ["#3a4868", "#85522a", 1.35],
+    fog: ["#2b2118", 0.55, 0.85],
+    storm: true,
+    sky: {
+      lo: [0.17, 0.1, 0.05],
+      mid: [0.1, 0.07, 0.06],
+      hi: [0.015, 0.02, 0.04],
+      k: [0, 0.35, 1, 0],
+      cloudA: [0.05, 0.045, 0.055],
+      cloudB: [0.42, 0.24, 0.11],
+      sun: [0.75, 0.82, 1, 0.45],
+      glow: [1, 0.62, 0.25],
+    },
+  },
+  /* Hadal Station on the sea floor: blue-green light from the surface far above, dense blue water */
+  hadal: {
+    tone: "neutral",
+    lift: [-0.02, 0.012, 0.04],
+    gain: [0.9, 1.02, 1.08],
+    vib: 0.2,
+    sun: [6, 60, 10, "#8fdfe6", 1.5],
+    hemi: ["#2d6f86", "#0b1a22", 1.25],
+    fog: ["#06222d", 0.3, 0.7],
+    sky: {
+      lo: [0.01, 0.05, 0.07],
+      mid: [0.02, 0.12, 0.16],
+      hi: [0.05, 0.25, 0.3],
+      k: [0, 0, 0, 1],
+      cloudA: [0, 0, 0],
+      cloudB: [0, 0, 0],
+      sun: [0.5, 0.9, 1, 0],
+      glow: [0.4, 0.9, 1],
+    },
+  },
 };
+/* the look in effect: its id, base ambient (lightning adds to it), fog shares, storm */
+const LOOK_NOW = { id: "", hemiI: 1.35, fogNear: 1, fogFar: 1, storm: false };
+function applyLook(id) {
+  const L = MAP_LOOK[id] || MAP_LOOK.arena;
+  LOOK_NOW.id = id;
+  sun.position.set(L.sun[0], L.sun[1], L.sun[2]);
+  sun.color.set(L.sun[3]);
+  sun.intensity = L.sun[4] * LIGHT_K;
+  hemi.color.set(L.hemi[0]);
+  hemi.groundColor.set(L.hemi[1]);
+  hemi.intensity = (LOOK_NOW.hemiI = L.hemi[2]) * LIGHT_K;
+  scene.fog.color.set(L.fog[0]);
+  scene.background.set(L.fog[0]);
+  LOOK_NOW.fogNear = L.fog[1];
+  LOOK_NOW.fogFar = L.fog[2];
+  applyFog();
+  LOOK_NOW.storm = !!L.storm;
+  const S = L.sky;
+  SKY_U.skyLo.value.fromArray(S.lo);
+  SKY_U.skyMid.value.fromArray(S.mid);
+  SKY_U.skyHi.value.fromArray(S.hi);
+  SKY_U.skyK.value.fromArray(S.k);
+  SKY_U.cloudA.value.fromArray(S.cloudA);
+  SKY_U.cloudB.value.fromArray(S.cloudB);
+  SKY_U.sunC.value.fromArray(S.sun);
+  SKY_U.glowC.value.fromArray(S.glow);
+}
 /* heat haze sources for the composite pass, filled by heatUniforms (render/combat-fx.js) */
 const HEAT_U = Array.from({ length: 6 }, () => new THREE.Vector4());
 const compMat = new THREE.ShaderMaterial({
@@ -174,6 +274,8 @@ const compMat = new THREE.ShaderMaterial({
   uniforms: {
     tS: { value: null },
     tB: { value: null },
+    /* the map's tone curve (render/tone.js) */
+    tTone: { value: null },
     texel: { value: new THREE.Vector2(1, 1) },
     fx: { value: 1 },
     sharp: { value: 0.3 },
@@ -208,7 +310,7 @@ const compMat = new THREE.ShaderMaterial({
     "#ifdef CINE",
     "/*@cine-head*/",
     "#endif",
-    "vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}",
+    TONE_GLSL,
     "float luma(vec3 c){return dot(c,vec3(.299,.587,.114));}",
     "vec3 S(vec2 uv){return aces(texture2D(tS,uv).rgb*expo);}",
     "vec3 fxaa(vec2 uv){vec3 nw=S(uv+vec2(-1.,-1.)*texel),ne=S(uv+vec2(1.,-1.)*texel),sw=S(uv+vec2(-1.,1.)*texel),se=S(uv+vec2(1.,1.)*texel),m=S(uv);",
@@ -324,6 +426,32 @@ function gfxResize() {
   GFX.w = w;
   GFX.h = h;
   compMat.uniforms.texel.value.set(1 / w, 1 / h);
+  smaaSize(W, H);
+}
+/** SMAA on the finished image: the composite draws into ldr, the pass draws that to the screen */
+function smaaWanted() {
+  if (SET.aa !== "smaa" || GFX.smaaLoad === false) return false;
+  if (!GFX.smaaLoad) {
+    const base = /** @type {any} */ (window).THREE_URL;
+    if (!base) return (GFX.smaaLoad = false);
+    GFX.smaaLoad = import(base.replace(/build\/$/, "examples/jsm/") + "postprocessing/SMAAPass.js")
+      .then(m => {
+        if (!m.SMAAPass) throw new Error("no SMAA");
+        GFX.smaa = new m.SMAAPass();
+        GFX.smaa.renderToScreen = true;
+        smaaSize(renderer.domElement.width, renderer.domElement.height);
+      })
+      .catch(() => (GFX.smaaLoad = false));
+  }
+  return !!GFX.smaa;
+}
+function smaaSize(W, H) {
+  if (!GFX.smaa) return;
+  if (!GFX.ldr || GFX.ldr.width !== W || GFX.ldr.height !== H) {
+    if (GFX.ldr) GFX.ldr.dispose();
+    GFX.ldr = new THREE.WebGLRenderTarget(W, H, { depthBuffer: false });
+  }
+  GFX.smaa.setSize(W, H);
 }
 const _sunS = new THREE.Vector3(),
   _sunF = new THREE.Vector3();
@@ -340,6 +468,8 @@ function renderFrame() {
   podDraw();
   /* low shadows redraw every other frame */
   if (!renderer.shadowMap.autoUpdate) renderer.shadowMap.needsUpdate = (++GFX.frame & 1) === 0;
+  /* the shadow square follows the view, on frames the shadow map is redrawn */
+  if (renderer.shadowMap.autoUpdate || renderer.shadowMap.needsUpdate) fitShadow();
   if (!GFX.on || !GFX.rt) {
     renderer.setRenderTarget(null);
     if (GPUQ) GPUQ.begin("scene");
@@ -401,7 +531,7 @@ function renderFrame() {
     /* light shafts: only while the sun is in front of the camera */
     U.shaftK.value = 0;
     if (GFX.sh) {
-      _sunS.copy(sun.position).normalize();
+      sunDir(_sunS);
       camera.getWorldDirection(_sunF);
       const facing = _sunS.dot(_sunF);
       if (facing > 0.1) {
@@ -427,7 +557,12 @@ function renderFrame() {
       SURF_U.surfMark.value = cur.mark.tex;
       SURF_U.surfMarkB.value.copy(cur.mark.b);
     }
-    const gr = SET.grade && !GFX.look && cur && MAP_GRADE[cur.id];
+    /* (not while a cutscene sets its own mood) */
+    const lookId = GFX.lookId || (cur && cur.id);
+    if (lookId && lookId !== LOOK_NOW.id && !GFX.look) applyLook(lookId);
+    const look = lookId && MAP_LOOK[lookId];
+    U.tTone.value = toneLut(GFX.tone || (look && look.tone) || "aces");
+    const gr = SET.grade && !GFX.look && look;
     U.gOn.value = gr ? 1 : 0;
     if (gr) {
       U.gLift.value.fromArray(gr.lift);
@@ -458,7 +593,9 @@ function renderFrame() {
     if (GPUQ) GPUQ.begin("comp");
     U.tS.value = GFX.rt.texture;
     U.tB.value = GFX.b1.texture;
-    U.fx.value = SET.aa === "fxaa" ? 1 : 0;
+    const smaa = smaaWanted();
+    /* (FXAA stands in for SMAA while it loads, or if it can't) */
+    U.fx.value = SET.aa === "fxaa" || (SET.aa === "smaa" && !smaa) ? 1 : 0;
     U.bloom.value = SET.bloom;
     U.expo.value = SET.exposure;
     U.sat.value = SET.saturation;
@@ -470,7 +607,12 @@ function renderFrame() {
     U.heatN.value = SET.fxDetail === "ultra" && !L ? heatUniforms() : (CFX.heat.length = 0);
     U.hT.value = CFX.t;
     U.aspect.value = GFX.w / GFX.h;
-    fsPass(compMat, null);
+    if (smaa) {
+      fsPass(compMat, GFX.ldr);
+      if (GPUQ) GPUQ.end();
+      if (GPUQ) GPUQ.begin("smaa");
+      GFX.smaa.render(renderer, null, GFX.ldr);
+    } else fsPass(compMat, null);
     if (GPUQ) GPUQ.end();
     PERF.postCpu += performance.now() - tp;
     exposureCheck();

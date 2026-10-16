@@ -211,6 +211,20 @@ const CON = (() => {
         return "hitboxes " + (on ? "on" : "off");
       },
     ],
+    look: [
+      "look [arena|twin-foundry|hadal|map] — show a map's time of day and weather here (map: its own)",
+      a => {
+        GFX.lookId = a[0] && MAP_LOOK[a[0]] ? a[0] : "";
+        return "look " + (GFX.lookId || "map");
+      },
+    ],
+    tone: [
+      "tone [aces|agx|neutral|map] — the tone curve (map: each map's own)",
+      a => {
+        GFX.tone = a[0] && a[0] !== "map" && TONE_CURVES[a[0]] ? a[0] : "";
+        return "tone " + (GFX.tone || "map");
+      },
+    ],
     bake: [
       "bake [on|off] — show only the light baked into the map (occlusion grey, bounce in color)",
       a => {
