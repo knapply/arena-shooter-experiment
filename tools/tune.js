@@ -144,12 +144,13 @@ const KNOBS = {
   sbHealthRate: { set: v => (K.TUNE.healthRate = RULE.healthRate = v), def: 28, try: [7.5] },
   sbMeleeShield: { set: v => (K.MELEE.shield = v), def: 40, try: [70] },
   sbCarbHead: { set: v => (W("carbine").head = Math.round(W("carbine").body * v)), def: 11 / 9, try: [2] },
-  sbCarbReload: { set: v => (W("carbine").reload = v), def: 1.8, try: [2.1] },
-  sbMagReload: { set: v => (W("pistol").reload = v), def: 1.3, try: [1.5] },
-  sbMagZoom: { set: v => (W("pistol").zoom = [v]), def: 1.8, try: [1.5] },
+  sbCarbReload: { set: v => (W("carbine").reload = v), def: 1.4, try: [1.8] },
+  sbCarbGap: { set: v => (W("carbine").burstGap = v), def: 0.035, try: [0.075] },
+  sbMagReload: { set: v => (W("pistol").reload = v), def: 1.15, try: [1.3] },
+  sbMagZoom: { set: v => (W("pistol").zoom = [v]), def: 1.5, try: [1.8] },
   /* view kick (the player's aim only; the AI has no recoil) */
-  sbMagRecoil: { set: v => (W("pistol").recoil = v), def: 0.045, try: [0.009] },
-  sbCarbRecoil: { set: v => (W("carbine").recoil = v), def: 0.016, try: [0.006] },
+  sbMagRecoil: { set: v => (W("pistol").recoil = v), def: 0.009, try: [0.045] },
+  sbCarbRecoil: { set: v => (W("carbine").recoil = v), def: 0.0035, try: [0.016] },
   /* the reference's higher jump: about 1.5 body heights, 1.33 s in the air */
   sbJumpHi: {
     set: v => Object.assign(K.TUNE, v ? { jump: 8.2, grav: 12.3 } : { jump: 7.4, grav: 24 }),
@@ -176,26 +177,34 @@ const KNOBS = {
     def: 0,
     try: [1, 1.33],
   },
-  sbCarbDmg: {
-    set: v => Object.assign(W("carbine"), { body: v, head: Math.round(v * (11 / 9)) }),
-    def: 9,
-    try: [8, 10],
+  /* body damage only: the carbine's headshot (45) is a finisher once shields are down */
+  sbCarbDmg: { set: v => (W("carbine").body = v), def: 6.5, try: [6, 7] },
+  sbCarbRate: { set: v => (W("carbine").rate = v), def: 0.4, try: [0.36, 0.45] },
+  /* the five weapons as they were before the footage numbers (a fully automatic carbine, a faster
+     magnum and sniper, quicker reloads), to compare against */
+  sbWeapOld: {
+    set: v => {
+      if (!v) return;
+      Object.assign(W("carbine"), {
+        mag: 32, reserve: 96, rate: 0.1, burst: 0, precision: false, body: 9, head: 11, reload: 1.8,
+        spread: 0.012, adsSpread: 0.004, bloom: 0.004, recoil: 0.016, recover: 8,
+      });
+      Object.assign(W("pistol"), { reserve: 36, rate: 0.26, reload: 1.3 });
+      Object.assign(W("sniper"), { rate: 0.62, reload: 2.4 });
+      W("rocket").reload = 3.2;
+      Object.assign(W("scatter"), { falloff: [5, 16, 0.25], reload: 2.6 });
+    },
+    def: 0,
+    try: [1],
   },
-  sbCarbRate: { set: v => (W("carbine").rate = v), def: 0.1, try: [0.09, 0.115] },
-  sbCarbSpread: {
-    set: v => Object.assign(W("carbine"), { spread: v, adsSpread: v / 3 }),
-    def: 0.012,
-    try: [0.008, 0.016],
-  },
-  sbCarbBloom: { set: v => (W("carbine").bloom = v), def: 0.004, try: [0.002, 0.007] },
   sbMagDmg: {
     set: v => Object.assign(W("pistol"), { body: v, head: Math.round(v * 2.5) }),
     def: 23,
     try: [18, 22],
   },
-  sbMagRate: { set: v => (W("pistol").rate = v), def: 0.28, try: [0.22, 0.3] },
+  sbMagRate: { set: v => (W("pistol").rate = v), def: 0.3, try: [0.26, 0.34] },
   sbSnipeDmg: { set: v => (W("sniper").body = v), def: 60, try: [50, 70] },
-  sbSnipeRate: { set: v => (W("sniper").rate = v), def: 0.62, try: [0.5, 0.75] },
+  sbSnipeRate: { set: v => (W("sniper").rate = v), def: 0.78, try: [0.62, 0.9] },
   sbRocketSplash: { set: v => (W("rocket").splash = v), def: 150, try: [120, 180] },
   sbRocketRadius: { set: v => (W("rocket").radius = v), def: 4.2, try: [3.4, 5] },
   sbNadeThrow: { set: v => (K.NADE_TUNE.throw = v), def: 19, try: [16, 22] },
@@ -296,7 +305,7 @@ Object.assign(KNOBS, {
   ruMagnet: { set: rule("magnet"), def: 0, try: [0.1, 0.2] },
   /* headshot damage once shields are down: the magnum's and the carbine's */
   sbMagHead: { set: v => (W("pistol").head = v), def: 50, try: [40, 60] },
-  sbCarbHead: { set: v => (W("carbine").head = v), def: 11, try: [9, 14] },
+  sbCarbHead: { set: v => (W("carbine").head = v), def: 45, try: [22, 35] },
   spSeen: { set: v => (K.SPAWN_W.seen = v), def: 60, try: [30, 120] },
   spNear: { set: v => (K.SPAWN_W.near = v), def: 30, try: [20, 40] },
   spFight: { set: v => (K.SPAWN_W.fightW = v), def: 1.2, try: [0.6, 2.4] },
@@ -597,8 +606,7 @@ for (const part of (process.env.TRY || "").split(";").filter(Boolean)) {
 /* read the real defaults from the data so the table always starts from what ships */
 KNOBS.sbCarbDmg.def = W("carbine").body;
 KNOBS.sbCarbRate.def = W("carbine").rate;
-KNOBS.sbCarbSpread.def = W("carbine").spread;
-KNOBS.sbCarbBloom.def = W("carbine").bloom;
+KNOBS.sbCarbGap.def = W("carbine").burstGap;
 KNOBS.sbMagDmg.def = W("pistol").body;
 KNOBS.sbMagRate.def = W("pistol").rate;
 KNOBS.sbMagHead.def = W("pistol").head;
@@ -634,8 +642,14 @@ for (const [k, f] of [
 KNOBS.sbNadeThrow.def = K.NADE_TUNE.throw;
 KNOBS.sbNadeBounce.def = K.NADE_TUNE.bounce;
 let CUR_MINUS_TEAM = -1;
+/* every weapon's numbers as loaded: a variant that changes fields no knob resets (sbWeapOld) is undone */
+const WEAP_DEF = K.WEAPON_DATA.map(w => JSON.parse(JSON.stringify(w)));
 function resetAll() {
   RP.minus = RP.prefer = "";
+  K.WEAPON_DATA.forEach((w, i) => {
+    for (const k of Object.keys(w)) if (!(k in WEAP_DEF[i])) delete w[k];
+    Object.assign(w, JSON.parse(JSON.stringify(WEAP_DEF[i])));
+  });
   K.MELEE.range = 2.3;
   K.MELEE.back = -0.35;
   for (const k of Object.keys(KNOBS)) KNOBS[k].set(KNOBS[k].def);

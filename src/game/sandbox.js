@@ -69,9 +69,7 @@ function applySandbox() {
     reload: v.sbCarbReload,
     recoil: v.sbCarbRecoil,
     rate: v.sbCarbRate,
-    spread: v.sbCarbSpread,
-    adsSpread: v.sbCarbSpread / 3,
-    bloom: v.sbCarbBloom,
+    burstGap: v.sbCarbGap,
   });
   set("pistol", {
     body: v.sbMagDmg,

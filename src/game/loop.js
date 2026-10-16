@@ -30,7 +30,7 @@ let last = performance.now(),
 /* scoping, timed from reference arena-shooter footage (docs/TUNING.md, "Classic feel"): the gun reaches the
    eye in a few frames and the magnification builds evenly (in log zoom, so 5x to 10x takes as long as 1x
    to 2x) over ADS_IN seconds for that weapon; letting go or being knocked out takes ADS_OUT */
-const ADS_IN = { pistol: 0.06, sniper: 0.09 },
+const ADS_IN = { pistol: 0.06, sniper: 0.09, carbine: 0.08 },
   ADS_OUT = 0.05,
   zEase = { from: 0, to: 0, at: 0, t: 1, w: -1 };
 function easeZoom(dt) {
@@ -694,9 +694,10 @@ function frameBody(t) {
     }
     const trig = A("fire") || touch.fire;
     if (!trig) semiLatch = false;
+    /* a burst already started finishes without the trigger (weapons/firing.js) */
+    if (switchT > 0 || carrying) burstLeft = 0;
     if (
-      trig &&
-      (W().auto || !semiLatch) &&
+      ((trig && (W().auto || !semiLatch)) || burstLeft > 0) &&
       fireCD <= 0 &&
       switchT <= 0 &&
       !me.sprint &&

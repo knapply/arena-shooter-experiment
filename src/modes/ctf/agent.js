@@ -156,6 +156,8 @@
       /** the scattergun carried ({ type, n: rounds left, mag }), and whether it is out right now */
       this.pw = null;
       this.pwOut = false;
+      /** rounds left in the carbine burst in progress */
+      this.burstLeft = 0;
       this.flagHold = 0;
       /** when this pilot last fired (anyone near can hear it) */
       this.heardT = -9;
@@ -262,6 +264,7 @@
       this.spawned = true;
       this.wpn = this.G.lock === "magnum" ? 1 : 0;
       this.ammo[0] = CARBINE.mag;
+      this.burstLeft = 0;
       this.ammo[1] = MAGNUM.mag;
       this.rsv[0] = this.G.lock ? Infinity : CARBINE.reserve;
       this.rsv[1] = this.G.lock ? Infinity : MAGNUM.reserve;
@@ -1057,8 +1060,9 @@
         const careful = (this.sniper > 0 && tgt.pos.distanceTo(this.pos) > 6) || this.magnum;
         /* the magnum's rhythm (Legendary): after a miss, hold fire until the reticle is right on them */
         const hold = this.magnum && CTF.AI.rhythm && (S.rhythm || 0) >= 0.5 && this.magHit === false;
-        if (err < (hold ? 0.02 : careful ? 0.05 : 0.09)) this.shoot(tgt);
-      }
+        /* a burst in progress finishes wherever the reticle is */
+        if (this.burstLeft > 0 || err < (hold ? 0.02 : careful ? 0.05 : 0.09)) this.shoot(tgt);
+      } else if (!engaged || this.reloadT > 0 || this.switchT > 0) this.burstLeft = 0;
       if (this.mag <= 0 && this.reloadT <= 0) this.startReload();
       this.nadeCD -= dt;
       if (
@@ -1389,6 +1393,11 @@
           rhythm = this.magnum && CTF.AI.rhythm && (S.rhythm || 0) >= 0.5 && this.magHit === true;
         this.fireCD = late + W.rate + (this.magnum && !rhythm ? S.magPace : 0);
       }
+      /* burst weapons: the rounds of a burst at its gap, the next burst at its rate */
+      if (W.burst && !pw) {
+        this.burstLeft = this.burstLeft > 0 ? this.burstLeft - 1 : W.burst - 1;
+        this.fireCD = late + (this.burstLeft > 0 ? W.burstGap : W.rate - (W.burst - 1) * W.burstGap);
+      } else this.burstLeft = 0;
       this.firedT = G.t;
       this.shots++;
       G.emit("shot", { by: this, weapon: W.dmg });
