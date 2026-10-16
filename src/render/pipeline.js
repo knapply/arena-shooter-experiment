@@ -25,6 +25,8 @@ const GFX = {
      trailer build only */
   look: null,
   lookPass: null,
+  /* a brief radial colour split (red out, blue in) when your shield breaks (game/loop.js) */
+  split: 0,
   /* the environment capture is waiting for the first frames (render/environment.js) */
   envWait: false,
   frame: 0,
@@ -301,10 +303,11 @@ const compMat = new THREE.ShaderMaterial({
     heatN: { value: 0 },
     hT: { value: 0 },
     aspect: { value: 1 },
+    split: { value: 0 },
   },
   fragmentShader: [
     "uniform sampler2D tS;uniform sampler2D tB;uniform vec2 texel;uniform float fx;uniform float sharp;uniform float bloom;uniform float expo;uniform float sat;uniform float vig;uniform float grain;uniform float time;varying vec2 vUv;",
-    "uniform vec4 heat[6];uniform float heatN;uniform float hT;uniform float aspect;uniform sampler2D tR;uniform float ssrK;uniform sampler2D tA;uniform float aoK;uniform sampler2D tSh;uniform float shaftK;uniform float gOn;uniform vec3 gLift;uniform vec3 gGain;uniform float gVib;",
+    "uniform vec4 heat[6];uniform float heatN;uniform float hT;uniform float aspect;uniform sampler2D tR;uniform float ssrK;uniform sampler2D tA;uniform float aoK;uniform sampler2D tSh;uniform float shaftK;uniform float gOn;uniform vec3 gLift;uniform vec3 gGain;uniform float gVib;uniform float split;",
     /* the cinematic look (render/cine-look.js, trailer build) splices in at these markers, compiled in
        only while a look is on (CINE) */
     "#ifdef CINE",
@@ -321,6 +324,8 @@ const compMat = new THREE.ShaderMaterial({
     "void main(){vec2 uv=vUv;",
     " if(heatN>0.)for(int i=0;i<6;i++){vec4 h=heat[i];if(h.w<=0.)continue;vec2 d=(uv-h.xy)*vec2(aspect,1.);float f=h.w*(1.-smoothstep(0.,h.z,length(d)));uv+=f*.004*vec2(sin(uv.y*140.+hT*31.+float(i)),cos(uv.x*120.-hT*27.));}",
     " vec3 c=fx>.5?fxaa(uv):S(uv);",
+    /* the shield break's colour split: nothing at the centre, growing to the edges */
+    " if(split>0.){vec2 o=(uv-.5)*split;c.r=S(uv+o).r;c.b=S(uv-o).b;}",
     " if(sharp>.001){vec3 n=S(uv-vec2(0.,texel.y)),s=S(uv+vec2(0.,texel.y)),e=S(uv+vec2(texel.x,0.)),w=S(uv-vec2(texel.x,0.));vec3 mn=min(c,min(min(n,s),min(e,w))),mx=max(c,max(max(n,s),max(e,w)));c=clamp(c+(4.*c-n-s-e-w)*sharp*.3,mn,mx);}",
     " vec2 q=uv-.5;",
     "#ifdef CINE",
@@ -601,6 +606,7 @@ function renderFrame() {
     U.sat.value = SET.saturation;
     U.vig.value = SET.vignette;
     U.grain.value = SET.grain;
+    U.split.value = GFX.split;
     const up = gfxScale() < 0.97;
     U.sharp.value = SET.sharpen * (up ? 1.3 : 1);
     U.time.value = (U.time.value + 0.0173) % 1;

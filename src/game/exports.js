@@ -13,6 +13,10 @@ const KA_API = {
   updPickups,
   giveWeapon,
   hitMarker,
+  /** the kill feed's icon for a damage type (ui/feed-icons.js) */
+  feedIconMask,
+  /** the post pipeline's state (render/pipeline.js): the shield break's colour split is GFX.split */
+  GFX,
   /** the controller's state (core/gamepad.js) */
   GP,
   refill,
