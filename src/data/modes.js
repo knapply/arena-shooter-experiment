@@ -214,9 +214,10 @@ export const SANDBOX_PRESETS = {
       /* softer ground grip: 0.2 s to start or stop, 0.4 s to reverse a strafe */
       sbAccel: 35,
       sbReverse: 35,
-      /* a jump of about 1.5 body heights, 1.33 s in the air */
-      sbJump: 8.2,
-      sbGrav: 12.3,
+      /* a fast, heavy jump: about 1.7 eye heights (1.55 body heights), at the top in 0.62 s, down in
+         1.24 s, with no hang */
+      sbJump: 9,
+      sbGrav: 14.5,
       /* a shorter thrust (about 1.6 body heights) on a 4 s recharge, a 0.5 s slide, a 0.6 s clamber */
       sbThrust: 12,
       sbThrustCD: 4,
@@ -230,7 +231,7 @@ export const SANDBOX_PRESETS = {
       sbAdsMove: 1,
       /* shields come back after 4 s and refill in 2 s, health in 6 s; two melee blows kill */
       sbRegenDelay: 4,
-      sbShieldRate: 35,
+      sbShieldRate: 37,
       sbHealthRate: 7.5,
       sbMeleeShield: 70,
       /* magnum: 0.3 s between shots, 1.5x sight, 1.15 s reload, a small kick */

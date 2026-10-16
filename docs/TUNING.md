@@ -386,6 +386,83 @@ This game now breaks a sprint with the trigger. A new Sandbox setting, **Sprint 
 **Simulation:** the controller look is the player's own, and the AI doesn't use it, and neither does Sprint after firing (the AI never sprints while it shoots). The one Sandbox change that the AI does feel is the sprint-to-fire delay going from 0.15 s to 0. The revised preset was run again in the same four cells and both pairings, with null controls. On seed sets 100 and 700 (24 matches of each kind; noise ±0.005 to ±0.041), skill share fell by 0.026, with 1 of 16 readings positive and 13 clear. On seed sets 1300 and 1900 (48 matches; noise ±0.002 to ±0.024), it fell by 0.028, with 0 of 16 positive and 14 clear. Time to kill was 0.42 s shorter on both. That is about the same as pass two. No default changed.
 
 
+### Pass four: what made it floaty and bouncy
+
+After pass three the preset still felt "way too floaty and bouncing". This pass measured the jump and the landing directly.
+
+**Jump.** It was measured from a static third-person camera, where pilots jump next to pillars and their body height gives the scale (4 jumps), plus first-person jumps with both sticks at rest on the input-display footage:
+
+- apex 1.74 eye heights (IQR 1.72 to 1.75), about 1.57 body heights;
+- top of the arc 0.60 to 0.62 s after takeoff, back down at about 1.25 s;
+- a plain, heavy parabola, with full upward speed on the first frame and no hang. The height as a share of the apex at 0.1 s steps is 0.36, 0.61, 0.78, 0.91, 0.98, 1.00, 0.99, 0.92, 0.82, 0.66, 0.46, 0.19.
+
+So the high jump in the preset was right; it hung too long. Gravity of 12.3 m/s² with a launch of 8.2 m/s kept a pilot up for 1.33 s. The reference's 0.61 s rise to about 1.7 eye heights needs about 14.5 m/s² with a 9 m/s launch: apex 2.8 m, top at 0.62 s, down at 1.24 s. The data-mined launch speed used in pass two turned out to be the same number as the previous game's editing kit, so it is no longer relied on.
+
+**Landing.** The reference view keeps sinking, more slowly, for 0.11 s to about 0.1 eye heights below rest. It holds about 3 frames, then eases back up over 0.17 s, without ever overshooting. This game dropped the view at once by up to 0.28 m and slid it back up in a straight line, nodding the view down as well. The weapon got a spring kick that swung back past its rest position. Together that read as a bounce.
+
+**Changed:**
+
+- **The landing dip** (all players, presentation only) now follows the reference's curve: sink over 0.11 s, hold, ease back over 0.17 s, no overshoot. Its depth is about 0.16 m for a jump-height landing, and the view's nod is halved.
+- **Classic feel** now jumps at 9 m/s with gravity 14.5 m/s², and its shield recharge is 37/s (measured below).
+- **Requests to the sessions that own the animation:**
+  - The viewmodel's landing spring should not overshoot.
+  - The third-person body's landing should sink at most about 0.1 body heights over about 0.3 s, with no spring.
+
+The revised preset was simulated again in the four cells and both pairings, with null controls:
+
+| Round | Skill share | Readings positive | Clear of noise | Time to kill | Kills/min |
+|---|---|---|---|---|---|
+| Seed sets 100 and 700 | −0.026 | 1 of 16 | 13 | −0.43 s | about the same |
+| Seed sets 1300 and 1900 | −0.026 | 0 of 16 | 15 | −0.41 s | about the same |
+
+That is about the same as before; no default changed.
+
+**Shields, measured** from the HUD bar frame by frame over 15 match videos:
+
+- recharge starts 3.97 s after the last hit (IQR 3.96 to 4.02, n=29);
+- it fills linearly, empty to full in 1.90 s (IQR 1.89 to 1.92, n=9), about 37 a second;
+- thrusting showed no sign of resetting the delay (low confidence), and sprinting wasn't tested.
+
+The rule for sprinting and recharge belongs to the shields work in progress elsewhere; these numbers went to it.
+
+## Grenades from footage
+
+The grenades flew wrong: "the distance and bounce is totally off". They were measured from two frame-by-frame grenade analysis videos (the game's own on-screen figures plus tracked flights) and from match footage, then set as the defaults. Distances in the game's own metres are scaled to this game by eye height (×0.88).
+
+| | Reference | Before | Now (default) |
+|---|---|---|---|
+| Throw | about 29 m/s (25.5 at our scale); a long lob peaks 1.08 s after release, about 3 eye heights up | 19 m/s | 25.5 m/s |
+| Gravity on a grenade | about 9 m/s² at our scale, from that lob | 20 m/s² | 9 m/s² |
+| Frag fuse | goes off at the later of 1.4 s after release and 0.7 s after it first lands (fits all 4 timed throws) | 2.6 s from the throw | 1.4 s, at least 0.7 s after first contact |
+| Frag bounce | first contact is a low skip: vertical restitution 0.3 to 0.5, about 70% of horizontal speed kept; then it rolls about 0.7 s | 0.38 and 72% | unchanged (it already matched) |
+| Frag blast | breaks a full shield to 3.45 m, reaches 6.35 m (3.0 and 5.6 m at our scale) | 105 at the centre, radius 4.2 m (shield-break to about 1.7 m) | 129 at the centre, radius 5.6 m |
+| Plasma | no bounce; goes off 1.5 s after it lands, 1.0 s after sticking; kills within 2.45 m, breaks a shield to 4.13 m, reaches 6.95 m | 1.7 s from the throw; 115, 4.2 m | 1.5 s after landing, 1.0 s stuck; 163, 6.1 m |
+
+The blast damage and radius are fitted to the on-screen kill and shield-break distances with this game's falloff, damage × (1 − d/r)^0.8. The plasma's stated shield-break distance comes out within 0.1 m of the fit, which checks the falloff shape.
+
+**New Sandbox settings:**
+
+- grenade gravity;
+- frag fuse after contact;
+- frag damage;
+- the plasma's fuses on a surface and when stuck;
+- plasma damage and radius.
+
+Grenade throw speed now goes up to 35 m/s. The AI aims its throws with the same gravity and throw speed.
+
+**Measured.** The same four cells and both pairings, with null controls:
+
+| Variant | Seed sets 100 and 700 | Seed sets 1300 and 1900 | Time to kill | Kills/min | Teamkills and self-kills a run |
+|---|---|---|---|---|---|
+| Every reference grenade value | −0.034; 1 of 16 positive | −0.032; 2 of 16 | −0.35 / −0.32 s | +2.3 | about +115 and +45 per 24-match run (round two, 48 matches: +220 and +87). Grenades go from 1 to 15% of kills to 10 to 38%; frags from almost none to 5 to 17% |
+| Flight and fuses only (today's damage and radius) | −0.015; 4 of 16 | not run | −0.12 s | +0.9 | +18 and +5. Grenade kills from 7.5% to 12.7% on average |
+
+**Decision.** The user asked for grenades as close to the footage as possible, so every measured value is now the default. That goes against this page's usual rule: it lowers skill share by about 0.03, roughly doubles teamkills and grenade self-kills, and makes grenades a much bigger share of kills.
+
+Before this change frags almost never killed: under 0.5% of kills, because a 2.6 s fuse lets everyone walk away. Most of the cost comes from the reference's bigger, harder-hitting blast rather than from how far grenades fly. Flight and fuses alone cost about half as much skill share and few extra teamkills.
+
+To step back: set the frag back to 105 damage and 4.2 m, and the plasma to 115 and 4.2 m (Sandbox, or the `sbNadeOld` knob in `tools/tune.js` for the whole old set). That keeps the reference's flight. The AI's throwing habits (how often, from how far) are its own and were not measured against the footage. Its longer reach with faster throws is part of the rise in grenade kills.
+
 ## Earlier results (before the AI carried magnums)
 
 Baseline skill share was 0.716 to 0.728 depending on the seed set, with a median time to kill of about 3.5 s for Normal AI (Normal AI misses a lot; humans kill faster).

@@ -1,12 +1,18 @@
-/* ============ grenades: frag (bounces, 2.6 s fuse) and plasma (sticks to surfaces and pilots) ============ */
+/* ============ grenades: frag (skips and rolls; 1.4 s fuse, at least 0.7 s after it lands) and plasma (sticks to surfaces and pilots) ============ */
 const NADES = {
+  /* frag: `fuse` from the throw; `contact` > 0 keeps at least that long once it first hits the floor */
+  /* measured from reference footage (docs/TUNING.md, "Grenades from footage"): it goes off 1.4 s after
+     the throw, or 0.7 s after it first lands if that is later; it breaks a full shield to about 3 m */
   frag: {
-    fuse: 2.6,
-    r: 4.2,
-    dmg: 105,
+    fuse: 1.4,
+    contact: 0.7,
+    r: 5.6,
+    dmg: 129,
     color: 0xffa040,
-  } /* radius 5.2 -> 4.2 by simulation, see docs/TUNING.md */,
-  plasma: { fuse: 1.7, r: 4.2, dmg: 115, color: 0x5ad2ff },
+  },
+  /* plasma: `fuse` from the throw, unless `land` / `stick` > 0: then it counts from coming to rest
+     on a surface, or from sticking to a pilot */
+  plasma: { fuse: 1.7, land: 1.5, stick: 1, r: 6.1, dmg: 163, color: 0x5ad2ff },
   /* lab (LABS.pulse): bounces like a frag; the pulse takes every shield in range down to nothing
      (no health damage) and jams thrust for `jam` seconds */
   pulse: { fuse: 1.3, r: 5, dmg: 0, jam: 2.5, color: 0xb27aff },
@@ -18,9 +24,9 @@ function pulseBody(b) {
   return Math.max(0, Math.round(b.shield));
 }
 /* throw speed and frag bounciness: the Sandbox settings change them */
-const NADE_TUNE = { throw: 19, bounce: 0.38 };
-const NG = 20,
-  _n1 = new V3(),
+/* throw speed, frag bounciness and the gravity grenades fly under: the Sandbox settings change them */
+const NADE_TUNE = { throw: 25.5, bounce: 0.38, grav: 9 };
+const _n1 = new V3(),
   _n2 = new V3();
 const fragGeo = new THREE.SphereGeometry(0.085, 10, 8),
   fragMat = new THREE.MeshStandardMaterial({
@@ -85,7 +91,8 @@ class NadeWorld {
       type,
       pos: pos.clone(),
       vel: vel.clone(),
-      t: NADES[type].fuse,
+      t: type === "plasma" && NADES.plasma.land > 0 ? 99 : NADES[type].fuse,
+      hit: false,
       owner,
       stuck: null,
       off: new V3(),
@@ -124,7 +131,7 @@ class NadeWorld {
         const sub = 3,
           h = dt / sub;
         for (let k = 0; k < sub && !n.rest && !n.stuck; k++) {
-          n.vel.y -= NG * h;
+          n.vel.y -= NADE_TUNE.grav * h;
           const prev = _n2.copy(n.pos);
           n.pos.addScaledVector(n.vel, h);
           for (const b of SOLID) {
@@ -133,6 +140,7 @@ class NadeWorld {
               n.pos.copy(prev);
               n.vel.set(0, 0, 0);
               n.rest = true;
+              if (NADES.plasma.land > 0) n.t = NADES.plasma.land;
               if (this.render) sfx("stick", distVol(n.pos, 30));
               break;
             }
@@ -140,6 +148,10 @@ class NadeWorld {
             const oy = prev.y >= b.y1 + 0.069 || prev.y <= b.y0 - 0.069,
               ox = prev.x <= b.x0 - 0.069 || prev.x >= b.x1 + 0.069;
             if (oy) {
+              /* a frag's fuse runs at least NADES.frag.contact from its first touch of the floor */
+              if (!n.hit && n.type === "frag" && NADES.frag.contact > 0)
+                n.t = Math.max(n.t, NADES.frag.contact);
+              n.hit = true;
               n.pos.y = prev.y;
               n.vel.y *= -NADE_TUNE.bounce;
               n.vel.x *= 0.72;
@@ -167,6 +179,7 @@ class NadeWorld {
                 Math.abs(n.pos.z - cz) < 0.55
               ) {
                 n.stuck = { pos: s.pos, ref: s.ref };
+                if (NADES.plasma.stick > 0) n.t = NADES.plasma.stick;
                 n.off.copy(n.pos).sub(s.pos);
                 if (this.render) sfx("stick", distVol(n.pos, 40));
                 if (n.owner.onStick) n.owner.onStick(s.ref);
