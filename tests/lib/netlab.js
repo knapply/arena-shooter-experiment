@@ -292,28 +292,51 @@ async function startMode(I, mode) {
       await x.page.click("#deploy");
     }
     for (const x of I)
-      await poll(
-        x.page,
-        n => KA.playing && [...KA.remotes.values()].filter(r => r.has).length >= n,
-        I.length - 1,
-        60000
-      );
+      if (
+        !(await poll(
+          x.page,
+          n => KA.playing && [...KA.remotes.values()].filter(r => r.has).length >= n,
+          I.length - 1,
+          60000
+        ))
+      )
+        throw new Error(`instance ${x.i} does not see everyone in the arena`);
     return Date.now() - t0;
   }
   const [H, ...rest] = I;
   await H.page.click("#mode-" + mode);
   if (mode !== "ctf") await H.page.selectOption("#mapPick", "arena").catch(() => {});
   await H.page.click("#play");
-  await inMatch(H.page, null);
+  if (!(await inMatch(H.page, null))) throw new Error("the host did not start the match");
+  /* what a player sees, when something does not happen in time (the error says) */
+  const menu = x =>
+    x.page
+      .evaluate(() => ({
+        play: document.getElementById("play").textContent,
+        lobby: (document.getElementById("lobby") || {}).textContent,
+        p2p: document.getElementById("p2pMsg").textContent.slice(0, 80),
+      }))
+      .catch(e => String(e));
   let k = 0;
   for (const x of rest) {
-    /* as a player would: once the menu offers to join (clicking while it still says Host starts a
-       second match) */
-    await poll(x.page, () => /^Join/.test(document.getElementById("play").textContent), null, 30000);
+    /* as a player would: once the menu offers to join. Clicking while it still says Host starts a
+       second match with its own AI, whose ids collide with the host's: the measurements would then
+       compare two different matches (tens of metres of "error", kills and scores that never agree),
+       so a run where that happens stops here with an error instead */
+    const offered = await poll(
+      x.page,
+      () => /^Join/.test(document.getElementById("play").textContent),
+      null,
+      60000
+    );
+    if (!offered)
+      throw new Error(`instance ${x.i} was never offered the host's match: ${JSON.stringify(await menu(x))}`);
     if (mode !== "ffa") await x.page.click(k++ % 2 ? "#ctfRed" : "#ctfBlue").catch(() => {});
     await x.page.click("#play");
   }
-  for (const x of rest) await inMatch(x.page, H.peer);
+  for (const x of rest)
+    if (!(await inMatch(x.page, H.peer)))
+      throw new Error(`instance ${x.i} did not join the host's match: ${JSON.stringify(await menu(x))}`);
   return Date.now() - t0;
 }
 /** reset the counters at the start of the measured window */
