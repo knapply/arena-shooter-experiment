@@ -42,10 +42,8 @@ const REPLAY = (() => {
     const pool = projPool.get(type) || projPool.set(type, []).get(type);
     let m = pool.pop();
     if (!m) {
-      if (type === 3) {
-        m = new THREE.Sprite(plasMat.clone());
-        m.scale.setScalar(0.32);
-      } else if (type === 4) {
+      if (type === 3) m = nadeModel("plasma");
+      else if (type === 4) {
         m = new THREE.Group();
         m.add(new THREE.Mesh(rocketGeo, rocketMat));
         const f = new THREE.Sprite(rocketFlame.clone());
@@ -53,7 +51,7 @@ const REPLAY = (() => {
         f.scale.setScalar(0.5);
         m.add(f);
       } else if (type === 5) m = makePod("#9aa4ab").g;
-      else m = new THREE.Mesh(fragGeo, fragMat);
+      else m = nadeModel("frag");
       m.userData.ghost = true;
     }
     m.visible = true;

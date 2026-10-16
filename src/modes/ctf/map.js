@@ -228,18 +228,15 @@
   };
   CTF.useMap("ctf");
 
-  /* flag visuals */
+  /* flag visuals (the models are in render/item-models.js): a graphite mast with a wedge finial, a
+     banner in the team's colour cut in a chevron with a diamond core at the mast, and a hex stand
+     with three wedge pylons and a ring of light */
   CTF.makeFlag = function (team) {
     const col = CTF.TEAM_HEX[team];
+    const FG = K.flagGeos();
     const g = new T.Group();
-    const pole = new T.Mesh(
-      new T.CylinderGeometry(0.035, 0.035, 2.1, 8),
-      new T.MeshStandardMaterial({ color: "#cfd8dc", metalness: 0.8, roughness: 0.3 })
-    );
-    pole.position.y = 1.05;
-    g.add(pole);
-    const clothGeo = new T.PlaneGeometry(0.95, 0.6, 10, 4);
-    clothGeo.translate(0.475, 0, 0);
+    g.add(new T.Mesh(FG.mast, K.ITEM_MAT.graphite));
+    const clothGeo = K.flagBanner();
     const cloth = new T.Mesh(
       clothGeo,
       new T.MeshStandardMaterial({
@@ -250,11 +247,12 @@
         roughness: 0.6,
       })
     );
-    cloth.position.y = 1.75;
+    cloth.position.y = 2.85;
     g.add(cloth);
     const base0 = clothGeo.attributes.position.array.slice();
     const glow = new T.Sprite(
       new T.SpriteMaterial({
+        map: K.SOFT,
         color: col,
         transparent: true,
         opacity: 0.55,
@@ -263,7 +261,7 @@
       })
     );
     glow.scale.set(1.6, 1.6, 1);
-    glow.position.y = 1.4;
+    glow.position.y = 2.3;
     g.add(glow);
     const beam = new T.Mesh(
       new T.CylinderGeometry(0.12, 0.12, 40, 8, 1, true),
@@ -278,17 +276,21 @@
     beam.position.y = 21;
     g.add(beam);
     const stand = new T.Mesh(
-      new T.CylinderGeometry(0.9, 1.05, 0.12, 24),
-      new T.MeshStandardMaterial({ color: "#2a3236", emissive: col, emissiveIntensity: 0.25 })
+      FG.stand,
+      new T.MeshStandardMaterial({
+        color: "#2b3136",
+        roughness: 0.45,
+        metalness: 0.7,
+        emissive: col,
+        emissiveIntensity: 0.18,
+      })
     );
     const ring = new T.Mesh(
-      new T.RingGeometry(0.95, 1.1, 32),
+      FG.ring,
       new T.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.8, side: T.DoubleSide })
     );
-    ring.rotation.x = -Math.PI / 2;
     const home = new T.Group();
-    stand.position.y = 0.06;
-    ring.position.y = 0.13;
+    ring.position.y = 0.21;
     home.add(stand, ring);
     home.position.copy(CTF.FLAG_HOME[team]);
     K.scene.add(home);
@@ -308,6 +310,8 @@
         }
         a.needsUpdate = true;
         glow.material.opacity = 0.4 + 0.2 * Math.sin(t * 4);
+        /* the stand's ring breathes while the flag is home */
+        ring.material.opacity = carried ? 0.35 : 0.6 + 0.3 * Math.sin(t * 3);
         beam.visible = !carried;
       },
       dispose() {

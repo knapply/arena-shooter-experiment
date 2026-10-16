@@ -60,6 +60,12 @@ const KA_API = {
   PODS,
   SUPPLY,
   launchSupply,
+  skullModel,
+  flagGeos,
+  flagBanner,
+  ITEM_MAT,
+  /** the soft round sprite texture (glows without it are hard-edged cards) */
+  SOFT,
   clearPods,
   ITEMS,
   ARENA_PICKS,

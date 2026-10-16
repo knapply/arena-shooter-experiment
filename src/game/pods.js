@@ -54,10 +54,53 @@ function podGeo() {
     const a = (i * Math.PI) / 3;
     hull.push(at(new THREE.BoxGeometry(0.1, 0.9, 0.08), Math.sin(a) * 0.7, 1.0, Math.cos(a) * 0.7, a));
   }
+  /* four swept wedge fins on the collar, each tipped with a vent panel over a nozzle angled down and
+     out (the game's vent motif, render/item-models.js): frame, slats and nozzle in the hull, the
+     panel's core and the nozzle's throat in the nose, so they glow with the descent's heat and go dark
+     as the wreck cools; once the pod is buried the fins and vents stand out of the crater */
+  const fin = new THREE.Shape();
+  fin.moveTo(0, 0);
+  fin.lineTo(0.3, 0.12);
+  fin.lineTo(0.3, 0.38);
+  fin.lineTo(0, 0.6);
+  fin.lineTo(0, 0);
+  const finGeo = () => {
+    const g = new THREE.ExtrudeGeometry(fin, { depth: 0.06, bevelEnabled: false });
+    g.translate(0, 0, -0.03);
+    return g;
+  };
+  const throats = [];
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + (i * Math.PI) / 2,
+      s = Math.sin(a),
+      c = Math.cos(a);
+    hull.push(at(finGeo(), s * 0.66, 0.9, c * 0.66, a - Math.PI / 2));
+    const tip = new THREE.Matrix4().makeRotationY(a + Math.PI).setPosition(s * 0.985, 1.16, c * 0.985);
+    const v = ventParts(tip, 0.2, 0.22, 4);
+    hull.push(...v.frame, ...v.slats);
+    throats.push(...v.core);
+    /* the pod's own thruster under the panel, exhaust down and out */
+    const noz = new THREE.Matrix4()
+      .makeRotationY(a)
+      .multiply(new THREE.Matrix4().makeRotationX(-0.8))
+      .setPosition(s * 0.95, 0.97, c * 0.95);
+    hull.push([new THREE.CylinderGeometry(0.05, 0.085, 0.13, 8, 1, true), noz]);
+    throats.push([
+      new THREE.CircleGeometry(0.06, 8),
+      noz.clone().multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2).setPosition(0, -0.04, 0)),
+    ]);
+  }
   POD_GEO.hull = mergeGeos(hull);
-  POD_GEO.nose = mergeGeos([at(nose, 0, 0, 0)]);
+  POD_GEO.nose = mergeGeos([at(nose, 0, 0, 0), ...throats]);
   const band = () => new THREE.CylinderGeometry(0.735, 0.735, 0.08, 14, 1, true);
   POD_GEO.bands = mergeGeos([at(band(), 0, 1.3, 0), at(band(), 0, 0.75, 0)]);
+  /* the skull's pod alone wears a crown of bone spikes round its collar */
+  const spikes = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (i * Math.PI) / 3 + Math.PI / 6;
+    spikes.push(at(new THREE.ConeGeometry(0.07, 0.5, 4), Math.sin(a) * 0.8, 1.72, Math.cos(a) * 0.8, a, 0.4));
+  }
+  POD_GEO.spikes = mergeGeos(spikes);
   /* a petal: a third of the upper shell with a rib down its middle, centred on its own origin so it
      can tumble away */
   const L = (Math.PI * 2) / 3 - 0.05;
@@ -230,6 +273,7 @@ const POD_DRAW = (() => {
     ),
     petal: make(G0.petal, POD_MAT.hull, POD_N * 3),
     cap: make(G0.cap, POD_MAT.dark, POD_N),
+    spikes: make(G0.spikes, ITEM_MAT.bone, 8),
   };
 })();
 /** every pod body in the world (live pods and the replay's ghosts) */
@@ -247,7 +291,8 @@ function podShown(o) {
 function podDraw() {
   const D = POD_DRAW;
   let n = 0,
-    np = 0;
+    np = 0,
+    ns = 0;
   for (const b of POD_BODIES) {
     if (n >= POD_N || !podShown(b.g)) continue;
     b.g.updateMatrixWorld();
@@ -261,10 +306,11 @@ function podDraw() {
       if (d.cap) D.cap.setMatrixAt(n, _pdM.multiplyMatrices(w, d.m.matrix));
       else D.petal.setMatrixAt(np++, _pdM.multiplyMatrices(w, d.m.matrix));
     }
+    if (b.kind === "skull" && ns < 8) D.spikes.setMatrixAt(ns++, w);
     n++;
   }
-  for (const m of [D.hull, D.nose, D.bands, D.cap, D.petal]) {
-    m.count = m === D.petal ? np : n;
+  for (const m of [D.hull, D.nose, D.bands, D.cap, D.petal, D.spikes]) {
+    m.count = m === D.petal ? np : m === D.spikes ? ns : n;
     m.visible = m.count > 0;
     if (m.count) m.instanceMatrix.needsUpdate = true;
   }
@@ -360,8 +406,8 @@ const _podV = new V3(),
 const BURN_COLS = [0xff3a14, 0xff6a1c, 0xff9a30, 0xffc45a];
 /* each kind of pod reads differently from across the map, by colour and by more than colour:
    - a pilot: orange flame over a dark grey-brown smoke column, a plain straight trail;
-   - a supply pod (a power weapon): a white-hot blue-white flame and pale smoke, the brightest of the
-     three, with a strobe at its head (game/supply-pods.js);
+   - a supply pod (a power weapon): a white-hot flame and pale smoke, the brightest of the three,
+     with a strobe at its head (game/supply-pods.js);
    - the skull: a violet flame under black smoke, wrapped in a bright two-strand spiral of sparks. */
 const POD_TRAILS = {
   pilot: {
@@ -371,10 +417,10 @@ const POD_TRAILS = {
     head: [0xffc070, 0xfff0d0],
   },
   supply: {
-    burn: [0x9fd4ff, 0xbfe6ff, 0xe8f6ff, 0xffffff],
+    burn: [0xfff4dc, 0xffe2a8, 0xffffff, 0xffd690],
     smoke: [0xd6dde4, 0xe8edf2],
     ember: [0xbfe6ff, 0xffffff],
-    head: [0x9fd4ff, 0xffffff],
+    head: [0xffe2a8, 0xffffff],
   },
   skull: {
     burn: [0x7a24ff, 0xa83cff, 0xd05aff, 0x5a18e0],

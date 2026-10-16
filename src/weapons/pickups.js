@@ -7,13 +7,7 @@
    Modes can offer more things to hold Interact on (the CTF flag) through EXT.interactables(). */
 const PICKMAT = new THREE.MeshStandardMaterial({ color: "#2a3338", roughness: 0.4, metalness: 0.6 }),
   PICKACC = new THREE.MeshStandardMaterial({ color: "#5ab8ff", emissive: "#2a7fff", emissiveIntensity: 1.4 }),
-  PICKHOT = new THREE.MeshStandardMaterial({ color: "#ff8a3a", emissive: "#ff6a1a", emissiveIntensity: 1.2 }),
-  NADEMAT = new THREE.MeshStandardMaterial({ color: "#56604a", roughness: 0.6, metalness: 0.4 }),
-  NADEGLOW = new THREE.MeshStandardMaterial({
-    color: "#000000",
-    emissive: "#5ad2ff",
-    emissiveIntensity: 1.6,
-  });
+  PICKHOT = new THREE.MeshStandardMaterial({ color: "#ff8a3a", emissive: "#ff6a1a", emissiveIntensity: 1.2 });
 const NADE_CAP = 2;
 const wName = t => (t < 0 ? "Grenades" : WEAPONS[t].name.split(" ").slice(1).join(" ") || WEAPONS[t].name);
 const capWord = s => s.charAt(0).toUpperCase() + s.slice(1);
@@ -30,17 +24,18 @@ function floorParts(type) {
     by.get(m).push([geo, mx]);
   };
   if (type < 0) {
-    /* a frag and a plasma grenade */
-    put(new THREE.SphereGeometry(0.09, 10, 8), NADEMAT, -0.08, 0, 0);
-    put(new THREE.SphereGeometry(0.08, 10, 8), NADEGLOW, 0.09, 0, 0);
-  } else
-    /* the weapon's own model (weapons/models.js) in two materials: its lights (and the rocket's paint) glow */
-    for (const p of gunParts(type))
-      if (!p.fp && p.k !== "n") {
-        const hot = WEAPONS[type].key === "rocket";
-        const lit = p.m === "G" || (hot && p.m === "C");
-        put(gunGeo(p, 1), lit ? (hot ? PICKHOT : PICKACC) : PICKMAT, p.x, p.y, p.z, p.rx);
-      }
+    /* a frag and a plasma grenade (render/item-models.js) */
+    const parts = nadeFloorParts();
+    MODEL_PARTS.set(type, parts);
+    return parts;
+  }
+  /* the weapon's own model (weapons/models.js) in two materials: its lights (and the rocket's paint) glow */
+  for (const p of gunParts(type))
+    if (!p.fp && p.k !== "n") {
+      const hot = WEAPONS[type].key === "rocket";
+      const lit = p.m === "G" || (hot && p.m === "C");
+      put(gunGeo(p, 1), lit ? (hot ? PICKHOT : PICKACC) : PICKMAT, p.x, p.y, p.z, p.rx);
+    }
   const parts = [...by].map(([m, list]) => {
     /* mergeGeos keeps uvs only when every piece has them; these all do */
     const g = mergeGeos(list);
@@ -83,20 +78,6 @@ function labelSprite() {
   return s;
 }
 const PK_VIS = new Map();
-const RING_GEO = new THREE.RingGeometry(0.55, 0.68, 32);
-const ringMat = c => {
-  const m = new THREE.MeshBasicMaterial({
-    color: c,
-    transparent: true,
-    opacity: 0.7,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  m.color.multiplyScalar(2);
-  return m;
-};
-/* drops share one ring material (they are always available while shown) */
-const DROP_RING = ringMat(0xffc070);
 function pkVisual(p) {
   let v = PK_VIS.get(p.id);
   if (v && v.type === p.type) return v;
@@ -111,11 +92,11 @@ function pkVisual(p) {
   const g = new THREE.Group();
   const model = weaponModel(p.type, !!p.power);
   g.add(model);
-  const ring = new THREE.Mesh(RING_GEO, p.power ? ringMat(0x5ab8ff) : DROP_RING);
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.04;
-  ring.scale.setScalar(p.power ? 1 : 0.6);
-  g.add(ring);
+  /* the map's pickups stand on a plinth with an amber beam (render/item-models.js: a power
+     weapon's has prongs and pulses); what pilots drop lies flat on the floor, unlit and still */
+  const stand = p.respawn != null ? standModel(!!p.power) : null;
+  if (stand) g.add(stand);
+  else model.rotation.set(0, Math.random() * 6.28, Math.PI / 2);
   let label = null;
   if (p.power) {
     label = labelSprite();
@@ -124,7 +105,7 @@ function pkVisual(p) {
   }
   g.position.copy(p.pos);
   scene.add(g);
-  v = { g, model, ring, label, last: "", type: p.type };
+  v = { g, model, stand, label, last: "", type: p.type };
   PK_VIS.set(p.id, v);
   return v;
 }
@@ -318,10 +299,12 @@ function updPickups(dt) {
     /* a power weapon comes down in its own supply pod: hidden until the lid opens (game/supply-pods.js) */
     const sup = p.power ? supplyTick(p, av) : null;
     v.model.visible = av && !(sup && sup.hide);
-    v.model.rotation.y += dt * 1.1;
-    v.model.position.y =
-      (p.power ? 0.6 : 0.3) + (sup ? sup.lift : 0) + Math.sin(now * 2 + v.g.position.x) * 0.08;
-    v.ring.material.opacity = av ? 0.75 : 0.2;
+    if (v.stand) {
+      /* over its stand it turns slowly and hardly bobs; a drop lies still */
+      v.model.rotation.y += dt * 0.5;
+      v.model.position.y = 0.62 + (sup ? sup.lift : 0) + Math.sin(now * 1.5 + v.g.position.x) * 0.03;
+      v.stand.userData.tick(av, now);
+    } else v.model.position.y = 0.05;
     if (p.power && v.label) {
       const s = Math.ceil(p.availIn);
       const nm = capWord(wName(p.type));
@@ -333,7 +316,7 @@ function updPickups(dt) {
             : `${nm} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
       if (txt !== v.last) {
         v.last = txt;
-        v.label.userData.draw(txt, av ? "#9fe1ff" : "#7f939c");
+        v.label.userData.draw(txt, av ? "#ffc878" : "#7f939c");
       }
       const st = pkAnn.get(p.id) || { a: av, w: av };
       if (playing) {
@@ -360,7 +343,7 @@ function updPickups(dt) {
     if (!seen.has(id)) {
       v.g.visible = false;
       /* a drop that's gone for good: let its visual go too */
-      if (v.ring.material === DROP_RING) {
+      if (!v.stand) {
         scene.remove(v.g);
         PK_VIS.delete(id);
       }

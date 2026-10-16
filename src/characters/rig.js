@@ -447,29 +447,11 @@ function weaponMeshes(i, mats) {
 }
 /* the carbine's grip with its magazine seated, merged: the loose magazine is only drawn mid-reload */
 let GRIP_MAG = null;
-/** the oddball skull as a carrier holds it (one shared geometry; held between the hands of the flag grip) */
-let SKULL_GEO = null;
+/** the oddball skull as a carrier holds it (the same model as on the floor, render/item-models.js;
+    held between the hands of the flag grip) */
 function carriedSkull() {
-  if (!SKULL_GEO) {
-    const cran = new THREE.SphereGeometry(0.15, 14, 10);
-    /* (as a matrix: the headless three.js stand-in treats .scale as a property) */
-    cran.applyMatrix4(new THREE.Matrix4().makeScale(1, 1.05, 1.15));
-    const face = new THREE.BoxGeometry(0.18, 0.1, 0.14);
-    face.translate(0, -0.09, -0.07);
-    SKULL_GEO = mergeGeos([
-      [cran, new THREE.Matrix4()],
-      [face, new THREE.Matrix4()],
-    ]);
-  }
-  const m = new THREE.Mesh(
-    SKULL_GEO,
-    new THREE.MeshStandardMaterial({
-      color: "#f2e6c9",
-      emissive: "#ffcf6b",
-      emissiveIntensity: 0.3,
-      roughness: 0.55,
-    })
-  );
+  const m = skullModel();
+  m.scale.setScalar(0.92);
   /* at the carry's origin, the face forward (the hands grip its sides: rig.update) */
   m.rotation.set(-0.15, 0, 0);
   return m;

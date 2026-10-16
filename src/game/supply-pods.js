@@ -19,7 +19,8 @@ const SUPPLY_FALL = 2.2,
   /** how deep a crate punches in */
   SUPPLY_BURY = 0.3,
   SUPPLY_N = 8;
-const SUP_BEACON = 0x5ab8ff;
+/* free items are amber (render/item-models.js), outside both team colours */
+const SUP_BEACON = 0xffb347;
 /* the crate's one texture: plate grey (left half), hazard stripes (top right) and the glow (bottom
    right, also the emissive map), so the body, its band, the beacon and the rack are one draw */
 function supplyAtlas() {
@@ -166,7 +167,7 @@ function launchSupply(p, dur) {
   const fire = new THREE.Sprite(podFireMat.clone());
   fire.position.y = 1.4;
   fire.scale.set(1.1, 1.8, 1);
-  fire.material.color.setHex(0x9fd4ff);
+  fire.material.color.setHex(0xfff0d0);
   g.add(fire);
   g.rotation.y = Math.random() * 6;
   scene.add(g);
@@ -260,11 +261,11 @@ function updSupply(dt) {
       const heat = Math.max(0.3, podHeat(k));
       podTrail(s, heat, 0.55);
       /* a blue-white head, so it reads as a supply drop and not a pilot */
-      ptAdd(PTS.glow, s.g.position, new V3(), 3.6 * heat, 0x9fd4ff, 1, 0.05);
+      ptAdd(PTS.glow, s.g.position, new V3(), 3.6 * heat, 0xffe2a8, 1, 0.05);
       ptAdd(PTS.glow, s.g.position, new V3(), 1.6 * heat, 0xffffff, 1, 0.05);
       /* and a strobe at its head, four times a second: it blinks where the others burn steady */
       if ((now * 4) % 1 < 0.3) ptAdd(PTS.glow, s.g.position, new V3(), 6, 0xffffff, 1, 0.05);
-      if (h < 50) dynLight(s.g.position, 0x9fd4ff, 3 * heat * (1 - h / 50), 0.05, 18);
+      if (h < 50) dynLight(s.g.position, 0xffe2a8, 3 * heat * (1 - h / 50), 0.05, 18);
       if (k >= 1) {
         s.landed = true;
         s.fire.visible = false;

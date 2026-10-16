@@ -12,21 +12,14 @@ const NADES = {
   },
   /* plasma: `fuse` from the throw, unless `land` / `stick` > 0: then it counts from coming to rest
      on a surface, or from sticking to a pilot */
-  plasma: { fuse: 1.7, land: 1.5, stick: 1, r: 6.1, dmg: 163, color: 0x5ad2ff },
+  plasma: { fuse: 1.7, land: 1.5, stick: 1, r: 6.1, dmg: 163, color: 0x38f5b0 },
 };
 /* throw speed, frag bounciness and the gravity grenades fly under: the Sandbox settings change them */
 const NADE_TUNE = { throw: 25.5, bounce: 0.38, grav: 9 };
 const _n1 = new V3(),
   _n2 = new V3();
-const fragGeo = new THREE.SphereGeometry(0.085, 10, 8),
-  fragMat = new THREE.MeshStandardMaterial({
-    color: "#56604a",
-    roughness: 0.6,
-    metalness: 0.4,
-    emissive: "#301800",
-  });
 const plasMat = new THREE.SpriteMaterial({
-  color: 0x7fe2ff,
+  color: 0x6cffc8,
   transparent: true,
   blending: THREE.AdditiveBlending,
   depthWrite: false,
@@ -86,18 +79,9 @@ class NadeWorld {
       landed: false,
     };
     if (this.render) {
-      if (type !== "plasma") {
-        n.key = "nf";
-        n.mesh = fxGet(n.key, () => {
-          const m = new THREE.Mesh(fragGeo, fragMat);
-          m.castShadow = true;
-          return m;
-        });
-      } else {
-        n.key = "np";
-        n.mesh = fxGet("np", () => new THREE.Sprite(plasMat.clone()));
-        n.mesh.scale.setScalar(0.32);
-      }
+      /* the models are in render/item-models.js: a frag's band blinks, a plasma's core pulses */
+      n.key = type === "plasma" ? "np" : "nf";
+      n.mesh = fxGet(n.key, () => nadeModel(type));
       n.mesh.position.copy(n.pos);
     }
     this.list.push(n);
@@ -181,9 +165,13 @@ class NadeWorld {
       }
       if (n.mesh) {
         n.mesh.position.copy(n.pos);
-        if (n.type === "plasma") {
-          n.mesh.scale.setScalar(0.28 + 0.08 * Math.sin(n.t * 30));
-        } else n.mesh.rotation.x += dt * n.vel.length() * 3;
+        /* a frag tumbles as it flies and rolls; a plasma turns slowly */
+        if (n.type === "plasma") n.mesh.rotation.y += dt * 2;
+        else n.mesh.rotation.x += dt * n.vel.length() * 3;
+        /* each grenade's signal (render/item-models.js), and its point light */
+        if (n.landed && n.landT == null) n.landT = n.t;
+        if (n.mesh.userData.tick) n.mesh.userData.tick(n.t, n.landT == null ? -1 : n.landT - n.t);
+        if (SET.dynLights) dynLight(n.pos, NADES[n.type].color, n.type === "plasma" ? 1.4 : 1.1, 0.05, 3.5);
       }
       if (n.t <= 0) {
         const P = NADES[n.type];
