@@ -213,3 +213,150 @@
 #trailer.rec .trnav {
   display: none;
 }
+/* holographic HUD cards: cyan mono type with a scanline sheen and corner brackets (the trailer types
+   them in, flickers them on and tears them with glitches) */
+#trCard.holo,
+#trCard.holoBlack {
+  font-family: var(--f-mono);
+  color: #c8f4ff;
+  text-shadow:
+    0 0 18px #44d6ff88,
+    0 0 60px #44d6ff33;
+}
+#trCard.holo .eb,
+#trCard.holoBlack .eb {
+  color: #7fe6ff;
+  letter-spacing: 0.6em;
+}
+#trCard.holo .big,
+#trCard.holoBlack .big {
+  font-family: var(--f-display);
+  letter-spacing: 0.22em;
+  color: #effcff;
+}
+#trCard.holo .sub,
+#trCard.holoBlack .sub {
+  font-family: var(--f-mono);
+  font-size: clamp(11px, 1.3vw, 18px);
+  letter-spacing: 0.42em;
+  color: #9fdcef;
+}
+#trCard.holo::before,
+#trCard.holoBlack::before {
+  content: "";
+  position: absolute;
+  inset: -3.2vh -6vw;
+  border: 1px solid #5fdcff55;
+  background:
+    linear-gradient(#7fe6ff, #7fe6ff) left top / 2.2vw 2px no-repeat,
+    linear-gradient(#7fe6ff, #7fe6ff) left top / 2px 2.2vw no-repeat,
+    linear-gradient(#7fe6ff, #7fe6ff) right bottom / 2.2vw 2px no-repeat,
+    linear-gradient(#7fe6ff, #7fe6ff) right bottom / 2px 2.2vw no-repeat,
+    repeating-linear-gradient(#5fdcff0d 0 1px, transparent 1px 4px);
+  clip-path: inset(0);
+}
+/* lower-third holo supers sit low and left, so the action stays clear */
+#trCard.holo {
+  top: auto;
+  bottom: 18vh;
+  left: 7vw;
+  right: auto;
+  text-align: left;
+  transform-origin: left bottom;
+}
+#trCard.holo .big {
+  font-size: clamp(24px, 4.2vw, 64px);
+}
+#trCard.holo::before {
+  inset: -2.2vh -1.6vw;
+}
+/* scanlines over a replay */
+#trScan {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: repeating-linear-gradient(#000 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+#trReplay {
+  position: absolute;
+  left: 4vw;
+  top: calc(12.8vh + 3vh);
+  font: 700 clamp(12px, 1.5vw, 20px) var(--f-mono);
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: #ffd9a0;
+  text-shadow: 0 0 14px #ff9a3a88;
+}
+#trReplay b::before {
+  content: "";
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-right: 0.8em;
+  border-radius: 50%;
+  background: #ff4a3a;
+  box-shadow: 0 0 12px #ff4a3a;
+  vertical-align: 0.05em;
+}
+#trReplay .tc {
+  margin-left: 2em;
+  color: #fff3e0aa;
+}
+/* the spectator's free camera: a viewfinder frame, what it is and how to fly it */
+#trSpec {
+  position: absolute;
+  inset: 16vh 5vw;
+  color: #c8f4ff;
+  font: 600 clamp(11px, 1.2vw, 16px) var(--f-mono);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px #44d6ff88;
+}
+#trSpec .c {
+  position: absolute;
+  width: 4vw;
+  height: 4vw;
+  border: 2px solid #7fe6ffcc;
+}
+#trSpec .tl {
+  left: 0;
+  top: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+#trSpec .tr {
+  right: 0;
+  top: 0;
+  border-left: 0;
+  border-bottom: 0;
+}
+#trSpec .bl {
+  left: 0;
+  bottom: 0;
+  border-right: 0;
+  border-top: 0;
+}
+#trSpec .br {
+  right: 0;
+  bottom: 0;
+  border-left: 0;
+  border-top: 0;
+}
+#trSpec .lbl {
+  position: absolute;
+  left: 1.6vw;
+  top: 1.4vw;
+}
+#trSpec .keys {
+  position: absolute;
+  left: 1.6vw;
+  bottom: 1.4vw;
+  color: #9fdcefcc;
+  font-weight: 500;
+}
+#trSpec .alt {
+  position: absolute;
+  right: 1.6vw;
+  top: 1.4vw;
+}

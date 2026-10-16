@@ -135,6 +135,8 @@ interface KAExtensions {
     /** sound effects heard during a capture: [seconds, kind, volume] */
     sfxLog: [number, string, number][];
     shots?: { t: number; name: string }[];
+    /** a pilot of the trailer's cast by name (hero, ally, foe1...), for probes and tests */
+    actor?: (name: string) => any;
     start(): void;
     stop(): void;
     record(): void;
