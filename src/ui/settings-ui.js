@@ -445,7 +445,7 @@ function renderKeyHelp() {
   /** @type {[string[], string][]} */
   const rows = [
     [["forward", "left", "back", "right"], "Move · mouse to look"],
-    [["sprint"], "Sprint (delays shield recharge)"],
+    [["sprint"], "Sprint (holds shield recharge)"],
     [["thrust"], "Thruster dash"],
     [["crouch"], "Crouch · slide · ground pound held in the air"],
     [["jump"], "Jump · hold forward at a ledge to clamber"],

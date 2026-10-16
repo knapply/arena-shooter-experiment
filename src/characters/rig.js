@@ -98,6 +98,7 @@ const geo = (k, f) => {
   return GEO[k];
 };
 const SHIELD_GOLD = new THREE.Color("#ffd36b"),
+  SHIELD_BROKEN = new THREE.Color("#ff6a2e"),
   HIT_RED = new THREE.Color("#ff3a2a"),
   HIT_WHITE = new THREE.Color("#ffffff");
 function shieldMaterial() {
@@ -1043,16 +1044,26 @@ function makePilot(color, label) {
           ev = { pop: true };
         } else if (S.sh > 0) S.uI = Math.max(S.uI, 1);
       } else if (sh > S.sh + 0.5 && S.sh <= 0.5) {
-        S.uI = Math.max(S.uI, 0.9);
+        /* the shield coming back: a bright flare, white-gold, and its sound */
+        S.uI = Math.max(S.uI, 1.5);
+        S.charge = 1;
+        ev = { recharge: true };
       }
       S.sh = sh;
-      if (sh <= 0 && !rig.dead && Math.random() < dt * 7) S.uI = Math.max(S.uI, 0.3 + Math.random() * 0.35);
+      /* shield down: the shell crackles in broken red-orange arcs and sparks spit off the armor */
+      if (sh <= 0 && !rig.dead && Math.random() < dt * 11) {
+        S.uI = Math.max(S.uI, 0.35 + Math.random() * 0.45);
+        if (Math.random() < 0.5) ev = Object.assign(ev || {}, { crackle: true });
+      }
       S.uI *= Math.exp(-5 * dt);
       if (rig.dead) S.uI = 0;
       shieldM.uniforms.uI.value = S.uI;
-      /* the shell's color: shield gold, washed to the hit color for a moment after a hull hit */
+      /* the shell's color: shield gold (white-gold while it recharges), broken red-orange while it is
+         down, washed to the hit color for a moment after a hull hit */
       S.hurt = (S.hurt || 0) * Math.exp(-7 * dt);
-      shieldM.uniforms.uC.value.copy(SHIELD_GOLD);
+      S.charge = (S.charge || 0) * Math.exp(-3 * dt);
+      shieldM.uniforms.uC.value.copy(sh <= 0 ? SHIELD_BROKEN : SHIELD_GOLD);
+      if (S.charge > 0.01) shieldM.uniforms.uC.value.lerp(HIT_WHITE, S.charge * 0.6);
       if (S.hurt > 0.01) shieldM.uniforms.uC.value.lerp(S.hurtC, Math.min(1, S.hurt * 1.4));
       shieldM.uniforms.uT.value = S.t;
       const vis = S.uI > 0.02;

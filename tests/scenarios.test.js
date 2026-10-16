@@ -1468,5 +1468,38 @@ const fix = v => +v.toFixed(2);
   CTF.AI.holdRange = true;
   K.STORE.setBackend(K.STORE.memoryBackend());
 }
+/* ---------- shield recharge: the suit's thrusters hold it ---------- */
+{
+  const D = K.TUNE.regenDelay;
+  /* shields broken at t = 0; then `use` (a body flag) held for `held` seconds; where the shield is at `t` */
+  const shieldAt = (use, held, t) => {
+    const b = new K.Body();
+    b.shield = 0;
+    b.lastDmg = 0;
+    let now = 0;
+    for (; now < t; now += 1 / 60) {
+      const on = now < held;
+      b.sprint = use === "sprint" && on;
+      b.thrustT = use === "thrust" && on ? 0.2 : 0;
+      b.stabbing = use === "hover" && on;
+      b.pound = use === "pound" && on ? 1 : 0;
+      b.regen(1 / 60, now);
+    }
+    return b.shield;
+  };
+  check(
+    shieldAt(null, 0, D + 1) > 30,
+    "shields recharge after the delay with no damage",
+    shieldAt(null, 0, D + 1)
+  );
+  for (const use of ["sprint", "thrust", "hover", "pound"]) {
+    const r = { during: shieldAt(use, D + 2, D + 1.9), heldThenFree: shieldAt(use, 2, 2 + D - 0.1) };
+    check(
+      r.during === 0 && r.heldThenFree === 0 && shieldAt(use, 2, 2 + D + 1) > 30,
+      `${use}: no recharge while it lasts, and the full delay again after it stops`,
+      r
+    );
+  }
+}
 check(Date.now() - t0 < 15000, "scenarios run in seconds", Date.now() - t0 + " ms");
 finish("scenarios");

@@ -71,6 +71,10 @@ const KA_API = {
     return PW_MARKS.filter(m => m.visible).length;
   },
   /** the pause menu is up */
+  /** held sounds playing (a hover's thrusters, core/audio.js), for tests */
+  get holdSounds() {
+    return HOLD.size;
+  },
   get paused() {
     return paused;
   },

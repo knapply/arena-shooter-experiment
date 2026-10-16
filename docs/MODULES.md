@@ -27,12 +27,12 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/gates.js` | 174 | `GATE_CYCLE` `GATES` `gatePeriod` `gateCycleT` `gateEase` `gateLift` `gateNavShut` `mapGates` `buildGates` `gatesAt` `gateShove` |
 | `src/render/gate-fx.js` | 150 | `GATE_TEX` `gateTex` `gateLook` `gateDraw` `_gp` `gateSounds` |
 | `src/world/maps/arena.js` | 279 | `floorTex` `crateTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `mergeGeos` `mergeMapGroup` `strip` `stairs` `buildMap` `SPAWNS` |
-| `src/world/physics.js` | 597 | `R` `H_STAND` `H_CROUCH` `TUNE_DEF` `TUNE` `NO_PILOTS` `pilotsFn` `setPilotCollider` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
+| `src/world/physics.js` | 605 | `R` `H_STAND` `H_CROUCH` `TUNE_DEF` `TUNE` `NO_PILOTS` `pilotsFn` `setPilotCollider` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
 | `src/world/spawns.js` | 107 | `SPAWN_W` `_spE` `_spD` `spawnScore` `pickSpawn` `spotTaken` `noteFight` |
 | `src/data/anim-clips.js` | 280 | `ANIM_CLIPS` |
 | `src/characters/anim.js` | 1059 | `ANIM` |
 | `src/weapons/models.js` | 228 | `GUN_MODELS` `gunParts` `gunGeo` |
-| `src/characters/rig.js` | 1871 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+60) |
+| `src/characters/rig.js` | 1882 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+61) |
 | `src/characters/look.js` | 131 | `RIG_LOOK` `_rh` `_rh2` `CHAR_GLSL` `charPatch` `applyCharLook` `teamPattern` `HEX_FRAG` `styleRig` |
 | `src/game/recorder.js` | 226 | `REC` |
 | `src/game/pilot.js` | 86 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |
@@ -40,16 +40,16 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/data/weapons.js` | 222 | `PILOT_SHIELD` `PILOT_HEALTH` `WEAPON_DATA` `SWITCH_TIME` `POWER_ROTATION` `LABS` `labOn` `falloffAt` `killStats` `MELEE` `MELEE_KILL` `meleeDamage` `meleeBehind` |
 | `src/weapons/viewmodels.js` | 604 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlove` `vmPlate` `vmGlow` `vmGlass` `vmCtrC` `vmCtrT` `vmCtr` `VM_MAT` `vmBox` `dot` `vmModel` `vmHolo` `HOLO` … (+34) |
 | `src/weapons/arsenal.js` | 88 | `WEAPONS` `slots` `cur` `wi` `switchT` `semiLatch` `zoomLvl` `descoped` `flinch` `zoomNow` `adsP` `ammo` `reserve` `W` `zoomK` `lookSens` `showVM` `wpnHud` … (+4) |
-| `src/render/fx.js` | 409 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `PT_N` `PT_K` `_ptC` `_ptV2` `makePts` `PTS` `ptAdd` `updPts` `ptClearBelow` `tracerGeo` `TRACER_V` … (+15) |
+| `src/render/fx.js` | 424 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `PT_N` `PT_K` `_ptC` `_ptV2` `makePts` `PTS` `ptAdd` `updPts` `ptClearBelow` `tracerGeo` `TRACER_V` … (+16) |
 | `src/render/combat-fx.js` | 551 | `CFX` `_cf` `_cf2` `_cq` `_cm` `_cz` `_cs` `fxOn` `syncDynLights` `dynLight` `heatAt` `HEAT_POOL` `heatDone` `tumblers` `casings` `chunks` `toss` `ejectCasing` … (+25) |
 | `src/render/cinema.js` | 192 | `CINE` |
 | `src/render/atmosphere.js` | 88 | `ATMO` `MOTE_BOX` `makeMotes` `updAtmosphere` |
 | `src/weapons/grenades.js` | 288 | `NADES` `NADE_TUNE` `NG` `_n1` `_n2` `fragGeo` `fragMat` `plasMat` `fxPut` `losClear` `inBox` `solveThrow` `nadeDmg` `NadeWorld` `MAIN_NADES` `nadeInv` `nadeSel` `nadeCD` … (+7) |
 | `src/weapons/rockets.js` | 169 | `ROCKET_STATS` `_rk1` `_rk2` `rocketGeo` `rocketMat` `rocketFlame` `rocketDmg` `RocketWorld` `MAIN_ROCKETS` `playerRocketOwner` `fireRocket` `remoteProjectile` |
 | `src/game/sandbox.js` | 101 | `SB_OVERRIDE` `sandboxValues` `sandboxRules` `setSandboxOverride` `applySandbox` `applyLabs` |
-| `src/core/audio.js` | 666 | `AC` `master` `audio` `NOISE` `noise` `env` `nz` `tone` `SFX_LAST` `sfxVoices` `sfxVoiceT` `SFX_TAP` `sfxTap` `bodyThud` `sfx` `distVol` `LIVE_AC` `SPACE` … (+14) |
+| `src/core/audio.js` | 802 | `AC` `master` `audio` `NOISE` `noise` `env` `nz` `tone` `SFX_LAST` `sfxVoices` `sfxVoiceT` `SFX_TAP` `sfxTap` `bodyThud` `sfx` `distVol` `LIVE_AC` `SPACE` … (+16) |
 | `src/core/announcer.js` | 186 | `VO` `hasTTS` `pickVoice` `lastSay` `say` `MEDAL` `medal` `streak` `multi` `lastKillT` `firstBlood` `lastKiller` `onKill` `objMedal` |
-| `src/game/state.js` | 496 | `EXT` `me` `myName` `playing` `paused` `now` `kills` `deaths` `mag` `reloadT` `fireCD` `myPeer` `killedBy` `respawnAt` `lastFireT` `RELOAD_TIME` `mePilot` `hitsOut` … (+44) |
+| `src/game/state.js` | 504 | `EXT` `me` `myName` `playing` `paused` `now` `kills` `deaths` `mag` `reloadT` `fireCD` `myPeer` `killedBy` `respawnAt` `lastFireT` `RELOAD_TIME` `mePilot` `hitsOut` … (+44) |
 | `src/weapons/firing.js` | 287 | `targets` `HEAVY` `hitPower` `dealDamage` `emitFx` `v3a` `engage` `SHOT` `r3` `targetId` `engageShot` `perfectKill` `fireStep` `dryT` `dryFire` `fire` `startReload` `meleeHit` … (+3) |
 | `src/core/input.js` | 250 | `pad` `wheelT` `codesDown` `virtHeld` `hitActs` `frameHits` `rebindCapture` `mdx` `mdy` `aimLatch` `crouchLatch` `sprintLatch` `fireNoSprint` `keysT` `A` `P` `pressCode` `mouseL` … (+9) |
 | `src/core/gamepad.js` | 257 | `GPB` `GP` `gpDown` `padRecent` `pollPad` `_aa` `_ab` `aimFriction` `padGame` `padActions` `rumble` `padCommon` `padMenu` |
@@ -59,7 +59,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/net/playback.js` | 91 | `Playback` |
 | `src/net/hitcheck.js` | 465 | `MoveHist` `HITCHK` `MY_HIST` `pctOf` `median` `hitPanel` `WHY` `postHitsShown` `postHits` |
 | `src/net/arena-net.js` | 508 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `amHub` `hubPeer` `sbSeen` `adoptSandbox` `room` `lastSend` `lastFast` `fastSeq` `sentEv` `FAST_HZ` `myBits` … (+13) |
-| `src/ui/hud.js` | 166 | `scoresT` `renderScores` `xhEls` `hudDevice` `WEAPON_SIL` `NADE_ICON` `NADE_NAME` `hudWName` `nadeHint` `nadeKey` `drawNadeHud` `weapKey` `drawWeapHud` `hud` |
+| `src/ui/hud.js` | 173 | `scoresT` `renderScores` `xhEls` `hudDevice` `WEAPON_SIL` `NADE_ICON` `NADE_NAME` `hudWName` `nadeHint` `nadeKey` `drawNadeHud` `weapKey` `drawWeapHud` `hud` |
 | `src/ui/net-panel.js` | 91 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/ui/tracker.js` | 244 | `TRACK_RANGE` `TRACK_ECHO` `TRACK_PX` `trackEl` `trackT` `trackLoud` `arenaContacts` `trackerShown` `trackEcho` `trackerFace` `trackerBlip` `trackerDanger` `updTracker` `trackerGates` |
 | `src/weapons/viewmodel-anim.js` | 348 | `_cA` `_cB` `_cZ` `_cM` `carryVM` `_mlP` `_mlD` `meleeLand` `meleeFlush` `updVM` |
@@ -72,7 +72,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/supply-pods.js` | 334 | `SUPPLY` `SUP_STATE` `SUPPLY_FALL` `SUPPLY_EARLY` `SUPPLY_H` `SUPPLY_BURY` `SUPPLY_N` `SUP_BEACON` `supplyAtlas` `atlasUv` `SUP_GREY` `SUP_STRIPE` `SUP_GLOW` `SUP_DRAW` `_spM` `supplyDraw` `launchSupply` `disposeSupply` … (+5) |
 | `src/game/pod-view.js` | 292 | `PV` `PV_OPEN` `PV_RISE` `PV_END` `pvEl` `pvLerp` `pvBuild` `pvSet` `pvShow` `pvHide` `podOpening` `podEndOpening` `_pvA` `_pvB` `_pvL` `podOpeningShot` `_pvP` `podCockpit` … (+2) |
 | `src/ui/pings.js` | 153 | `PINGS` `PING_LIFE` `PING_TAP` `_pgD` `_pgO` `_pgV` `pingTarget` `dangerTarget` `dangerSfx` `addPing` `sharePing` `pingNow` `pingLayer` `updPings` |
-| `src/game/loop.js` | 922 | `pend` `prevPos` `rpos` `physAcc` `clWas` `thrK` `thrS` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` … (+45) |
+| `src/game/loop.js` | 952 | `pend` `prevPos` `rpos` `physAcc` `clWas` `thrK` `thrS` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` … (+46) |
 | `src/ui/settings-ui.js` | 565 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `saveSoonT` `saveSoon` `saveNow` `closeSettings` `onSetChange` `renderSettings` `sandboxPresetRow` `searchHit` `renderSearch` `settingRow` `renderKeys` `renderPadBinds` … (+8) |
 | `src/ui/menu.js` | 255 | `MENU` `MENU_SIZES` `MODE_RULE_KEY` `menuMode` `sizeList` `mapName` `mmssM` `modeGoal` `modeLimits` `saveMenu` `MCARDS` `menuHost` `pickMode` `fillSelect` `setTeam` `menuSummary` `renderMenu` |
 | `src/weapons/pickups.js` | 401 | `PICKMAT` `PICKACC` `PICKHOT` `NADEMAT` `NADEGLOW` `NADE_CAP` `wName` `capWord` `MODEL_PARTS` `floorParts` `weaponModel` `labelSprite` `PK_VIS` `RING_GEO` `ringMat` `DROP_RING` `pkVisual` `powerSpawn` … (+17) |
@@ -82,7 +82,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 41 | `_sd` `RANGE` `updAim` |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 325 | `KA_API` |
+| `src/game/exports.js` | 329 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 149 | `TFP` |

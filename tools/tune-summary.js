@@ -13,13 +13,17 @@ if (!file) {
 }
 const { runs, rows } = JSON.parse(fs.readFileSync(file, "utf8"));
 const isCtrl = r => r.knob === ctrlKnob && Math.abs(r.value - r.def) < 0.001;
-const key = (seed, lock) => `${seed}|${lock || "none"}`;
+/* a seed set on one map and mode, with one lock: runs on other maps share seeds but not matches */
+const key = (seed, lock, map) => `${map || ""}|${seed}|${lock || "none"}`;
 /* the noise per seed set and lock: baseline and controls around their mean */
 const noise = new Map();
 for (const run of runs)
   for (const [lock, b] of Object.entries(run.bases || {})) {
-    const k = key(run.SEED, lock === "none" ? null : lock);
-    const skills = [b.skill, ...rows.filter(r => isCtrl(r) && key(r.seed, r.lock) === k).map(r => r.skill)];
+    const k = key(run.SEED, lock === "none" ? null : lock, run.MAP);
+    const skills = [
+      b.skill,
+      ...rows.filter(r => isCtrl(r) && key(r.seed, r.lock, r.map) === k).map(r => r.skill),
+    ];
     const prev = noise.get(k);
     /* several runs share a seed set (one per knob group): their baselines agree, so keep the widest */
     if (!prev || skills.length > prev.n) {
@@ -31,11 +35,13 @@ const fmt = v => (v >= 0 ? "+" : "") + v.toFixed(3);
 const byVariant = new Map();
 for (const r of rows) {
   if (isCtrl(r)) continue;
-  const n = noise.get(key(r.seed, r.lock));
+  const n = noise.get(key(r.seed, r.lock, r.map));
   if (!n) continue;
   const v = `${r.knob}=${r.value}${r.lock ? ` [${r.lock}]` : ""}`;
   if (!byVariant.has(v)) byVariant.set(v, { def: r.def, cells: [] });
-  byVariant.get(v).cells.push({ seed: r.seed, e: r.skill - n.c, w: n.w, ctrls: n.n - 1 });
+  byVariant
+    .get(v)
+    .cells.push({ seed: (r.map ? r.map + " " : "") + r.seed, e: r.skill - n.c, w: n.w, ctrls: n.n - 1 });
 }
 const clear = [],
   partial = [];

@@ -57,6 +57,58 @@ const stats = async p => {
         s
       );
       check(p.errors.length === 0, `${preset} preset has no errors`, p.errors.slice(0, 3));
+      if (preset === "high") {
+        /* another pilot's shield in the world: its break and recharge are heard where it stands, and
+           its thrusters hum while it hovers, then stop */
+        const w = await p.evaluate(async () => {
+          const K = KA,
+            heard = [];
+          const q = K.addPilot(
+            new K.Pilot({ id: "actor:shield", name: "", color: "#62cdff", ctl: "script" })
+          );
+          const c = K.camera.getWorldPosition(new K.THREE.Vector3());
+          q.body.pos.set(c.x + 2, 0, c.z + 2);
+          let run = true;
+          (function pose() {
+            if (!run) return;
+            q.pose(1 / 60, { wpn: 1 });
+            requestAnimationFrame(pose);
+          })();
+          const frames = n =>
+            new Promise(r => {
+              let k = 0;
+              (function f() {
+                if (++k >= n) r();
+                else requestAnimationFrame(f);
+              })();
+            });
+          await frames(5);
+          K.sfxTap(k => heard.push(k));
+          q.body.shield = 0;
+          await frames(3);
+          q.body.shield = 30;
+          await frames(3);
+          K.sfxTap(null);
+          K.audio();
+          q.body.stabbing = true;
+          await frames(10);
+          const hovering = K.holdSounds;
+          q.body.stabbing = false;
+          for (let i = 0; i < 300 && K.holdSounds; i++) await frames(2);
+          run = false;
+          return { heard, hovering, after: K.holdSounds };
+        });
+        check(
+          w.heard.includes("shbreak") && w.heard.includes("recharge"),
+          "a pilot's shield breaking and coming back is heard where it stands",
+          w
+        );
+        check(
+          w.hovering === 1 && w.after === 0,
+          "a hovering pilot's thrusters hum, and stop when it drops",
+          w
+        );
+      }
       await p.close();
     }
     /* draw-call and triangle budgets (tests/budgets.json) */

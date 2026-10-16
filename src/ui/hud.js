@@ -122,8 +122,15 @@ function hud() {
   $("hpb").style.transform = `scaleX(${me.health / 45})`;
   $("shb").className = shbHit > 0 ? "hit" : rechargeShown > 0 ? "charge" : "";
   $("shN").textContent = String(Math.ceil(me.shield));
+  /* the recharge countdown: a line along the bar's top that runs down over the recharge delay, and
+     starts over with every hit and every use of sprint or the thrusters (Body.regen) */
+  const since = now - Math.max(me.lastDmg, me.lastExert);
+  $("shT").style.transform =
+    `scaleX(${me.shield < 70 && !me.dead ? clamp(1 - since / TUNE.regenDelay, 0, 1) : 0})`;
   $("hpN").textContent = String(Math.ceil(me.health));
   $("vitals").classList.toggle("low", me.shield <= 0 && !me.dead);
+  $("vitals").classList.toggle("warn", me.shield > 0 && me.shield < 21 && !me.dead);
+  $("shLbl").textContent = me.shield <= 0 && !me.dead ? "Shield down" : "Shield";
   $("vitals").classList.toggle("hurt", me.health < 45 && !me.dead);
   drawWeapHud();
   drawNadeHud();
