@@ -1,6 +1,6 @@
 /* ============ settings: schema, presets, bindings, validated save / export / import ============ */
 const ACTIONS = [
-  ["forward", "Move forward", "burst", "scatter", "beam", "pulse", "doors", "split"],
+  ["forward", "Move forward"],
   ["back", "Move back"],
   ["left", "Strafe left"],
   ["right", "Strafe right"],
@@ -340,48 +340,6 @@ const SANDBOX_DEFS = [
   ],
   ["sbMagZoom", "Magnum zoom", 1.8, 1.2, 3, 0.1, "×", "How far the magnum's sight magnifies."],
   [
-    "sbBurstRate",
-    "Burst rifle burst interval",
-    0.36,
-    0.25,
-    0.6,
-    0.01,
-    " s",
-    "Time from one burst to the next (Labs burst rifle).",
-  ],
-  [
-    "sbBurstRecoil",
-    "Burst rifle kick",
-    0.022,
-    0,
-    0.05,
-    0.001,
-    " rad",
-    "How far each burst rifle round kicks the view up.",
-  ],
-  ["sbBurstReload", "Burst rifle reload", 2, 0.8, 3, 0.05, " s", "Time a burst rifle reload takes."],
-  [
-    "sbBurstGap",
-    "Burst rifle round gap",
-    0.06,
-    0.03,
-    0.12,
-    0.005,
-    " s",
-    "Time between the rounds inside a burst.",
-  ],
-  ["sbBurstDmg", "Burst rifle damage", 8, 5, 12, 0.1, "", "Damage per burst rifle round."],
-  [
-    "sbBurstHead",
-    "Burst rifle headshot",
-    22,
-    10,
-    60,
-    1,
-    "",
-    "Damage of a burst rifle headshot once shields are down.",
-  ],
-  [
     "sbSnipeRate",
     "Sniper fire interval",
     0.62,
@@ -428,30 +386,6 @@ const SANDBOX_DEFS = [
 /* [key, label, description, what it turns on: a LABS entry (data/weapons.js) or a map mod (data/maps.js)] */
 /** @type {[string, string, string, string][]} */
 const LAB_DEFS = [
-  [
-    "labBurst",
-    "Burst rifle",
-    "Three-round burst rifle pickups near each base and on the arena's sides. Four bursts kill; track through the burst.",
-    "burst",
-  ],
-  [
-    "labScatter",
-    "Scattergun",
-    "A pump shotgun joins the power weapon rotation: one shot up close, two at mid range, a slow pump between.",
-    "scatter",
-  ],
-  [
-    "labBeam",
-    "Arc beam",
-    "A continuous beam rifle on the wings: no spread, no headshots, damage only while you stay on target.",
-    "beam",
-  ],
-  [
-    "labPulse",
-    "Pulse grenade",
-    "A third grenade: strips every shield in range (yours too) and jams thrust for 2.5 s. No damage of its own.",
-    "pulse",
-  ],
   [
     "labGates",
     "Blast gates",
@@ -1414,7 +1348,7 @@ const SCHEMA = [
     ],
     desc: "How long broken cover takes to rebuild itself, or Never to keep the damage for the whole match.",
   },
-  /* ----- Labs: prototype weapons and map changes (docs/PROPOSALS.md), all off by default. Offline
+  /* ----- Labs: prototype map changes (docs/PROPOSALS.md), all off by default. Offline
      matches only: online rooms always play the shipped game. ----- */
   ...LAB_DEFS.map(([k, label, desc]) => ({
     k,

@@ -20,6 +20,7 @@
     rnd = (a, b) => a + K.rand() * (b - a);
   /* the sandbox edits these entries in place, so they always hold the live numbers */
   const RIFLE = K.WEAPON_DATA[0],
+    CARBINE = K.WEAPON_DATA[0],
     MAGNUM = K.WEAPON_DATA[1],
     SNIPER = K.WEAPON_DATA[2];
   const gauss = () => {
@@ -150,16 +151,13 @@
       this.sniper = 0;
       this.sniperMag = 0;
       this.rocket = 0;
-      /** slot 1's gun (a WEAPON_DATA index: the carbine, or a lab rifle picked up) */
-      this.prim = 0;
-      /** a lab power weapon carried ({ type, n: rounds left, mag }), and whether it is out right now */
+      /** the scattergun carried ({ type, n: rounds left, mag }), and whether it is out right now */
       this.pw = null;
       this.pwOut = false;
-      this.burstLeft = 0;
       this.flagHold = 0;
       /** when this pilot last fired (anyone near can hear it) */
       this.heardT = -9;
-      this.nadeInv = { frag: 2, plasma: 1, pulse: 0 };
+      this.nadeInv = { frag: 2, plasma: 1 };
       this.nadeCD = 2;
       this._own = null;
     }
@@ -174,7 +172,7 @@
       this.ammo[this.wpn] = v;
     }
     gun() {
-      return this.wpn === 1 ? MAGNUM : K.WEAPON_DATA[this.prim];
+      return this.wpn === 1 ? MAGNUM : CARBINE;
     }
     /** gun w (0 or 1) has rounds in its magazine or to reload */
     hasAmmo(w) {
@@ -182,9 +180,7 @@
     }
     /** both guns down to their last magazine or less */
     lowAmmo() {
-      return (
-        this.ammo[0] + this.rsv[0] <= K.WEAPON_DATA[this.prim].mag && this.ammo[1] + this.rsv[1] <= MAGNUM.mag
-      );
+      return this.ammo[0] + this.rsv[0] <= CARBINE.mag && this.ammo[1] + this.rsv[1] <= MAGNUM.mag;
     }
     /** start reloading the gun in hand, if there is anything to load */
     startReload() {
@@ -202,15 +198,11 @@
       if (this.rocket > 0) return 3;
       if (this.sniper > 0) return 2;
       if (this.pw && this.pwOut) return this.pw.type;
-      return this.wpn === 1 ? 1 : this.prim;
+      return this.wpn === 1 ? 1 : 0;
     }
     /** any power weapon carried */
     get armed() {
       return this.sniper > 0 || this.rocket > 0 || !!this.pw;
-    }
-    /** a lab feature live in this match (G.labs is off online) */
-    lab(k) {
-      return this.G.labs && K.labOn(k);
     }
     /** holding the magnum (not a power weapon) */
     get magnum() {
@@ -220,7 +212,7 @@
         shields are down (one headshot), the carbine up close and to break shields */
     pickGun(tgt) {
       const o = 1 - this.wpn,
-        full = w => (w ? MAGNUM : K.WEAPON_DATA[this.prim]).mag * 0.56;
+        full = w => (w ? MAGNUM : CARBINE).mag * 0.56;
       if (!tgt)
         /* between fights: bring up the other gun to reload it if that's the one running low */
         return this.reloadT <= 0 && this.mag >= full(this.wpn) && this.ammo[o] < full(o) && this.rsv[o] > 0
@@ -232,8 +224,6 @@
         return (this.ammo[o] > 0 || !this.hasAmmo(this.wpn)) && this.hasAmmo(o) && r > 3 ? o : this.wpn;
       if (this.ammo[o] <= 0) return this.wpn;
       const S = this.skill();
-      /* a lab rifle in slot 1: the burst rifle at every range, the beam inside its falloff */
-      if (this.prim) return K.WEAPON_DATA[this.prim].key === "beam" && r > 30 ? 1 : 0;
       if (tgt.body.shield <= 0 && r > 8) return 1;
       if (r >= S.magFrom) return 1;
       if (r <= S.magFrom - 6) return 0;
@@ -269,16 +259,9 @@
       this.dead = false;
       this.spawned = true;
       this.wpn = this.G.lock === "magnum" ? 1 : 0;
-      /* weapon-lock simulations of the lab rifles put them in slot 1 */
-      const lk = this.G.lock === "burst" || this.G.lock === "beam" ? this.G.lock : "carbine";
-      this.prim = Math.max(
-        0,
-        K.WEAPON_DATA.findIndex(w => w.key === lk)
-      );
-      this.ammo[0] = K.WEAPON_DATA[this.prim].mag;
-      this.burstLeft = 0;
+      this.ammo[0] = CARBINE.mag;
       this.ammo[1] = MAGNUM.mag;
-      this.rsv[0] = this.G.lock ? Infinity : K.WEAPON_DATA[this.prim].reserve;
+      this.rsv[0] = this.G.lock ? Infinity : CARBINE.reserve;
       this.rsv[1] = this.G.lock ? Infinity : MAGNUM.reserve;
       this.switchT = 0;
       this.reloadT = 0;
@@ -287,7 +270,6 @@
       const nk = this.skill().nades;
       this.nadeInv.frag = Math.round(2 * nk);
       this.nadeInv.plasma = Math.round(nk);
-      this.nadeInv.pulse = this.lab("pulse") ? Math.round(nk) : 0;
       this.nadeCD = 2 + K.rand() * 2;
       this.path = null;
       this.carrying = null;
@@ -589,7 +571,7 @@
         G.pickups
       ) {
         for (const p of G.pickups) {
-          if (p.availIn > 3 || !p.power || (this.armed && p.lab)) continue;
+          if (p.availIn > 3 || !p.power) continue;
           const c = G.claims[me];
           const d = this.pos.distanceTo(p.pos);
           if (c && c.a !== this && c.a.alive && G.t - c.t < 5) continue;
@@ -605,14 +587,6 @@
           break;
         }
       }
-      /* a lab rifle on its spawn nearby is worth a detour while holding the carbine */
-      if (!this.mustMove && !this.carrying && !this.prim && !this.target && G.pickups)
-        for (const p of G.pickups) {
-          if (!p.avail || p.power || this.pos.distanceTo(p.pos) > 18) continue;
-          g.copy(p.pos);
-          this.mustMove = true;
-          break;
-        }
       /* a power weapon someone dropped nearby is worth a short detour */
       if (
         !this.mustMove &&
@@ -643,7 +617,7 @@
         let near = null,
           nd = 22;
         for (const it of G.items) {
-          if (!it.avail || (it.type !== 1 && it.type !== (this.prim || 0))) continue;
+          if (!it.avail || (it.type !== 1 && it.type !== 0)) continue;
           const d = this.pos.distanceTo(it.pos);
           if (d < nd) {
             nd = d;
@@ -1047,7 +1021,7 @@
       if (this.switchT > 0) this.switchT -= dt;
       if (G.lock === "scatter") this.pwOut = true;
       else if (!G.lock && !(this.sniper > 0) && !(this.rocket > 0) && this.switchT <= 0) {
-        /* a lab power weapon (the scattergun) comes out inside its range and goes away outside it */
+        /* the scattergun comes out inside its range and goes away outside it */
         const out = !!this.pw && engaged && tgt.pos.distanceTo(this.pos) < 13;
         if (this.pw && out !== this.pwOut) {
           this.pwOut = out;
@@ -1081,9 +1055,8 @@
         const careful = (this.sniper > 0 && tgt.pos.distanceTo(this.pos) > 6) || this.magnum;
         /* the magnum's rhythm (Legendary): after a miss, hold fire until the reticle is right on them */
         const hold = this.magnum && CTF.AI.rhythm && (S.rhythm || 0) >= 0.5 && this.magHit === false;
-        /* a burst in progress finishes wherever the reticle is */
-        if (this.burstLeft > 0 || err < (hold ? 0.02 : careful ? 0.05 : 0.09)) this.shoot(tgt);
-      } else if (!engaged || this.reloadT > 0 || this.switchT > 0) this.burstLeft = 0;
+        if (err < (hold ? 0.02 : careful ? 0.05 : 0.09)) this.shoot(tgt);
+      }
       if (this.mag <= 0 && this.reloadT <= 0) this.startReload();
       this.nadeCD -= dt;
       if (
@@ -1109,12 +1082,6 @@
         br = this.brain();
       const eye = this.eye(new V3());
       const t = this.target;
-      /* the pulse grenade: on a shielded enemy in its range, to open them up for the guns */
-      if (t && G.t >= this.acqT && this.nadeInv.pulse > 0 && t.body.shield > 45) {
-        const d = eye.distanceTo(t.pos);
-        if (d > 6 && d < 16 && K.rand() < (0.3 + 0.4 * br.genes.aggr) * this.skill().nades)
-          return { type: "pulse", at: t.body.pos.clone().addScaledVector(t.body.vel, d / 19) };
-      }
       if (t && G.t >= this.acqT && this.nadeInv.plasma > 0) {
         const d = eye.distanceTo(t.pos);
         if (d > 5 && d < 13 && K.rand() < (0.35 + 0.4 * br.genes.aggr) * this.skill().nades)
@@ -1157,11 +1124,11 @@
         b = this.body;
       const o = this.eye(new V3());
       if (type !== "plasma") {
-        /* frags land short and roll in; the pulse grenade's short fuse wants it closer */
+        /* frags land short and roll in */
         const dx = at.x - o.x,
           dz = at.z - o.z,
           x = Math.hypot(dx, dz),
-          short = type === "pulse" ? 1 : 2;
+          short = 2;
         if (x > 4) {
           at = at.clone();
           at.x -= (dx / x) * short;
@@ -1180,8 +1147,7 @@
       b.yaw = Math.atan2(-v.x, -v.z);
       G.nades.throw(type, o, v, this.nadeOwner());
       G.emit("nade", { type, pos: o, vel: v, by: this });
-      const call = { plasma: "Plasma out", pulse: "Pulse out" };
-      this.brain().say(G, this, "nade", call[type] || "Frag out");
+      this.brain().say(G, this, "nade", type === "plasma" ? "Plasma out" : "Frag out");
     }
     nadeOwner() {
       if (this._own) return this._own;
@@ -1199,20 +1165,11 @@
           if (ref.human && G.render) K.toast("You've been stuck!");
         },
         onExplode: (c, type, stuck) => {
-          const w = type === "plasma" ? "stick" : type === "pulse" ? "pulse" : "frag";
+          const w = type === "plasma" ? "stick" : "frag";
           for (const e of G.ff ? G.agents : G.foes(me.team)) {
             if (!e.alive) continue;
             const ch = e.body.pos.clone();
             ch.y += e.body.h * 0.6;
-            if (type === "pulse") {
-              /* strips shields and jams thrust; no health damage */
-              if (ch.distanceTo(c) >= K.NADES.pulse.r || !K.losClear(c, ch)) continue;
-              const n = K.pulseBody(e.body);
-              if (n < 1) continue;
-              if (e.human) G.hurtHuman(e, n, { name: me.name, agent: me, w });
-              else e.onHit(n, w, false, me);
-              continue;
-            }
             const dmg = e === stuck ? 999 : K.losClear(c, ch) ? K.nadeDmg(type, ch.distanceTo(c)) : 0;
             if (dmg < 1) continue;
             if (e.human) G.hurtHuman(e, Math.round(dmg), { name: me.name, agent: me, w });
@@ -1430,11 +1387,6 @@
           rhythm = this.magnum && CTF.AI.rhythm && (S.rhythm || 0) >= 0.5 && this.magHit === true;
         this.fireCD = late + W.rate + (this.magnum && !rhythm ? S.magPace : 0);
       }
-      /* burst weapons: the rounds of a burst at its gap, the next burst at its rate */
-      if (W.burst && !pw) {
-        this.burstLeft = this.burstLeft > 0 ? this.burstLeft - 1 : W.burst - 1;
-        this.fireCD = late + (this.burstLeft > 0 ? W.burstGap : W.rate - (W.burst - 1) * W.burstGap);
-      } else this.burstLeft = 0;
       this.firedT = G.t;
       this.shots++;
       G.emit("shot", { by: this, weapon: W.dmg });

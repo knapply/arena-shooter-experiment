@@ -6,7 +6,7 @@
    keeps their stats through their name and team.
    STATS.rows() → one row per pilot; STATS.timeline → the moments worth showing after the match. */
 const ASSIST_WINDOW = 6;
-const GUN_WEAPONS = new Set(["rifle", "pistol", "sniper", "burst", "scatter", "beam"]);
+const GUN_WEAPONS = new Set(["rifle", "pistol", "sniper", "scatter"]);
 const STATS = {
   /** @type {Map<string, any>} */
   byId: new Map(),
@@ -77,10 +77,7 @@ const WEAPON_NAMES = {
   pistol: "Magnum",
   sniper: "Sniper",
   rocket: "Rocket",
-  burst: "Burst",
   scatter: "Scattergun",
-  beam: "Beam",
-  pulse: "Pulse",
   frag: "Frag",
   stick: "Plasma",
   pound: "Pound",

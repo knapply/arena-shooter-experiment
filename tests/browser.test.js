@@ -587,6 +587,9 @@ const podSeats = map => {
     await p.evaluate(() => (KA.SET.killCam = false));
     const rt = await p.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
+      /* (plasma up when you die: the next life starts with frags) */
+      KA.swapNade(1);
+      const before = KA.nadeSel;
       KA.me.spawnT = -99;
       KA.hurtMe(999, { w: "self", name: "test" });
       const t0 = KA.now;
@@ -595,12 +598,18 @@ const podSeats = map => {
         if (launch < 0 && KA.myPod) launch = KA.now - t0;
         await wait(50);
       }
-      return { launch, total: KA.now - t0, want: KA.MODE_DATA.ffa.respawn + 1.35, early: KA.POD_EARLY };
+      const nade = { before, after: KA.nadeSel, hud: document.querySelector("#nadeList .sel")?.className };
+      return { launch, total: KA.now - t0, want: KA.MODE_DATA.ffa.respawn + 1.35, early: KA.POD_EARLY, nade };
     });
     check(
       rt.launch > 0 && Math.abs(rt.total - rt.want) < 0.25,
       "dead to back in the fight takes the respawn delay plus 1.35 s, as before the higher drop",
       rt
+    );
+    check(
+      rt.nade.before === "plasma" && rt.nade.after === "frag" && /frag/.test(rt.nade.hud),
+      "every spawn starts with frags selected (plasma was up when you died)",
+      rt.nade
     );
     const skip = await p.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));

@@ -294,16 +294,14 @@
     G.nades = new K.NadeWorld(G.render);
     G.rockets = new K.RocketWorld(G.render);
     G.claims = G.teams.map(() => null);
-    const ROTK = labs ? K.powerRotation() : K.POWER_ROTATION,
+    const ROTK = K.POWER_ROTATION,
       ROT = ROTK.map(k => K.WEAPON_DATA.findIndex(w => w.key === k));
-    /* lab pickups only while their lab is on */
-    G.pickups = CTF.PICKUP_DEFS.filter(d => !d.lab || (labs && K.labOn(d.lab))).map(d => {
+    G.pickups = CTF.PICKUP_DEFS.map(d => {
       const p = {
         id: d.id,
         type: d.type,
-        /* a power spawn (the AI breaks off for it); lab rifles are ordinary pickups */
+        /* a power spawn (the AI breaks off for it) */
         power: !!K.WEAPON_DATA[d.type].power,
-        lab: d.lab || null,
         rot: d.rotate ? ROT : null,
         ri: d.rotate ? Math.max(0, ROTK.indexOf(d.weapon)) : 0,
         pos: d.pos.clone(),
@@ -335,14 +333,6 @@
     G.arm = function (a, type, ammo) {
       const W = K.WEAPON_DATA[type],
         n = ammo ? ammo[0] + ammo[1] : W.mag + W.reserve;
-      if (!W.power) {
-        /* a lab rifle takes slot 1, with the rounds it had (full from a spawn) */
-        a.prim = type;
-        a.ammo[0] = ammo ? Math.min(W.mag, ammo[0]) : W.mag;
-        a.rsv[0] = ammo ? ammo[1] : W.reserve;
-        if (a.wpn === 0) a.switchT = K.SWITCH_TIME;
-        return;
-      }
       a.sniper = a.sniperMag = a.rocket = 0;
       a.pw = null;
       a.pwOut = false;
@@ -422,10 +412,10 @@
         out.push({ type: t, ammo: [Math.min(4, a.sniper), Math.max(0, a.sniper - 4)] });
       } else if (a.pw) out.push({ type: a.pw.type, ammo: [a.pw.mag, Math.max(0, a.pw.n - a.pw.mag)] });
       else {
-        /* the gun in hand (carbine or magnum, or a lab rifle), with what was left in it (a remote
-           player's is not known here: a full load) */
+        /* the gun in hand (carbine or magnum), with what was left in it (a remote player's is not
+           known here: a full load) */
         const s = a.wpn === 1 ? 1 : 0,
-          t = s ? 1 : a.prim || 0,
+          t = s,
           W = K.WEAPON_DATA[t],
           known = !a.remote && a.ammo && a.rsv;
         const am = known
@@ -451,12 +441,9 @@
       } else if (K.WEAPON_DATA[it.type].power && !a.armed && !a.carrying) {
         if (!it.take()) return;
         G.arm(a, it.type, it.ammo);
-      } else if (K.WEAPON_DATA[it.type].lab && !a.prim && !a.carrying) {
-        if (!it.take()) return;
-        G.arm(a, it.type, it.ammo);
       } else {
         /* the gun they carry: its rounds top up the reserve (up to a full load) */
-        const s = it.type === 1 ? 1 : it.type === (a.prim || 0) ? 0 : -1;
+        const s = it.type === 1 ? 1 : it.type === 0 ? 0 : -1;
         if (s < 0 || !a.rsv) return;
         const W = K.WEAPON_DATA[it.type],
           room = W.mag + W.reserve - a.ammo[s] - a.rsv[s],
@@ -894,7 +881,7 @@
             !(a.sniper > 0) &&
             /* a carrier's hands are full */
             !a.carrying &&
-            (p.power ? !(p.lab && a.armed) : !a.prim) &&
+            p.power &&
             Math.hypot(a.pos.x - p.pos.x, a.pos.z - p.pos.z) < 1.6 &&
             Math.abs(a.pos.y - p.pos.y) < 1.6
           )

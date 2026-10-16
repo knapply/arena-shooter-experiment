@@ -39,7 +39,6 @@ const TFP = {
     landDip = fovK = fovX = thrK = camRoll = 0;
     recoil = bloom = flinch = 0;
     fireCD = flashT = 0;
-    burstLeft = 0;
     refill();
     slots[0] = o.w2 != null ? o.w2 : 1;
     slots[1] = o.w != null ? o.w : 0;

@@ -36,8 +36,9 @@ class MoveHist {
       while (i > 0 && b[i - 1].ts > ts) i--;
       b.splice(i, 0, r);
     }
-    const wpn = st & 40960;
-    if (dead || st & 64 || (this.lastSt >= 0 && wpn !== (this.lastSt & 40960)))
+    /* (the weapon bits: 8192, 32768 and 131072) */
+    const wpn = st & 172032;
+    if (dead || st & 64 || (this.lastSt >= 0 && wpn !== (this.lastSt & 172032)))
       this.resetAt = Math.max(this.resetAt, ts);
     if (ts >= b[b.length - 1].ts) this.lastSt = st;
     const newest = b[b.length - 1].ts;
@@ -84,12 +85,12 @@ const HITCHK = (() => {
     AIM: 0.4,
     /** walls may cut a ray this much short of the target (destruction and rounding differ a little) */
     LOS: 0.7,
-    /** fire rate: distinct shots in any second may exceed the weapon's rate by this factor (+ a burst) */
+    /** fire rate: distinct shots in any second may exceed the weapon's rate by this factor (+ 2) */
     RATE: 1.25,
     /** ammo: shots without a reported reload past a magazine (flag only) */
     AMMO: 2,
   };
-  const HITSCAN = new Set(["rifle", "pistol", "sniper", "burst", "scatter", "beam"]);
+  const HITSCAN = new Set(["rifle", "pistol", "sniper", "scatter"]);
   const wpnOf = w => WEAPON_DATA.find(x => x.dmg === w) || null;
   const _o = new V3(),
     _d = new V3(),
@@ -153,8 +154,7 @@ const HITCHK = (() => {
       st.lastFt = Math.max(st.lastFt, c.ft);
       st.shots.push(c.ft);
       while (st.shots.length && st.shots[0] < c.ft - 1) st.shots.shift();
-      const per = Wd.burst ? Wd.rate / Wd.burst : Wd.rate;
-      const limit = Math.floor((1 / per) * T.RATE) + (Wd.burst || 1) + 1;
+      const limit = Math.floor((1 / Wd.rate) * T.RATE) + 2;
       if (st.shots.length > limit) fail("rate");
       const reset = sh && "resetAt" in sh ? sh.resetAt : -1e9;
       if (st.ammoW !== c.w || reset > st.ammoFrom) {

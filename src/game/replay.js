@@ -37,7 +37,7 @@ const REPLAY = (() => {
     }
     return g;
   }
-  /* ---- projectiles drawn from the recording: 1 frag, 2 pulse, 3 plasma, 4 rocket, 5 drop pod ---- */
+  /* ---- projectiles drawn from the recording: 1 frag, 3 plasma, 4 rocket, 5 drop pod ---- */
   function projMesh(type) {
     const pool = projPool.get(type) || projPool.set(type, []).get(type);
     let m = pool.pop();
@@ -53,7 +53,7 @@ const REPLAY = (() => {
         f.scale.setScalar(0.5);
         m.add(f);
       } else if (type === 5) m = makePod("#9aa4ab").g;
-      else m = new THREE.Mesh(fragGeo, type === 2 ? pulseMat : fragMat);
+      else m = new THREE.Mesh(fragGeo, fragMat);
       m.userData.ghost = true;
     }
     m.visible = true;
@@ -123,7 +123,7 @@ const REPLAY = (() => {
         tr.seen = true;
         if (R.eye && tr.i === 0 && _v.set(a.a.x, a.a.y, a.a.z).distanceToSquared(R.eye) < 6.5) {
           if (tr.type === 4) subjectShot("rocket");
-          else if (tr.type <= 3) vmS.throwT = 0.42;
+          else if (tr.type <= 3) vmS.throwT = THROW_T;
         }
       }
     }
@@ -380,10 +380,7 @@ const KILL_NAMES = {
   pistol: "Magnum",
   sniper: "Sniper rifle",
   rocket: "Rocket launcher",
-  burst: "Burst rifle",
   scatter: "Scattergun",
-  beam: "Arc beam",
-  pulse: "Pulse grenade",
   frag: "Frag grenade",
   plasma: "Plasma grenade",
   stick: "Plasma grenade",

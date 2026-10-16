@@ -88,8 +88,6 @@ function validateMap(doc) {
       doc.pickups.forEach((p, i) => {
         if (!p || typeof p.id !== "string" || !/^[a-z0-9-]{1,24}$/.test(p.id)) bad(`pickup ${i}: bad id`);
         else if (!WEAPON_DATA.some(w => w.key === p.weapon)) bad(`pickup ${p.id}: unknown weapon`);
-        else if (p.lab !== undefined && (typeof p.lab !== "string" || !/^[a-z]{1,16}$/.test(p.lab)))
-          bad(`pickup ${p.id}: lab must be a lab name`);
         else if (p.rotate !== undefined && typeof p.rotate !== "boolean")
           bad(`pickup ${p.id}: rotate must be true or false`);
         else if (!vec(p.p, 3, -500, 500) || !num(p.respawn, 5, 600))

@@ -14,13 +14,6 @@ const vmAcc = new THREE.MeshStandardMaterial({
 });
 const vmGlove = new THREE.MeshStandardMaterial({ color: "#2a3237", roughness: 0.7, metalness: 0.15 });
 const vmPlate = new THREE.MeshStandardMaterial({ color: "#3a454c", roughness: 0.4, metalness: 0.7 });
-const vmArc = new THREE.MeshStandardMaterial({
-  color: "#2a5a6a",
-  emissive: "#8a5cff",
-  emissiveIntensity: 0.9,
-  roughness: 0.3,
-  metalness: 0.3,
-});
 /* the weapon's lights: the held weapon's colour, a flare on each shot, red and blinking on low ammo (vmLights) */
 const vmGlow = new THREE.MeshStandardMaterial({
   color: "#000000",
@@ -42,7 +35,7 @@ const vmCtrT = new THREE.CanvasTexture(vmCtrC);
 vmCtrT.colorSpace = THREE.SRGBColorSpace;
 const vmCtr = new THREE.MeshBasicMaterial({ map: vmCtrT });
 vmCtr.color.setScalar(1.8);
-const VM_MAT = { D: vmDark, P: vmPlate, A: vmArmor, S: vmSuit, G: vmGlow, C: vmAcc, X: vmArc };
+const VM_MAT = { D: vmDark, P: vmPlate, A: vmArmor, S: vmSuit, G: vmGlow, C: vmAcc };
 function vmBox(p, w, h, d, m, x, y, z) {
   const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
   o.position.set(x, y, z);
@@ -118,6 +111,15 @@ function vmHolo(g, y, z, w, h) {
 const HOLO = new V3(0, 0.128, -0.08);
 // magnum iron sights: front post and rear notch tops share y = PIS.y
 const PIS = new V3(0, 0.0585, -0.135);
+/* a grenade throw: how long it lasts (s), and the off hand's path through it (camera space, by time) */
+const THROW_T = 0.5;
+/** @type {[number, number[]][]} */
+const THROW_KEYS = [
+  [0, [-0.26, 0.12, -0.2]],
+  [0.035, [-0.07, 0.03, -0.5]],
+  [0.12, [-0.17, -0.2, -0.42]],
+  [0.2, [-0.28, -0.48, -0.25]],
+];
 /* the support hand through a reload (RELOAD_T in characters/rig.js): out, pouch, in, a palm slap,
    then the charging handle (carbine) or the slide (magnum) pulled back and let go */
 const VM_RELOAD = [
@@ -158,8 +160,8 @@ const RIFLE_P = {
   reload: { p: new V3(0.14, -0.11, -0.28), r: [1.0, 0.55, 0.5] },
   low: { p: new V3(0.18, -0.42, -0.3), r: [-0.6, 0.3, 0.3] },
 };
-/* lab rifles share the carbine's poses but for ADS, which lines up their own sight */
-const labP = (y, z) => ({ ...RIFLE_P, aim: { p: new V3(0, -y, z), r: [0, 0, 0] } });
+/* the scattergun shares the carbine's poses but for ADS, which lines up its own sight */
+const rifleP = (y, z) => ({ ...RIFLE_P, aim: { p: new V3(0, -y, z), r: [0, 0, 0] } });
 /* the rocket's reload: the launcher tips nose-up so its rear comes down to the hands, the spent
    canister pulled out of the back and a fresh one pushed in */
 const RKT_RELOAD = [
@@ -178,13 +180,18 @@ const RKT_RELOAD = [
 /* per weapon (WEAPON_DATA order): hand points, reload path, poses, light colour, and how a shot looks
    from behind the gun: kr the kick's recovery (s), kj the random twist of each shot (rad), cyc the
    slide or pump's travel (m) and when it cycles after the shot ([start, length] s), fl and fc the
-   muzzle flash's size and colour */
+   muzzle flash's size and colour; sc a size for the whole gun in first person */
 const VMW = [
   {
     grip: new V3(0, -0.1, 0.08),
     fore: new V3(0, -0.07, -0.24),
     keys: VM_RELOAD,
-    P: RIFLE_P,
+    /* drawn a size up and a little higher, as chunky in the view as the reference's automatic */
+    sc: 1.15,
+    P: Object.assign({}, RIFLE_P, {
+      hip: { p: new V3(0.2, -0.18, -0.38), r: [0, 0.05, 0] },
+      aim: { p: new V3(0, -HOLO.y * 1.15, -0.24), r: [0, 0, 0] },
+    }),
     glow: 0x5ad2ff,
     kr: 0.06,
     kj: 0.02,
@@ -250,18 +257,7 @@ const VMW = [
     fl: 0.42,
     fc: 0xffa850,
   },
-  /* ---- lab weapons: burst rifle (a bullpup, so its reload is further back), scattergun, arc beam ---- */
-  {
-    grip: new V3(0, -0.1, -0.02),
-    fore: new V3(0, -0.07, -0.28),
-    keys: VM_RELOAD.map(([t, p]) => [t, p === "F" ? p : [p[0], p[1], p[2] + 0.22]]),
-    P: labP(0.1, -0.24),
-    glow: 0x52e0ff,
-    kr: 0.07,
-    kj: 0.008,
-    fl: 0.14,
-    fc: 0xffd28a,
-  },
+  /* the scattergun */
   {
     grip: new V3(0, -0.1, 0.06),
     fore: new V3(0, -0.08, -0.37),
@@ -269,7 +265,11 @@ const VMW = [
     pump: true,
     flip: 2,
     keys: VM_RELOAD,
-    P: labP(0.085, -0.3),
+    /* a big, boxy gun high in the view, its muzzle near the centre (the reference's shotgun) */
+    sc: 1.25,
+    P: Object.assign(rifleP(0.085 * 1.25, -0.3), {
+      hip: { p: new V3(0.17, -0.15, -0.33), r: [0.03, 0.07, 0] },
+    }),
     glow: 0xffb347,
     kr: 0.3,
     kj: 0.025,
@@ -277,18 +277,9 @@ const VMW = [
     fl: 0.3,
     fc: 0xffb860,
   },
-  {
-    grip: new V3(0, -0.1, 0.08),
-    fore: new V3(0, -0.07, -0.26),
-    keys: VM_RELOAD,
-    P: labP(0.095, -0.24),
-    glow: 0xb48cff,
-    kr: 0.05,
-    kj: 0.003,
-    fl: 0.1,
-    fc: 0xc8a8ff,
-  },
 ].map((o, i) => Object.assign(vmModel(i), o));
+/* (a weapon drawn a size up: sights, muzzle, hand points and reload path all scale with it) */
+for (const V of VMW) if (V.sc) V.g.scale.setScalar(V.sc);
 /* the support hand under a handguard, palm up, fingers round its far side (the magnum's cups the
    other hand instead) */
 const LQ_RIFLE = new THREE.Quaternion().setFromRotationMatrix(
@@ -297,8 +288,6 @@ const LQ_RIFLE = new THREE.Quaternion().setFromRotationMatrix(
 for (const V of VMW) if (!V.whip) V.lq = LQ_RIFLE;
 vmHolo(VMW[0].g, HOLO.y, HOLO.z, 0.062, 0.046);
 dot(VMW[1].g, 0x8cffb0, 0.0035, 0, PIS.y - 0.002, PIS.z + 0.001);
-vmHolo(VMW[4].g, 0.1, -0.12, 0.052, 0.04);
-vmHolo(VMW[6].g, 0.095, -0.06, 0.052, 0.04);
 /* gloved hands. A hand is a palm, four fingers of three bevelled segments and a two-segment thumb,
    with armored plates over the knuckles and the back of the hand (two draws: glove and plate); its
    forearm (suit sleeve, gauntlet, a lit strip: three draws) runs from the wrist back to an elbow

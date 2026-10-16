@@ -7,16 +7,7 @@ const NADES = {
     color: 0xffa040,
   } /* radius 5.2 -> 4.2 by simulation, see docs/TUNING.md */,
   plasma: { fuse: 1.7, r: 4.2, dmg: 115, color: 0x5ad2ff },
-  /* lab (LABS.pulse): bounces like a frag; the pulse takes every shield in range down to nothing
-     (no health damage) and jams thrust for `jam` seconds */
-  pulse: { fuse: 1.3, r: 5, dmg: 0, jam: 2.5, color: 0xb27aff },
 };
-/** the pulse grenade on one pilot's body: how much shield it strips (dealt as damage, so it counts
-    as a hit and delays regeneration) after jamming their thrust */
-function pulseBody(b) {
-  b.thrustCD = Math.max(b.thrustCD, NADES.pulse.jam);
-  return Math.max(0, Math.round(b.shield));
-}
 /* throw speed and frag bounciness: the Sandbox settings change them */
 const NADE_TUNE = { throw: 19, bounce: 0.38 };
 const NG = 20,
@@ -29,12 +20,6 @@ const fragGeo = new THREE.SphereGeometry(0.085, 10, 8),
     metalness: 0.4,
     emissive: "#301800",
   });
-const pulseMat = new THREE.MeshStandardMaterial({
-  color: "#3a3450",
-  roughness: 0.4,
-  metalness: 0.5,
-  emissive: "#7a4aff",
-});
 const plasMat = new THREE.SpriteMaterial({
   color: 0x7fe2ff,
   transparent: true,
@@ -96,10 +81,9 @@ class NadeWorld {
     };
     if (this.render) {
       if (type !== "plasma") {
-        const pu = type === "pulse";
-        n.key = pu ? "nu" : "nf";
+        n.key = "nf";
         n.mesh = fxGet(n.key, () => {
-          const m = new THREE.Mesh(fragGeo, pu ? pulseMat : fragMat);
+          const m = new THREE.Mesh(fragGeo, fragMat);
           m.castShadow = true;
           return m;
         });
@@ -193,7 +177,7 @@ class NadeWorld {
         const P = NADES[n.type];
         if (this.render) {
           blast(n.pos, P.color, P.r);
-          sfx(n.type === "pulse" ? "pulse" : "boom", distVol(n.pos, 70));
+          sfx("boom", distVol(n.pos, 70));
           const dv = distVol(n.pos, 22);
           if (dv > 0) rumble(dv, dv * 0.8, 280);
         }
@@ -212,16 +196,16 @@ class NadeWorld {
 }
 const MAIN_NADES = new NadeWorld(true);
 /* player grenades */
-const nadeInv = { frag: 2, plasma: 2, pulse: 0 };
+const nadeInv = { frag: 2, plasma: 2 };
 let nadeSel = "frag",
   nadeCD = 0;
-/** the grenade types in the swap cycle (the pulse grenade only while its lab is on) */
-const nadeTypes = () => (labOn("pulse") ? ["frag", "plasma", "pulse"] : ["frag", "plasma"]);
+/** the grenade types in the swap cycle */
+const NADE_TYPES = ["frag", "plasma"];
 function nadeRefill() {
   nadeInv.frag = 2;
   nadeInv.plasma = 2;
-  nadeInv.pulse = labOn("pulse") ? 1 : 0;
-  if (!nadeTypes().includes(nadeSel)) nadeSel = "frag";
+  /* every spawn starts with frags selected, whatever was up before */
+  nadeSel = "frag";
   updNadeHud();
 }
 /** the HUD's grenade panel (ui/hud.js draws it) */
@@ -231,7 +215,7 @@ function updNadeHud() {
 /** out of the selected type: the next type in the cycle you still have comes up (none left: no change) */
 function nadeAuto() {
   if (nadeInv[nadeSel] > 0) return false;
-  const ts = nadeTypes(),
+  const ts = NADE_TYPES,
     i = ts.indexOf(nadeSel);
   for (let k = 1; k < ts.length; k++) {
     const t = ts[(i + k) % ts.length];
@@ -246,7 +230,7 @@ function nadeAuto() {
 /** the next grenade type (dir -1: the previous one; D-pad left goes back when it is bound to the swap) */
 function swapNade(dir) {
   const d = dir || (gpDown(GPB.LEFT) && (PADB.swapNade || []).includes(GPB.LEFT) ? -1 : 1);
-  const ts = nadeTypes();
+  const ts = NADE_TYPES;
   nadeSel = ts[(ts.indexOf(nadeSel) + d + ts.length) % ts.length];
   updNadeHud();
   sfx("hit", 0.4);
@@ -261,23 +245,6 @@ const playerNadeOwner = {
     toast("Stuck!");
   },
   onExplode(c, type, stuckRef) {
-    if (type === "pulse") {
-      for (const t of targets()) {
-        const b = t.ref.body,
-          ch = _n2.copy(t.pos);
-        ch.y += t.h * 0.6;
-        if (!b || ch.distanceTo(c) >= NADES.pulse.r || !losClear(c, ch)) continue;
-        const n = pulseBody(b);
-        if (n > 0) dealDamage(t, n, "pulse", false);
-      }
-      const ch = _n2.copy(me.pos);
-      ch.y += me.h * 0.6;
-      if (playing && !me.dead && ch.distanceTo(c) < NADES.pulse.r && losClear(c, ch)) {
-        const n = pulseBody(me);
-        if (n > 0) hurtMe(n, { name: myName, w: "self" });
-      }
-      return;
-    }
     const w = type === "plasma" ? "stick" : "frag";
     for (const t of targets()) {
       const ch = _n2.copy(t.pos);
@@ -303,7 +270,7 @@ function throwNade() {
   nadeInv[type]--;
   nadeCD = 0.9;
   me.spawnT = -1e9; /* attacking ends spawn protection */
-  vmS.throwT = 0.42;
+  vmS.throwT = THROW_T;
   nadeAuto();
   updNadeHud();
   const d = new V3();
@@ -316,5 +283,5 @@ function throwNade() {
     .add(_n1.set(me.vel.x * 0.5, Math.max(0, me.vel.y * 0.3), me.vel.z * 0.5));
   MAIN_NADES.throw(type, o, v, playerNadeOwner);
   sfx("swing", 0.6);
-  emitFx("nade", v3a(o), v3a(v), type === "plasma" ? 1 : type === "pulse" ? 2 : 0);
+  emitFx("nade", v3a(o), v3a(v), type === "plasma" ? 1 : 0);
 }

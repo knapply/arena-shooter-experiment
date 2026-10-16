@@ -26,20 +26,15 @@ const WEAPON_SIL = {
   sniper:
     "M0 9 8 7 14 7 18 5 32 5 34 2 46 2 46 5 64 5 64 8 40 8 36 11 30 11 28 16 23 16 25 11 14 11 4 13 0 13Z",
   rocket: "M2 5 56 5 60 3 64 3 64 13 60 13 56 11 36 11 34 17 29 17 30 11 22 11 20 16 15 16 16 11 2 11Z",
-  burst:
-    "M2 9 8 6 16 6 18 4 44 4 46 6 60 6 60 10 46 10 44 12 38 12 36 17 31 17 32 12 24 12 22 17 16 17 18 12 8 12 2 13Z",
   scatter: "M4 8 12 6 20 6 22 4 50 4 50 7 58 7 58 11 40 11 38 13 30 13 28 17 22 17 24 12 12 12 4 13Z",
-  beam: "M2 9 10 6 18 6 20 3 40 3 44 1 50 1 54 4 62 4 62 10 54 10 50 13 44 13 40 11 34 11 32 16 27 16 28 11 12 11 2 13Z",
 };
 /** grenade types (viewBox 0 0 20 24) */
 const NADE_ICON = {
   frag: '<path d="M7 2h6v3H7z"/><path d="M13 3.5 17.5 8 16.5 9 12.5 5z"/><path d="M10 5.5c4.2 0 7 3.6 7 8.2S14.2 22 10 22s-7-3.7-7-8.3 2.8-8.2 7-8.2zm-4 8.2h8v1.4H6zm1.2-3.4h5.6v1.3H7.2zm0 7h5.6v1.3H7.2z" fill-rule="evenodd"/>',
   plasma:
     '<circle cx="10" cy="13" r="6.2"/><path d="M1 13c0-2.2 4-3.9 9-3.9s9 1.7 9 3.9-4 3.9-9 3.9-9-1.7-9-3.9zm2 0c0 1.1 3.1 2.4 7 2.4s7-1.3 7-2.4-3.1-2.4-7-2.4-7 1.3-7 2.4z" fill-rule="evenodd"/><path d="M8.5 2.5h3v4h-3z"/>',
-  pulse:
-    '<path d="M10 3 18 7.5v9L10 21l-8-4.5v-9zm0 4.5L5.5 10v5L10 17.5l4.5-2.5v-5z" fill-rule="evenodd"/><circle cx="10" cy="12.5" r="2.2"/>',
 };
-const NADE_NAME = { frag: "Frag", plasma: "Plasma", pulse: "Pulse" };
+const NADE_NAME = { frag: "Frag", plasma: "Plasma" };
 /** a short name for a weapon (the model number dropped): "pulse carbine", "magnum" */
 const hudWName = t => WEAPONS[t].name.split(" ").slice(1).join(" ") || WEAPONS[t].name;
 /** the grenade swap hint for the device in use, from your bindings */
@@ -59,7 +54,7 @@ let nadeKey = "";
 function drawNadeHud() {
   const box = $("nadeList");
   if (!box) return;
-  const types = nadeTypes(),
+  const types = NADE_TYPES,
     dev = hudDevice(),
     hint = nadeHint(dev);
   const key = types.map(t => t + nadeInv[t]).join() + nadeSel + hint;

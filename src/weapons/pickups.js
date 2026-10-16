@@ -38,7 +38,7 @@ function floorParts(type) {
     for (const p of gunParts(type))
       if (!p.fp && p.k !== "n") {
         const hot = WEAPONS[type].key === "rocket";
-        const lit = "GX".includes(p.m) || (hot && p.m === "C");
+        const lit = p.m === "G" || (hot && p.m === "C");
         put(gunGeo(p, false), lit ? (hot ? PICKHOT : PICKACC) : PICKMAT, p.x, p.y, p.z, p.rx);
       }
   const parts = [...by].map(([m, list]) => {
@@ -134,9 +134,7 @@ function powerSpawn(d, clock) {
   const type = WEAPON_DATA.findIndex(w => w.key === d.weapon);
   const p = {
     id: d.id,
-    /* lab rifles (docs/PROPOSALS.md) are ordinary pickups, shown only while their lab is on */
     power: !!WEAPON_DATA[type].power,
-    lab: d.lab || null,
     rot,
     ri: rot ? Math.max(0, POWER_ROTATION.indexOf(d.weapon)) : 0,
     type,
@@ -153,8 +151,6 @@ function powerSpawn(d, clock) {
     consume() {
       this.availAt = clock() + this.respawn;
       if (this.rot) {
-        /* the rotation as it is now: live lab power weapons join it */
-        this.rot = powerRotation().map(k => WEAPON_DATA.findIndex(w => w.key === k));
         this.ri = (this.ri + 1) % this.rot.length;
         this.type = this.rot[this.ri];
       }
@@ -251,7 +247,7 @@ function myLoadoutDrop() {
 function pickupList() {
   if (EXT) return EXT.pickups ? EXT.pickups() : [];
   for (let i = ITEMS.length - 1; i >= 0; i--) if (!ITEMS[i].avail) ITEMS.splice(i, 1);
-  return ARENA_PICKS.filter(p => !p.lab || labOn(p.lab)).concat(ITEMS);
+  return ARENA_PICKS.concat(ITEMS);
 }
 /* ---- you and the items around you ---- */
 let pkHold = 0,

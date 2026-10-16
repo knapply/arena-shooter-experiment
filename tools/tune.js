@@ -27,12 +27,11 @@
                                                  (default legendary,normal)
      TEAM=1 MAP=arena node tools/tune.js        pilots per team (1 on the arena: one-on-one duels, the
                                                  closest the AI comes to free-for-all)
-     node tools/tune.js labBurst modDoors       lab content (docs/PROPOSALS.md) as knobs: 1 turns it on
-                                                 (labBurst labScatter labBeam labPulse labWeapons, modDoors
-                                                 modSplit on Twin Foundry, modRing modPillars on the arena,
+     node tools/tune.js modDoors labGates       lab content (docs/PROPOSALS.md) as knobs: 1 turns it on
+                                                 (modDoors modSplit modPads on Twin Foundry, modRing
+                                                 modPillars on the arena,
                                                  labGates on both; labGateOpen/Shut/Move: the gate cycle,
-                                                 with GATES=1, which turns the gates on in every variant);
-                                                 LOCK=burst, scatter or beam locks a lab weapon
+                                                 with GATES=1, which turns the gates on in every variant)
      node tools/tune.js aiHoldRange aiRhythm    the AI's habits (modes/ctf/memory.js CTF.AI), 0 turns
                                                  one off; aiMemory 1 starts every match with a memory of
                                                  the map learned from two earlier matches; AIMEM=1 does
@@ -110,7 +109,7 @@ const NOVICE_SKILL = {
 const AIMEM_ENV = process.env.AIMEM === "1";
 /** aiMemory: matches start with a memory of the map (see match) */
 const AIMEM = { on: AIMEM_ENV };
-const LOCKS = ["carbine", "magnum", "sniper", "rocket", "nades", "burst", "scatter", "beam"];
+const LOCKS = ["carbine", "magnum", "sniper", "rocket", "nades", "scatter"];
 /* lab content: a flag in K.LABS, or a map mod in K.LABS.mods */
 const lab = k => v => (K.LABS[k] = !!v);
 const mod = m => v => {
@@ -151,7 +150,6 @@ const KNOBS = {
   /* view kick (the player's aim only; the AI has no recoil) */
   sbMagRecoil: { set: v => (W("pistol").recoil = v), def: 0.045, try: [0.009] },
   sbCarbRecoil: { set: v => (W("carbine").recoil = v), def: 0.016, try: [0.006] },
-  sbBurstRecoil: { set: v => (W("burst").recoil = v), def: 0.022, try: [0.0035] },
   /* the reference's higher jump: about 1.5 body heights, 1.33 s in the air */
   sbJumpHi: {
     set: v => Object.assign(K.TUNE, v ? { jump: 8.2, grav: 12.3 } : { jump: 7.4, grav: 24 }),
@@ -161,11 +159,6 @@ const KNOBS = {
   sbSprintResume: { set: v => (K.TUNE.sprintResume = v), def: 0.3, try: [0] },
   sbPoundCharge: { set: v => (K.TUNE.poundCharge = v), def: 0.55, try: [0.65] },
   sbPoundRadius: { set: v => (K.TUNE.poundR = v), def: 5, try: [3.2] },
-  sbBurstReload: { set: v => (W("burst").reload = v), def: 2, try: [1.4] },
-  sbBurstRate: { set: v => (W("burst").rate = v), def: 0.36, try: [0.4] },
-  sbBurstGap: { set: v => (W("burst").burstGap = v), def: 0.06, try: [0.075] },
-  sbBurstDmg: { set: v => (W("burst").body = v), def: 8, try: [6.4] },
-  sbBurstHead: { set: v => (W("burst").head = v), def: 22, try: [45] },
   /* the whole "Classic feel" Sandbox preset (data/modes.js) at once */
   sbClassic: {
     set: v => {
@@ -209,21 +202,9 @@ const KNOBS = {
   sbNadeBounce: { set: v => (K.NADE_TUNE.bounce = v), def: 0.38, try: [0.25, 0.5] },
   sbNadeFuse: { set: v => (K.NADES.frag.fuse = v), def: 2.6, try: [2.2, 3] },
   sbNadeRadius: { set: v => (K.NADES.frag.r = v), def: 4.2, try: [3.6, 4.8] },
-  labBurst: { set: lab("burst"), def: 0, try: [1] },
-  labScatter: { set: lab("scatter"), def: 0, try: [1] },
-  labBeam: { set: lab("beam"), def: 0, try: [1] },
-  labPulse: { set: lab("pulse"), def: 0, try: [1] },
   /* the most of a shield a melee blow takes (data/weapons.js MELEE; 999: the whole shield, as before the
      skill-ladder pass) */
   ruMeleeShield: { set: v => (K.MELEE.shield = v), def: 40, try: [999, 25] },
-  /* lab weapon numbers (for reworks; use with LOCK or the lab on) */
-  labBeamDmg: { set: v => Object.assign(W("beam"), { body: v, head: v }), def: 4, try: [5, 6] },
-  labBurstDmg: {
-    set: v => Object.assign(W("burst"), { body: v, head: Math.round(v * 2.75) }),
-    def: 8,
-    try: [7, 9],
-  },
-  labWeapons: { set: v => ["burst", "scatter", "beam", "pulse"].forEach(k => lab(k)(v)), def: 0, try: [1] },
   modDoors: { set: mod("doors"), def: 0, try: [1] },
   modSplit: { set: mod("split"), def: 0, try: [1] },
   modPads: { set: mod("pads"), def: 0, try: [1] },
@@ -832,7 +813,7 @@ function match(diff, seed, lock) {
         const S = out.sd[side(v)];
         S.deaths++;
         if (/melee|charge|flag|skull|pound/.test(w)) S.melee++;
-        if (/frag|stick|plasma|nade|pulse/.test(w)) S.nade++;
+        if (/frag|stick|plasma|nade/.test(w)) S.nade++;
         if (v.__sp != null && G.t - v.__sp < 3) S.spawn++;
         if (v.__first != null) S.ttd.push(+(G.t - v.__first).toFixed(2));
         if (d.head && k.team !== v.team) out.sd[side(k)].head++;
@@ -918,7 +899,7 @@ function match(diff, seed, lock) {
         const w = d.type || "?",
           k = /melee|charge|flag|skull/.test(w)
             ? "melee"
-            : /frag|stick|pulse|rocket/.test(w)
+            : /frag|stick|rocket/.test(w)
               ? "explosive"
               : w === "pod"
                 ? "pod"

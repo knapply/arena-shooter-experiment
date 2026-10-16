@@ -143,9 +143,13 @@ function updVM(dt, c) {
     _c.x -= c.lr * 0.004;
     _e1.z += c.lr * 0.01;
   }
-  _c.y -= c.landDip * (ads ? 0.06 : 0.25);
+  /* a landing: the gun follows the camera's landing dip (sink, hold, ease back: game/loop.js), a few
+     centimetres at most, with no bounce of its own */
+  _c.y -= c.landDip * (ads ? 0.04 : 0.15);
   _e1.z += c.strafe * (ads ? 0.008 : 0.06);
-  /* inertia: the weapon lags behind changes in velocity (springs), floats up on a jump and settles on landing */
+  /* inertia: the weapon lags behind changes in velocity (springs) and floats a little in the air; the
+     vertical spring is critically damped, and the stop of a landing is left to the dip above (a
+     kick there swung the gun back past rest: a bounce the reference doesn't have) */
   if (c.vel) {
     const cy = Math.cos(c.yaw),
       sy = Math.sin(c.yaw),
@@ -159,15 +163,14 @@ function updVM(dt, c) {
     vmS.lvy = c.vel.y;
     vmS.lfw = vf;
     vmS.inX.v -= ar * 0.0009;
-    vmS.inY.v -= au * 0.0006;
+    if (!(vmS.air && c.ground)) vmS.inY.v -= au * 0.0006;
     vmS.inZ.v += af * 0.0006;
-    if (vmS.air && c.ground) vmS.inY.v -= 0.12;
     vmS.air = !c.ground;
   }
   const ik = ads ? 0.25 : 1;
   _c.x += spring(vmS.inX, 0, dt, 3.2, 0.55) * ik;
   _c.y +=
-    (spring(vmS.inY, 0, dt, 3, 0.5) + (c.ground ? 0 : clamp(-(c.vel ? c.vel.y : 0) * 0.0025, -0.02, 0.03))) *
+    (spring(vmS.inY, 0, dt, 3, 1) + (c.ground ? 0 : clamp(-(c.vel ? c.vel.y : 0) * 0.0012, -0.01, 0.015))) *
     ik;
   _c.z += spring(vmS.inZ, 0, dt, 3.5, 0.6) * ik;
   _e1.z -= vmS.inX.x * 1.6 * ik;
@@ -201,7 +204,7 @@ function updVM(dt, c) {
     vmS.shot = 0;
     vmS.jy = rnd(-1, 1) * V.kj;
     vmS.jz = rnd(-1, 1) * V.kj;
-    if (fxOn() && vmRoot.visible && W().key !== "beam") {
+    if (fxOn() && vmRoot.visible) {
       flashSprite.getWorldPosition(_cA);
       ptAdd(
         PTS.soft,
@@ -230,6 +233,17 @@ function updVM(dt, c) {
   const u = V.cyc ? (vmS.shot / fr - V.cyc[1]) / V.cyc[2] : -1,
     ao = u > 0 && u < 1 ? V.cyc[0] * Math.sin(Math.PI * Math.sqrt(u)) : 0;
   V.act.position.z = ao;
+  /* a grenade throw: the gun dips down and to the right as the off hand swings through, and is back
+     up by about 0.5 s (the reference's throws: hand in, release about 0.1 s later, the arm gone by
+     0.15-0.2 s, the gun back by 0.35-0.5 s) */
+  const tu = vmS.throwT > 0 ? THROW_T - vmS.throwT : -1;
+  if (tu >= 0) {
+    const d = Math.min(1, tu / 0.05) * Math.max(0, 1 - Math.max(0, tu - 0.12) / 0.38);
+    _c.x += 0.03 * d;
+    _c.y -= 0.06 * d;
+    _e1.x -= 0.18 * d;
+    _e1.z -= 0.12 * d;
+  }
   /* a weapon just drawn starts from where it comes up, not where it was last put away */
   const fresh = vmS.lastV !== V;
   vmS.lastV = V;
@@ -242,10 +256,19 @@ function updVM(dt, c) {
   vmR.position.copy(V.grip).applyMatrix4(g.matrix);
   vmR.quaternion.copy(g.quaternion);
   vmS.throwT = Math.max(0, vmS.throwT - dt);
-  if (vmS.throwT > 0) {
-    const t = 1 - vmS.throwT / 0.42;
-    const s = Math.sin(t * Math.PI);
-    _lk.set(-0.2 + 0.12 * s, -0.12 + 0.2 * s, -0.25 - 0.3 * s);
+  /* the off hand: in high from the upper left (the grenade leaves at the key press, as the hand passes
+     the centre: the wind-up is folded into the first frames), through and down to the lower left, out
+     of view by 0.2 s, then back to the gun */
+  const swing = vmS.throwT > 0 && THROW_T - vmS.throwT < THROW_KEYS[THROW_KEYS.length - 1][0];
+  if (swing) {
+    const u = THROW_T - vmS.throwT;
+    let i = 1;
+    while (THROW_KEYS[i][0] < u) i++;
+    const [t0, a] = THROW_KEYS[i - 1],
+      [t1, b] = THROW_KEYS[i],
+      w = (u - t0) / (t1 - t0),
+      e = w * w * (3 - 2 * w);
+    _lk.set(a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e, a[2] + (b[2] - a[2]) * e);
   } else if (c.reload >= 0) reloadKey(V.keys, c.reload, V.fore, _lk).applyMatrix4(g.matrix);
   else if (c.clamber) _lk.set(-0.22, 0, -0.42);
   else
@@ -253,11 +276,11 @@ function updVM(dt, c) {
       .copy(V.fore)
       .setZ(V.fore.z + (V.pump ? ao : 0))
       .applyMatrix4(g.matrix);
-  vmS.lh.lerp(_lk, kf);
+  vmS.lh.lerp(_lk, swing ? 1 : kf);
   vmL.position.copy(vmS.lh);
   const free = c.reload >= 0 || vmS.throwT > 0 || c.clamber;
   vmL.quaternion.slerp(free || !V.lq ? g.quaternion : _q3.copy(g.quaternion).multiply(V.lq), kf);
-  handPose(vmL, free ? "grip" : "wrap");
+  handPose(vmL, swing ? "ball" : free ? "grip" : "wrap");
   handPose(vmR, "grip");
   /* clambering, both hands come off the gun, reach and plant flat on the ledge (held where it is in
      the world, so the view rises over them), then go back to the gun */

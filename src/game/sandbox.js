@@ -81,14 +81,6 @@ function applySandbox() {
     recoil: v.sbMagRecoil,
     zoom: [v.sbMagZoom],
   });
-  set("burst", {
-    rate: v.sbBurstRate,
-    burstGap: v.sbBurstGap,
-    body: v.sbBurstDmg,
-    head: v.sbBurstHead,
-    recoil: v.sbBurstRecoil,
-    reload: v.sbBurstReload,
-  });
   set("sniper", { rate: v.sbSnipeRate });
   set("rocket", { speed: v.sbRocketSpeed, radius: v.sbRocketRadius });
   NADE_TUNE.throw = v.sbNadeThrow;

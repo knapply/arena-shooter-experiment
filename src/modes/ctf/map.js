@@ -64,7 +64,6 @@
       respawn: p.respawn,
       rotate: !!p.rotate,
       weapon: p.weapon,
-      lab: p.lab || null,
     }));
     CTF.BOUNDS = Object.assign({}, doc.bounds);
   };

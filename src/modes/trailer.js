@@ -1472,7 +1472,7 @@
         put(foe1, [-20.4, 0, -6.2], PI / 2, 0, 20);
         foe1.ctl = () => ({ ...NO, f: 0.6 });
         fpTargets = [foe1];
-        F.begin({ pos: [-26.6, 0, -6], yaw: -PI / 2, w: 5 });
+        F.begin({ pos: [-26.6, 0, -6], yaw: -PI / 2, w: 4 });
         this.n = 0;
       },
       update(lt, dt, st) {
@@ -2085,16 +2085,16 @@
         F.step(dt, { hold, yaw: look.yaw, pitch: look.pitch });
       },
     },
-    /* the burst rifle: three-round bursts */
+    /* the scattergun at arm's length: two blasts, the pump racked between */
     {
       t: 32,
-      name: "fp-burst",
+      name: "fp-shotgun",
       fp: true,
       mood: "hot",
       setup() {
         clearStage();
         seed = 32;
-        put(foe2, [-16, 0, -5.4], PI / 2);
+        put(foe2, [-24.5, 0, -5.4], PI / 2);
         foe2.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 3) * 0.5 });
         fpTargets = [foe2];
         F.begin({ pos: [-31.5, 0, -6.4], yaw: -PI / 2, w: 4 });
@@ -2102,28 +2102,30 @@
       },
       update(lt, dt, st) {
         drive(foe2, dt);
-        const hold = triggerAt(this, st, [0.2, 0.72, 1.24]) ? ["fire"] : [];
-        const look = lookAt(head(foe2), 0.4);
+        const hold = triggerAt(this, st, [0.3, 1.25]) ? ["fire"] : [];
+        const look = lookAt(chest(foe2), 0.4);
         F.step(dt, { hold, yaw: look.yaw, pitch: look.pitch });
       },
     },
-    /* the arc beam: a held line of light */
+    /* the rocket launcher: one rocket into the pilot down the lane */
     {
       t: 34,
-      name: "fp-beam",
+      name: "fp-rocket-lane",
       fp: true,
-      mood: "cool",
+      mood: "hot",
       setup() {
         clearStage();
+        K.resetDestruction();
         seed = 34;
         put(foe1, [-17.5, 0, -6.2], PI / 2);
         foe1.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 2) * 0.35 });
         fpTargets = [foe1];
-        F.begin({ pos: [-30, 0, -6], yaw: -PI / 2, w: 6 });
+        F.begin({ pos: [-30, 0, -6], yaw: -PI / 2, w: 3 });
+        this.n = 0;
       },
       update(lt, dt, st) {
         drive(foe1, dt);
-        const hold = st > 0.2 && st < 1.85 && !foe1.dead ? ["fire"] : [];
+        const hold = triggerAt(this, st, [0.45]) ? ["fire"] : [];
         const look = lookAt(chest(foe1), 0.3);
         F.step(dt, { hold, yaw: look.yaw, pitch: look.pitch });
       },

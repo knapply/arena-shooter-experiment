@@ -170,14 +170,7 @@ MAPS.arena = {
     { name: "west lane", b: [-37, -12, -10, 12] },
   ],
   /* rotate: the centre power weapon cycles through POWER_ROTATION, one each time it spawns */
-  pickups: [
-    { id: "arena-power", weapon: "sniper", rotate: true, p: [0, 4.5, 0], respawn: 90 },
-    /* lab pickups: only while their LABS flag is on (docs/PROPOSALS.md) */
-    { id: "burst-e", weapon: "burst", lab: "burst", p: [22, 0, 4], respawn: 30 },
-    { id: "burst-w", weapon: "burst", lab: "burst", p: [-22, 0, -4], respawn: 30 },
-    { id: "beam-ne", weapon: "beam", lab: "beam", p: [21, 2.6, 27], respawn: 45 },
-    { id: "beam-sw", weapon: "beam", lab: "beam", p: [-21, 2.6, -27], respawn: 45 },
-  ],
+  pickups: [{ id: "arena-power", weapon: "sniper", rotate: true, p: [0, 4.5, 0], respawn: 90 }],
   /* blast gates (world/gates.js): one across each side of the ring round the core, cutting its long
      lines (north and south between the stairs and the barricade, east and west either side of the
      slab). A quarter cycle apart, so the shut side goes round the core */
@@ -384,14 +377,7 @@ MAPS.ctf = {
     { name: "mid lane", side: 1, b: [-9.5, 0, 9.5, 34] },
   ],
   /* power weapon: sniper on the cover block atop the mid tower, grabbable from the tower roof */
-  pickups: [
-    { id: "ctf-power", weapon: "sniper", rotate: true, p: [0, 4.2, 0], respawn: 90 },
-    /* lab pickups (one of each per team, rotated like the map) */
-    { id: "burst-r", weapon: "burst", lab: "burst", p: [-13, 0, -28], respawn: 30 },
-    { id: "burst-b", weapon: "burst", lab: "burst", p: [13, 0, 28], respawn: 30 },
-    { id: "beam-r", weapon: "beam", lab: "beam", p: [-17, 0, -9], respawn: 45 },
-    { id: "beam-b", weapon: "beam", lab: "beam", p: [17, 0, 9], respawn: 45 },
-  ],
+  pickups: [{ id: "ctf-power", weapon: "sniper", rotate: true, p: [0, 4.2, 0], respawn: 90 }],
   /* blast gates (world/gates.js): one across the mid lane between the wing walls on each half, shut
      together, so mid closes and play moves out to the wings, then back. Gates across the wings were
      tried too and pushed everyone into mid (docs/PROPOSALS.md, M10) */
