@@ -165,11 +165,23 @@ const podSeats = map => {
       [s1, s2, s3, s4, sk1, sk2]
     );
     /* the click-steps-the-zoom mode keeps the old cycle: 5x, 10x, off */
+    /* (held until the game has seen the press, then released for two game frames: a 60 ms click can
+       fall between two frames on a slow machine) */
+    const frames = k =>
+      p.evaluate(async k => {
+        let n = 0,
+          t = KA.now;
+        for (let i = 0; i < 200 && n < k; i++) {
+          await new Promise(r => setTimeout(r, 25));
+          if (KA.now !== t) (n++, (t = KA.now));
+        }
+      }, k);
     const click = async n => {
       await p.mouse.down({ button: "right" });
-      await p.waitForTimeout(60);
+      const lv = await lvlIs(n);
       await p.mouse.up({ button: "right" });
-      return lvlIs(n);
+      await frames(2);
+      return lv;
     };
     await p.evaluate(() => (KA.SET.aimMode = "cycle"));
     const c1 = await click(1),
