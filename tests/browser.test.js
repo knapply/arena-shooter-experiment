@@ -2159,7 +2159,7 @@ const podSeats = map => {
     /* a first-person stretch: the player's own pilot with the game's HUD and viewmodel (read in the same
        call as the seek: live, the music's clock moves the trailer on the next frame) */
     const fp = await T.evaluate(() => {
-      KA.trailer.seek(12.3);
+      KA.trailer.seek(15.8);
       return {
         on: KA.trailerFP.on,
         hud: !document.getElementById("hud").hidden,
@@ -2173,7 +2173,7 @@ const podSeats = map => {
       fp
     );
     const ctfCut = await T.evaluate(() => {
-      KA.trailer.seek(KA.trailerScore.remap(43.5));
+      KA.trailer.seek(59);
       return { game: !!CTF.UI.game(), fp: KA.trailerFP.on, hud: !document.getElementById("hud").hidden };
     });
     check(
