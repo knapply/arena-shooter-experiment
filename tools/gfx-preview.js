@@ -5,6 +5,7 @@
             browser exposes timer queries)
    --fx     fire a burst and set off an explosion in front of the camera before each shot
    --pilot  put a pilot 3.5 m in front of the camera, its shield just hit
+   --set=k:v  override a setting after the preset (e.g. --set=aa:smaa)
    --cmd=c  run a developer console command first (e.g. --cmd="bake on")
    --only=v only the views whose name contains v
    Writes <outDir>/<preset>-<view>.png (default tools/out/) and prints draw calls per view. */
@@ -49,10 +50,17 @@ const VIEWS = [
   await p.click("#openSet");
   await p.selectOption("#set_preset", preset);
   await p.click("#setDone");
-  await p.evaluate(() => {
+  const sets = Object.fromEntries(
+    args
+      .filter(a => a.startsWith("--set="))
+      .map(a => a.slice(6).split(":"))
+      .map(([k, v]) => [k, v === "true" ? true : v === "false" ? false : isNaN(+v) ? v : +v])
+  );
+  await p.evaluate(sets => {
     Object.assign(KA.SET, { dynRes: false, spawnStyle: "classic", perfOverlay: true });
+    Object.assign(KA.SET, sets);
     KA.applySettings();
-  });
+  }, sets);
   for (const a of args.filter(a => a.startsWith("--cmd="))) await p.evaluate(c => KA.CON.run(c), a.slice(6));
   await p.click("#deploy");
   await p.waitForTimeout(1500);

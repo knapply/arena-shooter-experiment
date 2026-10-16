@@ -6,7 +6,13 @@
    2. one of each pooled effect (tracer, flash, ring, sparks, smoke, shield shards, a dropped mag,
       an explosion with its debris and scorch, a frag, a plasma grenade, a rocket, a drop pod), spawned
       far below the map, compiled, then taken away again.
-   renderer.compile uses the scene's real lights, so the programs match what play will draw. */
+   Compiling uses the scene's real lights, so the programs match what play will draw. compileAsync
+   (KHR_parallel_shader_compile) hands the shaders to the driver's own threads and only checks on them
+   later, so the menu doesn't stall either; the objects can go as soon as it is called. */
+function prewarmCompile() {
+  if (renderer.compileAsync) renderer.compileAsync(scene, camera).catch(() => {});
+  else renderer.compile(scene, camera);
+}
 const PREWARM = { frames: 0, step: 0 };
 const PREWARM_AT = new THREE.Vector3(0, -500, 0);
 function prewarmEffects() {
@@ -25,7 +31,7 @@ function prewarmEffects() {
   const rk = MAIN_ROCKETS.fire(q, new THREE.Vector3(0, 0, -1), null);
   const pod = dropPod(q, "#62cdff", { quiet: true });
   podDraw();
-  renderer.compile(scene, camera);
+  prewarmCompile();
   /* take it all away again */
   for (const n of nades) {
     if (n.mesh) fxPut(n.key, n.mesh);
@@ -52,7 +58,7 @@ function updPrewarm() {
   /* after the environment capture, which changes every lit material's program */
   if (PREWARM.step > 1 || GFX.envWait || ++PREWARM.frames < 20) return;
   try {
-    if (PREWARM.step === 0) renderer.compile(scene, camera);
+    if (PREWARM.step === 0) prewarmCompile();
     else prewarmEffects();
   } catch (e) {}
   PREWARM.step++;

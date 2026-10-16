@@ -82,10 +82,25 @@ const SKY_TIME = { value: 0 };
 /* the sun's direction (follows sun.position) and the sky's detail level (Sky detail setting: 0 or 1) */
 const SKY_SUN = { value: new THREE.Vector3(0.6, 0.6, 0.36) },
   SKY_Q = { value: 1 };
+/* each map's sky (MAP_LOOK in render/pipeline.js sets these): the gradient below, at and above the
+   horizon (gamma space); k = planet, stars, storm, deep sea (0..1 each); cloud colors in shadow and lit;
+   the sun disc's color (times brightness) and size (1 the sun, smaller and cooler reads as a moon); the
+   city's window and haze glow; flash = lightning right now */
+const SKY_U = {
+  skyLo: { value: new THREE.Vector3(0.07, 0.1, 0.13) },
+  skyMid: { value: new THREE.Vector3(0.36, 0.26, 0.24) },
+  skyHi: { value: new THREE.Vector3(0.04, 0.06, 0.11) },
+  skyK: { value: new THREE.Vector4(1, 1, 0, 0) },
+  cloudA: { value: new THREE.Vector3(0.15, 0.12, 0.16) },
+  cloudB: { value: new THREE.Vector3(0.66, 0.44, 0.33) },
+  sunC: { value: new THREE.Vector4(1, 0.84, 0.62, 1) },
+  glowC: { value: new THREE.Vector3(1, 0.7, 0.35) },
+  flash: { value: 0 },
+};
 {
   const g = new THREE.SphereGeometry(40, 32, 16);
   const m = new THREE.ShaderMaterial({
-    uniforms: { tint: { value: skyTint }, tm: SKY_TIME, sunD: SKY_SUN, sq: SKY_Q },
+    uniforms: Object.assign({ tint: { value: skyTint }, tm: SKY_TIME, sunD: SKY_SUN, sq: SKY_Q }, SKY_U),
     side: THREE.BackSide,
     depthWrite: false,
     depthTest: false,
@@ -96,22 +111,39 @@ const SKY_SUN = { value: new THREE.Vector3(0.6, 0.6, 0.36) },
        drifting nebula overhead, and a distant megacity
        skyline with lit windows along the horizon (all procedural, one draw call) */
     fragmentShader: `uniform vec3 tint;uniform float tm;uniform vec3 sunD;uniform float sq;varying vec3 v;
+uniform vec3 skyLo;uniform vec3 skyMid;uniform vec3 skyHi;uniform vec4 skyK;uniform vec3 cloudA;uniform vec3 cloudB;uniform vec4 sunC;uniform vec3 glowC;uniform float flash;
 float h1(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h1(i),h1(i+vec2(1,0)),f.x),mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x),f.y);}
 void main(){vec3 d=normalize(v);float h=d.y;
-vec3 lo=vec3(.07,.10,.13),mid=vec3(.36,.26,.24),hi=vec3(.04,.06,.11);
-vec3 c=h<.08?mix(lo,mid,smoothstep(-.2,.08,h)):mix(mid,hi,smoothstep(.08,.6,h));
+vec3 c=h<.08?mix(skyLo,skyMid,smoothstep(-.2,.08,h)):mix(skyMid,skyHi,smoothstep(.08,.6,h));
 float az=atan(d.z,d.x);
+float th=-1.;
+if(skyK.w>.5){
+/* deep sea: dark water all round, the bright rippling window of the surface far overhead, light
+   shafts swaying down from it, marine snow drifting, and the station's dark silhouettes */
+vec2 sp=d.xz/(h+1.05);
+float rip=n2(sp*9.+vec2(tm*.25,tm*.18))*n2(sp*13.-vec2(tm*.21,-tm*.17));
+float win=smoothstep(.35,.95,h);
+c+=win*(.08+.55*rip)*vec3(.25,.75,.85)*smoothstep(.55,1.,h);
+float ray=0.;for(int i=0;i<4;i++){float fi=float(i);ray+=pow(max(0.,sin(az*(5.+fi*3.)+tm*(.11+.05*fi)+fi*1.7)),18.)*(.6-.12*fi);}
+c+=ray*vec3(.1,.35,.42)*smoothstep(-.1,.5,h)*(1.-smoothstep(.6,.95,h));
+vec2 sg=vec2(az*90.,h*90.)+vec2(0.,tm*.6);vec2 sc0=floor(sg);
+c+=step(.985,h1(sc0))*(1.-smoothstep(.04,.12,length(fract(sg)-.5-(vec2(h1(sc0+4.),h1(sc0+6.))-.5)*.6)))*vec3(.3,.5,.55)*(.5+.5*sin(tm+h1(sc0+2.)*6.28));
+float col=floor(az*14.);th=-.02+.07*pow(h1(vec2(col,7.)),3.)+.02*n2(vec2(az*4.,1.));
+if(h<th){vec3 sk=vec3(.01,.025,.035);vec2 w=vec2(az*120.,h*120.);
+sk+=step(.93,h1(floor(w)))*smoothstep(.3,.5,fract(w.x))*smoothstep(.3,.5,fract(w.y))*glowC*.5;
+if(h>th-.004&&h1(vec2(col,9.))>.5)sk+=vec3(.3,.9,1.)*.7*step(.5,fract(tm*.5+h1(vec2(col,4.))));c=sk;}
+gl_FragColor=vec4(pow(c,vec3(2.2))*1.5*tint,0.);return;}
 /* nebula band and stars, fading in with height */
 float up=smoothstep(.12,.55,h);
 /* sampled on a plane overhead, not by azimuth (which would leave a seam where it wraps) */
 vec2 nb=d.xz/(1.25-h);float neb=n2(nb*3.+tm*.004)*n2(nb*7.+3.-tm*.006);
-c+=up*neb*vec3(.10,.05,.16)*(1.45+.25*sin(tm*.07+nb.x*2.));
+c+=up*neb*vec3(.10,.05,.16)*(1.45+.25*sin(tm*.07+nb.x*2.))*skyK.y;
 /* stars twinkle, more toward the horizon where the air is thicker; a few burn blue or amber */
 vec2 sg=vec2(az*160.,h*160.);vec2 sc0=floor(sg);float st=h1(sc0);
 float tw=.55+.45*sin(tm*(2.+5.*h1(sc0+3.))+h1(sc0+11.)*6.28);tw=mix(1.,tw,.35+.5*(1.-up));
 vec3 stc=mix(vec3(.9,.95,1.),mix(vec3(.6,.75,1.),vec3(1.,.78,.5),step(.5,h1(sc0+5.))),step(.8,h1(sc0+9.)));
-c+=up*step(.9965,st)*stc*(.4+.6*h1(sc0+7.))*tw;
+c+=up*step(.9965,st)*stc*(.4+.6*h1(sc0+7.))*tw*skyK.y;
 /* now and then a shooting star: a bright head and a fading tail across the upper sky */
 {float ms=tm/5.5;float mid=floor(ms);float mp=fract(ms)/.14;
 if(mp<1.&&h1(vec2(mid,21.))>.45){float ma=h1(vec2(mid,22.))*6.28;
@@ -125,6 +157,7 @@ c+=tail*fade*vec3(.85,.92,1.)*2.2*(.2+.8*smoothstep(head-.2,head,along));}}
 /* the planet */
 vec3 pd=normalize(vec3(-.55,.32,-.77));float pa=dot(d,pd);
 float r=.12;float pr=sqrt(max(0.,1.-pa*pa));
+if(skyK.x>.5){
 if(pa>0.&&pr<r){float k=pr/r;vec3 n=normalize(d-pd*pa);
 float lit=clamp(dot(n,normalize(vec3(.8,.4,.5)))*.8+.25,0.,1.);
 float bands=.6+.4*sin(dot(d,vec3(0,1,0))*90.+n2(d.xz*40.)*3.);
@@ -135,6 +168,7 @@ else if(pa>0.){c+=vec3(.25,.18,.14)*exp(-(pr-r)*60.)*.5;}
 vec3 ax=normalize(cross(pd,vec3(.25,1,0)));vec3 ay=normalize(cross(ax,pd));
 vec2 q=vec2(dot(d,ax),dot(d,ay)*3.4);float rr=length(q);
 if(pa>0.&&rr>.15&&rr<.25&&!(pr<r&&dot(d,ay)>0.)){c=mix(c,vec3(.62,.54,.48),.55*(.6+.4*sin(rr*260.))*smoothstep(.15,.16,rr)*smoothstep(.25,.24,rr));}
+}
 /* searchlights from the city: pale beams rising from behind the towers, sweeping slowly */
 for(int i=0;i<3;i++){float fi=float(i);float baz=1.1+fi*2.1;vec3 base=vec3(cos(baz),0.,sin(baz));
 vec3 side=normalize(cross(vec3(0.,1.,0.),base));float sw=sin(tm*(.09+.035*fi)+fi*2.3)*.6;
@@ -146,9 +180,11 @@ c+=beam*vec3(.42,.52,.68)*.16;}
 if(sq>.5){
 vec2 cp=d.xz/(h+.12);
 float cv=n2(cp*1.3+vec2(tm*.012,0.))*.6+n2(cp*2.9-vec2(0.,tm*.02))*.3+n2(cp*7.+tm*.01)*.1;
-cv=smoothstep(.5,.82,cv)*smoothstep(.03,.2,h)*(1.-smoothstep(.5,.9,h));
+cv=smoothstep(.5-.25*skyK.z,.82-.2*skyK.z,cv)*smoothstep(.03,.2,h)*(1.-smoothstep(.5+.4*skyK.z,.9+.1*skyK.z,h));
 float sl=pow(max(dot(d,sunD),0.),3.);
-c=mix(c,mix(vec3(.15,.12,.16),vec3(.66,.44,.33),.3+.7*sl),cv*.7);
+/* a storm's clouds are lit from below by the city, and from inside by the lightning */
+float lb=skyK.z*(1.-smoothstep(.02,.35,h));
+c=mix(c,mix(cloudA,cloudB,clamp(.3+.7*sl*(1.-skyK.z)+lb,0.,1.))+flash*vec3(.55,.6,.8)*(.4+.6*n2(cp*3.+tm)),cv*(.7+.25*skyK.z));
 for(int i=0;i<3;i++){float fi=float(i);float lh=.04+fi*.024+.006*sin(az*3.+fi*2.);
 float dir=mod(fi,2.)*2.-1.;float sp=fract(az*(30.+fi*11.)+tm*dir*(.05+.02*fi)+h1(vec2(floor(az*(30.+fi*11.)),fi)));
 float car=smoothstep(.0,.03,sp)*smoothstep(.16,.05,sp)*smoothstep(.0028,0.,abs(h-lh));
@@ -164,24 +200,27 @@ c+=vec3(1.,.2,.1)*step(.6,fract(tm*1.3))*smoothstep(.0018,0.,length(q-vec2(.012,
 c+=vec3(.6,1.,.6)*step(.6,fract(tm*1.3+.5))*smoothstep(.0018,0.,length(q-vec2(.004,-.004)))*4.;}}
 }
 /* the skyline: towers and spires against the horizon glow, with windows */
-float col=floor(az*38.);float th=.03+.045*pow(h1(vec2(col,1.)),2.)+.025*n2(vec2(az*6.,0.));
+float col=floor(az*38.);th=.03+.045*pow(h1(vec2(col,1.)),2.)+.025*n2(vec2(az*6.,0.));
 if(h1(vec2(col,5.))>.93)th+=.05;
 if(h>-.05&&h<th){vec3 sk=vec3(.035,.045,.06);
 vec2 w=vec2(az*240.,h*190.);float win=step(.84,h1(floor(w)))*smoothstep(.2,.4,fract(w.x))*smoothstep(.25,.45,fract(w.y));
-sk+=win*mix(vec3(1.,.7,.35),vec3(.4,.8,1.),h1(vec2(col,3.)))*.4;
+sk+=win*mix(glowC,vec3(.4,.8,1.),h1(vec2(col,3.)))*.4;
 if(h>th-.004&&h1(vec2(col,9.))>.6)sk+=vec3(1.,.25,.2)*.9;
 c=sk;}
 vec3 lin=pow(c,vec3(2.2))*1.5;
 /* the sun: a hot disc, a tight glow and a wide warm haze (alpha 0 marks sky for the light shafts) */
 float sd=max(dot(d,sunD),0.);
-lin+=vec3(1.,.84,.62)*(smoothstep(.99984,.99993,sd)*30.+pow(sd,900.)*3.+pow(sd,60.)*.16+pow(sd,8.)*.04)*step(th,h);
+/* (a small cool disc with no haze is a moon) */
+float ds=1.-(1.-.99993)*sunC.w*sunC.w;
+lin+=sunC.rgb*(smoothstep(ds-1.1e-4*sunC.w,ds,sd)*30.+(pow(sd,900.)*3.+pow(sd,60.)*.16+pow(sd,8.)*.04)*sunC.w)*step(th,h);
+lin+=flash*vec3(.5,.55,.75)*.25*smoothstep(-.05,.4,h);
 gl_FragColor=vec4(lin*tint,0.);}`,
   }); /* the sky follows whichever camera renders it and draws behind everything, so it is never clipped by the far plane */
   const sky = new THREE.Mesh(g, m);
   sky.renderOrder = -10;
   sky.frustumCulled = false;
   sky.onBeforeRender = (r, sc, cam) => {
-    SKY_SUN.value.copy(sun.position).normalize();
+    sunDir(SKY_SUN.value);
     sky.position.copy(cam.getWorldPosition(_skyP));
     sky.updateMatrixWorld();
     sky.modelViewMatrix.multiplyMatrices(cam.matrixWorldInverse, sky.matrixWorld);

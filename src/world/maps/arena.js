@@ -267,6 +267,8 @@ function buildMap(doc, group) {
   if (typeof bakePrep === "function") bakePrep(group, SOLID, doc);
   mergeMapGroup(group);
   if (typeof bakeLight === "function") bakeLight(group, SOLID);
+  /* the map's cover in one draw call (world/cover-batch.js; engine only) */
+  if (typeof batchCover === "function") batchCover(group);
   /* blast gates last: they move, so they are neither baked nor merged (world/gates.js) */
   buildGates(doc, group);
   const solids = SOLID.splice(0);
