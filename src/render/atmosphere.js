@@ -6,7 +6,7 @@
      they cost nothing extra.
    - Breathing lights: the light strips and guide lights pulse gently, each at its own pace.
    Particles scale with the Particles setting; everything here is visual only. */
-const ATMO = { motes: null, strips: null, t: 0 };
+const ATMO = { motes: null, strips: null, t: 0, bolt: null };
 const MOTE_BOX = 16;
 function makeMotes() {
   const n = Math.round(420 * Math.min(1.5, SET.particles));
@@ -39,12 +39,15 @@ void main(){
   vec4 mv=modelViewMatrix*vec4(p,1.);
   gl_Position=projectionMatrix*mv;
   float d=-mv.z;
-  gl_PointSize=(.035+.03*seed)*scale/max(d,.1);
+  /* a speck smaller than ~3 px rasterizes as a hard square: draw it at 3 px and dim it to the
+     light it would have had */
+  float px=(.035+.03*seed)*scale/max(d,.1);
+  gl_PointSize=max(px,3.);
   /* fade near the camera and toward the box edge, and twinkle */
-  vA=smoothstep(.6,2.5,d)*(1.-smoothstep(box*.55,box,length(p-cam)))*(.55+.45*sin(t*(1.+seed*2.)+seed*40.));
+  vA=smoothstep(.6,2.5,d)*(1.-smoothstep(box*.55,box,length(p-cam)))*(.55+.45*sin(t*(1.+seed*2.)+seed*40.))*min(1.,px*px/9.);
 }`,
     fragmentShader: `uniform sampler2D map;varying float vA;
-void main(){float a=texture2D(map,gl_PointCoord).a*vA*.55;gl_FragColor=vec4(vec3(1.,.93,.82)*a,a);}`,
+void main(){float r=length(gl_PointCoord-.5)*2.;float a=(1.-smoothstep(0.,1.,r))*(1.-smoothstep(0.,1.,r))*vA*.8;gl_FragColor=vec4(vec3(1.,.93,.82)*a,a);}`,
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
@@ -64,6 +67,19 @@ void main(){float a=texture2D(map,gl_PointCoord).a*vA*.55;gl_FragColor=vec4(vec3
 function updAtmosphere(dt) {
   ATMO.t += dt;
   SKY_TIME.value = ATMO.t;
+  /* a storm's lightning: a flicker of two or three strokes every 6-20 s, lighting sky and ground */
+  let f = 0;
+  if (LOOK_NOW.storm) {
+    if (!ATMO.bolt || ATMO.t > ATMO.bolt.at + 1.2)
+      ATMO.bolt = { at: ATMO.t + 6 + Math.random() * 14, n: (2 + Math.random() * 2) | 0 };
+    const k = ATMO.t - ATMO.bolt.at;
+    for (let i = 0; i < ATMO.bolt.n; i++) {
+      const s = k - i * 0.13;
+      if (s > 0) f = Math.max(f, Math.exp(-s * 14) * (i ? 0.7 : 1));
+    }
+  }
+  SKY_U.flash.value = f;
+  hemi.intensity = LOOK_NOW.hemiI * LIGHT_K * (1 + f * 1.8);
   PROP_T.value = ATMO.t;
   /* the dust: made on first use, remade when the Particles setting changes */
   const want = Math.round(420 * Math.min(1.5, SET.particles));

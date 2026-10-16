@@ -151,6 +151,15 @@ const stats = async p => {
         "other pilots' weapons within their triangle budgets, the far level lighter",
         { wt, budget: B.weaponTris }
       );
+      /* the kill feed's gun icons are rendered from the weapons' own models (pixels read back) */
+      const icons = await p.evaluate(() =>
+        KA.WEAPON_DATA.map(w => [w.key, KA.feedIconMask(w.dmg).startsWith('url("data:image/png')])
+      );
+      check(
+        icons.every(([, png]) => png),
+        "kill feed gun icons are rendered from the weapon models",
+        icons
+      );
       /* a carried flag or skull is really held: through standing, running, sprinting, jumping, crouching
          and every phase of a carry blow, each palm stays on the object (on the pole's surface, 2 cm off
          its axis; on the skull's side, 15.5 cm from its centre) and each wrist reaches its grip. Posed

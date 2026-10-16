@@ -74,6 +74,11 @@ function deferEnv() {
     requestAnimationFrame(() => (idle ? idle(go, { timeout: 600 }) : setTimeout(go, 0)))
   );
 }
+/** fog from the draw distance and the map's look (thicker air on some maps) */
+function applyFog() {
+  scene.fog.near = SET.drawDist * 0.3 * LOOK_NOW.fogNear;
+  scene.fog.far = SET.drawDist * 0.85 * LOOK_NOW.fogFar;
+}
 function applyGfx() {
   const refl = SET.reflections;
   if (refl !== lastRefl) {
@@ -136,8 +141,7 @@ function applyGfx() {
         t.needsUpdate = true;
       }
   }
-  scene.fog.near = SET.drawDist * 0.3;
-  scene.fog.far = SET.drawDist * 0.85;
+  applyFog();
   camera.far = SET.drawDist + 60;
   camera.updateProjectionMatrix();
   /* render targets only change with these */
@@ -154,8 +158,10 @@ function applyGfx() {
 }
 const pc = n => Math.round(n * SET.particles);
 
+/** a box's uvs in metres / s on each face (one tile every s metres), for any number of segments */
 function scaleBoxUV(g, w, h, d, s) {
-  const uv = g.attributes.uv;
+  const uv = g.attributes.uv,
+    idx = g.index;
   const D = [
     [d, h],
     [d, h],
@@ -164,9 +170,16 @@ function scaleBoxUV(g, w, h, d, s) {
     [w, h],
     [w, h],
   ];
-  for (let f = 0; f < 6; f++)
-    for (let k = 0; k < 4; k++) {
-      const i = f * 4 + k;
-      uv.setXY(i, (uv.getX(i) * D[f][0]) / s, (uv.getY(i) * D[f][1]) / s);
+  /* (BoxGeometry: one group per face, in this order, each over its own run of vertices) */
+  const groups = g.groups.length === 6 ? g.groups : D.map((_, f) => ({ start: f * 6, count: 6 }));
+  groups.forEach((gr, f) => {
+    let lo = Infinity,
+      hi = -1;
+    for (let k = gr.start; k < gr.start + gr.count; k++) {
+      const v = idx ? idx.getX(k) : k;
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
     }
+    for (let i = lo; i <= hi; i++) uv.setXY(i, (uv.getX(i) * D[f][0]) / s, (uv.getY(i) * D[f][1]) / s);
+  });
 }
