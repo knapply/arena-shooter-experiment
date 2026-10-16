@@ -1,13 +1,17 @@
 /* ============ ITEM MODELS: what a match is played around ============
    Grenades (in flight, on the floor and as pickups), the stands map pickups sit on, and the oddball
-   skull. Original designs in the game's own language (angular wedge plates, graphite with orange,
-   team and power colours for light), each told apart at a glance by more than colour:
-   - frag grenade: a graphite octagonal puck with an orange band whose light blinks, faster as the
-     fuse runs down; it tumbles in flight;
-   - plasma grenade: a cyan core in a four-point graphite cage, its glow pulsing;
-   - a map pickup's stand: a low hex plinth with a lit inset; a power weapon's adds three wedge
-     prongs and pulses blue while it is up (lab weapons glow orange, steady);
+   skull. Original designs in the game's own language (angular wedge plates, graphite with amber, team
+   colours only for team things). Following the style guide's principles, each class of item has a
+   signal no other class uses:
+   - a map pickup's stand (a low hex plinth; a power weapon's adds three wedge prongs): an amber
+     beam of light rising from it, and amber light, outside both team colours; the power weapon's
+     pulses while it is up. The weapon floats a little above it and turns slowly;
+   - grenades: a point light and a timing signal. The frag (a graphite octagonal puck with an
+     orange band) glows steadily in flight and tumbles, then flashes five times a second from just
+     after it lands; the plasma (a teal-green core in a four-point graphite cage) glows steadily,
+     then swells for its last 0.4 s;
    - the skull: faceted bone with a graphite crest and slit eyes that glow orange.
+   (Dropped weapons look inert: weapons/pickups.js lays them flat, unlit and still.)
    Each model is a handful of merged pieces (one or two draws), built once and shared. Drop pods,
    supply pods and the flags have their own modules (game/pods.js, game/supply-pods.js, the CTF map). */
 const ITEM_MAT = {
@@ -60,8 +64,11 @@ function plasmaGeos() {
   };
   return ITEM_GEO.plasma;
 }
+/* the plasma grenade's colour: a teal-green of its own */
+const PLASMA_HEX = 0x38f5b0;
 /**
- * a grenade to throw or draw: a group whose userData.tick(fuseLeft, t) blinks or pulses its light
+ * a grenade to throw or draw: a group whose userData.tick(fuseLeft, sinceLanded) runs its signal
+ * (sinceLanded < 0 while it flies)
  * @param {string} type "frag" or "plasma"
  */
 function nadeModel(type) {
@@ -70,18 +77,19 @@ function nadeModel(type) {
     const G = plasmaGeos();
     const cage = new THREE.Mesh(G.cage, ITEM_MAT.graphite);
     const coreM = new THREE.MeshStandardMaterial({
-      color: "#0b2a33",
-      emissive: "#5ad2ff",
+      color: "#0a2a20",
+      emissive: PLASMA_HEX,
       emissiveIntensity: 2.4,
     });
     const core = new THREE.Mesh(G.core, coreM);
     const glow = new THREE.Sprite(plasMat.clone());
-    glow.scale.setScalar(0.32);
+    glow.scale.setScalar(0.3);
     g.add(cage, core, glow);
-    g.userData.tick = (fuse, t) => {
-      const k = 0.5 + 0.5 * Math.sin(t * (fuse < 0.6 ? 26 : 12));
-      coreM.emissiveIntensity = 1.6 + 1.6 * k;
-      glow.scale.setScalar(0.26 + 0.12 * k);
+    g.userData.tick = fuse => {
+      /* steady, then a swell over its last 0.4 s to nearly three times the size */
+      const k = Math.max(0, 1 - fuse / 0.4);
+      coreM.emissiveIntensity = 2.4 + 3 * k;
+      glow.scale.setScalar(0.3 * (1 + 1.7 * k * k));
     };
   } else {
     const G = fragGeos();
@@ -94,10 +102,10 @@ function nadeModel(type) {
     const band = new THREE.Mesh(G.band, bandM);
     body.castShadow = true;
     g.add(body, band);
-    g.userData.tick = (fuse, t) => {
-      /* blinks four times a second, then faster in its last half second */
-      const on = Math.sin(t * (fuse < 0.5 ? 60 : 25)) > 0;
-      bandM.emissiveIntensity = on ? 3 : 0.35;
+    g.userData.tick = (fuse, landed) => {
+      /* steady in flight; from a third of a second after it lands, a short flash every 0.2 s */
+      const flash = landed >= 0.33 && (landed - 0.33) % 0.2 < 0.035;
+      bandM.emissiveIntensity = landed < 0.33 ? 2 : flash ? 6 : 0.6;
     };
   }
   return g;
@@ -121,7 +129,7 @@ function nadeFloorParts() {
       ITEM_MAT.graphite,
     ],
     [at(F.band, -0.09, 0, 0, 1.2), lit("#5a2a08", "#ff8a2a")],
-    [at(P.core, 0.09, 0, 0), lit("#0b2a33", "#5ad2ff")],
+    [at(P.core, 0.09, 0, 0), lit("#0a2a20", "#38f5b0")],
   ];
 }
 /** a map pickup's stand: the plinth, and its light (power weapons add three wedge prongs) */
@@ -145,6 +153,10 @@ function standGeos(power) {
   ITEM_GEO[key] = { body: mergeGeos(body), light: mergeGeos(light) };
   return ITEM_GEO[key];
 }
+/* free items are amber: outside both team colours */
+const ITEM_AMBER = "#ffb347";
+/** the soft cone of light that rises from a pickup's stand */
+let STAND_BEAM = null;
 /**
  * a map pickup's stand; userData.tick(avail, t) pulses its light while the weapon is up
  * @param {boolean} power
@@ -152,13 +164,27 @@ function standGeos(power) {
 function standModel(power) {
   const G = standGeos(power);
   const g = new THREE.Group();
-  const col = power ? "#5ab8ff" : "#ffa040";
+  const col = ITEM_AMBER;
   const lightM = new THREE.MeshStandardMaterial({ color: "#10161a", emissive: col, emissiveIntensity: 1.5 });
   const body = new THREE.Mesh(G.body, ITEM_MAT.graphite);
   body.receiveShadow = true;
-  g.add(body, new THREE.Mesh(G.light, lightM));
+  if (!STAND_BEAM) {
+    STAND_BEAM = new THREE.CylinderGeometry(0.2, 0.42, 1.5, 6, 1, true);
+    STAND_BEAM.translate(0, 0.93, 0);
+  }
+  const beamM = new THREE.MeshBasicMaterial({
+    color: ITEM_AMBER,
+    transparent: true,
+    opacity: 0.14,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  g.add(body, new THREE.Mesh(G.light, lightM), new THREE.Mesh(STAND_BEAM, beamM));
   g.userData.tick = (avail, t) => {
-    lightM.emissiveIntensity = !avail ? 0.25 : power ? 1.4 + Math.sin(t * 4) * 0.8 : 1.4;
+    const k = !avail ? 0.2 : power ? 0.8 + Math.sin(t * 4) * 0.2 : 0.8;
+    lightM.emissiveIntensity = 1.8 * k;
+    beamM.opacity = 0.17 * k;
   };
   return g;
 }
@@ -217,8 +243,8 @@ function flagGeos() {
   ITEM_GEO.flag = {
     mast: mergeGeos([
       _imAt(new THREE.CylinderGeometry(0.11, 0.16, 0.22, 6), 0, 0.11, 0),
-      _imAt(new THREE.CylinderGeometry(0.026, 0.038, 2.1, 6), 0, 1.15, 0),
-      _imAt(new THREE.ConeGeometry(0.06, 0.22, 4), 0, 2.31, 0),
+      _imAt(new THREE.CylinderGeometry(0.03, 0.045, 3.0, 6), 0, 1.6, 0),
+      _imAt(new THREE.ConeGeometry(0.07, 0.26, 4), 0, 3.23, 0),
       _imAt(new THREE.BoxGeometry(0.1, 0.06, 0.1), 0, 1.42, 0),
     ]),
     stand: mergeGeos([

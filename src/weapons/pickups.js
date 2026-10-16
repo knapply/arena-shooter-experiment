@@ -78,20 +78,6 @@ function labelSprite() {
   return s;
 }
 const PK_VIS = new Map();
-const RING_GEO = new THREE.RingGeometry(0.55, 0.68, 32);
-const ringMat = c => {
-  const m = new THREE.MeshBasicMaterial({
-    color: c,
-    transparent: true,
-    opacity: 0.7,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  m.color.multiplyScalar(2);
-  return m;
-};
-/* drops share one ring material (they are always available while shown) */
-const DROP_RING = ringMat(0xffc070);
 function pkVisual(p) {
   let v = PK_VIS.get(p.id);
   if (v && v.type === p.type) return v;
@@ -106,19 +92,11 @@ function pkVisual(p) {
   const g = new THREE.Group();
   const model = weaponModel(p.type, !!p.power);
   g.add(model);
-  /* the map's pickups stand on a lit plinth (render/item-models.js: a power weapon's has prongs and
-     pulses blue); what pilots drop lies in an amber ring */
-  const onMap = p.respawn != null;
-  let ring = null,
-    stand = null;
-  if (onMap) g.add((stand = standModel(!!p.power)));
-  else {
-    ring = new THREE.Mesh(RING_GEO, DROP_RING);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.04;
-    ring.scale.setScalar(0.6);
-    g.add(ring);
-  }
+  /* the map's pickups stand on a plinth with an amber beam (render/item-models.js: a power
+     weapon's has prongs and pulses); what pilots drop lies flat on the floor, unlit and still */
+  const stand = p.respawn != null ? standModel(!!p.power) : null;
+  if (stand) g.add(stand);
+  else model.rotation.set(0, Math.random() * 6.28, Math.PI / 2);
   let label = null;
   if (p.power) {
     label = labelSprite();
@@ -127,7 +105,7 @@ function pkVisual(p) {
   }
   g.position.copy(p.pos);
   scene.add(g);
-  v = { g, model, ring, stand, label, last: "", type: p.type };
+  v = { g, model, stand, label, last: "", type: p.type };
   PK_VIS.set(p.id, v);
   return v;
 }
@@ -321,11 +299,12 @@ function updPickups(dt) {
     /* a power weapon comes down in its own supply pod: hidden until the lid opens (game/supply-pods.js) */
     const sup = p.power ? supplyTick(p, av) : null;
     v.model.visible = av && !(sup && sup.hide);
-    v.model.rotation.y += dt * 1.1;
-    v.model.position.y =
-      (v.stand ? 0.78 : 0.3) + (sup ? sup.lift : 0) + Math.sin(now * 2 + v.g.position.x) * 0.08;
-    if (v.ring) v.ring.material.opacity = av ? 0.75 : 0.2;
-    if (v.stand) v.stand.userData.tick(av, now);
+    if (v.stand) {
+      /* over its stand it turns slowly and hardly bobs; a drop lies still */
+      v.model.rotation.y += dt * 0.5;
+      v.model.position.y = 0.62 + (sup ? sup.lift : 0) + Math.sin(now * 1.5 + v.g.position.x) * 0.03;
+      v.stand.userData.tick(av, now);
+    } else v.model.position.y = 0.05;
     if (p.power && v.label) {
       const s = Math.ceil(p.availIn);
       const nm = capWord(wName(p.type));
@@ -337,7 +316,7 @@ function updPickups(dt) {
             : `${nm} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
       if (txt !== v.last) {
         v.last = txt;
-        v.label.userData.draw(txt, av ? "#9fe1ff" : "#7f939c");
+        v.label.userData.draw(txt, av ? "#ffc878" : "#7f939c");
       }
       const st = pkAnn.get(p.id) || { a: av, w: av };
       if (playing) {
@@ -364,7 +343,7 @@ function updPickups(dt) {
     if (!seen.has(id)) {
       v.g.visible = false;
       /* a drop that's gone for good: let its visual go too */
-      if (v.ring) {
+      if (!v.stand) {
         scene.remove(v.g);
         PK_VIS.delete(id);
       }

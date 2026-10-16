@@ -12,14 +12,14 @@ const NADES = {
   },
   /* plasma: `fuse` from the throw, unless `land` / `stick` > 0: then it counts from coming to rest
      on a surface, or from sticking to a pilot */
-  plasma: { fuse: 1.7, land: 1.5, stick: 1, r: 6.1, dmg: 163, color: 0x5ad2ff },
+  plasma: { fuse: 1.7, land: 1.5, stick: 1, r: 6.1, dmg: 163, color: 0x38f5b0 },
 };
 /* throw speed, frag bounciness and the gravity grenades fly under: the Sandbox settings change them */
 const NADE_TUNE = { throw: 25.5, bounce: 0.38, grav: 9 };
 const _n1 = new V3(),
   _n2 = new V3();
 const plasMat = new THREE.SpriteMaterial({
-  color: 0x7fe2ff,
+  color: 0x6cffc8,
   transparent: true,
   blending: THREE.AdditiveBlending,
   depthWrite: false,
@@ -168,7 +168,10 @@ class NadeWorld {
         /* a frag tumbles as it flies and rolls; a plasma turns slowly */
         if (n.type === "plasma") n.mesh.rotation.y += dt * 2;
         else n.mesh.rotation.x += dt * n.vel.length() * 3;
-        if (n.mesh.userData.tick) n.mesh.userData.tick(n.t, n.t * 1.7 + n.pos.x);
+        /* each grenade's signal (render/item-models.js), and its point light */
+        if (n.landed && n.landT == null) n.landT = n.t;
+        if (n.mesh.userData.tick) n.mesh.userData.tick(n.t, n.landT == null ? -1 : n.landT - n.t);
+        if (SET.dynLights) dynLight(n.pos, NADES[n.type].color, n.type === "plasma" ? 1.4 : 1.1, 0.05, 3.5);
       }
       if (n.t <= 0) {
         const P = NADES[n.type];

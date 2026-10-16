@@ -391,8 +391,8 @@ const _podV = new V3(),
 const BURN_COLS = [0xff3a14, 0xff6a1c, 0xff9a30, 0xffc45a];
 /* each kind of pod reads differently from across the map, by colour and by more than colour:
    - a pilot: orange flame over a dark grey-brown smoke column, a plain straight trail;
-   - a supply pod (a power weapon): a white-hot blue-white flame and pale smoke, the brightest of the
-     three, with a strobe at its head (game/supply-pods.js);
+   - a supply pod (a power weapon): a white-hot flame and pale smoke, the brightest of the three,
+     with a strobe at its head (game/supply-pods.js);
    - the skull: a violet flame under black smoke, wrapped in a bright two-strand spiral of sparks. */
 const POD_TRAILS = {
   pilot: {
@@ -402,10 +402,10 @@ const POD_TRAILS = {
     head: [0xffc070, 0xfff0d0],
   },
   supply: {
-    burn: [0x9fd4ff, 0xbfe6ff, 0xe8f6ff, 0xffffff],
+    burn: [0xfff4dc, 0xffe2a8, 0xffffff, 0xffd690],
     smoke: [0xd6dde4, 0xe8edf2],
     ember: [0xbfe6ff, 0xffffff],
-    head: [0x9fd4ff, 0xffffff],
+    head: [0xffe2a8, 0xffffff],
   },
   skull: {
     burn: [0x7a24ff, 0xa83cff, 0xd05aff, 0x5a18e0],

@@ -247,7 +247,7 @@
         roughness: 0.6,
       })
     );
-    cloth.position.y = 1.85;
+    cloth.position.y = 2.85;
     g.add(cloth);
     const base0 = clothGeo.attributes.position.array.slice();
     const glow = new T.Sprite(
@@ -261,7 +261,7 @@
       })
     );
     glow.scale.set(1.6, 1.6, 1);
-    glow.position.y = 1.4;
+    glow.position.y = 2.3;
     g.add(glow);
     const beam = new T.Mesh(
       new T.CylinderGeometry(0.12, 0.12, 40, 8, 1, true),
