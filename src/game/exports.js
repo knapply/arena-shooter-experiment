@@ -160,6 +160,12 @@ const KA_API = {
   rayTarget,
   SPAWNS,
   makePilot,
+  /** triangles in weapon i as other pilots hold it (far: its distance level) */
+  weaponTris: (i, far) =>
+    weaponGeos(i, !!far).reduce(
+      (n, [, g]) => n + (g.index ? g.index.count : g.attributes.position.count) / 3,
+      0
+    ),
   ANIM,
   rigThrowAt,
   EVENTS,

@@ -14,6 +14,8 @@ const vmAcc = new THREE.MeshStandardMaterial({
 });
 const vmGlove = new THREE.MeshStandardMaterial({ color: "#2a3237", roughness: 0.7, metalness: 0.15 });
 const vmPlate = new THREE.MeshStandardMaterial({ color: "#3a454c", roughness: 0.4, metalness: 0.7 });
+/* the glove's armored plates: painted, not brushed */
+const vmKnuckle = new THREE.MeshStandardMaterial({ color: "#3a454c", roughness: 0.5, metalness: 0.55 });
 /* the weapon's lights: the held weapon's colour, a flare on each shot, red and blinking on low ammo (vmLights) */
 const vmGlow = new THREE.MeshStandardMaterial({
   color: "#000000",
@@ -35,7 +37,51 @@ const vmCtrT = new THREE.CanvasTexture(vmCtrC);
 vmCtrT.colorSpace = THREE.SRGBColorSpace;
 const vmCtr = new THREE.MeshBasicMaterial({ map: vmCtrT });
 vmCtr.color.setScalar(1.8);
-const VM_MAT = { D: vmDark, P: vmPlate, A: vmArmor, S: vmSuit, G: vmGlow, C: vmAcc };
+/* the weapon's fine lights (E parts: indicator strips, cable sleeves, readouts): its own colour,
+   breathing slowly; drawn only with Surface detail on High (vmDetail) */
+const vmFine = new THREE.MeshStandardMaterial({
+  color: "#000000",
+  emissive: "#5ad2ff",
+  emissiveIntensity: 0.9,
+});
+/* the heat vents (H parts): dark at rest, glowing with heat as the weapon fires and cooling over a few
+   seconds (vmLights), like the armour's thrusters */
+const vmHeat = new THREE.MeshStandardMaterial({ color: "#000000", emissive: "#000000", roughness: 0.6 });
+const VM_MAT = { D: vmDark, P: vmPlate, A: vmArmor, S: vmSuit, G: vmGlow, C: vmAcc, E: vmFine, H: vmHeat };
+/* Surface detail = High: the gunmetal and plate are brushed metal (anisotropic highlights that run
+   along each part) and the glove is fabric with a soft sheen; Flat swaps the plain materials back in,
+   so the Low preset pays nothing for them */
+const VM_HI = new Map(
+  [
+    [vmDark, { anisotropy: 0.4, roughness: 0.55, metalness: 0.5 }],
+    [vmPlate, { anisotropy: 0.5, roughness: 0.42, metalness: 0.7 }],
+    [vmGlove, { sheen: 0.6, sheenRoughness: 0.6, sheenColor: new THREE.Color("#56626b"), roughness: 0.8 }],
+  ].map(([m, o]) => [
+    m,
+    Object.assign(new THREE.MeshPhysicalMaterial({ color: m.color, metalness: m.metalness }), o),
+  ])
+);
+/** the brushed metal needs real tangents: derived from screen-space derivatives they flare white on
+    these flat merged faces */
+function vmTan(g) {
+  if (!g.attributes.tangent && g.index && g.attributes.uv && g.attributes.normal) g.computeTangents();
+  return g;
+}
+function vmDetail() {
+  const hi = SET.textures === "high";
+  vmRoot.traverse(o => {
+    if (!o.isMesh) return;
+    if (VM_HI.has(o.material) || o.userData.lo) vmTan(o.geometry);
+    if (o.userData.lo) {
+      if (!hi) o.material = o.userData.lo;
+      else o.material = VM_HI.get(o.userData.lo);
+    } else if (VM_HI.has(o.material)) {
+      o.userData.lo = o.material;
+      if (hi) o.material = VM_HI.get(o.material);
+    }
+    if (o.material === vmFine) o.visible = hi;
+  });
+}
 function vmBox(p, w, h, d, m, x, y, z) {
   const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
   o.position.set(x, y, z);
@@ -71,7 +117,7 @@ function vmModel(i) {
       .makeRotationFromEuler(new THREE.Euler(p.rx, p.ry, 0))
       .setPosition(p.x, p.y, p.z);
     if (p.k === "n") {
-      const o = new THREE.Mesh(gunGeo(p, true), vmCtr);
+      const o = new THREE.Mesh(gunGeo(p, 0), vmCtr);
       o.applyMatrix4(m);
       g.add(o);
       continue;
@@ -79,7 +125,7 @@ function vmModel(i) {
     const mt = VM_MAT[p.m],
       to = p.act ? act : by;
     if (!p.mag && !to.has(mt)) to.set(mt, []);
-    (p.mag ? mag : to.get(mt)).push([gunGeo(p, true), m, p]);
+    (p.mag ? mag : to.get(mt)).push([gunGeo(p, 0), m, p]);
   }
   for (const [mt, list] of by) g.add(new THREE.Mesh(mergeGeos(list), mt));
   const ag = new THREE.Group();
@@ -243,6 +289,8 @@ const VMW = [
   {
     grip: new V3(0, -0.21, 0.04),
     fore: new V3(0, -0.2, -0.3),
+    /* the support hand closes round the vertical fore grip, like the trigger hand */
+    lgrip: true,
     keys: RKT_RELOAD,
     P: {
       hip: { p: new V3(0.2, -0.13, -0.3), r: [0, 0.03, 0] },
@@ -285,7 +333,7 @@ for (const V of VMW) if (V.sc) V.g.scale.setScalar(V.sc);
 const LQ_RIFLE = new THREE.Quaternion().setFromRotationMatrix(
   new THREE.Matrix4().makeBasis(new V3(0, 1, 0), new V3(0, 0, -1), new V3(-1, 0, 0))
 );
-for (const V of VMW) if (!V.whip) V.lq = LQ_RIFLE;
+for (const V of VMW) if (!V.whip && !V.lgrip) V.lq = LQ_RIFLE;
 vmHolo(VMW[0].g, HOLO.y, HOLO.z, 0.062, 0.046);
 dot(VMW[1].g, 0x8cffb0, 0.0035, 0, PIS.y - 0.002, PIS.z + 0.001);
 /* gloved hands. A hand is a palm, four fingers of three bevelled segments and a two-segment thumb,
@@ -410,7 +458,7 @@ function handGeo(side, pose) {
     -0.022,
     0
   );
-  const out = /** @type {any} */ ([mergeGeos(glove), mergeGeos(plate)]);
+  const out = /** @type {any} */ ([mergeGeos(glove), vmTan(mergeGeos(plate))]);
   /* the wrist, in the hand's frame, where its forearm starts */
   out.wrist = new V3(side * 0.03 * r, -0.05, 0.06).applyMatrix4(roll);
   return (HAND_GEO[key] = out);
@@ -418,7 +466,7 @@ function handGeo(side, pose) {
 function vmHand(side) {
   const g = new THREE.Group();
   const geos = handGeo(side, "grip");
-  g.add(new THREE.Mesh(geos[0], vmGlove), new THREE.Mesh(geos[1], vmPlate));
+  g.add(new THREE.Mesh(geos[0], vmGlove), new THREE.Mesh(geos[1], vmKnuckle));
   g.userData = { side, pose: "grip" };
   /* the forearm, along -y from the wrist */
   const arm = new THREE.Group();
@@ -504,6 +552,10 @@ const vmS = {
   kick: 0,
   /* time since the last shot, its random twist, and the weapon posed last frame */
   shot: 9,
+  /* the vents' heat (0..1), the shot that last fed it and when it last cooled */
+  heat: 0,
+  heatAt: -9,
+  heatT: 0,
   jy: 0,
   jz: 0,
   lastV: null,
@@ -525,6 +577,19 @@ function vmLights() {
     low = !rl && mag <= Math.max(1, Math.floor(w.mag / 4)),
     c = low ? 0xff3a1e : VMW[wi].glow;
   vmGlow.emissive.setHex(c);
+  vmFine.emissive.setHex(VMW[wi].glow);
+  /* heat: each shot adds by how hard the weapon kicks, and it cools exponentially; the colour runs from
+     a dull red to an orange-white as it builds */
+  if (lastFireT !== vmS.heatAt) {
+    vmS.heatAt = lastFireT;
+    vmS.heat = Math.min(1, vmS.heat + 0.15 + w.kick * 4);
+  }
+  vmS.heat *= Math.exp(-0.9 * (now - vmS.heatT));
+  vmS.heatT = now;
+  const ht = vmS.heat;
+  vmHeat.emissive.setRGB(1, 0.18 + 0.5 * ht, 0.05 + 0.3 * ht * ht);
+  vmHeat.emissiveIntensity = 2.6 * ht;
+  vmFine.emissiveIntensity = 0.7 + 0.25 * Math.sin(now * 2.2);
   /* the muzzle flash: the weapon's own size and colour, a little different every shot */
   if (flashT > 0) {
     flashSprite.scale.setScalar(VMW[wi].fl * (0.8 + Math.random() * 0.45));
@@ -546,6 +611,7 @@ function vmLights() {
   vmCtrT.needsUpdate = true;
 }
 onFrame(vmLights);
+SET_HOOKS.push(vmDetail);
 /* carrying the flag in first person: the weapon goes away and the flag pole sits across your hands */
 const vmFlag = new THREE.Group();
 vmRoot.add(vmFlag);

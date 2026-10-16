@@ -140,6 +140,17 @@ const stats = async p => {
           a = { calls: Math.max(a.calls, v.calls), tris: Math.max(a.tris, v.tris) };
         }
       check(a.calls <= B.arena.drawCalls && a.tris <= B.arena.triangles, "arena view within draw budget", a);
+      /* other pilots' weapons carry their detail in first person only: in their hands each stays
+         within its budget, and its far level costs less */
+      const wt = await p.evaluate(
+        n => [...Array(n)].map((_, i) => [KA.weaponTris(i), KA.weaponTris(i, true)]),
+        B.weaponTris.length
+      );
+      check(
+        wt.every(([n, f], i) => n <= B.weaponTris[i] && f < n),
+        "other pilots' weapons within their triangle budgets, the far level lighter",
+        { wt, budget: B.weaponTris }
+      );
       /* the kill feed's gun icons are rendered from the weapons' own models (pixels read back) */
       const icons = await p.evaluate(() =>
         KA.WEAPON_DATA.map(w => [w.key, KA.feedIconMask(w.dmg).startsWith('url("data:image/png')])

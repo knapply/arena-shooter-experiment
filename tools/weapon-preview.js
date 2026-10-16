@@ -1,5 +1,5 @@
 /* Screenshots of every weapon, for working on weapons/models.js, viewmodels.js and weaponParts in characters/rig.js.
-     THREE_PATH=... node tools/weapon-preview.js [out-dir]
+     THREE_PATH=... node tools/weapon-preview.js [out-dir] [--quick]
    first person: each weapon at the hip, aimed down its sights and at the hip with a low magazine, then
    frozen mid-motion: coming up after a draw, the frame of a shot, sprinting and half-way through a reload, and the carbine through a grenade throw;
    third person: a line of pilots holding every weapon, from close beside them and from 14 m away.
@@ -7,7 +7,9 @@
 const fs = require("fs"),
   path = require("path");
 const { launch, open } = require("../tests/lib/browser.js");
-const out = process.argv[2] || "weapon-shots";
+const out = process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : "weapon-shots";
+/* --quick: only the first-person stills (hip, ADS, low ammo), for iterating on a look */
+const QUICK = process.argv.includes("--quick");
 if (!process.env.THREE_PATH) {
   console.error(
     "set THREE_PATH to three.module.min.js (three.js at the version in src/manifest.json, three.core.min.js beside it)"
@@ -74,6 +76,7 @@ fs.mkdirSync(out, { recursive: true });
     await settle();
     await shot(`fp${i}-low`);
   }
+  if (QUICK) return b.close();
   /* in motion, each frozen mid-way (timescale 0): coming up after a draw, the frame of a shot (flash,
      kick, tracer), a sprint, and the middle of a reload. Waits are on game state, not the clock */
   const freeze = async (name, clip) => {

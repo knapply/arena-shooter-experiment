@@ -39,7 +39,7 @@ function floorParts(type) {
       if (!p.fp && p.k !== "n") {
         const hot = WEAPONS[type].key === "rocket";
         const lit = p.m === "G" || (hot && p.m === "C");
-        put(gunGeo(p, false), lit ? (hot ? PICKHOT : PICKACC) : PICKMAT, p.x, p.y, p.z, p.rx);
+        put(gunGeo(p, 1), lit ? (hot ? PICKHOT : PICKACC) : PICKMAT, p.x, p.y, p.z, p.rx);
       }
   const parts = [...by].map(([m, list]) => {
     /* mergeGeos keeps uvs only when every piece has them; these all do */
