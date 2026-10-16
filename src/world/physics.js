@@ -36,6 +36,8 @@ const TUNE_DEF = {
   /* seconds without damage before shields (then health) recharge: 3, down from 4 by simulation in every
      mode (docs/TUNING.md, "Every mode, every rule"); then shield and health points restored a second */
   regenDelay: 3,
+  /* 1: sprint, thrust, hover and ground pound all restart the recharge delay (Body.regen) */
+  exertHold: 1,
   shieldRate: 48,
   healthRate: 28,
   /* seconds to charge a ground pound, and the reach of its blast in metres (it kills at the centre and
@@ -194,6 +196,8 @@ class Body {
     this.shield = 70;
     this.health = 45;
     this.lastDmg = -99;
+    /* when the suit's thrusters last worked (sprint, thrust, hover, ground pound): they hold the recharge */
+    this.lastExert = -99;
     this.dead = false;
     this.spawnT = 0;
     this.speedMul = 1;
@@ -579,13 +583,17 @@ class Body {
   }
   regen(dt, now) {
     if (this.dead) return 0;
-    /* sprinting holds the recharge 0.7 s from starting */
-    if (this.sprint && this.shield < 70) {
+    /* the suit's thrusters hold the recharge: sprinting, a thrust, hovering or a ground pound restart the
+       delay, so shields come back only after regenDelay with neither damage nor any of those
+       (TUNE.exertHold 0: the old rule, where only sprinting held it, and 0.7 s at most) */
+    if (TUNE.exertHold) {
+      if (this.sprint || this.thrustT > 0 || this.stabbing || this.pound > 0) this.lastExert = now;
+    } else if (this.sprint && this.shield < 70) {
       this.lastDmg = Math.max(this.lastDmg, now - (TUNE.regenDelay - 0.7));
       return 0;
     }
     let ev = 0;
-    if (now - this.lastDmg > TUNE.regenDelay) {
+    if (now - Math.max(this.lastDmg, this.lastExert) > TUNE.regenDelay) {
       if (this.shield < 70) {
         if (this.shield <= 0) ev = 1;
         this.shield = Math.min(70, this.shield + TUNE.shieldRate * dt);

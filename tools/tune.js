@@ -265,6 +265,9 @@ const RULE = {
   regenDelay: 3,
   shieldRate: 48,
   healthRate: 28,
+  /* 1: sprint, thrust, hover and ground pound restart the recharge delay; 0: the old rule (sprinting
+     alone held it, 0.7 s at most) */
+  exertHold: 1,
   /* seconds between melee swings, and after a shoulder charge */
   meleeCD: 0.75,
   chargeCD: 1.3,
@@ -295,6 +298,7 @@ Object.assign(KNOBS, {
   ruHealth: { set: rule("health"), def: 45, try: [35, 55] },
   ruRegenDelay: { set: rule("regenDelay"), def: 3, try: [2.5, 3.5] },
   ruShieldRate: { set: rule("shieldRate"), def: 48, try: [32, 64] },
+  ruExertHold: { set: rule("exertHold"), def: 1, try: [0] },
   ruMeleeCD: { set: rule("meleeCD"), def: 0.75, try: [0.55, 1] },
   ruChargeCD: { set: rule("chargeCD"), def: 1.3, try: [1, 1.8] },
   ruCarryHit: { set: rule("carryHit"), def: 1, try: [0] },
@@ -332,12 +336,14 @@ const RES_DEF = K.WEAPON_DATA.map(w => w.reserve);
   B.regen = function (dt, now) {
     /* world/physics.js Body.regen with RULE's numbers */
     if (this.dead) return 0;
-    if (this.sprint && this.shield < RULE.shield) {
+    if (RULE.exertHold) {
+      if (this.sprint || this.thrustT > 0 || this.stabbing || this.pound > 0) this.lastExert = now;
+    } else if (this.sprint && this.shield < RULE.shield) {
       this.lastDmg = Math.max(this.lastDmg, now - (RULE.regenDelay - 0.7));
       return 0;
     }
     let ev = 0;
-    if (now - this.lastDmg > RULE.regenDelay) {
+    if (now - Math.max(this.lastDmg, this.lastExert) > RULE.regenDelay) {
       if (this.shield < RULE.shield) {
         if (this.shield <= 0) ev = 1;
         this.shield = Math.min(RULE.shield, this.shield + RULE.shieldRate * dt);

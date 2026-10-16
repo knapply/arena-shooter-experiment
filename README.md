@@ -164,7 +164,7 @@ Combat rules:
 - The announcer calls out the sniper spawning and the 30-second warning.
 
 ## Movement
-- **Sprint** is fast but you can't shoot, and it pauses shield recharge.
+- **Sprint** is fast but you can't shoot. Shields only recharge after a few seconds without damage *and* without sprinting, thrusting, hovering or ground pounding.
 - **Strafing** is as fast as running forward, and reversing direction bites harder than speeding up: a full left-right flip takes about 0.15 s, quick enough to make someone miss.
 - **Aiming** a low-zoom scope keeps 90% of your speed; a sniper scope slows you more.
 - **Slide** by crouching out of a sprint or a thrust (a thrust-slide is the fastest way across the map). Jumping out of a slide carries its speed into the air.

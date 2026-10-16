@@ -214,7 +214,7 @@ const SANDBOX_DEFS = [
     6,
     0.1,
     " s",
-    "Time without taking damage before shields start to recharge.",
+    "Time without taking damage, sprinting or using your thrusters (thrust, hover, ground pound) before shields start to recharge.",
   ],
   [
     "sbShieldRate",

@@ -13,10 +13,25 @@ const runs = [],
 for (const f of inputs) {
   const d = JSON.parse(fs.readFileSync(f, "utf8"));
   const bases = d.bases || { none: d.base };
-  runs.push({ file: f, SEED: d.SEED, MATCHES: d.MATCHES, MINUTES: d.MINUTES, DIFF: d.DIFF, bases });
+  runs.push({
+    file: f,
+    SEED: d.SEED,
+    MAP: d.MAP,
+    MODE: d.MODE,
+    MATCHES: d.MATCHES,
+    MINUTES: d.MINUTES,
+    DIFF: d.DIFF,
+    bases,
+  });
   for (const r of d.rows) {
     const b = bases[r.lock || "none"];
-    rows.push({ ...r, seed: d.SEED, dSkill: b ? +(r.skill - b.skill).toFixed(3) : null, file: f });
+    rows.push({
+      ...r,
+      seed: d.SEED,
+      map: d.MAP,
+      dSkill: b ? +(r.skill - b.skill).toFixed(3) : null,
+      file: f,
+    });
   }
 }
 rows.sort((a, b) =>

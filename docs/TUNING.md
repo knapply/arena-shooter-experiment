@@ -1015,6 +1015,20 @@ The novice now lives longer against Recruit (median life 14 to 24 s against 9 to
 
 **The bot ladder stays ordered** (share of kills the better level takes, seed set 100, 16 matches): Normal over Recruit 0.75 / 0.68 / 0.67 / 0.74 (Slayer / free-for-all / capture the flag / oddball), Heroic over Normal 0.83 / 0.77 / 0.80 / 0.92, Legendary over Heroic 0.71 / 0.67 / 0.73 / 0.85. With Normal softer, the biggest step is now Normal to Heroic.
 
+## Shields wait for the thrusters
+
+**The rule (asked for, so it ships):** shields recharge only after the recharge delay (3 s) with neither damage nor any use of the suit's thrusters: sprinting, a thrust, hovering (stabilize) or a ground pound each restart the delay. Before, only sprinting held the recharge, and by 0.7 s at most. It is one rule in `Body.regen` (`world/physics.js`, `TUNE.exertHold`), so it covers you, the AI, other players (the host reads their sprint, thrust, hover and pound state from their snapshots) and the simulation worker.
+
+**Measured** (`MAP=ctf|arena MATCHES=16 MINUTES=4 SEED=100|700 node tools/tune.js ruExertHold sbRun` with four null controls each; Legendary vs Normal; effect of the new rule against the old):
+
+| | Capture the flag, 100 | Capture the flag, 700 | Team deathmatch on the arena, 100 | arena, 700 |
+|---|---|---|---|---|
+| Skill share (noise) | −0.023 (±0.009) | −0.013 (±0.013) | −0.045 (±0.007) | −0.040 (±0.009) |
+| Time to kill | 3.03 → 2.27 s | 3.00 → 2.63 s | 4.20 → 3.40 s | 4.23 → 3.67 s |
+| Kills a minute | 12.5 → 13.3 | 12.2 → 13.3 | 17.0 → 18.8 | 17.3 → 18.8 |
+
+Pilots carry their damage further now: the AI sprints and thrusts between fights, so it starts the next one with less shield more often. Fights end sooner and the better pilot's edge narrows a little (by this page's own measure, a cost: it lowers skill share on every reading, three of four clear of the noise). The delay and rates stay as they were (3 s, 48 and 28 a second); a longer delay would add to the effect. `ruExertHold=0` in `tools/tune.js` brings back the old rule for comparison.
+
 ## Limits of the method
 
 The AI's skill levels differ in reaction time and aim error, so the simulations measure how much **aim and reaction** decide fights. Movement skill (strafe timing, thrust dodges, slide jumps) is something the AI only partly expresses, so movement settings are better judged by playtesting with the sliders. The sandbox tab exists for exactly that.
