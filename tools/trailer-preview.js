@@ -1,6 +1,7 @@
 /* Quick looks at the trailer while working on it (the full recording is tools/record-trailer.js).
      node tools/trailer-preview.js audio [out.wav]       the soundtrack alone (score and effects)
-     node tools/trailer-preview.js check                 run it without drawing; print collisions,
+     node tools/trailer-preview.js check                 run it without drawing; print each scene's beats
+                                                         (missed ones marked), collisions,
                                                          camera-in-geometry frames and the event log
      THREE_PATH=... node tools/trailer-preview.js stills 3,12.5,40 [out.jpg]
                                                          a contact sheet of single frames
@@ -52,6 +53,8 @@ const [mode = "check", ...args] = process.argv.slice(2);
       }
       return { diag: TR.diag, samples };
     });
+    console.log("beats:");
+    for (const b of r.diag.beats) console.log(`  ${b.ok ? "ok  " : "MISS"} ${b.t}	${b.shot}: ${b.what}`);
     console.log("bumps:", JSON.stringify(r.diag.bumps));
     console.log("camera inside geometry:", JSON.stringify(r.diag.cam.slice(0, 30)), r.diag.cam.length);
     console.log("events:");

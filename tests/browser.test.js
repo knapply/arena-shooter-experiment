@@ -2161,7 +2161,7 @@ const podSeats = map => {
     await T.waitForTimeout(600);
     /* trailer: starts, shows a title card on schedule, survives the jump to the CTF montage, and exits cleanly */
     await T.evaluate(() => KA.startMode("trailer"));
-    await T.waitForTimeout(2300);
+    await T.waitForTimeout(1000);
     check(
       await T.evaluate(() => KA.trailer.active && !document.getElementById("trailer").hidden),
       "trailer starts"

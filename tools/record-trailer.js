@@ -35,6 +35,11 @@ const FPS = 30,
     });
     if (i % 150 === 0) console.log(`frame ${i}/${N}`);
   }
+  /* every scene's beats, judged in the recording itself (the trailer test judges an undrawn run) */
+  const missed = await p.evaluate(() => KA.trailer.diag.beats.filter(b => !b.ok));
+  for (const b of missed)
+    console.error(`beat missed in the recording: ${b.shot}: ${b.what}`, JSON.stringify(b.info));
+  console.log(missed.length ? `${missed.length} beats missed` : "every beat landed");
   /* 2. sound: the score plus every effect heard during the capture, rendered offline */
   fs.writeFileSync(path.join(TMP, "score.wav"), await trailerWav(p));
   if (p.errors.length) console.error(p.errors);

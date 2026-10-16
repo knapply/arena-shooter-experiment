@@ -43,7 +43,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/arsenal.js` | 88 | `WEAPONS` `slots` `cur` `wi` `switchT` `semiLatch` `zoomLvl` `descoped` `flinch` `zoomNow` `adsP` `ammo` `reserve` `W` `zoomK` `lookSens` `showVM` `wpnHud` … (+4) |
 | `src/render/fx.js` | 424 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `PT_N` `PT_K` `_ptC` `_ptV2` `makePts` `PTS` `ptAdd` `updPts` `ptClearBelow` `tracerGeo` `TRACER_V` … (+16) |
 | `src/render/combat-fx.js` | 551 | `CFX` `_cf` `_cf2` `_cq` `_cm` `_cz` `_cs` `fxOn` `syncDynLights` `dynLight` `heatAt` `HEAT_POOL` `heatDone` `tumblers` `casings` `chunks` `toss` `ejectCasing` … (+25) |
-| `src/render/cinema.js` | 192 | `CINE` |
+| `src/render/cinema.js` | 193 | `CINE` |
 | `src/render/atmosphere.js` | 88 | `ATMO` `MOTE_BOX` `makeMotes` `updAtmosphere` |
 | `src/weapons/grenades.js` | 300 | `NADES` `NADE_TUNE` `_n1` `_n2` `fragGeo` `fragMat` `plasMat` `fxPut` `losClear` `inBox` `solveThrow` `nadeDmg` `NadeWorld` `MAIN_NADES` `nadeInv` `nadeSel` `nadeCD` `NADE_TYPES` … (+6) |
 | `src/weapons/rockets.js` | 169 | `ROCKET_STATS` `_rk1` `_rk2` `rocketGeo` `rocketMat` `rocketFlame` `rocketDmg` `RocketWorld` `MAIN_ROCKETS` `playerRocketOwner` `fireRocket` `remoteProjectile` |
@@ -84,7 +84,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/ui/reticle.js` | 330 | `_sd` `RANGE` `SIGHT` `sightOf` `SVG_NS` `arcPath` `deg` `RETICLE` `HIT_R` `hitTicks` `xhKind` `xhSvg` `drawReticle` `xhBloom` `scKey` `scSvg` `scH` `ringTicks` … (+6) |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
 | `src/game/exports.js` | 335 | `KA_API` |
-| `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
+| `src/render/cine-look.js` | 115 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 159 | `TFP` |
 | `src/data/map-check.js` | 145 | `MAP_MATS` `MAP_LIMIT` `validateMap` |
@@ -98,5 +98,5 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/net/ctf-host.js` | 847 |  |
 | `src/net/ctf-client.js` | 782 |  |
 | `src/modes/ctf/modes.js` | 1454 |  |
-| `src/modes/trailer-score.js` | 985 |  |
-| `src/modes/trailer.js` | 3848 |  |
+| `src/modes/trailer-score.js` | 965 |  |
+| `src/modes/trailer.js` | 3450 |  |
