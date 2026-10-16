@@ -276,13 +276,14 @@ function applyPeer1(pe) {
   if (!r.rig || r.color !== color) {
     if (r.rig) scene.remove(r.rig.root);
     r.rig = makePilot(color, name);
+    r.rig.setLabel(name, "", "human");
     r.color = color;
     r.name = name;
     r.rig.root.position.set(+pr.p[0] || 0, +pr.p[1] || 0, +pr.p[2] || 0);
   }
   if (r.name !== name) {
     r.name = name;
-    r.rig.setLabel(name);
+    r.rig.setLabel(name, "", "human");
   }
   r.has = true;
   /* while fast-channel movement is arriving, presence movement is older news: skip it */

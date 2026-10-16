@@ -636,6 +636,123 @@ function analyze(truth, seen) {
       ]);
       await ctx.close();
     }
+    /* the room lobby lists everyone on both sides, and real players are marked apart from AI: on
+       nameplates, in the roster and in the lobby */
+    {
+      const ctx = await b.newContext({ viewport: { width: 1000, height: 700 } });
+      const A = await open(ctx, { tag: "A", init: ["fake-peer.js"] }),
+        B = await open(ctx, { tag: "B", init: ["fake-peer.js"] });
+      await A.waitForTimeout(600);
+      await A.fill("#callsign", "Kestrel");
+      await B.fill("#callsign", "Marrow");
+      await A.click("#p2pHost");
+      await poll(
+        A,
+        () => /^[A-Z0-9]{5}$/.test(document.getElementById("p2pCodeShow").textContent),
+        null,
+        15000
+      );
+      await B.fill("#p2pCode", await text(A, "#p2pCodeShow"));
+      await B.click("#p2pJoin");
+      const lobby = p =>
+        poll(
+          p,
+          () => {
+            const li = [...document.querySelectorAll("#lobbyList li")];
+            const names = li.map(l => l.querySelector(".pk").textContent);
+            return names.some(n => /Kestrel/.test(n)) && names.some(n => /Marrow/.test(n))
+              ? {
+                  names,
+                  kinds: li.map(l => l.querySelector(".pk").className),
+                  host: li
+                    .filter(l => /Room host/.test(l.textContent))
+                    .map(l => l.querySelector(".pk").textContent),
+                  state: document.getElementById("lobbyState").textContent,
+                }
+              : null;
+          },
+          null,
+          20000
+        );
+      const [la, lb] = [await lobby(A), await lobby(B)];
+      check(
+        !!la &&
+          !!lb &&
+          la.host.length === 1 &&
+          /Kestrel/.test(la.host[0]) &&
+          lb.host.length === 1 &&
+          /Kestrel/.test(lb.host[0]),
+        "lobby: both players see both names, and who hosts the room",
+        { la, lb }
+      );
+      check(
+        !!la &&
+          la.kinds[0].includes("pk-you") &&
+          la.kinds[1].includes("pk-human") &&
+          !!lb &&
+          lb.kinds[0].includes("pk-you"),
+        "lobby: you and the other player are marked (you, player)",
+        { a: la && la.kinds, b: lb && lb.kinds }
+      );
+      /* a match: the friend joins it, and the lobby says so */
+      await A.click("#mode-ctf");
+      await A.click("#play");
+      await poll(B, () => /^Join/.test(document.getElementById("play").textContent), null, 30000);
+      const live = await poll(
+        B,
+        () =>
+          /Match in progress/.test(document.getElementById("lobbyState").textContent) &&
+          [...document.querySelectorAll("#lobbyList li")].some(l => /Hosting the match/.test(l.textContent)),
+        null,
+        20000
+      );
+      check(live, "lobby: a match in progress shows who hosts it and offers to join");
+      await B.click("#play");
+      await poll(B, () => !!(window.CTF && CTF.UI.game() && CTF.UI.game().map), null, 30000);
+      /* nameplates over heads: the friend as a player, the AI as AI (the host draws both) */
+      const plates = await poll(
+        A,
+        () => {
+          const g = CTF.UI.game();
+          const fr = g && g.agents.find(a => a.remote);
+          const ai = g && g.agents.find(a => !a.human && a.rig);
+          return fr && fr.rig && ai && fr.rig.labelKind
+            ? { friend: fr.rig.labelKind, ai: ai.rig.labelKind }
+            : null;
+        },
+        null,
+        20000
+      );
+      check(
+        !!plates && plates.friend === "human" && plates.ai === "ai",
+        "nameplates: a real player is marked as a player, AI as AI",
+        plates
+      );
+      /* the roster (Tab): the friend marked as a player, the bots as AI, you as you */
+      await A.keyboard.down("Tab");
+      const roster = await poll(
+        A,
+        () => {
+          const t = document.getElementById("statsTab");
+          const n = k => t.querySelectorAll(".pk-" + k).length;
+          return n("human") ? { human: n("human"), ai: n("ai"), you: n("you") } : null;
+        },
+        null,
+        10000
+      );
+      await A.keyboard.up("Tab");
+      check(
+        !!roster && roster.human === 1 && roster.you === 1 && roster.ai >= 4,
+        "roster: one player, you, and the rest marked AI",
+        roster
+      );
+      check(
+        A.errors.length + B.errors.length === 0,
+        "lobby: no page errors",
+        [...A.errors, ...B.errors].slice(0, 3)
+      );
+      await ctx.close();
+    }
     /* handing the room to another player */
     {
       const ctx = await b.newContext({ viewport: { width: 400, height: 225 } });

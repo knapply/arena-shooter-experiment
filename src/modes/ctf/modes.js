@@ -72,27 +72,73 @@
       return {
         room: false,
         host: null,
+        people: [],
         text: "Offline: matches play against AI pilots. Host or join a room above to play with friends.",
       };
     const h = N.liveHost(),
       others = N.ctfPeers().length;
+    const people = lobbyPeople(h);
     if (h)
       return {
         room: true,
         host: h,
+        people,
         text: `${h.name} is hosting ${PM(h.mode).name} on ${mapName(h.map)} · ${h.players} player${h.players > 1 ? "s" : ""} in the match.`,
       };
     return {
       room: true,
       host: null,
+      people,
       text: others
         ? `${others} other pilot${others > 1 ? "s" : ""} here. Start a match and they can join it.`
         : "No one else here yet. Start a match and friends who open this page can join it.",
     };
   };
+  /** everyone in the room for the menu's lobby: you first, then the others as their presence says:
+      { peer, me, name, color, hub (hosts the room), hosting (a match), inMatch, team } */
+  function lobbyPeople(live) {
+    const N = CTF.NET,
+      hub = window.KAHOST && window.KAHOST.net.hub ? window.KAHOST.net.hub() : { me: false, id: null };
+    const g = mode === "play" ? G : null;
+    const out = [
+      {
+        peer: N.myPeer(),
+        me: true,
+        name: K.cleanName($("callsign").value),
+        color: K.myColor,
+        hub: !!hub.me,
+        hosting: !!g && !g.map,
+        inMatch: !!g,
+        team: g && g.human ? g.human.team : myTeam,
+      },
+    ];
+    for (const p of N.ctfPeers()) {
+      const pr = p.presence;
+      out.push({
+        peer: p.peer,
+        me: false,
+        name: K.cleanName(pr.n),
+        color: K.COLORS.includes(pr.c) ? pr.c : "#dbe6ea",
+        hub: p.peer === hub.id,
+        hosting: pr.ph === "host" && !!pr.H && pr.H.ov == null,
+        inMatch: pr.ph === "client" && !!live && pr.mid === live.mid,
+        team: pr.tm === 1 ? 1 : 0,
+      });
+    }
+    return out;
+  }
+  /* your name, armor and team pick reach the room from the menu (a presence delta when one changes) */
   setInterval(() => {
     if (mode) return;
-    CTF.NET.base.n = K.cleanName($("callsign").value);
+    const b = CTF.NET.base,
+      n = K.cleanName($("callsign").value),
+      c = K.myColor;
+    if (b.n !== n || b.c !== c || b.tm !== myTeam) {
+      b.n = n;
+      b.c = c;
+      b.tm = myTeam;
+      if (CTF.NET.room) CTF.NET.send({});
+    }
   }, 1000);
   CTF.NET.onPeers = () => {
     if (!mode) K.MENU.refresh();

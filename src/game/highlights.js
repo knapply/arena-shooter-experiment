@@ -147,7 +147,7 @@ function playOfTheGame(onEnd) {
   /* over the shoulder to begin with; Replay view switches to their eyes */
   HL.fp = false;
   sfx("stinger", 0.9);
-  CINE.card("Play of the game", c.name || "", c.feat, 2.6);
+  CINE.card("Play of the game", c.name ? pilotText(c.name, pilotKind(c.pilot)) : "", c.feat, 2.6);
   REPLAY.play({
     t0,
     t1,

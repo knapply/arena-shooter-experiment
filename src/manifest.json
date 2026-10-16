@@ -34,6 +34,7 @@
     "characters/look.js",
     "game/recorder.js",
     "game/pilot.js",
+    "ui/pilot-kind.js",
     "characters/gaze.js",
     "data/weapons.js",
     "weapons/viewmodels.js",

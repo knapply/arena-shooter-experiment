@@ -302,6 +302,8 @@ const KA_API = {
   get deaths() {
     return deaths;
   },
+  /** the armor colours on offer (presence colours are checked against them) */
+  COLORS,
   get myColor() {
     return myColor;
   },

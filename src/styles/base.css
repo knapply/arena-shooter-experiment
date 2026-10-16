@@ -1856,3 +1856,34 @@ table.stats tr.total td {
     opacity: 0;
   }
 }
+
+/* players, AI and you (ui/pilot-kind.js): a glyph and a tag, never colour alone */
+.pk {
+  white-space: nowrap;
+}
+.pk-human {
+  color: #ffe6a3;
+}
+.pk-ai {
+  color: #9db0b8;
+}
+.pk-you {
+  color: #7ef0c2;
+}
+.pk .pkg {
+  font-style: normal;
+  margin-right: 0.35em;
+  font-size: 0.85em;
+}
+.pk .pkt {
+  font: 600 0.72em var(--f-mono);
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 0.3em;
+  margin-left: 0.45em;
+  vertical-align: 0.1em;
+  opacity: 0.85;
+}

@@ -490,7 +490,7 @@ function playKillCam(k) {
         fn() {
           CINE.card(
             eyes ? "Killed by" : "Taken out",
-            eyes ? k.name : wName,
+            eyes ? pilotText(k.name, pilotKind(k.killer)) : wName,
             eyes ? `${wName}${k.head ? " · headshot" : ""}` : "",
             1.8
           );
@@ -502,7 +502,7 @@ function playKillCam(k) {
       const s = REC.sample(k.killer, k.at);
       const sh = eyes && s && s.st ? Math.ceil(s.st.shield) : null;
       $("deadBy").textContent =
-        `${k.name} · ${wName}${k.head ? " · headshot" : ""}${sh != null ? ` · their shield ${sh}` : ""}`;
+        `${pilotText(k.name, pilotKind(k.killer))} · ${wName}${k.head ? " · headshot" : ""}${sh != null ? ` · their shield ${sh}` : ""}`;
     },
   });
 }

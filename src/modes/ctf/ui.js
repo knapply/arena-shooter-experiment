@@ -206,10 +206,10 @@
       });
       if (mode === "sim" && a._lab !== a.role) {
         a._lab = a.role;
-        r.setLabel(a.name, a.role);
+        r.setLabel(a.name, a.role, "ai");
       } else if (mode === "play" && a._lab !== a.name) {
         a._lab = a.name;
-        r.setLabel(a.name, a.human ? "player" : "");
+        r.setLabel(a.name, "", a.human ? "human" : "ai");
       }
     }
     for (const f of G.flags) {
