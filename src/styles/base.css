@@ -652,6 +652,8 @@ body:has(#ctfHud.play:not([hidden])) .vitals {
 }
 #feed div {
   background: var(--slab);
+  /* one line a kill: with the weapon icon a long row could wrap and push the feed into the tracker */
+  white-space: nowrap;
   padding: 3px 10px;
   clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%);
 }
