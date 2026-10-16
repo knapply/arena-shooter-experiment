@@ -11,7 +11,8 @@ const TFP = {
   keep: null,
   /**
    * put the player in the world: o = { pos: [x, y, z], yaw, pitch, w (weapon index), w2 (the other
-   * slot), shield, pod: { at: [x, y, z], h, dur, onLand } (ride a drop pod down from inside instead) }
+   * slot), mag (rounds left in the magazine), shield, pod: { at: [x, y, z], h, dur, onLand } (ride a
+   * drop pod down from inside instead) }
    */
   begin(o) {
     if (!TFP.on) {
@@ -44,6 +45,8 @@ const TFP = {
     slots[1] = o.w != null ? o.w : 0;
     setSlot(1, true);
     switchT = 0;
+    /* a magazine already partly spent (o.mag rounds left) */
+    if (o.mag != null) mag = ammo[wi] = Math.min(o.mag, W().mag);
     zoomLvl = 0;
     aiming = false;
     zEase.from = zEase.to = zEase.at = 0;

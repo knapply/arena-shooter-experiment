@@ -9,20 +9,24 @@
    The timeline is a pure function of trailer time, so the same cut can play live (clocked by the
    music) or be stepped frame by frame for video capture.
 
-   Structure (120 BPM, a bar is 2 s):
+   Structure (120 BPM, a bar is 2 s; the older 88-second cut with four acts inserted, see INSERTS in
+   modes/trailer-score.js, so the times below are where each part plays now):
      0-10   cold open: a dolly past cover to the squad at dusk; the squad burns in from orbit in drop
             pods, then you ride yours down from inside the cockpit
      10-28  three rules, each on a black card then shown: speed (first person: sprint, thrust and fire;
             then a slide under fire), height (first person over a blast gate, then a ground pound),
             nothing is safe (a frag through cover)
-     28-41  the drop: one shot per bar (charge, rocket, a scoped sniper shot in first person, air
-            shots, melee, plasma)
+     28-41  the drop, one shot per bar: a shoulder charge, then the guns in first person (the rocket
+            launcher fired and reloaded, a scoped sniper shot, the magnum drawn from the lower right with
+            its slide cycling, the scattergun's pump, a carbine reload swung up on end), and air shots
+            from a stabilizer hover
      41-60  every mode, live: the mode picker, capture the flag (and a flag carry in first person),
             Team Slayer, oddball (the skull drops in by pod, then a carry in first person),
             free-for-all, and a power weapon arriving in a supply pod
      60-64  under the hood: thousands of simulated matches tune every number
-     64-73  motion captured: a weighted stop and pivot, a running leap and a hard landing, hits
-            that rock a pilot and a crumple, then the squad celebrates at night
+     64-73  motion captured: the sprint (rifle hugged, free fist pumping), a weighted stop and pivot,
+            a running leap and thrust to a hard landing, a pilot raising the rifle from low ready to
+            fire and the target going down, then the squad celebrates at night
      73-79  the climax: a leap frozen in time while the camera circles, then time snaps back
      79-88  title */
 (function () {
@@ -32,6 +36,7 @@
     V3 = THREE.Vector3,
     CTF = window.CTF,
     SC = K.trailerScore,
+    RM = K.trailerScore.remap,
     CINE = K.CINE;
   const PI = Math.PI,
     H = 1 / 120;
@@ -46,7 +51,7 @@
     get t() {
       return T;
     },
-    END: 88,
+    END: SC.LENGTH,
     diag,
     sfxLog,
   }));
@@ -638,7 +643,7 @@
     [73, 0.35],
     [78.02, 0.8],
   ];
-  const TITLE = 79.6;
+  const TITLE = RM(79.6);
   function updOverlay() {
     let i = -1;
     for (let k = 0; k < CARDS.length; k++) {
@@ -743,6 +748,7 @@
   const STAR_T = 5.5 * 7 - 0.4;
   /* the trailer's pods take a little less than the game's fall, to keep the cut on the music */
   const DROP_FALL = 2.3;
+  /** @type {any[]} */
   const SHOTS = [
     /* ===== ACT I: cold open ===== */
     {
@@ -1239,84 +1245,57 @@
       },
       look: () => af(chest(hero), 3),
     },
-    /* ===== the power weapon: a rocket into a pair holding the lane ===== */
+    /* ===== in first person: the rocket launcher fired into a pair, then its reload ===== */
     {
       t: 31,
-      name: "rocket",
+      name: "fp-rocket",
+      fp: true,
       mood: "hot",
       setup() {
+        clearStage();
         K.resetDestruction();
         seed = 30;
-        put(hero, [-8.6, 0, -12.6], -PI / 2);
         put(foe1, [2.6, 0, -16.2], PI / 2);
         put(foe2, [4.4, 0, -15.1], PI / 2 + 0.2);
-        hero.wpn = 3;
-        hero.hitT = null;
-        this.aim = null;
-        rockets.clear();
         for (const f of [foe1, foe2]) f.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 3 + a.id.length) * 0.4 });
+        fpTargets = [foe1, foe2];
+        F.begin({
+          pos: [-8.6, 0, -12.6],
+          yaw: yawTo(V(-8.6, 0, -12.6), V(3.5, 0, -15.6)),
+          pitch: -0.05,
+          w: 3,
+        });
+        this.fired = this.rl = false;
+        this.n = 0;
       },
-      ts: lt =>
-        hero.hitT != null
-          ? curve(
-              [
-                [0, 0.22],
-                [0.7, 0.22],
-                [1, 1],
-              ],
-              lt - hero.hitT
-            )
-          : 1,
       update(lt, dt, st) {
-        const tgt = V(3.5, 0.25, -15.6);
-        aimAt(hero, tgt, 0.6);
-        drive(hero, dt);
+        const m = F.me,
+          eye = V(m.pos.x, m.pos.y + 1.5, m.pos.z);
         for (const f of [foe1, foe2]) {
           if (!f.dead) {
-            aimAt(f, head(hero), 0.3);
-            if (rnd() < dt * 5) shoot(f, null, { at: head(hero), miss: 1.5, color: 0x9fdcff });
+            aimAt(f, eye, 0.3);
+            if (rnd() < dt * 4) shoot(f, null, { at: eye, miss: 1.5, color: 0x9fdcff, snd: "shot" });
           }
           drive(f, dt);
         }
-        if (st > 0.45 && once(hero, "rk")) {
-          const y = hero.body.yaw;
-          const m = hero.body.pos
-            .clone()
-            .add(
-              _a.set(
-                -Math.sin(y) * 0.8 + Math.cos(y) * 0.22,
-                hero.body.h - 0.3,
-                -Math.cos(y) * 0.8 - Math.sin(y) * 0.22
-              )
-            );
-          hero.firedT = shotSim;
-          K.thrustPuff(m, _b.set(Math.sin(y), 0, Math.cos(y)));
-          rockets.fire(m, tgt.clone().sub(m).normalize(), {
-            targets: () => [],
-            onExplode(c) {
-              hero.hitT = lt;
-              CINE.shake(0.9);
-              for (const f of [foe1, foe2]) kill(f, c, 4.2);
-            },
-          });
+        const hold = [],
+          press = [];
+        const look = lookAt(V(3.5, 0.3, -15.6), st < 0.4 ? 0.2 : 1);
+        if (st > 0.42 && !this.fired) {
+          this.fired = true;
+          hold.push("fire");
         }
-        rockets.step(dt);
-        /* the launcher comes up in a front three-quarter; on the shot, cut wide and pan with the
-           rocket all the way into the pair */
-        const p = hero.body.pos,
-          r = rockets.list[0];
-        if (!r && hero.hitT == null && !hero.once.has("rk")) {
-          const k = ease(lt / 0.45);
-          cam(V(p.x + 2.6, lerp(1.2, 1.45, k), p.z + 1.9), V(p.x, p.y + 1.45, p.z), 34, 4, dt);
-        } else {
-          if (once(hero, "cut")) CINE.cut();
-          const lookAt = r ? r.pos : tgt;
-          this.aim = this.aim || new V3();
-          this.aim.lerp(lookAt, r ? 1 : Math.min(1, dt * 6));
-          cam(V(-4.4, 1.05, -10.3), _c.copy(this.aim).setY(Math.max(0.6, this.aim.y)), 44, 3, dt);
+        /* the blast takes the pair (the rocket flies for real; the shot decides who goes) */
+        if (this.fired && !this.n && st > 0.55 && !K.MAIN_ROCKETS.list.length) {
+          this.n = 1;
+          for (const f of [foe1, foe2]) kill(f, V(3.5, 0.3, -15.6), 4.2);
         }
+        if (st > 1.0 && !this.rl) {
+          this.rl = true;
+          press.push("reload");
+        }
+        F.step(dt, { hold, press, yaw: look.yaw, pitch: look.pitch });
       },
-      look: lt => (hero.once.has("rk") ? af(V(1.5, 1, -14.6), 7, { near: 0 }) : af(chest(hero), 2.8)),
     },
     /* ===== in first person: the scope eases up to 5x, then 10x, onto a pilot crossing far below ===== */
     {
@@ -1438,96 +1417,98 @@
       },
       look: () => af(chest(hero), 4),
     },
+    /* ===== in first person: the magnum comes up from the lower right, and its slide cycles on every
+       shot while the pilot down the lane fires back ===== */
     {
       t: 37,
-      name: "melee",
+      name: "fp-magnum",
+      fp: true,
       mood: "hot",
       setup() {
-        seed = 36;
-        put(hero, [-25.2, 0, 15.5], -PI / 2);
-        put(foe1, [-18.4, 0, 15.5], PI / 2);
-        hero.hitT = null;
-        hero.ctl = (a, st) => {
-          const inp = { ...NO, f: a.hitT == null ? 1 : 0 };
-          if (st > 0.3 && once(a, "t")) inp.thrust = true;
-          if (a.body.pos.distanceTo(foe1.body.pos) < 2.2 && once(a, "m")) inp.meleeP = true;
-          return inp;
-        };
+        clearStage();
+        seed = 37;
+        put(foe1, [-15.5, 0, -6.4], PI / 2, 0, 40);
+        foe1.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 2.2) * 0.5 });
+        fpTargets = [foe1];
+        F.begin({ pos: [-29.5, 0, -6], yaw: -PI / 2, w: 0, w2: 1 });
+        this.sw = false;
+        this.n = 0;
       },
-      ts: lt =>
-        hero.hitT != null
-          ? curve(
-              [
-                [0, 0.18],
-                [0.6, 0.18],
-                [0.9, 1],
-              ],
-              lt - hero.hitT
-            )
-          : 1,
-      update(lt, dt) {
-        drive(hero, dt);
+      update(lt, dt, st) {
+        const m = F.me,
+          eye = V(m.pos.x, m.pos.y + 1.5, m.pos.z);
         if (!foe1.dead) {
-          aimAt(foe1, head(hero), 0.4);
-          if (rnd() < dt * 6) shoot(foe1, null, { at: head(hero), miss: 1.3, color: 0x9fdcff });
+          aimAt(foe1, eye, 0.4);
+          if (st > 0.2 && rnd() < dt * 7)
+            shoot(foe1, null, { at: eye, miss: 1.2, color: 0x9fdcff, snd: "shot" });
         }
         drive(foe1, dt);
-        if (hero.body.meleeT > 0 && !foe1.dead && hero.body.pos.distanceTo(foe1.body.pos) < 2.4) {
-          hero.hitT = lt;
-          kill(foe1, hero.body.pos, 3.4);
-          K.shock(chest(foe1));
-          K.sfx("land", 1);
-          CINE.shake(0.45);
+        const press = [],
+          hold = [];
+        if (!this.sw && st > 0.05) {
+          this.sw = true;
+          press.push("swapWeapon");
         }
-        const p = hero.body.pos;
-        cam(V(-21.1, 0.6, 12.4), V(lerp(p.x, foe1.body.pos.x, 0.5), 1.1, 15.5), 38, 6, dt, 0.1);
+        /* three shots on the magnum's rhythm, the last one at the head */
+        const T0 = [0.62, 0.98, 1.34];
+        const last = this.n === T0.length - 1;
+        if (this.n < T0.length && st >= T0[this.n]) {
+          this.n++;
+          hold.push("fire");
+        }
+        const look = lookAt(last ? head(foe1) : chest(foe1), st < 0.5 ? 0.15 : 0.5);
+        F.step(dt, { hold, press, yaw: look.yaw, pitch: look.pitch });
       },
-      look: () => af(chest(hero), 3),
     },
+    /* ===== in first person: the scattergun's blast and pump up close ===== */
     {
       t: 39,
-      name: "plasma",
-      mood: "cool",
+      name: "fp-scatter",
+      fp: true,
+      mood: "hot",
       setup() {
-        seed = 38;
-        put(foe1, [-32, 0, 7], -PI / 2);
-        foe1.ctl = (a, st) =>
-          steer(
-            a,
-            [
-              [-32, 7],
-              [-8, 7],
-            ],
-            { ...NO }
-          );
+        clearStage();
+        seed = 39;
+        put(foe1, [-20.4, 0, -6.2], PI / 2, 0, 20);
+        foe1.ctl = () => ({ ...NO, f: 0.6 });
+        fpTargets = [foe1];
+        F.begin({ pos: [-26.6, 0, -6], yaw: -PI / 2, w: 5 });
+        this.n = 0;
       },
       update(lt, dt, st) {
         drive(foe1, dt);
-        if (st > 0.15 && once(foe1, "p")) {
-          const g = throwNade(
-            V(-24, 1.6, -1),
-            chest(foe1).add(_a.set(6.4, 0, 0)),
-            0.65,
-            0x52b8ff,
-            null,
-            foe1
-          );
-          g.onLand = () => K.sfx("stick", 1);
+        const hold = [];
+        if (this.n < 2 && st >= [0.18, 0.78][this.n]) {
+          this.n++;
+          hold.push("fire");
         }
-        if (st > 1.45 && once(foe1, "boom")) {
-          const p = chest(foe1);
-          K.blast(p, 0x52b8ff, 7);
-          K.shock(p);
-          K.sfx("boom", 1);
-          CINE.shake(0.5);
-          kill(foe1, p, 3);
-          for (const g of grenades) endNade(g);
-        }
-        updNades();
-        const p = foe1.body.pos;
-        cam(V(p.x + 1.8, 1.9, 11.7), V(p.x, 1.1, p.z), 40, 5, dt);
+        const look = lookAt(chest(foe1), 0.5);
+        F.step(dt, { hold, yaw: look.yaw, pitch: look.pitch });
       },
-      look: () => af(chest(foe1), 3),
+    },
+    /* ===== in first person: a carbine reload, swung up on end ===== */
+    {
+      t: 40.1,
+      name: "fp-reload",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        F.begin({ pos: [-26.6, 0, -6], yaw: -PI / 2 - 0.3, pitch: -0.1, w: 0 });
+        this.n = 0;
+      },
+      update(lt, dt, st) {
+        const hold = [],
+          press = [];
+        if (this.n === 0 && st > 0.02) {
+          this.n = 1;
+          hold.push("fire");
+        } else if (this.n === 1 && st > 0.12) {
+          this.n = 2;
+          press.push("reload");
+        }
+        F.step(dt, { hold, press });
+      },
     },
     /* ===== every mode, live: the mode picker over the arena ===== */
     {
@@ -1765,8 +1746,11 @@
         drive(hero, dt);
         const p = hero.body.pos,
           h = hand(lt, 0.025);
-        this.cx = this.cx == null ? p.x : lerp(this.cx, p.x, Math.min(1, dt * 3));
-        cam(V(this.cx + 1.5 + h.x, 0.7 + h.y, -11.2), V(p.x, p.y + 0.95, p.z), 34, 0, dt);
+        this.cx =
+          this.cx == null
+            ? p.x + 5.6
+            : lerp(this.cx, p.x + (hero.st < 1.15 ? 5.6 : 3.6), Math.min(1, dt * 3));
+        cam(V(this.cx + h.x, 1.1 + h.y, -7.5), V(p.x, p.y + 1.0, p.z), 44, 0, dt);
       },
       look: () => af(chest(hero), 2.2),
     },
@@ -1796,7 +1780,10 @@
               a.jT = st;
             }
           } else if (b.ground && once(a, "down")) a.downT = st;
-          else if (!b.ground) inp.f = 1;
+          else if (!b.ground && a.jT != null && b.vel.y < 1.5 && once(a, "t")) {
+            inp.f = 1;
+            inp.thrust = true;
+          }
           return inp;
         };
         hero.downT = hero.jT = null;
@@ -1824,27 +1811,33 @@
         seed = 69;
         put(foe1, [-8.2, 0, -9.2], PI / 2, 0, 50);
         foe1.ctl = () => ({ ...NO });
+        put(hero, [-15.2, 0, -9.6], -PI / 2);
+        hero.wpn = 0;
+        hero.ctl = (a, st) => ({ ...NO, f: st < 0.45 ? 0.55 : 0, aim: st > 0.42 });
         this.n = 0;
       },
       ts: () => (foe1.dead ? 0.4 : 1),
       update(lt, dt, st) {
+        aimAt(hero, chest(foe1), hero.st < 0.4 ? 0.05 : 0.4);
+        drive(hero, dt);
         drive(foe1, dt);
-        /* a magnum's rhythm: four on the shield and the body, from the left */
-        const T0 = [0.25, 0.6, 0.95, 1.3];
+        /* four on the shield and the body, then the kill */
+        const T0 = [0.62, 0.86, 1.1, 1.34];
         while (this.n < T0.length && st >= T0[this.n]) {
           const last = ++this.n === T0.length;
-          /* from off screen down the floor, a little to the left each time */
-          shoot(foe1, foe1, {
-            from: V(-24, 1.45, -9.6 - this.n * 0.3),
-            dmg: last ? 200 : 22,
-            snd: "pshot",
-            power: 1.2,
-          });
+          shoot(hero, foe1, { dmg: last ? 200 : 22, snd: "shot", power: 1.2 });
         }
-        const p = foe1.body.pos;
-        cam(V(p.x + 2.4, 0.95, p.z + 2.8), V(p.x, 1.05, p.z), 36, 0, dt, 0.03);
+        /* from the side, both of them in frame, closing on the target as it goes down */
+        const k = ease((lt - 0.9) / 0.9);
+        cam(
+          V(lerp(-11.6, -9.6, k), lerp(1.15, 1.0, k), lerp(-3.2, -5.6, k)),
+          V(lerp(-11.5, -8.4, k), 1.05, -9.3),
+          46,
+          0,
+          dt
+        );
       },
-      look: () => af(chest(foe1), 2),
+      look: () => af(_c.copy(chest(foe1)).lerp(chest(hero), 0.4), 6),
     },
     /* ===== at night on the high ground: the squad celebrates (captured cheer, flex and wave) ===== */
     {
@@ -2027,6 +2020,992 @@
       look: () => ({ dof: 0.6, focus: 46, range: 18 }),
     },
   ];
+  /* ================= the four new acts (absolute times; the older cut is remapped around them) ================= */
+  /** fire on these shot times: hold the trigger for one frame at each */
+  function triggerAt(o, st, times) {
+    o.n = o.n || 0;
+    if (o.n < times.length && st >= times[o.n]) {
+      o.n++;
+      return true;
+    }
+    return false;
+  }
+  /* the battle's slow motion: a beat of it after every kill in the live match */
+  let lastKill = -9;
+  K.EVENTS.on("kill", () => (lastKill = T));
+  const killSlow = () => (T - lastKill < 0.55 ? 0.35 : 1);
+  /* the classic feel preset, on for one shot (game/sandbox.js applies it) */
+  let classicKeep = null;
+  function classic(on) {
+    if (on && !classicKeep) {
+      const vals = K.SANDBOX_PRESETS.classic.values;
+      classicKeep = {};
+      for (const k of Object.keys(vals)) {
+        classicKeep[k] = K.SET[k];
+        K.SET[k] = vals[k];
+      }
+      K.applySettings();
+    } else if (!on && classicKeep) {
+      Object.assign(K.SET, classicKeep);
+      classicKeep = null;
+      K.applySettings();
+    }
+  }
+  /** @type {any[]} */
+  const ACTS = [
+    /* ===== ARSENAL ===== */
+    { t: 28.5, name: "card-arsenal", black: true, setup: clearStage, update() {} },
+    /* the carbine on full auto down the lane: tracer streaks, the kick climbing, the shield breaking */
+    {
+      t: 29.5,
+      name: "fp-auto",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        K.resetDestruction();
+        seed = 29;
+        put(foe1, [-14, 0, -6.4], PI / 2);
+        foe1.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 2.6) * 0.6 });
+        fpTargets = [foe1];
+        F.begin({ pos: [-33.5, 0, -6], yaw: -PI / 2, w: 0 });
+      },
+      update(lt, dt, st) {
+        const m = F.me,
+          eye = V(m.pos.x, m.pos.y + 1.5, m.pos.z);
+        if (!foe1.dead) {
+          aimAt(foe1, eye, 0.4);
+          if (st > 0.3 && rnd() < dt * 6)
+            shoot(foe1, null, { at: eye, miss: 1.4, color: 0x9fdcff, snd: "shot" });
+        }
+        drive(foe1, dt);
+        const hold = st > 0.25 && !foe1.dead ? ["fire"] : [];
+        if (st > 0.55) hold.push("aim");
+        const look = lookAt(chest(foe1), st < 0.25 ? 0.1 : 0.35);
+        F.step(dt, { hold, yaw: look.yaw, pitch: look.pitch });
+      },
+    },
+    /* the burst rifle: three-round bursts */
+    {
+      t: 32,
+      name: "fp-burst",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        seed = 32;
+        put(foe2, [-16, 0, -5.4], PI / 2);
+        foe2.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 3) * 0.5 });
+        fpTargets = [foe2];
+        F.begin({ pos: [-31.5, 0, -6.4], yaw: -PI / 2, w: 4 });
+        this.n = 0;
+      },
+      update(lt, dt, st) {
+        drive(foe2, dt);
+        const hold = triggerAt(this, st, [0.2, 0.72, 1.24]) ? ["fire"] : [];
+        const look = lookAt(head(foe2), 0.4);
+        F.step(dt, { hold, yaw: look.yaw, pitch: look.pitch });
+      },
+    },
+    /* the arc beam: a held line of light */
+    {
+      t: 34,
+      name: "fp-beam",
+      fp: true,
+      mood: "cool",
+      setup() {
+        clearStage();
+        seed = 34;
+        put(foe1, [-17.5, 0, -6.2], PI / 2);
+        foe1.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 2) * 0.35 });
+        fpTargets = [foe1];
+        F.begin({ pos: [-30, 0, -6], yaw: -PI / 2, w: 6 });
+      },
+      update(lt, dt, st) {
+        drive(foe1, dt);
+        const hold = st > 0.2 && st < 1.85 && !foe1.dead ? ["fire"] : [];
+        const look = lookAt(chest(foe1), 0.3);
+        F.step(dt, { hold, yaw: look.yaw, pitch: look.pitch });
+      },
+    },
+    /* a frag thrown over the crates: it bounces, then takes the pair behind them */
+    {
+      t: 36,
+      name: "fp-frag",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        K.resetDestruction();
+        seed = 36;
+        put(foe1, [26.7, 0, -14.3], 0);
+        put(foe2, [24.5, 0, -13.9], 0.3);
+        for (const f of [foe1, foe2]) f.ctl = (a, st) => ({ ...NO, crouch: st > 0.7 });
+        fpTargets = [foe1, foe2];
+        F.begin({ pos: [17.2, 0, -5.4], yaw: yawTo(V(17.2, 0, -5.4), V(25.6, 0, -11.6)), pitch: 0.2, w: 0 });
+        this.thrown = false;
+        this.at = null;
+        this.boom = false;
+      },
+      ts() {
+        return this.boom ? 0.4 : 1;
+      },
+      update(lt, dt, st) {
+        for (const f of [foe1, foe2]) drive(f, dt);
+        const press = [];
+        if (!this.thrown && st > 0.2) {
+          this.thrown = true;
+          press.push("grenade");
+        }
+        const n = K.MAIN_NADES.list[0];
+        if (n) this.at = n.pos.clone();
+        else if (this.thrown && this.at && !this.boom) {
+          this.boom = true;
+          for (const f of [foe1, foe2]) if (f.body.pos.distanceTo(this.at) < 7) kill(f, this.at, 3.4);
+        }
+        const look = lookAt(V(25.4, 0.6, -12.2), st < 0.15 ? 0.2 : 0.06);
+        F.step(dt, { press, yaw: look.yaw, pitch: Math.max(look.pitch, st < 0.3 ? 0.2 : -1) });
+      },
+    },
+    /* in first person: a run at them and the blow (the hitstop and the thud) */
+    {
+      t: 41,
+      name: "fp-melee",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        seed = 41;
+        put(foe1, [-23.6, 0, -6], PI / 2, 0, 0);
+        foe1.ctl = () => ({ ...NO });
+        fpTargets = [foe1];
+        F.begin({ pos: [-31, 0, -6], yaw: -PI / 2, w: 1 });
+        this.hit = false;
+      },
+      update(lt, dt, st) {
+        const m = F.me,
+          eye = V(m.pos.x, m.pos.y + 1.5, m.pos.z);
+        if (!foe1.dead) {
+          aimAt(foe1, eye, 0.5);
+          if (rnd() < dt * 5) shoot(foe1, null, { at: eye, miss: 1, color: 0x9fdcff, snd: "shot" });
+        }
+        drive(foe1, dt);
+        const press = [],
+          hold = this.hit ? [] : ["forward", "sprint"];
+        if (!this.hit && m.pos.distanceTo(foe1.body.pos) < 2.1) {
+          this.hit = true;
+          press.push("melee");
+        }
+        const look = lookAt(chest(foe1), 0.3);
+        F.step(dt, { hold, press, yaw: look.yaw, pitch: look.pitch });
+      },
+    },
+    /* ===== the power weapon: a rocket into a pair holding the lane ===== */
+    {
+      t: 45,
+      name: "rocket-3p",
+      mood: "hot",
+      setup() {
+        K.resetDestruction();
+        seed = 30;
+        put(hero, [-8.6, 0, -12.6], -PI / 2);
+        put(foe1, [2.6, 0, -16.2], PI / 2);
+        put(foe2, [4.4, 0, -15.1], PI / 2 + 0.2);
+        hero.wpn = 3;
+        hero.hitT = null;
+        this.aim = null;
+        rockets.clear();
+        for (const f of [foe1, foe2]) f.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 3 + a.id.length) * 0.4 });
+      },
+      ts: lt =>
+        hero.hitT != null
+          ? curve(
+              [
+                [0, 0.22],
+                [0.7, 0.22],
+                [1, 1],
+              ],
+              lt - hero.hitT
+            )
+          : 1,
+      update(lt, dt, st) {
+        const tgt = V(3.5, 0.25, -15.6);
+        aimAt(hero, tgt, 0.6);
+        drive(hero, dt);
+        for (const f of [foe1, foe2]) {
+          if (!f.dead) {
+            aimAt(f, head(hero), 0.3);
+            if (rnd() < dt * 5) shoot(f, null, { at: head(hero), miss: 1.5, color: 0x9fdcff });
+          }
+          drive(f, dt);
+        }
+        if (st > 0.45 && once(hero, "rk")) {
+          const y = hero.body.yaw;
+          const m = hero.body.pos
+            .clone()
+            .add(
+              _a.set(
+                -Math.sin(y) * 0.8 + Math.cos(y) * 0.22,
+                hero.body.h - 0.3,
+                -Math.cos(y) * 0.8 - Math.sin(y) * 0.22
+              )
+            );
+          hero.firedT = shotSim;
+          K.thrustPuff(m, _b.set(Math.sin(y), 0, Math.cos(y)));
+          rockets.fire(m, tgt.clone().sub(m).normalize(), {
+            targets: () => [],
+            onExplode(c) {
+              hero.hitT = lt;
+              CINE.shake(0.9);
+              for (const f of [foe1, foe2]) kill(f, c, 4.2);
+            },
+          });
+        }
+        rockets.step(dt);
+        /* the launcher comes up in a front three-quarter; on the shot, cut wide and pan with the
+           rocket all the way into the pair */
+        const p = hero.body.pos,
+          r = rockets.list[0];
+        if (!r && hero.hitT == null && !hero.once.has("rk")) {
+          const k = ease(lt / 0.45);
+          cam(V(p.x + 2.6, lerp(1.2, 1.45, k), p.z + 1.9), V(p.x, p.y + 1.45, p.z), 34, 4, dt);
+        } else {
+          if (once(hero, "cut")) CINE.cut();
+          const lookAt = r ? r.pos : tgt;
+          this.aim = this.aim || new V3();
+          this.aim.lerp(lookAt, r ? 1 : Math.min(1, dt * 6));
+          cam(V(-4.4, 1.05, -10.3), _c.copy(this.aim).setY(Math.max(0.6, this.aim.y)), 44, 3, dt);
+        }
+      },
+      look: lt => (hero.once.has("rk") ? af(V(1.5, 1, -14.6), 7, { near: 0 }) : af(chest(hero), 2.8)),
+    },
+    {
+      t: 43,
+      name: "melee-3p",
+      mood: "hot",
+      setup() {
+        seed = 36;
+        put(hero, [-25.2, 0, 15.5], -PI / 2);
+        put(foe1, [-18.4, 0, 15.5], PI / 2);
+        hero.hitT = null;
+        hero.ctl = (a, st) => {
+          const inp = { ...NO, f: a.hitT == null ? 1 : 0 };
+          if (st > 0.3 && once(a, "t")) inp.thrust = true;
+          if (a.body.pos.distanceTo(foe1.body.pos) < 2.2 && once(a, "m")) inp.meleeP = true;
+          return inp;
+        };
+      },
+      ts: lt =>
+        hero.hitT != null
+          ? curve(
+              [
+                [0, 0.18],
+                [0.6, 0.18],
+                [0.9, 1],
+              ],
+              lt - hero.hitT
+            )
+          : 1,
+      update(lt, dt) {
+        drive(hero, dt);
+        if (!foe1.dead) {
+          aimAt(foe1, head(hero), 0.4);
+          if (rnd() < dt * 6) shoot(foe1, null, { at: head(hero), miss: 1.3, color: 0x9fdcff });
+        }
+        drive(foe1, dt);
+        if (hero.body.meleeT > 0 && !foe1.dead && hero.body.pos.distanceTo(foe1.body.pos) < 2.4) {
+          hero.hitT = lt;
+          kill(foe1, hero.body.pos, 3.4);
+          K.shock(chest(foe1));
+          K.sfx("land", 1);
+          CINE.shake(0.45);
+        }
+        const p = hero.body.pos;
+        cam(V(-21.1, 0.6, 12.4), V(lerp(p.x, foe1.body.pos.x, 0.5), 1.1, 15.5), 38, 6, dt, 0.1);
+      },
+      look: () => af(chest(hero), 3),
+    },
+    {
+      t: 39,
+      name: "plasma-3p",
+      mood: "cool",
+      setup() {
+        seed = 38;
+        put(foe1, [-32, 0, 7], -PI / 2);
+        foe1.ctl = (a, st) =>
+          steer(
+            a,
+            [
+              [-32, 7],
+              [-8, 7],
+            ],
+            { ...NO }
+          );
+      },
+      update(lt, dt, st) {
+        drive(foe1, dt);
+        if (st > 0.15 && once(foe1, "p")) {
+          const g = throwNade(
+            V(-24, 1.6, -1),
+            chest(foe1).add(_a.set(6.4, 0, 0)),
+            0.65,
+            0x52b8ff,
+            null,
+            foe1
+          );
+          g.onLand = () => K.sfx("stick", 1);
+        }
+        if (st > 1.45 && once(foe1, "boom")) {
+          const p = chest(foe1);
+          K.blast(p, 0x52b8ff, 7);
+          K.shock(p);
+          K.sfx("boom", 1);
+          CINE.shake(0.5);
+          kill(foe1, p, 3);
+          for (const g of grenades) endNade(g);
+        }
+        updNades();
+        const p = foe1.body.pos;
+        cam(V(p.x + 1.8, 1.9, 11.7), V(p.x, 1.1, p.z), 40, 5, dt);
+      },
+      look: () => af(chest(foe1), 3),
+    },
+    /* the armory: one pilot, every weapon, the camera circling */
+    {
+      t: 47,
+      name: "armory",
+      mood: "dusk",
+      setup() {
+        clearStage();
+        K.resetDestruction();
+        put(hero, [-8.2, 0, -9.2], PI / 2);
+        hero.ctl = () => ({ ...NO, aim: true });
+        this.ws = [0, 1, 4, 5, 6, 2, 3];
+      },
+      update(lt, dt) {
+        hero.wpn = this.ws[Math.min(this.ws.length - 1, Math.floor(lt / 0.43))];
+        drive(hero, dt);
+        const p = hero.body.pos,
+          a = lerp(-2.2, -1.1, ease(lt / 3)),
+          r = 3.1;
+        cam(V(p.x + Math.sin(a) * r, p.y + 1.45, p.z + Math.cos(a) * r), V(p.x, p.y + 1.3, p.z), 38, 0, dt);
+      },
+      look: () => af(chest(hero), 1.4, { streak: 0.6 }),
+    },
+    /* in first person: the carbine runs dry, the magnum comes up from the lower right, two to the head */
+    {
+      t: 50,
+      name: "fp-swap",
+      fp: true,
+      mood: "cool",
+      setup() {
+        clearStage();
+        seed = 50;
+        put(foe1, [-15.5, 0, -6.2], PI / 2, 0, 0);
+        foe1.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 2.2) * 0.4 });
+        fpTargets = [foe1];
+        F.begin({ pos: [-30, 0, -6], yaw: -PI / 2, w: 0, w2: 1, mag: 4 });
+        this.n = 0;
+        this.sw = false;
+      },
+      update(lt, dt, st) {
+        drive(foe1, dt);
+        const press = [],
+          hold = [];
+        if (st > 0.1 && st < 0.62) hold.push("fire");
+        if (!this.sw && st > 0.7) {
+          this.sw = true;
+          press.push("swapWeapon");
+        }
+        if (triggerAt(this, st, [1.55, 2.0])) hold.push("fire");
+        const look = lookAt(st > 1.3 ? head(foe1) : chest(foe1), 0.4);
+        F.step(dt, { hold, press, yaw: look.yaw, pitch: look.pitch });
+      },
+    },
+    /* over the shoulder from the perch: the long shot, in slow motion */
+    {
+      t: 53,
+      name: "snipe-3p",
+      mood: "cool",
+      setup() {
+        clearStage();
+        seed = 53;
+        put(hero, [0.6, 3.23, -3.6], 0);
+        hero.wpn = 2;
+        hero.ctl = () => ({ ...NO, aim: true });
+        put(foe1, [16, 0, -21.5], PI / 2);
+        foe1.ctl = (a, st) =>
+          steer(
+            a,
+            [
+              [16, -21.5],
+              [3, -21.5],
+            ],
+            { ...NO },
+            { stop: false }
+          );
+        this.fired = false;
+      },
+      ts: lt =>
+        curve(
+          [
+            [0, 1],
+            [1.35, 1],
+            [1.45, 0.22],
+            [2.4, 0.22],
+            [2.7, 1],
+          ],
+          lt
+        ),
+      update(lt, dt) {
+        drive(foe1, dt);
+        aimAt(hero, head(foe1), 1);
+        drive(hero, dt);
+        if (lt >= 1.4 && !this.fired) {
+          this.fired = true;
+          shoot(hero, foe1, { headshot: true, color: 0x9fd8ff, snd: "sshot", power: 2.8, life: 0.9 });
+          CINE.shake(0.2);
+        }
+        const p = hero.body.pos,
+          fx = -Math.sin(hero.body.yaw),
+          fz = -Math.cos(hero.body.yaw);
+        const k = ease((lt - 1.4) / 1.6);
+        cam(
+          V(p.x - fx * 2.8 + fz * 1.1, p.y + 2.3, p.z - fz * 2.8 - fx * 1.1),
+          _c.copy(chest(hero)).lerp(chest(foe1), lerp(0.55, 1, k)),
+          lerp(40, 20, k),
+          4,
+          dt
+        );
+      },
+      look: lt => (lt < 1.4 ? af(chest(hero), 2) : af(chest(foe1), 6)),
+    },
+
+    /* ===== MOVEMENT ===== */
+    { t: 69, name: "card-move", black: true, setup: clearStage, update() {} },
+    /* in first person: sprint, slide, jump out of it, thrust in the air, land running */
+    {
+      t: 70,
+      name: "fp-flow",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        F.begin({ pos: [-35, 0, -6], yaw: -PI / 2, w: 0 });
+        this.s = 0;
+      },
+      update(lt, dt, st) {
+        const hold = ["forward"],
+          press = [];
+        if (st < 0.85) hold.push("sprint");
+        else if (st < 1.3) {
+          hold.push("sprint", "crouch");
+          if (this.s === 0) {
+            press.push("crouch");
+            this.s = 1;
+          }
+        } else if (this.s === 1) {
+          press.push("jump");
+          this.s = 2;
+        } else if (this.s === 2 && st > 1.62) {
+          press.push("thrust");
+          this.s = 3;
+        } else hold.push("sprint");
+        F.step(dt, { hold, press, pitch: -0.04 });
+      },
+    },
+    /* the north gate shuts across the lane, and the pilot goes over it */
+    {
+      t: 72.5,
+      name: "gate-3p",
+      mood: "hot",
+      setup() {
+        clearStage();
+        K.resetDestruction();
+        F.gatesAt(GATE_SHUT, true);
+        put(hero, [-6.4, 0, 13.9], -PI / 2);
+        hero.ctl = (a, st) => {
+          const b = a.body,
+            inp = steer(
+              a,
+              [
+                [-6.4, 13.9],
+                [7, 13.9],
+              ],
+              { ...NO },
+              { stop: false }
+            );
+          if (b.pos.x > GATE_JUMP - 0.9 && once(a, "j")) inp.jumpP = true;
+          if (a.once.has("j") && !b.ground) inp.crouch = true;
+          return inp;
+        };
+      },
+      update(lt, dt) {
+        drive(hero, dt);
+        const p = hero.body.pos,
+          h = hand(lt, 0.02);
+        cam(V(lerp(-2.9, -2.2, ease(lt / 2.5)) + h.x, 2.2 + h.y, 7.0), V(p.x, p.y + 1.1, p.z), 44, 5, dt);
+      },
+      look: () => af(chest(hero), 3),
+    },
+    /* in first person: off the deck, a hover on the suit's stabilizer, then the ground pound */
+    {
+      t: 75,
+      name: "fp-pound",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        F.gatesAt(0, false);
+        seed = 75;
+        put(foe1, [-4.6, 0, -10.6], 0);
+        put(foe2, [-2.8, 0, -11.4], 0.2);
+        for (const f of [foe1, foe2]) f.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 2 + a.id.length) * 0.3 });
+        fpTargets = [foe1, foe2];
+        F.begin({ pos: [-4, 3.25, 1.2], yaw: 0, pitch: -0.15, w: 0 });
+        this.s = 0;
+      },
+      update(lt, dt, st) {
+        for (const f of [foe1, foe2]) {
+          if (!f.dead) aimAt(f, V(F.me.pos.x, F.me.pos.y + 1.5, F.me.pos.z), 0.3);
+          drive(f, dt);
+        }
+        const m = F.me,
+          hold = [],
+          press = [];
+        if (this.s === 0) {
+          hold.push("forward", "sprint");
+          if (m.pos.z < LEAP_Z) {
+            press.push("jump");
+            this.s = 1;
+          }
+        } else if (this.s === 1) {
+          hold.push("forward");
+          if (m.vel.y < 0.8) this.s = 2;
+        } else if (this.s === 2) {
+          hold.push("aim");
+          this.hov = (this.hov || 0) + dt;
+          if (this.hov > 0.55) {
+            press.push("crouch");
+            this.s = 3;
+          }
+        } else if (this.s === 3) hold.push("crouch");
+        /* any pilot left standing near the impact goes down with it */
+        if (this.s === 3 && m.ground && !this.slam) {
+          this.slam = true;
+          for (const f of [foe1, foe2]) if (f.body.pos.distanceTo(m.pos) < 5.5) kill(f, m.pos, 3.6);
+        }
+        const look = lookAt(chest(foe1), this.s >= 2 ? 0.25 : 0.05);
+        F.step(dt, { hold, press, yaw: look.yaw, pitch: this.s >= 2 ? look.pitch : -0.2 });
+      },
+    },
+    /* thrust dodges down the lane, left and right of a burst */
+    {
+      t: 78,
+      name: "dodges",
+      mood: "hot",
+      setup() {
+        clearStage();
+        seed = 78;
+        put(hero, [-30, 0, -6], -PI / 2);
+        hero.ctl = (a, st) => {
+          const inp = { ...NO, f: 0.6 };
+          if (st > 0.25 && once(a, "t1")) Object.assign(inp, { thrust: true, s: -1, f: 0 });
+          return inp;
+        };
+      },
+      ts: () => (hero.body.thrustT > 0 ? 0.35 : 1),
+      update(lt, dt, st) {
+        drive(hero, dt);
+        const p = hero.body.pos,
+          src = V(p.x + 24, 1.5, -6.2);
+        for (const at of [0.2, 0.3, 0.42, 1.0, 1.12, 1.25])
+          if (st > at && once(hero, "b" + at))
+            shoot(foe1, null, {
+              from: src,
+              at: V(p.x - 5, 1.4, -6 + (rnd() - 0.5) * 1.2),
+              color: 0x9fdcff,
+              snd: "shot",
+              life: 0.3,
+            });
+        const h = hand(lt, 0.02);
+        cam(V(p.x + 5.2 + h.x, 1.0 + h.y, -6.3), V(p.x, p.y + 1, p.z), 46, 6, dt);
+      },
+      look: () => af(chest(hero), 2.6),
+    },
+    /* the classic feel: one switch in the sandbox and the jump floats, the thrust is short */
+    {
+      t: 80,
+      name: "classic",
+      mood: "dusk",
+      setup() {
+        clearStage();
+        classic(true);
+        put(hero, [-10.5, 0, -13.2], PI);
+        hero.ctl = (a, st) => ({ ...NO, f: 0.85, jumpP: st > 0.35 && once(a, "j") });
+      },
+      update(lt, dt) {
+        drive(hero, dt);
+        const p = hero.body.pos;
+        cam(V(-5.6, 0.6, Math.min(p.z - 1.2, -6.6)), V(p.x, p.y + 1.1, p.z), 40, 5, dt);
+      },
+      look: () => af(chest(hero), 3),
+    },
+    /* in first person: up onto the deck in one move (a crouch-jump and the clamber) */
+    {
+      t: 83,
+      name: "fp-climb",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        classic(false);
+        F.begin({ pos: [-3.2, 0, -12.5], yaw: PI, pitch: 0.12, w: 1 });
+        this.j = false;
+      },
+      update(lt, dt) {
+        const m = F.me,
+          hold = ["forward", "sprint"],
+          press = [];
+        if (!this.j && m.pos.z > -7.4) {
+          this.j = true;
+          press.push("jump");
+        }
+        if (this.j && !m.ground) hold.push("crouch");
+        F.step(dt, { hold, press, pitch: lerp(m.pitch, 0.02, Math.min(1, dt * 3)) });
+      },
+    },
+    /* the squad at a sprint, side by side, the camera running ahead of them */
+    {
+      t: 86,
+      name: "squad-sprint",
+      mood: "dusk",
+      setup() {
+        clearStage();
+        put(hero, [-34.4, 0, -6], -PI / 2);
+        put(ally, [-35.6, 0, -4.9], -PI / 2);
+        put(ally2, [-35.9, 0, -7.1], -PI / 2);
+        hero.ctl = a => steer(a, LANE_S, { ...NO }, { stop: false });
+        ally.ctl = a =>
+          steer(
+            a,
+            [
+              [-35.6, -4.9],
+              [-10, -4.9],
+            ],
+            { ...NO },
+            { stop: false }
+          );
+        ally2.ctl = a =>
+          steer(
+            a,
+            [
+              [-35.9, -7.1],
+              [-10, -7.1],
+            ],
+            { ...NO },
+            { stop: false }
+          );
+        preroll([hero, ally, ally2], 0.5);
+      },
+      update(lt, dt) {
+        for (const a of [hero, ally, ally2]) drive(a, dt);
+        const p = hero.body.pos,
+          h = hand(lt, 0.03);
+        cam(V(p.x + 5.4 + h.x, 0.75 + h.y, -6.2), V(p.x, p.y + 1.05, p.z), 48, 0, dt);
+      },
+      look: () => af(chest(hero), 3),
+    },
+    /* off the deck again, seen from below: the leap and the thrust overhead */
+    {
+      t: 89,
+      name: "leap-below",
+      mood: "dusk",
+      setup() {
+        clearStage();
+        put(hero, [-4, 3.25, 1.4], 0);
+        hero.ctl = (a, st) => {
+          const b = a.body,
+            inp = { ...NO };
+          if (b.ground && b.pos.y > 2.5) {
+            steer(
+              a,
+              [
+                [-4, 1.4],
+                [-4, -12],
+              ],
+              inp,
+              { stop: false }
+            );
+            if (b.pos.z < LEAP_Z && once(a, "j")) {
+              inp.jumpP = true;
+              a.jT = st;
+            }
+          } else if (!b.ground && a.jT != null && b.vel.y < 1.5 && once(a, "t")) {
+            inp.f = 1;
+            inp.thrust = true;
+          }
+          return inp;
+        };
+        hero.jT = null;
+      },
+      ts: () => (hero.jT != null && hero.st - hero.jT < 0.8 ? 0.55 : 1),
+      update(lt, dt) {
+        drive(hero, dt);
+        const p = hero.body.pos;
+        cam(V(-2.8, 0.35, -9.8), V(p.x, p.y + 1, p.z), 38, 3, dt, 0.06);
+      },
+      look: () => af(chest(hero), 4),
+    },
+
+    /* ===== THE WORLD ===== */
+    /* in first person: a rocket into the crates, and the cover comes apart */
+    {
+      t: 112,
+      name: "fp-breach",
+      fp: true,
+      mood: "hot",
+      setup() {
+        clearStage();
+        K.resetDestruction();
+        put(foe1, [26.7, 0, -14.3], 0);
+        foe1.ctl = () => ({ ...NO, crouch: true });
+        fpTargets = [foe1];
+        F.begin({ pos: [17.2, 0, -5.4], yaw: yawTo(V(17.2, 0, -5.4), V(25.6, 0, -9.2)), w: 3 });
+        this.fired = false;
+      },
+      update(lt, dt, st) {
+        drive(foe1, dt);
+        const hold = [];
+        if (!this.fired && st > 0.3) {
+          this.fired = true;
+          hold.push("fire");
+        }
+        const look = lookAt(V(25.6, 0.5, -9.2), 0.3);
+        F.step(dt, { hold, yaw: look.yaw, pitch: look.pitch });
+      },
+    },
+    /* a blast gate rising out of the floor (the map moves while you play) */
+    {
+      t: 114.5,
+      name: "gates",
+      mood: "dusk",
+      setup() {
+        clearStage();
+        K.resetDestruction();
+        F.gatesAt(10.2, true);
+        put(ally, [-6.2, 0, 15.2], -PI / 2);
+        ally.ctl = (a, st) =>
+          steer(
+            a,
+            [
+              [-6.2, 15.2],
+              [-1.6, 15.2],
+            ],
+            { ...NO },
+            { sprint: st < 0.6 }
+          );
+      },
+      update(lt, dt) {
+        F.gatesAt(10.2 + lt * 1.05, true);
+        drive(ally, dt);
+        cam(V(-4.6, 0.3, 8.2), V(0, lerp(0.6, 2.4, ease(lt / 2.8)), 13.9), 52, 0, dt, -0.04);
+      },
+      look: () => af(V(0, 1.4, 13.9), 9),
+    },
+    /* Twin Foundry from the air */
+    {
+      t: 117.5,
+      name: "foundry-fly",
+      ctf: true,
+      mood: null,
+      setup() {
+        F.gatesAt(0, false);
+        startCTF("ctf");
+      },
+      update(lt, dt) {
+        const k = ease(lt / 3);
+        cam(
+          V(lerp(-30, 26, k), lerp(34, 26, k), lerp(-56, -34, k)),
+          V(lerp(-6, 6, k), 0, lerp(-10, 10, k)),
+          52,
+          0,
+          dt
+        );
+      },
+      look: () => ({ dof: 0 }),
+    },
+    /* Proving Grounds at night: searchlights, the ringed planet, a shooting star */
+    {
+      t: 120.5,
+      name: "arena-night",
+      mood: "night",
+      setup() {
+        stopCTF();
+        K.resetDestruction();
+        F.sky(STAR_T - 0.6);
+      },
+      update(lt) {
+        const k = ease(lt / 3),
+          a = 3.6 + k * 0.45;
+        cam(V(Math.sin(a) * 40, lerp(9, 14, k), Math.cos(a) * 40), V(0, lerp(9, 6, k), 0), 50);
+      },
+      look: () => ({ dof: 0.4, focus: 40, range: 20 }),
+    },
+    /* low across the floor into the light, a pilot walking out of it */
+    {
+      t: 123.5,
+      name: "shafts",
+      mood: "dusk",
+      setup() {
+        put(hero, [-20.6, 0, -6], -PI / 2);
+        hero.ctl = (a, st) => ({ ...NO, f: 0.35 });
+      },
+      update(lt, dt) {
+        drive(hero, dt);
+        const p = hero.body.pos;
+        cam(V(p.x + 7.5, 0.25, -6.6), V(p.x, p.y + 1.2, p.z), 34, 0, dt);
+      },
+      look: () => af(chest(hero), 2.5, { streak: 0.9 }),
+    },
+
+    /* ===== THE BATTLE: a live 4 v 4 at Legendary, slowing on every kill ===== */
+    { t: 139, name: "card-battle", black: true, setup: clearStage, update() {} },
+    {
+      t: 140,
+      name: "b-chase",
+      ctf: true,
+      mood: null,
+      ts: killSlow,
+      setup() {
+        startCTF("ctf");
+        pickFocus(true);
+      },
+      update(lt, dt) {
+        pickFocus();
+        if (focus) CINE.apply(CINE.track(focus, 4.2, 1.4, 1.8, 4, 52)(), 4, dt);
+      },
+      look: () => (focus ? af(chest(focus), 3.5) : {}),
+    },
+    {
+      t: 143,
+      name: "b-low",
+      ctf: true,
+      ts: killSlow,
+      setup() {
+        pickFocus(true);
+      },
+      update(lt, dt) {
+        pickFocus();
+        const c = focus ? focus.body.pos : action();
+        const want = V(c.x + 5.5, 0.4, c.z + 4.5),
+          head2 = V(c.x, 1.2, c.z),
+          d = want.clone().sub(head2),
+          L = d.length(),
+          hit = K.rayWorld(head2, d.normalize(), L);
+        if (hit < L) want.copy(head2).addScaledVector(d, Math.max(0.8, hit - 0.3));
+        cam(want, V(c.x, 1.1, c.z), 40, 4, dt, 0.05);
+      },
+      look: () => (focus ? af(chest(focus), 3) : {}),
+    },
+    {
+      t: 146,
+      name: "b-tilt",
+      ctf: true,
+      ts: killSlow,
+      setup() {
+        pickFocus(true);
+      },
+      update(lt, dt) {
+        pickFocus();
+        const c = focus ? focus.body.pos : action(),
+          a = 2.2 + lt * 0.08;
+        cam(V(c.x + Math.sin(a) * 10, 18, c.z + Math.cos(a) * 10), V(c.x, 0, c.z), 32, 2, dt);
+      },
+      look: () => af(focus ? focus.body.pos : action(), 5, { near: 0.5 }),
+    },
+    {
+      t: 149,
+      name: "b-chase2",
+      ctf: true,
+      ts: killSlow,
+      setup() {
+        pickFocus(true);
+      },
+      update(lt, dt) {
+        pickFocus();
+        if (focus) CINE.apply(CINE.track(focus, 3.6, -1.3, 1.6, 4, 50)(), 5, dt);
+      },
+      look: () => (focus ? af(chest(focus), 3) : {}),
+    },
+    {
+      t: 152,
+      name: "b-crane",
+      ctf: true,
+      ts: killSlow,
+      setup() {
+        pickFocus(true);
+      },
+      update(lt, dt) {
+        pickFocus();
+        const c = focus ? focus.body.pos : action(),
+          k = ease(lt / 3);
+        cam(V(c.x - 9, lerp(2, 14, k), c.z - 9), V(c.x, 1, c.z), 44, 3, dt);
+      },
+      look: () => (focus ? af(chest(focus), 6) : {}),
+    },
+    {
+      t: 155,
+      name: "b-last",
+      ctf: true,
+      ts: killSlow,
+      setup() {
+        pickFocus(true);
+      },
+      update(lt, dt) {
+        pickFocus();
+        if (focus) CINE.apply(CINE.track(focus, 5.2, 1.8, 2.2, 5, 56)(), 4, dt);
+      },
+      look: () => (focus ? af(chest(focus), 4) : {}),
+    },
+  ];
+  const ACT_CARDS = [
+    { t: 28.5, d: 0.95, big: "Choose your weapon", kind: "black" },
+    {
+      t: 47.3,
+      d: 2.4,
+      eb: "Seven weapons",
+      big: "Every one built",
+      sub: "Kick, actions and reloads of their own",
+      kind: "lower",
+    },
+    { t: 69, d: 0.95, big: "Never stop moving", kind: "black" },
+    {
+      t: 80.3,
+      d: 2.4,
+      eb: "One switch in the sandbox",
+      big: "Classic feel",
+      sub: "Floatier jumps, shorter thrusts",
+      kind: "lower",
+    },
+    { t: 112.4, d: 1.8, eb: "Destructible cover", big: "Built to break", kind: "lower" },
+    { t: 114.9, d: 2.2, eb: "Blast gates", big: "The map moves", kind: "lower" },
+    { t: 117.9, d: 2.2, eb: "Capture the flag", big: "Twin Foundry", kind: "lower" },
+    { t: 120.9, d: 2.2, eb: "Every mode", big: "Proving Grounds", kind: "lower" },
+    { t: 139, d: 0.95, big: "Every match is different", kind: "black" },
+  ];
+  /* the older cut's times move to make room for the four acts (the score's table, modes/trailer-score.js) */
+  for (const sh of SHOTS) sh.t = RM(sh.t);
+  SHOTS.push(...ACTS);
+  SHOTS.sort((a, b) => a.t - b.t);
+  for (const c of CARDS) c.t = RM(c.t);
+  CARDS.push(...ACT_CARDS);
+  CARDS.sort((a, b) => a.t - b.t);
+  for (const fd of FADES) {
+    fd[0] = RM(fd[0]);
+    fd[1] = RM(fd[1]);
+  }
+  for (const fl of FLASH) fl[0] = RM(fl[0]);
   TR.shots = SHOTS.map(s => ({ t: s.t, name: s.name }));
 
   /* ---------------- CTF montage support ---------------- */
@@ -2287,6 +3266,7 @@
       music = null;
     }
     F.end();
+    classic(false);
     F.capture(false);
     F.gatesAt(0, false);
     F.clearSupply();

@@ -103,6 +103,10 @@ interface KAExtensions {
     BEAT: number;
     BAR: number;
     LENGTH: number;
+    /** the acts inserted into the older cut: [old time, length] */
+    INSERTS: [number, number][];
+    /** where a moment of the older cut plays now */
+    remap(t: number): number;
   };
   /** the trailer's first-person stretches (game/trailer-fp.js, trailer build only) */
   trailerFP: {

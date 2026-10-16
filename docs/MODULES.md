@@ -85,7 +85,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/exports.js` | 326 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
-| `src/game/trailer-fp.js` | 147 | `TFP` |
+| `src/game/trailer-fp.js` | 150 | `TFP` |
 | `src/data/map-check.js` | 147 | `MAP_MATS` `MAP_LIMIT` `validateMap` |
 | `src/modes/ctf/map.js` | 253 |  |
 | `src/modes/ctf/nav.js` | 349 |  |
@@ -97,5 +97,5 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/net/ctf-host.js` | 846 |  |
 | `src/net/ctf-client.js` | 778 |  |
 | `src/modes/ctf/modes.js` | 1200 |  |
-| `src/modes/trailer-score.js` | 1009 |  |
-| `src/modes/trailer.js` | 2339 |  |
+| `src/modes/trailer-score.js` | 1092 |  |
+| `src/modes/trailer.js` | 3319 |  |

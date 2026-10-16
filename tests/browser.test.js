@@ -1953,7 +1953,7 @@ const podSeats = map => {
       fp
     );
     const ctfCut = await T.evaluate(() => {
-      KA.trailer.seek(43.5);
+      KA.trailer.seek(KA.trailerScore.remap(43.5));
       return { game: !!CTF.UI.game(), fp: KA.trailerFP.on, hud: !document.getElementById("hud").hidden };
     });
     check(
@@ -1988,8 +1988,8 @@ const podSeats = map => {
     check(cut.bumps.length === 0, "trailer pilots never run into walls", cut.bumps);
     check(cut.cam.length === 0, "the trailer camera never goes inside the level", cut.cam);
     check(
-      ["thrust", "slide", "clamber", "slam", "charge", "melee"].every(e => cut.ev.includes(e)),
-      "the trailer's moves all happen (thrust, slide, clamber, ground pound, charge, melee)",
+      ["thrust", "slide", "clamber", "slam", "charge", "land"].every(e => cut.ev.includes(e)),
+      "the trailer's moves all happen (thrust, slide, clamber, ground pound, charge, a hard landing)",
       cut.ev
     );
     /* ---------- AI training runs on a background thread when served over http ---------- */
