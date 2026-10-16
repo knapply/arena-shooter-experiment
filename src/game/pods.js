@@ -54,10 +54,38 @@ function podGeo() {
     const a = (i * Math.PI) / 3;
     hull.push(at(new THREE.BoxGeometry(0.1, 0.9, 0.08), Math.sin(a) * 0.7, 1.0, Math.cos(a) * 0.7, a));
   }
+  /* four swept wedge fins on the collar, each with a nozzle at its foot lit in the pod's colour
+     (in the bands' mesh); once the pod is buried they stand out of the crater */
+  const fin = new THREE.Shape();
+  fin.moveTo(0, 0);
+  fin.lineTo(0.3, 0.12);
+  fin.lineTo(0.3, 0.38);
+  fin.lineTo(0, 0.6);
+  fin.lineTo(0, 0);
+  const finGeo = () => {
+    const g = new THREE.ExtrudeGeometry(fin, { depth: 0.06, bevelEnabled: false });
+    g.translate(0, 0, -0.03);
+    return g;
+  };
+  const nozzles = [];
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + (i * Math.PI) / 2,
+      s = Math.sin(a),
+      c = Math.cos(a);
+    hull.push(at(finGeo(), s * 0.66, 0.9, c * 0.66, a - Math.PI / 2));
+    nozzles.push(at(new THREE.BoxGeometry(0.075, 0.06, 0.11), s * 0.92, 0.98, c * 0.92, a));
+  }
   POD_GEO.hull = mergeGeos(hull);
   POD_GEO.nose = mergeGeos([at(nose, 0, 0, 0)]);
   const band = () => new THREE.CylinderGeometry(0.735, 0.735, 0.08, 14, 1, true);
-  POD_GEO.bands = mergeGeos([at(band(), 0, 1.3, 0), at(band(), 0, 0.75, 0)]);
+  POD_GEO.bands = mergeGeos([at(band(), 0, 1.3, 0), at(band(), 0, 0.75, 0), ...nozzles]);
+  /* the skull's pod alone wears a crown of bone spikes round its collar */
+  const spikes = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (i * Math.PI) / 3 + Math.PI / 6;
+    spikes.push(at(new THREE.ConeGeometry(0.07, 0.5, 4), Math.sin(a) * 0.8, 1.72, Math.cos(a) * 0.8, a, 0.4));
+  }
+  POD_GEO.spikes = mergeGeos(spikes);
   /* a petal: a third of the upper shell with a rib down its middle, centred on its own origin so it
      can tumble away */
   const L = (Math.PI * 2) / 3 - 0.05;
@@ -230,6 +258,7 @@ const POD_DRAW = (() => {
     ),
     petal: make(G0.petal, POD_MAT.hull, POD_N * 3),
     cap: make(G0.cap, POD_MAT.dark, POD_N),
+    spikes: make(G0.spikes, ITEM_MAT.bone, 8),
   };
 })();
 /** every pod body in the world (live pods and the replay's ghosts) */
@@ -247,7 +276,8 @@ function podShown(o) {
 function podDraw() {
   const D = POD_DRAW;
   let n = 0,
-    np = 0;
+    np = 0,
+    ns = 0;
   for (const b of POD_BODIES) {
     if (n >= POD_N || !podShown(b.g)) continue;
     b.g.updateMatrixWorld();
@@ -261,10 +291,11 @@ function podDraw() {
       if (d.cap) D.cap.setMatrixAt(n, _pdM.multiplyMatrices(w, d.m.matrix));
       else D.petal.setMatrixAt(np++, _pdM.multiplyMatrices(w, d.m.matrix));
     }
+    if (b.kind === "skull" && ns < 8) D.spikes.setMatrixAt(ns++, w);
     n++;
   }
-  for (const m of [D.hull, D.nose, D.bands, D.cap, D.petal]) {
-    m.count = m === D.petal ? np : n;
+  for (const m of [D.hull, D.nose, D.bands, D.cap, D.petal, D.spikes]) {
+    m.count = m === D.petal ? np : m === D.spikes ? ns : n;
     m.visible = m.count > 0;
     if (m.count) m.instanceMatrix.needsUpdate = true;
   }

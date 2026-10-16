@@ -41,6 +41,7 @@
     "weapons/arsenal.js",
     "render/fx.js",
     "render/combat-fx.js",
+    "render/item-models.js",
     "render/cinema.js",
     "render/atmosphere.js",
     "weapons/grenades.js",

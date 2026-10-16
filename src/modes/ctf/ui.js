@@ -122,33 +122,13 @@
   /* ---------- the skull ---------- */
   function makeSkull() {
     const g = new T.Group();
-    const bone = new T.MeshStandardMaterial({
-      color: SKULL_HEX,
-      emissive: "#ffcf6b",
-      emissiveIntensity: 0.25,
-      roughness: 0.55,
-      metalness: 0.1,
-    });
-    const dark = new T.MeshBasicMaterial({ color: "#120c08" });
-    const s = new T.Group();
-    const cran = new T.Mesh(new T.SphereGeometry(0.17, 18, 14), bone);
-    cran.scale.set(1, 1.05, 1.15);
-    const face = new T.Mesh(new T.BoxGeometry(0.2, 0.12, 0.16), bone);
-    face.position.set(0, -0.1, -0.08);
-    const jaw = new T.Mesh(new T.BoxGeometry(0.16, 0.05, 0.13), bone);
-    jaw.position.set(0, -0.19, -0.1);
-    for (const x of [-0.06, 0.06]) {
-      const eye = new T.Mesh(new T.SphereGeometry(0.042, 10, 8), dark);
-      eye.position.set(x, -0.04, -0.165);
-      s.add(eye);
-    }
-    const nose = new T.Mesh(new T.BoxGeometry(0.03, 0.04, 0.02), dark);
-    nose.position.set(0, -0.1, -0.165);
-    s.add(cran, face, jaw, nose);
+    /* the skull itself (render/item-models.js): faceted bone, a graphite crest, slit eyes that glow */
+    const s = K.skullModel();
     s.position.y = 0.45;
     g.add(s);
     const glow = new T.Sprite(
       new T.SpriteMaterial({
+        map: K.SOFT,
         color: "#ffd77a",
         transparent: true,
         opacity: 0.5,
@@ -178,8 +158,10 @@
       animate(t, carried) {
         s.visible = !carried;
         s.rotation.y = t * 1.6;
-        s.position.y = 0.45 + Math.sin(t * 2.4) * 0.06;
-        glow.position.y = carried ? 1.25 : 0.45;
+        /* it floats at chest height, clear of the pod that brought it (its collar and spikes) */
+        s.position.y = 1.35 + Math.sin(t * 2.4) * 0.08;
+        s.userData.tick(t);
+        glow.position.y = carried ? 1.25 : 1.35;
         glow.scale.setScalar(carried ? 2.2 : 1.4);
         glow.material.opacity = (carried ? 0.28 : 0.35) + 0.2 * Math.sin(t * (carried ? 6 : 4));
       },
