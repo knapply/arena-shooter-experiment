@@ -888,7 +888,7 @@
       groove(49, 4, { half: true, leadOn: false });
       for (const x of [49.4, 53.7, 56.4]) boom(at(x), 0.5);
       whoosh(at(55.6), 0.3);
-      boom(at(56.25), 0.9);
+      boom(at(55.25), 0.9);
       /* the free camera: arpeggios climbing, then the floor drops away */
       for (let x = 57.5, s = 0; x < 59.75; x += 0.125, s++)
         pluck(at(x), ["D5", "F5", "A5", "C6", "D6", "C6", "A5", "F5"][s % 8], 0.04 + s * 0.0015);

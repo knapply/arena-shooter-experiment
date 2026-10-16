@@ -2401,27 +2401,32 @@
       ctf: true,
       setup() {
         startCTF("oddball", "arena", 57, g => g.ball && g.t >= g.ball.landAt - K.POD_TIME, 3000);
-        this.aim = this.home = null;
+        /* a second of the pod's fall, silently: the cut opens on it burning in, not on empty sky (the
+           match now; its pod, which appears with the first frame, on that frame) */
+        K.sfxTap(() => {});
+        for (let i = 0; i < 30; i++) G.step(1 / 30);
+        CTF.UI.frame(1 / 30);
+        K.sfxTap(TR.recording ? tap : null);
+        this.pod = null;
       },
       update(lt, dt) {
-        /* low on the core, tilting up to meet the pod as it comes into frame, then the skull */
-        const pod = K.PODS.find(p => !p.landed),
-          home = pod ? pod.at : G && G.ball ? G.ball.pos : CTF.BALL_HOME;
-        this.home = this.home || home.clone();
-        const tgt = pod ? pod.g.position.clone() : V(home.x, home.y + 0.8, home.z);
-        this.aim = this.aim || tgt.clone();
-        this.aim.lerp(tgt, Math.min(1, dt * 8));
-        const h = hand(lt, 0.02),
-          up = pod ? clamp((pod.g.position.y - home.y) / 200, 0, 1) : 0;
-        const o = this.home;
-        cam(V(o.x + h.x + 9, o.y + 2.2 + h.y, o.z + 9), this.aim, lerp(48, 12, Math.sqrt(up)), 0, dt);
+        /* riding beside the skull's pod as it plunges, violet, toward the arena (the camera falls with it) */
+        const pod = K.PODS.find(p => !p.landed) || this.pod;
+        this.pod = pod;
+        const home = pod ? pod.at : G && G.ball ? G.ball.pos : CTF.BALL_HOME;
+        const g = pod ? pod.g.position : V(home.x, home.y + 3, home.z),
+          h = hand(lt * 3, 0.08);
+        cam(
+          V(g.x + 3.8 + h.x, g.y + 1.2 + h.y, g.z + 4.6),
+          V(g.x, g.y - 1.6, g.z),
+          lerp(56, 70, ease(lt / 2.25)),
+          0,
+          dt,
+          Math.sin(lt * 2) * 0.08
+        );
+        CINE.shake(0.1);
       },
-      look() {
-        const pod = K.PODS.find(p => !p.landed);
-        return pod
-          ? { dof: 0, streak: 1.2 }
-          : Object.assign(af(this.home || CTF.BALL_HOME, 10), { streak: 1 });
-      },
+      look: lt => ({ dof: 0, streak: 1.2, zoom: 0.15 + 0.2 * ease(lt / 2.25), vig: 0.35 }),
       beats: [["the skull's pod lands", () => !!G && !!G.ball && G.ball.state !== "incoming"]],
     },
     /* free-for-all: eight pilots, every one for themself, seen from high and steep */
@@ -2996,7 +3001,7 @@
     ["ctf-capture", 49],
     ["fp-flag", 52],
     ["oddball", 53.25],
-    ["ffa", 56.25],
+    ["ffa", 55.5],
     ["freecam", 57.5],
     ["card-now", 59.75],
     /* the set piece */
@@ -3034,8 +3039,8 @@
     { t: 42.1, d: 1.3, eb: "From orbit", big: "Supply drops", kind: "holo" },
     { t: 46.4, d: 2.2, eb: "The map moves", big: "Blast gates", kind: "holo" },
     { t: 49.4, d: 2.2, eb: "4 v 4", big: "Capture the flag", kind: "holo" },
-    { t: 53.7, d: 2.0, eb: "Hold the skull", big: "Oddball", kind: "holo" },
-    { t: 56.4, d: 0.95, eb: "Eight pilots", big: "Free for all", kind: "holo" },
+    { t: 53.6, d: 1.5, eb: "Hold the skull", big: "Oddball", kind: "holo" },
+    { t: 55.8, d: 1.4, eb: "Eight pilots", big: "Free for all", kind: "holo" },
     { t: 73.0, d: 2.0, eb: "Replay", big: "Play of the game", sub: "Triple kill · mid-air", kind: "holo" }
   );
   FADES.push([75.25, 75.7, 1, 0.5], [75.7, 82.6, 0.5, 0.5], [82.6, 84, 0.5, 1]);
