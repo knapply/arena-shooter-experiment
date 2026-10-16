@@ -282,6 +282,25 @@ function sfx(kind, vol = 1) {
       case "alarm":
         tone(t, "square", 880, 880, 0.07, 0.035 * vol);
         break;
+      /* a shield breaking: a glassy crack, shards tinkling off, an electric zap and a thump under it
+         (unlike a hit's soft "shieldhit", it can't be mistaken) */
+      case "shbreak":
+        nz(t, 0.06, "highpass", 4800, 0.4 * vol);
+        for (let i = 0; i < 5; i++)
+          nz(t + 0.02 + i * 0.022, 0.035, "bandpass", 2600 + i * 650, 0.14 * vol * (1 - i * 0.12), 7);
+        tone(t, "sawtooth", 1700, 210, 0.24, 0.1 * vol, 0.002);
+        tone(t, "sine", 150, 42, 0.38, 0.5 * vol, 0.003);
+        nz(t, 0.32, "lowpass", 950, 0.28 * vol);
+        break;
+      /* a downed shield's armor crackling */
+      case "crackle":
+        for (let i = 0; i < 3; i++) nz(t + i * 0.028, 0.016, "highpass", 2400 + i * 900, 0.08 * vol);
+        break;
+      /* your shield running low: a soft two-note warning (the "alarm" takes over once it is down) */
+      case "shlow":
+        tone(t, "triangle", 740, 740, 0.09, 0.07 * vol, 0.006);
+        tone(t + 0.13, "triangle", 590, 590, 0.1, 0.06 * vol, 0.006);
+        break;
       /* feet by surface (footSurf): floor plates thud, raised metal decks ring hollow, gratings rattle */
       case "step":
         nz(t, 0.07, "lowpass", 420, 0.22 * vol, 1);
@@ -506,7 +525,7 @@ let LIVE_AC = null,
   SPACE = null;
 /** kinds you make yourself in the world (not the HUD's beeps and calls), which echo where you stand */
 const BODY_KINDS = new Set(
-  "shot sshot pshot bshot sgshot beam pulse boom rocket crumble thrust slam whoosh charge magout magin slap boltback boltfwd swing mhit mkill mcrack mwall chit cwall clamber jetstart podland podcrack gateslam step stepm stepg land landm landg slide slidem slideg".split(
+  "shot sshot pshot bshot sgshot beam pulse boom rocket crumble thrust slam whoosh charge magout magin slap boltback boltfwd swing mhit mkill mcrack mwall chit cwall clamber jetstart podland podcrack gateslam step stepm stepg land landm landg slide slidem slideg shbreak".split(
     " "
   )
 );
@@ -682,3 +701,120 @@ function sfxAt(kind, p, max = 40, vol = 1) {
     sfxOut = null;
   }
 }
+
+/* ---- held sounds: a hover's thrusters, sustained while it lasts ----
+   holdSound(key, on, p, vol) every frame for each source (key: who); with p it is positional like
+   sfxAt (panned, quieter and duller with distance, echoing in enclosed places), without p it is yours
+   (the body bus). A low thruster hum with a fast flutter and an airy hiss over it: steady, unlike a
+   sprint's whooshing pulses. It fades in over 0.12 s and out over 0.25 s, then its nodes are released.
+   At most one set of nodes per source, so a crowd of hovering pilots stays bounded. */
+const HOLD = new Map();
+function holdSound(key, on, p, vol = 1) {
+  let h = HOLD.get(key);
+  if (!on) {
+    if (h && !h.off && AC) {
+      h.off = true;
+      h.g.gain.setTargetAtTime(0, AC.currentTime, 0.08);
+      h.stopAt = AC.currentTime + 0.4;
+    }
+    if (h && h.off && AC && AC.currentTime > h.stopAt) {
+      for (const n of h.src) n.stop();
+      h.out.disconnect();
+      HOLD.delete(key);
+    }
+    return;
+  }
+  if (SFX_TAP || !AC || AC !== LIVE_AC) return;
+  let v = vol,
+    d = 0,
+    max = 34;
+  if (p) {
+    d = camera.position.distanceTo(p);
+    const near = Math.max(0, 1 - d / max);
+    v *= near * near;
+  }
+  if (!h || h.off) {
+    /* (one still fading out is cut, and a fresh one starts) */
+    if (h) {
+      for (const n of h.src) n.stop();
+      h.out.disconnect();
+    }
+    const t = AC.currentTime,
+      g = AC.createGain(),
+      lp = AC.createBiquadFilter(),
+      out = p ? AC.createStereoPanner() : AC.createGain();
+    g.gain.value = 0;
+    lp.type = "lowpass";
+    lp.Q.value = 0.5;
+    /* the hum: a sawtooth through a low-pass, fluttering at 7 Hz */
+    const o = AC.createOscillator(),
+      of = AC.createBiquadFilter(),
+      og = AC.createGain(),
+      lfo = AC.createOscillator(),
+      lg = AC.createGain();
+    o.type = "sawtooth";
+    o.frequency.value = 96;
+    of.type = "lowpass";
+    of.frequency.value = 380;
+    og.gain.value = 0.11;
+    lfo.frequency.value = 7;
+    lg.gain.value = 0.045;
+    lfo.connect(lg);
+    lg.connect(og.gain);
+    o.connect(of);
+    of.connect(og);
+    og.connect(g);
+    /* the hiss: noise through a band-pass high up */
+    const n = noise(),
+      nf = AC.createBiquadFilter(),
+      ng = AC.createGain();
+    n.loop = true;
+    nf.type = "bandpass";
+    nf.frequency.value = 2600;
+    nf.Q.value = 0.7;
+    ng.gain.value = 0.05;
+    n.connect(nf);
+    nf.connect(ng);
+    ng.connect(g);
+    g.connect(lp);
+    lp.connect(out);
+    if (p) {
+      out.connect(master);
+      const S = space();
+      if (S) {
+        const sg = AC.createGain();
+        sg.gain.value = enclosure(p) * 0.4;
+        out.connect(sg);
+        sg.connect(S.send);
+      }
+    } else {
+      const S = space();
+      out.connect(S ? S.body : master);
+    }
+    for (const x of [o, lfo, n]) x.start(t);
+    h = { g, lp, out, src: [o, lfo, n], off: false, stopAt: 0, last: t };
+    HOLD.set(key, h);
+  }
+  const t = AC.currentTime;
+  h.last = t;
+  h.g.gain.setTargetAtTime(v, t, 0.04);
+  h.lp.frequency.setTargetAtTime(
+    p && d > 4 ? Math.max(500, 16000 * Math.exp((-3 * d) / max)) : 16000,
+    t,
+    0.05
+  );
+  if (p && h.out.pan) {
+    _sfxR.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    _sfxV.copy(p).sub(camera.position);
+    const L = _sfxV.length();
+    h.out.pan.setTargetAtTime(L > 0.5 ? clamp(_sfxV.dot(_sfxR) / L, -1, 1) * 0.85 : 0, t, 0.03);
+  }
+}
+/* a source that stops reporting (a pilot gone mid-hover) fades out; faded ones are released */
+onFrame(
+  () => {
+    if (!AC) return;
+    for (const [k, h] of HOLD) if (h.off || AC.currentTime - h.last > 0.3) holdSound(k, false);
+  },
+  { menu: true, full: true }
+);

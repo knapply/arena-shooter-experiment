@@ -55,6 +55,39 @@ body {
   background: radial-gradient(ellipse at center, transparent 48%, var(--energy) 140%);
   opacity: 0;
 }
+/* your shield breaking: the screen's edge bursts white-blue with cracks, once (hurtMe, game/state.js) */
+#shbreak {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    repeating-conic-gradient(
+      from 7deg at 50% 50%,
+      transparent 0deg 9deg,
+      #e6faffd0 9deg 9.7deg,
+      transparent 9.7deg 23deg
+    ),
+    radial-gradient(ellipse at center, transparent 40%, #bfefff 118%);
+  -webkit-mask-image: radial-gradient(circle at center, transparent 30%, #000 80%);
+  mask-image: radial-gradient(circle at center, transparent 30%, #000 80%);
+}
+#shbreak.on {
+  animation: shBreak 0.6s ease-out;
+}
+@keyframes shBreak {
+  0% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  30% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
 
 /* crosshair */
 #xh {
@@ -503,8 +536,24 @@ body {
     inset 0 0 10px #ff4a3d80;
   animation: hudBlink 0.8s steps(2) infinite;
 }
-.vitals.low #shN {
+.vitals.low #shN,
+.vitals.low #shLbl {
   color: var(--hud-hot);
+}
+/* running low (under 30%): the shield bar pulses amber */
+.vitals.warn .shrow .bar {
+  box-shadow:
+    inset 0 0 0 1px #ffb347,
+    inset 0 0 8px #ffb34780;
+  animation: hudWarn 1s ease-in-out infinite;
+}
+.vitals.warn #shN {
+  color: #ffb347;
+}
+@keyframes hudWarn {
+  50% {
+    filter: drop-shadow(0 0 8px #ffb347);
+  }
 }
 /* in capture the flag the score bar holds the top middle: the shield sits under it */
 body:has(#ctfHud.play:not([hidden])) .vitals {
@@ -648,6 +697,24 @@ body:has(#ctfHud.play:not([hidden])) .vitals {
   inset: 0;
   background: radial-gradient(ellipse at center, transparent 55%, var(--hull) 140%);
   opacity: 0;
+}
+/* your shield down: the edge glows red and pulses with the alarm until it recharges */
+#vig.down {
+  background: radial-gradient(ellipse at center, transparent 44%, #ff3a2a 132%);
+  animation: vigDown 0.55s ease-in-out infinite alternate;
+}
+/* running low: a faint amber edge, breathing slowly */
+#vig.warn {
+  background: radial-gradient(ellipse at center, transparent 52%, #ffb347 150%);
+  animation: vigDown 1s ease-in-out infinite alternate;
+}
+@keyframes vigDown {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 0.75;
+  }
 }
 #toast {
   position: absolute;
@@ -1118,9 +1185,19 @@ input[type="text"]:focus-visible {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  #shbreak.on {
+    animation: shBreakFade 0.6s ease-out;
+  }
+  #vig.down,
+  #vig.warn {
+    opacity: 0.55;
+  }
   .medal,
   .weap.dry .ahint,
   .vitals.low .shrow .bar,
+  .vitals.warn .shrow .bar,
+  #vig.down,
+  #vig.warn,
   .ping.danger i::after {
     animation: none;
   }
@@ -1790,5 +1867,13 @@ table.stats tr.total td {
   }
   body[data-trk="br"] #hudTR #feed {
     position: static;
+  }
+}
+@keyframes shBreakFade {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
   }
 }

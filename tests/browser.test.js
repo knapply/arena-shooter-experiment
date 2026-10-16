@@ -1000,6 +1000,61 @@ const podSeats = map => {
       "shield hit, shield break, headshot and kill each get their own hit marker",
       marks
     );
+    /* your shield: a warning when it runs low, a break you can't miss, then the alarm, a red edge and
+       "Shield down" until it recharges (waits are on what the game shows, not time) */
+    const shs = await p.evaluate(async () => {
+      const heard = [];
+      KA.sfxTap(k => heard.push(k));
+      const until = async (fn, ms = 15000) => {
+        for (const t0 = performance.now(); !fn() && performance.now() - t0 < ms; )
+          await new Promise(r => setTimeout(r, 50));
+        return fn();
+      };
+      const me = KA.me,
+        vig = document.getElementById("vig");
+      /* (on your feet and playing: out of any pod, the pause menu closed) */
+      if (KA.paused) document.getElementById("resume").click();
+      await until(() => !KA.paused && !KA.myPod && !me.dead);
+      me.spawnT = -99;
+      me.health = 45;
+      me.shield = 15;
+      me.lastDmg = KA.now;
+      const low = {
+        warn: await until(
+          () => document.getElementById("vitals").classList.contains("warn") && vig.classList.contains("warn")
+        ),
+        beep: await until(() => heard.includes("shlow")),
+      };
+      KA.hurtMe(20, { w: "rifle" });
+      const brk = {
+        burst: document.getElementById("shbreak").classList.contains("on"),
+        sound: heard.includes("shbreak"),
+      };
+      const down = {
+        edge: await until(() => vig.classList.contains("down")),
+        label: document.getElementById("shLbl").textContent,
+        alarm: await until(() => heard.includes("alarm")),
+      };
+      KA.sfxTap(null);
+      me.shield = 70;
+      me.health = 45;
+      return { low, brk, down };
+    });
+    check(
+      shs.low.warn && shs.low.beep,
+      "a low shield warns: the bar and the screen's edge in amber, a soft beep",
+      shs
+    );
+    check(
+      shs.brk.burst && shs.brk.sound,
+      "your shield breaking bursts across the screen's edge with its own sound",
+      shs
+    );
+    check(
+      shs.down.edge && shs.down.label === "Shield down" && shs.down.alarm,
+      "with the shield down: a red edge, 'Shield down' and the alarm",
+      shs
+    );
     /* directional damage: an arc points where the hit came from (a drone to your right: +90°) */
     const arc = await p.evaluate(async () => {
       /* a drone may have just taken you down: wait to be back */

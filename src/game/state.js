@@ -380,8 +380,16 @@ function hurtMe(n, src) {
   damageArc(src, hadShield);
   if (hadShield) {
     sflashT = Math.max(sflashT, me.shield <= 0 ? 1 : 0.55);
-    sfx(me.shield <= 0 ? "pop" : "shieldhit");
-    if (me.shield <= 0) shakeT = Math.max(shakeT, 0.25);
+    sfx(me.shield <= 0 ? "shbreak" : "shieldhit");
+    if (me.shield <= 0) {
+      shakeT = Math.max(shakeT, 0.3);
+      /* the screen's edge shatters: a white-blue burst with cracks, once (styles: #shbreak) */
+      const b = $("shbreak");
+      b.classList.remove("on");
+      void b.offsetWidth;
+      b.classList.add("on");
+      rumble(1, 0.8, 220);
+    }
   } else {
     sfx("hurt");
     vigT = 0.35;

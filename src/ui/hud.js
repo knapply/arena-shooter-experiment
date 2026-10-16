@@ -129,6 +129,8 @@ function hud() {
   $("shN").textContent = String(Math.ceil(me.shield));
   $("hpN").textContent = String(Math.ceil(me.health));
   $("vitals").classList.toggle("low", me.shield <= 0 && !me.dead);
+  $("vitals").classList.toggle("warn", me.shield > 0 && me.shield < 21 && !me.dead);
+  $("shLbl").textContent = me.shield <= 0 && !me.dead ? "Shield down" : "Shield";
   $("vitals").classList.toggle("hurt", me.health < 45 && !me.dead);
   drawWeapHud();
   drawNadeHud();

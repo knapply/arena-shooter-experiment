@@ -162,16 +162,25 @@ function myFeel(dt) {
       dust(me.pos, 1, 1, 0.3, 0.3);
     }
   }
+  /* your thrusters holding you up (stabilize): a sustained hum, unlike the sprint's whoosh */
+  holdSound("local", me.stabbing && !me.dead && playing, null, 0.8);
   const ev = me.regen(dt, now);
   if (ev === 1) {
     sfx("recharge", 0.9);
     rechargeShown = 0.9;
   }
+  /* shield down: the alarm, every 0.55 s; running low (under 30%): a softer warning, every second */
   if (me.shield <= 0 && !me.dead && playing) {
     alarmT -= dt;
     if (alarmT <= 0) {
       alarmT = 0.55;
       sfx("alarm");
+    }
+  } else if (me.shield < 21 && !me.dead && playing) {
+    alarmT -= dt;
+    if (alarmT <= 0) {
+      alarmT = 1;
+      sfx("shlow");
     }
   } else alarmT = 0;
 }
@@ -774,7 +783,10 @@ function frameBody(t) {
   hitmT -= dt;
   $("hitm").style.opacity = String(hitmT > 0 ? 1 : 0);
   vigT = Math.max(0, vigT - dt);
-  $("vig").style.opacity = String(Math.max(vigT * 1.8, me.shield <= 0 && !me.dead ? 0.4 : 0));
+  const down = me.shield <= 0 && !me.dead && playing;
+  $("vig").classList.toggle("down", down);
+  $("vig").classList.toggle("warn", !down && me.shield < 21 && !me.dead && playing);
+  $("vig").style.opacity = down || $("vig").classList.contains("warn") ? "" : String(vigT * 1.8);
   sflashT = Math.max(0, sflashT - dt * 2.2);
   shbHit = Math.max(0, shbHit - dt);
   rechargeShown = Math.max(0, rechargeShown - dt);
@@ -887,15 +899,23 @@ function meleeArc(rig) {
 function rigEvents(rig, ev, st) {
   if (rig.jet > 0 || (rig.jetS && rig.jetS.on)) sprintJets(rig);
   const p = rig.root.position;
+  /* someone hovering (stabilize): their thrusters hum, positionally, until they drop out of it */
+  holdSound(rig, !!(st && st.stab) && !rig.dead, p, 0.9);
   /* someone else's slide starting, on the surface under them */
   const sl = !!(st && st.slide);
   if (sl && !rig.slideHeard) sfxAt("slide", p, 28, 0.8);
   rig.slideHeard = sl;
   if (!ev) return;
+  /* someone's shield: breaking (a burst you can't mistake for a hit), crackling while down, coming back */
   if (ev.pop) {
     shieldPop(rig.chestWorld(new V3()));
-    sfx("pop", distVol(p, 35));
+    sfxAt("shbreak", p, 45, 0.9);
   }
+  if (ev.crackle) {
+    shieldCrackle(rig.chestWorld(new V3()));
+    sfxAt("crackle", p, 14, 0.5);
+  }
+  if (ev.recharge) sfxAt("recharge", p, 26, 0.45);
   if (ev.drop) dropMag(ev.drop, ev.dropQ);
   if (ev.magIn) sfxAt("magin", p, 22, 0.7);
   if (ev.slap) sfxAt("slap", p, 22, 0.6);

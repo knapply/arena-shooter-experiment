@@ -351,22 +351,37 @@ const shardMat = new THREE.SpriteMaterial({
   blending: THREE.AdditiveBlending,
   depthWrite: false,
 });
+/** a shield breaking at p (a pilot's chest): unlike a hit's gold flare, it bursts white-hot, throws a
+    ring out at chest height, sheds gold shards and electric sparks, and lights the area for a moment */
 function shieldPop(p) {
-  const n = pc(18);
+  const f = fxGet("fl", () => new THREE.Sprite(flashMat.clone()));
+  f.material.color.setHex(0xd8f6ff);
+  f.position.copy(p);
+  f.scale.setScalar(1.6);
+  fxPush({ m: f, key: "fl", life: 0.22, max: 0.22, fade: true, grow: 2.6 });
+  ring(_fx.copy(p).add(new V3(0, -0.15, 0)), 0x9fe8ff, 1.6);
+  const n = pc(34);
   for (let i = 0; i < n; i++) {
     const s = fxGet("sh", () => new THREE.Sprite(shardMat.clone()));
-    s.position.copy(p).add(_fx.set(rnd(-0.3, 0.3), rnd(-0.5, 0.5), rnd(-0.3, 0.3)));
-    s.scale.set(rnd(0.04, 0.08), rnd(0.2, 0.4), 1);
+    s.material.color.setHex(i % 3 ? 0xffd36b : 0xe6faff);
+    s.position.copy(p).add(_fx.set(rnd(-0.3, 0.3), rnd(-0.6, 0.5), rnd(-0.3, 0.3)));
+    s.scale.set(rnd(0.05, 0.1), rnd(0.25, 0.5), 1);
     fxPush({
       m: s,
       key: "sh",
-      life: rnd(0.25, 0.5),
-      max: 0.5,
+      life: rnd(0.3, 0.6),
+      max: 0.6,
       fade: true,
-      vel: new V3(rnd(-5, 5), rnd(-1, 4), rnd(-5, 5)),
+      vel: new V3(rnd(-6.5, 6.5), rnd(-1, 5), rnd(-6.5, 6.5)),
       g: 3,
     });
   }
+  spark(p, 16, 0xa8ecff);
+  dynLight(p, 0xbfe9ff, 4, 0.2, 7);
+}
+/** crackle on a pilot whose shield is down: a few sparks off the armor (rigEvents, a rig's `crackle`) */
+function shieldCrackle(p) {
+  spark(_fx.copy(p).add(new V3(rnd(-0.25, 0.25), rnd(-0.6, 0.45), rnd(-0.25, 0.25))), 3, 0xff9a52);
 }
 function updFX(dt) {
   updPods(dt);

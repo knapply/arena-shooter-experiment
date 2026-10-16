@@ -131,6 +131,8 @@ THREE_PATH=three.module.min.js node tools/rig-preview.js abilities   # carry and
 
 Every sound is synthesized in `core/audio.js` (a `case` in `sfx`). Use `sfxAt(kind, position, range, volume)` for anything in the world, so it pans, is louder up close, loses its highs far away and echoes in enclosed places. A step, landing or slide becomes its surface variant there by itself (`step`, `stepm`, `stepg`: floor plates, metal decks, gratings); add a new world sound you make yourself to `BODY_KINDS` so it echoes where you stand. The trailer's soundtrack and effects render offline through the same code.
 
+A sound that lasts as long as something happens (a hover's thrusters) is a held sound: call `holdSound(key, on, position, volume)` every frame with a key per source (yours without a position). It fades in and out, follows the source, and is released once it stops; a source that stops reporting fades out by itself.
+
 ## Tests to add
 
 | Change | Where |
