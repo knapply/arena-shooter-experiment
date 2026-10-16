@@ -566,7 +566,11 @@
           v = K.vec(e.slice(6, 9), new V3());
         if (p && v) {
           if (e[2] === 2) K.remoteProjectile(2, p, v);
-          else if (v.length() < 45) M.nades.throw(e[2] === 1 ? "plasma" : "frag", p, v, null);
+          else if (v.length() < 45) {
+            M.nades.throw(e[2] === 1 ? "plasma" : "frag", p, v, null);
+            /* (the event names no thrower: the pilot it left from throws it) */
+            K.rigThrowAt(p);
+          }
         }
       }
     };

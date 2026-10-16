@@ -12,6 +12,22 @@ const RIGS = new Set();
 /** gestures waiting to play: { rig, name, at } */
 const GESTURES = [];
 let gazeT = 0;
+/** the pilot whose hand a grenade left from (within 2.5 m of where it started) throws it */
+function rigThrowAt(p) {
+  let best = null,
+    bd = 6.25;
+  for (const r of RIGS) {
+    if (r.dead || !r.root.parent) continue;
+    const dx = r.root.position.x - p.x,
+      dz = r.root.position.z - p.z,
+      d = dx * dx + dz * dz;
+    if (d < bd) {
+      bd = d;
+      best = r;
+    }
+  }
+  if (best) best.throwNade();
+}
 function rigById(id) {
   for (const r of RIGS) if (r.pid === id) return r;
   return null;

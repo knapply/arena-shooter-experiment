@@ -229,6 +229,8 @@ function recLocal() {
       /* (what you carry shows in replays and kill cams: your ghost holds it in both hands) */
       flag: !!carried(),
       skull: carried() === "skull",
+      /* (your grenade throw shows on your ghost too) */
+      throw: vmS.throwT > 0 ? 0.42 - vmS.throwT : -1,
     })
   );
 }

@@ -1,5 +1,5 @@
 /* Contact sheets of the pilot rig's animation, for working on characters/rig.js and anim.js.
-     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves|climb|carry|react|emote|abilities] [out.png]
+     THREE_PATH=... node tools/rig-preview.js [gait|loco|poses|moves|climb|carry|react|emote|abilities|throw] [out.png]
    gait   a run, a sprint and a jump, seen from the side, six frames each (stepped at exactly 60 Hz)
    loco   the other motion-captured gaits: a walk, a strafe (from the front), a backpedal and a crouched run
    poses  idle, aiming down sights (carbine and magnum), a melee strike, the reload's slap and bolt;
@@ -14,6 +14,7 @@
    emote  the three captured idles, then the emotes: cheer, flex, wave, shrug (from the front)
    abilities  the gun carried, then shouldered to fire; thrusts forward (side view) and sideways (front);
           the stabilizer's hover; a ground pound's hover and slam; a shoulder charge
+   throw  a grenade throw, from the front and the side (every 0.05 s, then its recovery)
    A pilot really travels (planted feet lock to the ground) across the largest open floor of the
    arena, with the camera keeping pace beside it; real three.js (software WebGL); needs ffmpeg on the PATH. */
 const fs = require("fs"),
@@ -208,6 +209,16 @@ if (!process.env.THREE_PATH) {
         await step(n);
         await take();
       }
+  } else if (mode === "throw") {
+    for (const cam of ["front", -60]) {
+      await set(Object.assign({}, base, { cam, r: 2.6 }), 0);
+      await step(40);
+      await p.evaluate(() => window.__a.rig.throwNade());
+      for (const n of [3, 3, 3, 3, 6, 12]) {
+        await step(n);
+        await take();
+      }
+    }
   } else if (mode === "abilities") {
     const shots = [
       /* carried while running, then firing while running */

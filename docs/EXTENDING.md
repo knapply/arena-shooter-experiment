@@ -103,9 +103,10 @@ The pilot is a 32-bone rig (`characters/rig.js`) posed every frame from the body
   - A ground pound sits upright in its hover, then slams straight-legged with the free arm out.
   - A slide stays upright with the gun across the chest.
   - A charge leads with the right shoulder.
+  - A grenade is thrown overhand by the free (left) arm: up beside the helmet, forward to the centre (it leaves the hand at about 0.12 s), down across to the hip, while the gun dips in the right hand and is back up by about 0.45 s. `rig.throwNade()` starts it (CTF agents from their `nade` event, other players from theirs, a client by the throw's origin: `rigThrowAt`); it is written into the drawn state as `st.throw`, so replays and kill cams keep it.
   - Hits barely move the body (the shield shows them).
   - Deaths either buckle at the knees and fold forward, or throw the body with the arms flung up (heavy weapons).
-  - Poses follow the physics state and timings, so the Classic feel preset (floatier jump, sprint wind-up, slower clamber) animates as it plays: landings are judged by the height of the fall under the current gravity, and the sprint gait builds with the speed.
+  - Poses follow the physics state and timings, so the Classic feel preset (floatier jump, sprint wind-up, slower clamber) animates as it plays: landings are judged by the height of the fall against the preset's own jump (an ordinary jump always lands light: the body rides the arc at standing height, sinks about 0.1 m and is back up in about 0.3 s without a bounce; only drops well beyond a jump land deep), and the sprint gait builds with the speed.
 - **Procedural layers** in `rig.update`: the weapon pose and hand IK, aiming down sights, reloads (`RELOAD_T`, shared with the first-person viewmodel), melee, recoil, flinch, head look-at, breathing, lean springs, the special moves (slide, ground pound, clamber, jetpack, stabilizer) and deaths. A melee blow has a wind-up, a strike and a follow-through (`meleeShape`, shared with the first-person viewmodel, which runs it on its own clock with a hitstop when it lands: `meleeLand`). The clamber is driven by the body's clamber state (`clK`, `clH` in `bodyState`): a hand on the ledge, a knee up, over the top; leaving any special move eases the legs back into the capture. A tabard (two flaps on spring-driven bones) hangs from the belt.
 - **First-person hands** (`weapons/viewmodels.js`): a palm, jointed fingers and thumb, and armored plates, built once per grip shape (`HAND_POSE`: grip, wrap, flat) and merged per material; each forearm runs from the wrist to an elbow below the view (`handArm`). A weapon's support hand turns to its handguard with `lq`.
 
@@ -125,6 +126,7 @@ THREE_PATH=three.module.min.js node tools/rig-preview.js climb   # a clamber, fr
 THREE_PATH=three.module.min.js node tools/rig-preview.js react   # stop, plant, push-off, hard landing, hits, deaths
 THREE_PATH=three.module.min.js node tools/rig-preview.js emote   # the three idles; cheer, flex, wave, shrug
 THREE_PATH=three.module.min.js node tools/rig-preview.js abilities   # carry and fire, thrusts, stabilizer, ground pound, charge
+THREE_PATH=three.module.min.js node tools/rig-preview.js throw   # a grenade throw, front and side
 ```
 
 ## Sounds

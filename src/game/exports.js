@@ -151,6 +151,7 @@ const KA_API = {
   SPAWNS,
   makePilot,
   ANIM,
+  rigThrowAt,
   EVENTS,
   PINGS,
   addPing,
