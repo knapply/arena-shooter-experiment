@@ -466,8 +466,8 @@ function frameBody(t) {
     renderFrame();
     return;
   }
-  /* the sniper's own scope takes over once it is most of the way to the eye */
-  vmRoot.visible = !me.dead && !(wi === 2 && adsP > 0.6);
+  /* the sniper's and the rocket's own scopes take over once they are most of the way to the eye */
+  vmRoot.visible = !me.dead && !((W().key === "sniper" || W().key === "rocket") && adsP > 0.6);
   vmCarry(carried());
   if (SET.crouchMode === "toggle") {
     if (P("crouch")) crouchLatch = !crouchLatch;

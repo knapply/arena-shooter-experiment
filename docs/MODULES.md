@@ -80,7 +80,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/ui/damage-dir.js` | 49 | `DARCS` `DARC_LIFE` `hitSource` `damageArc` `updDamageArcs` |
 | `src/ui/stats-ui.js` | 218 | `TEAM_NAMES` `fmtTime` `STAT_COLS` `SUM_KEYS` `statsTable` `renderStatsRoster` `POST` `showPost` `renderPost` `closePost` `postAct` `updPost` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
-| `src/ui/reticle.js` | 306 | `_sd` `RANGE` `SIGHT` `sightOf` `SVG_NS` `arcPath` `deg` `RETICLE` `HIT_R` `hitTicks` `xhKind` `xhSvg` `drawReticle` `xhBloom` `scKey` `scSvg` `scH` `ringTicks` … (+5) |
+| `src/ui/reticle.js` | 334 | `_sd` `RANGE` `SIGHT` `sightOf` `SVG_NS` `arcPath` `deg` `RETICLE` `HIT_R` `hitTicks` `xhKind` `xhSvg` `drawReticle` `xhBloom` `scKey` `scSvg` `scH` `ringTicks` … (+6) |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
 | `src/game/exports.js` | 329 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |

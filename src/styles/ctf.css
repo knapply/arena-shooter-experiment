@@ -644,20 +644,11 @@ body[data-trk="bl"] #ctfHud.play #cComms {
 #scope .line {
   opacity: 0.7;
 }
-#scope .warm {
-  stroke: #ffc06a;
-  stroke-width: 2px;
-  filter: drop-shadow(0 0 3px #ff9a3a);
-}
 /* the smart-link sights: a glowing lens edge and a dim rim round the ring */
 .sc-smart,
-.sc-rocket,
 .sc-shotgun,
 .sc-holo {
   --r: 15vh;
-}
-.sc-rocket {
-  --r: 17vh;
 }
 .sc-shotgun {
   --r: 24vh;
@@ -666,7 +657,6 @@ body[data-trk="bl"] #ctfHud.play #cComms {
   --r: 20vh;
 }
 .sc-smart::before,
-.sc-rocket::before,
 .sc-shotgun::before,
 .sc-holo::before {
   content: "";
@@ -689,7 +679,7 @@ body[data-trk="bl"] #ctfHud.play #cComms {
     rgba(5, 10, 16, 0.32) 100%
   );
 }
-/* the sniper's visor */
+/* the sniper's visor and the rocket's round scope */
 #scope .frame {
   fill: #03070a;
   fill-opacity: 0.93;

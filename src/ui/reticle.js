@@ -1,12 +1,12 @@
 /* ============ reticle and scope ============
    Each weapon has its own reticle (drawn in SVG, sized to the screen like the references': the pistol a
    small ring with a dot, the rifles four arcs round a split cross that spread with bloom, the sniper a
-   ring with four ticks, the rocket a bracketed sight, the shotgun one wide ring that shows its spread).
-   It turns red while an enemy is under it and within the weapon's effective range (RANGE, metres).
-   Hits flash short diagonal ticks just outside it. Aiming down sights brings up that weapon's sight
-   over the view: a glowing smart-link ring for the pistol, the rocket and the shotgun, a holographic
-   ring with range lines for the rifles (the hip reticle stays in the middle of those), and for the
-   sniper a full visor frame with its own crosshair, the zoom levels (the live one lit), the range and
+   ring with four ticks, the rocket a wider ring with three level lines, the shotgun one wide ring that
+   shows its spread). It turns red while an enemy is under it and within the weapon's effective range
+   (RANGE, metres). Hits flash short diagonal ticks just outside it. Aiming down sights brings up that
+   weapon's sight over the view: a glowing smart-link ring for the pistol and the shotgun, a holographic
+   ring with range lines for the rifles (the hip reticle stays in the middle of those), a round scope
+   with a dark rim, level lines and side brackets for the rocket, and for the sniper a full visor frame with its own crosshair, the zoom levels (the live one lit), the range and
    which button gives the other zoom level on the device in use. The sight fades in over the last
    three quarters of the zoom and settles from slightly large. */
 const _sd = new V3();
@@ -50,17 +50,14 @@ const RETICLE = {
     '<path d="M0 -10V-3.5M0 3.5V10M-10 0H-3.5M3.5 0H10"/>',
   /* a ring with four ticks outside it and a dot ring */
   sniper: '<circle r="12"/><path d="M0 -12V-18M0 12V18M-12 0H-18M12 0H18"/><circle r="2.6"/>',
-  /* a dot ring inside four corner brackets */
-  rocket:
-    '<circle r="5"/><circle r="0.9" class="fill"/>' +
-    '<path d="M-22 -14V-22H-14M14 -22H22V-14M22 14V22H14M-14 22H-22V14"/>' +
-    '<path d="M0 -30V-25M0 25V30M-30 0H-25M25 0H30" class="dim"/>',
+  /* a wider ring with three level lines across its middle */
+  rocket: '<circle r="36"/><path d="M-11 -8H11M-19 0H19M-11 8H11"/>',
   /* one wide ring (the spread) and a faint centre dot */
   shotgun: '<circle r="44"/><circle r="1.1" class="fill dim"/>',
 };
-/* hit ticks: four short diagonals just outside each reticle (inside the shotgun's wide ring, and inside
-   the rocket's brackets), from radius r0 to r1 */
-const HIT_R = { smart: [18, 26], holo: [29, 37], sniper: [21, 29], rocket: [8, 15], shotgun: [7, 14] };
+/* hit ticks: four short diagonals just outside each reticle (inside the shotgun's wide ring), from
+   radius r0 to r1 */
+const HIT_R = { smart: [18, 26], holo: [29, 37], sniper: [21, 29], rocket: [39, 46], shotgun: [7, 14] };
 const hitTicks = ([r0, r1]) =>
   [45, 135, 225, 315]
     .map(a => {
@@ -192,26 +189,56 @@ function ringSight(kind, W, H) {
     }
     return s;
   }
-  const r = (kind === "shotgun" ? 24 : kind === "rocket" ? 17 : 15) * u;
+  if (kind === "rocket") return rocketSight(W, H);
+  const r = (kind === "shotgun" ? 24 : 15) * u;
   s += scH("circle", { cx, cy, r, class: "ring" });
   s += ringTicks(cx, cy, r - 1.1 * u, r, 12, "faint");
   s += ringTicks(cx, cy, r - 2.2 * u, r, 4, "ring");
   for (const k of [-1, 1])
     s += scH("path", { d: `M${cx + k * (r + 0.8 * u)} ${cy}H${cx + k * (r + 5 * u)}`, class: "ring" });
-  if (kind === "rocket") {
-    const b = 11 * u,
-      e = 4 * u;
-    let d = "";
+  if (kind === "shotgun") s += scH("circle", { cx, cy, r: r - 3 * u, class: "faint" });
+  return s;
+}
+/** the rocket's scope: a round lens in a dark rim, its own centre ring, level lines out to laddered
+    ends, two short lines under the middle and a bracket box to each side */
+function rocketSight(W, H) {
+  const u = H / 100,
+    cx = W / 2,
+    cy = H / 2,
+    R = 44 * u;
+  let s = "";
+  s += scH("path", {
+    d: `M0 0H${W}V${H}H0ZM${cx - R} ${cy}a${R} ${R} 0 1 0 ${2 * R} 0a${R} ${R} 0 1 0 ${-2 * R} 0Z`,
+    class: "frame",
+    "fill-rule": "evenodd",
+  });
+  s += scH("circle", { cx, cy, r: R, class: "edge" });
+  s += scH("circle", { cx, cy, r: R - u, fill: "url(#scVig)", stroke: "none" });
+  s += scH("circle", { cx, cy, r: 30 * u, class: "faint" });
+  s += scH("circle", { cx, cy, r: 2.6 * u, class: "cross" });
+  let d = "";
+  for (const k of [-1, 1]) {
+    d += `M${cx + k * 6 * u} ${cy}H${cx + k * 21 * u}`;
+    for (let i = 0; i < 4; i++) d += `M${cx + k * (22 + i * 1.2) * u} ${cy - 0.9 * u}V${cy + 0.9 * u}`;
+    d += `M${cx + k * 1.2 * u} ${cy + 5 * u}V${cy + 12 * u}`;
+  }
+  s += scH("path", { d, class: "cross" });
+  /* the bracket boxes: four corners of a box each side */
+  let b = "";
+  for (const k of [-1, 1]) {
+    const x = cx + k * 27 * u,
+      w = 4 * u,
+      h = 4 * u,
+      e = 1.6 * u;
     for (const [sx, sy] of [
       [-1, -1],
       [1, -1],
       [1, 1],
       [-1, 1],
     ])
-      d += `M${cx + sx * b} ${cy + sy * (b - e)}V${cy + sy * b}H${cx + sx * (b - e)}`;
-    s += scH("path", { d, class: "warm" });
+      b += `M${x + sx * w} ${cy + sy * (h - e)}V${cy + sy * h}H${x + sx * (w - e)}`;
   }
-  if (kind === "shotgun") s += scH("circle", { cx, cy, r: r - 3 * u, class: "faint" });
+  s += scH("path", { d: b, class: "line" });
   return s;
 }
 /** (re)draw the sight for this weapon, zoom level and screen size */
@@ -237,7 +264,7 @@ function drawSight(kind, lvl) {
   info.style.top =
     (kind === "sniper"
       ? H * 0.8 + 2.2 * u
-      : H / 2 + (kind === "holo" ? 22 : kind === "shotgun" ? 26 : 19) * u) + "px";
+      : H / 2 + (kind === "holo" ? 22 : kind === "shotgun" ? 26 : kind === "rocket" ? 15 : 19) * u) + "px";
   const zh = $("zHint");
   zh.style.left = (kind === "sniper" ? Math.max(W * 0.07, W / 2 - 75 * u) + 6 * u : W / 2 + 20 * u) + "px";
   zh.style.top = (kind === "sniper" ? H * 0.19 + 8.6 * u : H / 2 - 24 * u) + "px";
@@ -277,8 +304,9 @@ function updAim() {
   }
   const red = hit && tr <= (RANGE[W().key] || 40);
   $("xh").classList.toggle("red", red);
-  /* the sniper's visor has its own crosshair; the others keep the hip reticle in the middle */
-  $("xh").style.opacity = String(kind === "sniper" ? 1 - adsP : 1);
+  /* the sniper's visor and the rocket's scope have their own crosshairs; the others keep the hip
+     reticle in the middle */
+  $("xh").style.opacity = String(kind === "sniper" || kind === "rocket" ? 1 - adsP : 1);
   const sc = $("scope");
   /* the sight fades in over the last three quarters of the zoom and settles from slightly large; it
      fades out the same way when you let go or are shot out of it */
