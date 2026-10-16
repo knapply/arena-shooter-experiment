@@ -2,10 +2,11 @@
    Every kill, capture and return is scored as a possible highlight (multikills, sprees, power-move
    kills, captures). The best few keep a saved clip of the recording around them (the rolling
    recording only holds 45 s). When a match ends, the top moment plays as a cinematic replay:
-   letterbox, a title card with the player and the feat, first-person with slow motion on the key
-   kills, then an orbit. Each player's game picks from what it saw, so online players see the same
-   moment in nearly every match. Jump skips it. */
-const HL = { top: [], pending: [], chains: new Map(), sprees: new Map(), playing: false };
+   letterbox, a title card with the player and the feat, the play over their shoulder with slow motion
+   on the key kills (the Replay view action, V or the controller's Y, switches to their eyes and
+   back while it plays; a hint on screen says so), then an orbit. Each player's game picks from what
+   it saw, so online players see the same moment in nearly every match. Jump skips it. */
+const HL = { top: [], pending: [], chains: new Map(), sprees: new Map(), playing: false, fp: false };
 const HL_KEEP = 3,
   HL_BEFORE = 6,
   HL_AFTER = 1.4;
@@ -55,6 +56,12 @@ EVENTS.on("flagReturn", e =>
 );
 /** per frame: once a candidate's "after" window has been recorded, save its clip */
 function hlTick() {
+  /* the play of the game: over the shoulder or through their eyes */
+  if (HL.playing && P("replayView")) {
+    HL.fp = !HL.fp;
+    CINE.cut();
+  }
+  hlHint();
   for (const c of HL.pending.slice())
     if (now - c.t >= HL_AFTER || now < c.t) {
       HL.pending.splice(HL.pending.indexOf(c), 1);
@@ -75,6 +82,45 @@ function hlTick() {
       HL.top.length = Math.min(HL.top.length, HL_KEEP);
     }
 }
+/** a recorded pose seen from just behind and to the right of its shoulder, looking where it aims
+    (pulled in front of walls) */
+const _hlE = new V3(),
+  _hlD = new V3();
+function overShoulder(s, fov = 62) {
+  const eye = _hlE.set(s.x, s.y + (s.st && s.st.crouch ? H_CROUCH : H_STAND) - 0.12, s.z),
+    cp = Math.cos(s.pitch),
+    dx = -Math.sin(s.yaw) * cp,
+    dy = Math.sin(s.pitch),
+    dz = -Math.cos(s.yaw) * cp,
+    rx = Math.cos(s.yaw),
+    rz = -Math.sin(s.yaw);
+  const p = new V3(eye.x - dx * 2.5 + rx * 0.7, eye.y - dy * 1.2 + 0.32, eye.z - dz * 2.5 + rz * 0.7);
+  _hlD.copy(p).sub(eye);
+  const L = _hlD.length();
+  if (L > 0.01) {
+    _hlD.multiplyScalar(1 / L);
+    const hit = rayWorld(eye, _hlD, L);
+    if (hit < L) p.copy(eye).addScaledVector(_hlD, Math.max(0.35, hit - 0.25));
+  }
+  return { p, l: new V3(eye.x + dx * 10, eye.y + dy * 10, eye.z + dz * 10), fov, smooth: 9 };
+}
+/** the hint while the play of the game runs: which key or button switches the view, and skips it */
+let hlHintEl = null,
+  hlHintTxt = "";
+function hlHint() {
+  if (!hlHintEl) {
+    hlHintEl = document.createElement("div");
+    hlHintEl.id = "potgHint";
+    document.body.appendChild(hlHintEl);
+  }
+  const on = HL.playing && REPLAY.active;
+  hlHintEl.hidden = !on;
+  if (!on) return;
+  const padUse = hudDevice() === "pad";
+  const k = (a, pd) => (padUse ? PAD_NAMES[(PADB[a] || [pd])[0]] : keyLabel((BIND[a] || [])[0]));
+  const txt = `${k("replayView", 3)} · ${HL.fp ? "Third person" : "First person"}   ${k("jump", 0)} · Skip`;
+  if (txt !== hlHintTxt) hlHintEl.textContent = hlHintTxt = txt;
+}
 /** play the best moment of the match; returns false if there is none */
 function playOfTheGame(onEnd) {
   const c = HL.top[0];
@@ -85,6 +131,8 @@ function playOfTheGame(onEnd) {
   const near = t => c.kills.some(k => Math.abs(t - k) < 0.35);
   const eyes = eyesShot(c.pilot);
   HL.playing = true;
+  /* over the shoulder to begin with; Replay view switches to their eyes */
+  HL.fp = false;
   sfx("stinger", 0.9);
   CINE.card("Play of the game", c.name || "", c.feat, 2.6);
   REPLAY.play({
@@ -96,14 +144,15 @@ function playOfTheGame(onEnd) {
     subject: c.pilot,
     vmColor: c.meta && c.meta.color,
     caption: "Play of the game",
-    /* hidden while we look through their eyes, shown when the camera circles them */
-    hide: t => (t0 + t < orbitAt ? [c.pilot] : []),
+    /* hidden while we look through their eyes, shown over their shoulder and when the camera circles them */
+    hide: t => (HL.fp && t0 + t < orbitAt ? [c.pilot] : []),
     /* slow motion on the key kills */
     speed: t => (near(t0 + t) ? 0.4 : 1),
     shot: (t, sample) => {
-      if (t < orbitAt) return eyes(t, sample);
+      if (t < orbitAt && HL.fp) return eyes(t, sample);
       const s = sample(c.pilot, t);
       if (!s) return null;
+      if (t < orbitAt) return overShoulder(s);
       /* the last moments from outside, circling the player */
       return Object.assign(
         CINE.orbit(new V3(s.x, s.y + 1.1, s.z), 4.2, 1.4, s.yaw + 0.6, 0.55, 58)(t - orbitAt),

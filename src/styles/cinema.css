@@ -440,3 +440,22 @@ body.podding #hud {
     opacity: 0.15;
   }
 }
+
+/* the play of the game's hint: which key or button switches the view, and skips it */
+#potgHint {
+  position: fixed;
+  left: 50%;
+  /* in the lower letterbox bar, clear of the picture */
+  bottom: calc(6.4vh - 14px);
+  transform: translateX(-50%);
+  z-index: 31;
+  padding: 6px 14px;
+  border: 1px solid #ffffff33;
+  border-radius: 4px;
+  background: #0b1016b8;
+  color: #dfe8ec;
+  font: 600 13px/1.2 var(--f-mono, monospace);
+  letter-spacing: 0.08em;
+  white-space: pre;
+  pointer-events: none;
+}

@@ -12,7 +12,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/prelude.js` | 41 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
 | `src/game/events.js` | 71 | `EVENTS` |
 | `src/game/frame-hooks.js` | 21 | `FRAME_HOOKS` `onFrame` `runFrameHooks` |
-| `src/core/settings.js` | 1664 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `T_LAB` `T_MODE` `SANDBOX_DEFS` `LAB_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` … (+15) |
+| `src/core/settings.js` | 1667 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `T_LAB` `T_MODE` `SANDBOX_DEFS` `LAB_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` … (+15) |
 | `src/render/renderer.js` | 191 | `LIGHT_K` `canvas` `renderer` `scene` `camera` `resize` `hemi` `sun` `_skyP` `skyTint` `SKY_TIME` `SKY_SUN` `SKY_Q` |
 | `src/render/pipeline.js` | 613 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `VIEWPOS` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `MAP_GRADE` `HEAT_U` `compMat` `fsQuad` `fsScene` `UPS` `gfxScale` `gfxResize` … (+16) |
 | `src/render/environment.js` | 173 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyGfx` `pc` `scaleBoxUV` |
@@ -65,7 +65,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/weapons/viewmodel-anim.js` | 325 | `_cA` `_cB` `_cZ` `_cM` `carryVM` `_mlP` `_mlD` `meleeLand` `meleeFlush` `updVM` |
 | `src/ui/console.js` | 313 | `DEV` `timeScale` `godMode` `CON` |
 | `src/game/replay.js` | 512 | `REPLAY` `eyesShot` `KILLCAM_T` `KILLCAM` `KILL_NAMES` `recordedNear` `killCamHolds` `killCamTick` `playKillCam` |
-| `src/game/highlights.js` | 120 | `HL` `HL_KEEP` `HL_BEFORE` `HL_AFTER` `HL_POWER` `hlConsider` `hlTick` `playOfTheGame` |
+| `src/game/highlights.js` | 169 | `HL` `HL_KEEP` `HL_BEFORE` `HL_AFTER` `HL_POWER` `hlConsider` `hlTick` `_hlE` `_hlD` `overShoulder` `hlHintEl` `hlHintTxt` `hlHint` `playOfTheGame` |
 | `src/game/stats.js` | 344 | `ASSIST_WINDOW` `GUN_WEAPONS` `STATS` `WEAPON_NAMES` `endCarry` `endBall` `statRoster` `powerHeld` `statScore` |
 | `src/game/intro.js` | 126 | `INTRO` `_ic` `centroid` `playIntro` `endIntro` `introFrame` |
 | `src/game/pods.js` | 770 | `PODS` `podsOn` `podLeft` `podSpeed` `podHeat` `podHidden` `POD_R` `POD_NOSE` `POD_BURY` `POD_EYE` `POD_BLOW` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `inSolid` `solidDepth` … (+39) |
