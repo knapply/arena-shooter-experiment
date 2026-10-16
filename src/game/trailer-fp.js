@@ -7,6 +7,8 @@
    shoot and what the tracker shows through its mode hooks (targets, radar, carrying). */
 const TFP = {
   on: false,
+  /** step without drawing (a check of the whole cut): the game loop runs, the GPU is left alone */
+  quiet: false,
   /** the player settings a scripted run needs (hold to aim, crouch and sprint), restored after */
   keep: null,
   /**
@@ -90,12 +92,15 @@ const TFP = {
     if (inp.yaw != null) me.yaw = inp.yaw;
     if (inp.pitch != null) me.pitch = inp.pitch;
     const ext = EXT,
-      full = ext.full;
+      full = ext.full,
+      draw = renderer.render;
     ext.full = null;
+    if (TFP.quiet) renderer.render = () => {};
     try {
       frameBody(last + dt * 1000);
     } finally {
       ext.full = full;
+      renderer.render = draw;
     }
   },
   /** back to the trailer's own cameras: no HUD, no viewmodel, the player settings as they were */

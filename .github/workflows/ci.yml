@@ -51,3 +51,5 @@ jobs:
           THREE_PATH=/tmp/three/three.module.min.js node tests/render.test.js
       - name: Visual regression (approved screenshots in tests/visual)
         run: THREE_PATH=/tmp/three/three.module.min.js node tests/visual.test.js
+      - name: Trailer beats (every scripted shot, throw and jump lands)
+        run: THREE_PATH=/tmp/three/three.module.min.js node tests/trailer.test.js

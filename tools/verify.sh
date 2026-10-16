@@ -28,5 +28,7 @@ if [ "$1" = "render" ]; then
   tail -1 "$LOG"/render.log
   node tests/visual.test.js > "$LOG"/visual.log || { grep -E "FAIL|passed" "$LOG"/visual.log; exit 1; }
   tail -1 "$LOG"/visual.log
+  node tests/trailer.test.js > "$LOG"/trailer.log || { grep -E "FAIL|passed" "$LOG"/trailer.log; exit 1; }
+  tail -1 "$LOG"/trailer.log
 fi
 echo "verify: all checks passed"
