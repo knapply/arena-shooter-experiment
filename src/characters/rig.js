@@ -640,7 +640,6 @@ function makePilot(color, label) {
   /* animation state. Springs give lean, bounce, flinch, recoil and armor some follow-through. */
   const S = {
     lod: 0,
-    heat: 0,
     t: Math.random() * 10,
     pel: 0.96,
     /* motion-captured locomotion (characters/anim.js) and its per-frame input */
@@ -1471,22 +1470,10 @@ function makePilot(color, label) {
       const kick = spring(S.spKick, 0, dt, 9, 0.42);
       /* the team seams flare with each shot and with the shield: up with a hit's shimmer, a weak
          flicker with the shield down */
-      /* the vents heat up with the movement kit (a thrust, a slide, a ground pound, the sprint assist) in a
-         moment and cool off over a second or two: dark, then dull red, orange, a pale yellow at the peak */
+      /* the vents glow with the suit's heat (rig.heat, above): dark at rest, then dull red, orange and a
+         pale yellow at the peak */
       {
-        const want =
-          st.thrust || st.pound === 2
-            ? 1
-            : st.slide
-              ? 0.75
-              : st.pound === 1
-                ? 0.6
-                : st.stab
-                  ? 0.5
-                  : rig.jet * 0.35;
-        S.heat =
-          want > S.heat ? S.heat + (want - S.heat) * Math.min(1, dt * 14) : Math.max(want, S.heat - dt * 0.6);
-        const h = S.heat;
+        const h = rig.heat;
         heatM.emissive.setRGB(1, 0.14 + 0.42 * h * h, 0.03 + 0.12 * h * h * h);
         heatM.emissiveIntensity = 0.03 + 2.4 * h * Math.sqrt(h);
       }
