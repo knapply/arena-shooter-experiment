@@ -31,15 +31,15 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/spawns.js` | 107 | `SPAWN_W` `_spE` `_spD` `spawnScore` `pickSpawn` `spotTaken` `noteFight` |
 | `src/data/anim-clips.js` | 280 | `ANIM_CLIPS` |
 | `src/characters/anim.js` | 1059 | `ANIM` |
-| `src/weapons/models.js` | 228 | `GUN_MODELS` `gunParts` `gunGeo` |
-| `src/characters/rig.js` | 1902 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+61) |
+| `src/weapons/models.js` | 283 | `GUN_MODELS` `gunParts` `gunGeo` `gunFar` |
+| `src/characters/rig.js` | 1944 | `DOWN` `SIDES` `_a` `_b` `_c` `_q1` `_q2` `_q3` `_m1` `_e1` `_pole` `_lk` `_rk` `_kA` `_kB` `_dl` `_sp` `_up` … (+64) |
 | `src/characters/look.js` | 131 | `RIG_LOOK` `_rh` `_rh2` `CHAR_GLSL` `charPatch` `applyCharLook` `teamPattern` `HEX_FRAG` `styleRig` |
 | `src/game/recorder.js` | 226 | `REC` |
 | `src/game/pilot.js` | 86 | `PILOTS` `pidOf` `posePilot` `Pilot` `addPilot` `pilotById` |
 | `src/ui/pilot-kind.js` | 47 | `PK` `pilotKind` `pilotText` `pilotName` |
 | `src/characters/gaze.js` | 102 | `RIGS` `GESTURES` `gazeT` `rigThrowAt` `rigById` `updGaze` |
 | `src/data/weapons.js` | 229 | `PILOT_SHIELD` `PILOT_HEALTH` `WEAPON_DATA` `SWITCH_TIME` `POWER_ROTATION` `LABS` `labOn` `falloffAt` `killStats` `MELEE` `MELEE_KILL` `meleeDamage` `meleeBehind` |
-| `src/weapons/viewmodels.js` | 604 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlove` `vmPlate` `vmGlow` `vmGlass` `vmCtrC` `vmCtrT` `vmCtr` `VM_MAT` `vmBox` `dot` `vmModel` `vmHolo` `HOLO` … (+34) |
+| `src/weapons/viewmodels.js` | 655 | `vmRoot` `vmArmor` `vmDark` `vmSuit` `vmAcc` `vmGlove` `vmPlate` `vmKnuckle` `vmGlow` `vmGlass` `vmCtrC` `vmCtrT` `vmCtr` `vmFine` `VM_MAT` `VM_HI` `vmTan` `vmDetail` … (+40) |
 | `src/weapons/arsenal.js` | 88 | `WEAPONS` `slots` `cur` `wi` `switchT` `semiLatch` `zoomLvl` `descoped` `flinch` `zoomNow` `adsP` `ammo` `reserve` `W` `zoomK` `lookSens` `showVM` `wpnHud` … (+4) |
 | `src/render/fx.js` | 424 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `PT_N` `PT_K` `_ptC` `_ptV2` `makePts` `PTS` `ptAdd` `updPts` `ptClearBelow` `tracerGeo` `TRACER_V` … (+16) |
 | `src/render/combat-fx.js` | 551 | `CFX` `_cf` `_cf2` `_cq` `_cm` `_cz` `_cs` `fxOn` `syncDynLights` `dynLight` `heatAt` `HEAT_POOL` `heatDone` `tumblers` `casings` `chunks` `toss` `ejectCasing` … (+25) |

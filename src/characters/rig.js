@@ -508,26 +508,42 @@ function buildSkin(bones, byName) {
 const WGEO = new Map();
 /* each weapon's model (weapons/models.js) moved so its grip sits where WPN_RIG puts the hand, drawn with
    only the materials that weapon has always used (one draw each per pilot); parts made of another
-   material take the nearest it has */
-/** @type {[number, number, number[]][]} */
+   material take the nearest it has. The last number is the weapon's size in other pilots' hands: each is
+   drawn at its class's share of the pilot's height (the style guide: sidearm about 0.16 H, rifles
+   0.30-0.36 H, long guns and tubes 0.5-0.6 H), scaled about the firing hand */
+/** @type {[number, number, number[], number][]} */
 const WPN_FIT = [
-  [0.02, 0.02, [TRIM, ARM, GLOW, SUIT]],
-  [-0.008, 0.042, [TRIM, SUIT, GLOW]],
-  [0.02, 0.02, [TRIM, GLOW, SUIT, ARM2]],
-  [0.06, 0.04, [ARM2, TRIM, GLOW, SUIT]],
-  [0.02, 0.06, [TRIM, ARM2, SUIT, ARM, GLOW]],
+  [0.02, 0.02, [TRIM, ARM, GLOW, SUIT], 0.66],
+  [-0.008, 0.042, [TRIM, SUIT, GLOW], 1.2],
+  [0.02, 0.02, [TRIM, GLOW, SUIT, ARM2], 0.72],
+  [0.06, 0.04, [ARM2, TRIM, GLOW, SUIT], 0.9],
+  [0.02, 0.06, [TRIM, ARM2, SUIT, ARM, GLOW], 0.66],
 ];
+/* (the support hand's point and the carbine's loose magazine move with the scaled gun) */
+WPN_FIT.forEach(([, , , s], i) => {
+  const R = WPN_RIG[i];
+  R.fore.sub(R.grip).multiplyScalar(s).add(R.grip);
+  if (i === 0) MAGSLOT.sub(R.grip).multiplyScalar(s).add(R.grip);
+});
+/** the matrix that scales weapon i about its grip */
+const wpnScale = i =>
+  new THREE.Matrix4()
+    .makeTranslation(WPN_RIG[i].grip.x, WPN_RIG[i].grip.y, WPN_RIG[i].grip.z)
+    .multiply(new THREE.Matrix4().makeScale(WPN_FIT[i][3], WPN_FIT[i][3], WPN_FIT[i][3]))
+    .multiply(
+      new THREE.Matrix4().makeTranslation(-WPN_RIG[i].grip.x, -WPN_RIG[i].grip.y, -WPN_RIG[i].grip.z)
+    );
 const WPN_ROLE = { D: TRIM, P: ARM2, A: ARM, S: SUIT, G: GLOW, C: ARM };
-function weaponParts(i) {
+function weaponParts(i, far = false) {
   if (i >= 0) {
     const [oy, oz, has] = WPN_FIT[i];
     return gunParts(i)
-      .filter(p => !p.fp && p.k !== "n" && !(i === 0 && p.mag))
+      .filter(p => !p.fp && p.k !== "n" && !(i === 0 && p.mag) && (!far || gunFar(p)))
       .map(p => {
         let role = WPN_ROLE[p.m];
         if (!has.includes(role)) role = role === ARM ? ARM2 : role === ARM2 ? ARM : TRIM;
         if (!has.includes(role)) role = TRIM;
-        return { g: gunGeo(p, false), role, x: p.x, y: p.y + oy, z: p.z + oz, rx: p.rx };
+        return { g: gunGeo(p, far ? 2 : 1), role, x: p.x, y: p.y + oy, z: p.z + oz, rx: p.rx };
       });
   }
   /* the flag: a pole held across the body (the cloth is added per pilot) */
@@ -538,10 +554,12 @@ function weaponParts(i) {
   ];
 }
 const sph0 = k => geo("ws:" + k, () => new THREE.SphereGeometry(0.035, 10, 8));
-function weaponMeshes(i, mats) {
-  if (!WGEO.has(i)) {
+/** a weapon's geometry merged per material role, near or far (WGEO caches both) */
+function weaponGeos(i, far) {
+  const key = far ? "far" + i : i;
+  if (!WGEO.has(key)) {
     const by = new Map();
-    for (const p of weaponParts(i)) {
+    for (const p of weaponParts(i, far)) {
       const m = new THREE.Matrix4().compose(
         new V3(p.x, p.y, p.z),
         new THREE.Quaternion().setFromEuler(new THREE.Euler(p.rx, 0, 0)),
@@ -551,19 +569,36 @@ function weaponMeshes(i, mats) {
       by.get(p.role).push([p.g, m]);
     }
     WGEO.set(
-      i,
-      [...by].map(([role, list]) => [role, mergeGeos(list)])
+      key,
+      [...by].map(([role, list]) => [
+        role,
+        i >= 0 ? mergeGeos(list).applyMatrix4(wpnScale(i)) : mergeGeos(list),
+      ])
     );
   }
+  return WGEO.get(key);
+}
+/* past this distance (m) another pilot's weapon is drawn with only its big parts */
+const WPN_FAR = 22;
+function weaponMeshes(i, mats) {
   /* one mesh per material; only the weapon's main body casts a shadow (the small parts' shadows
      are lost inside the pilot's, and each would cost a shadow-pass draw per pilot) */
-  const g = new THREE.Group();
-  WGEO.get(i).forEach(([role, gg], k) => {
-    const m = new THREE.Mesh(gg, mats[role]);
-    m.castShadow = k === 0 && role !== GLOW;
-    m.userData.role = role;
-    g.add(m);
-  });
+  const level = far => {
+    const g = new THREE.Group();
+    weaponGeos(i, far).forEach(([role, gg], k) => {
+      const m = new THREE.Mesh(gg, mats[role]);
+      m.castShadow = !far && k === 0 && role !== GLOW;
+      m.userData.role = role;
+      g.add(m);
+    });
+    return g;
+  };
+  if (i < 0) return level(false);
+  /* the near and far versions draw with the same materials, so a far weapon costs the same draw
+     calls and fewer triangles */
+  const g = new THREE.LOD();
+  g.addLevel(level(false), 0);
+  g.addLevel(level(true), WPN_FAR);
   return g;
 }
 /* the carbine's grip with its magazine seated, merged: the loose magazine is only drawn mid-reload */
@@ -722,22 +757,29 @@ function makePilot(color, label) {
     wmats[SUIT]
   );
   mag.position.copy(MAGSLOT);
+  mag.scale.setScalar(WPN_FIT[0][3]);
   mag.visible = false;
   wpnG[0].add(mag);
-  const grip = wpnG[0].children.find(m => m.userData.role === SUIT),
+  const grip = wpnG[0].levels[0].object.children.find(m => m.userData.role === SUIT),
     gripBase = grip.geometry;
   if (!GRIP_MAG)
     GRIP_MAG = mergeGeos([
       [gripBase, new THREE.Matrix4()],
-      [mag.geometry, new THREE.Matrix4().makeTranslation(MAGSLOT.x, MAGSLOT.y, MAGSLOT.z)],
+      [
+        mag.geometry,
+        new THREE.Matrix4()
+          .makeTranslation(MAGSLOT.x, MAGSLOT.y, MAGSLOT.z)
+          .multiply(new THREE.Matrix4().makeScale(WPN_FIT[0][3], WPN_FIT[0][3], WPN_FIT[0][3])),
+      ],
     ]);
   grip.geometry = GRIP_MAG;
   /* the weapon's lights flare with each shot */
   for (const g of wpnG)
-    for (const m of g.children)
+    g.traverse(m => {
       if (m.userData.role === GLOW)
         m.onBeforeRender = () =>
           (wmats[GLOW].emissiveIntensity = 1.5 + 2.5 * Math.exp(-12 * Math.max(0, S.t - S.lastKick)));
+    });
   const flagG = weaponMeshes(-1, wmats);
   flagG.visible = false;
   chest.add(flagG);

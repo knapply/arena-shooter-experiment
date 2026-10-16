@@ -280,7 +280,7 @@ function updVM(dt, c) {
   vmL.position.copy(vmS.lh);
   const free = c.reload >= 0 || vmS.throwT > 0 || c.clamber;
   vmL.quaternion.slerp(free || !V.lq ? g.quaternion : _q3.copy(g.quaternion).multiply(V.lq), kf);
-  handPose(vmL, swing ? "ball" : free ? "grip" : "wrap");
+  handPose(vmL, swing ? "ball" : free || V.lgrip ? "grip" : "wrap");
   handPose(vmR, "grip");
   /* clambering, both hands come off the gun, reach and plant flat on the ledge (held where it is in
      the world, so the view rises over them), then go back to the gun */
