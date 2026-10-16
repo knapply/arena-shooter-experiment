@@ -10,6 +10,9 @@ let hitActs = new Set(),
   mdx = 0,
   mdy = 0,
   aimLatch = false,
+  /** the controller's own aim toggle (padAimMode), and the keyboard's click-stepped zoom level (aimMode "cycle") */
+  padAimLatch = false,
+  cycleLvl = 0,
   crouchLatch = false,
   sprintLatch = false,
   /* seconds left in which the trigger keeps you out of a sprint (see the game loop's sprint input) */
@@ -241,6 +244,7 @@ if (isTouch) {
   btn("tThrust", () => hitActs.add("thrust"));
   btn("tMelee", () => hitActs.add("melee"));
   btn("tReload", () => hitActs.add("reload"));
+  btn("tZoom", () => hitActs.add("zoom"));
   btn("tSprint", () => (touch.sprint = !touch.sprint));
   $("tscore").onclick = () => {
     $("scores").hidden = !$("scores").hidden;

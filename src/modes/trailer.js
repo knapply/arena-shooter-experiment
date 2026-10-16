@@ -1337,9 +1337,10 @@
         drive(foe1, dt);
         const press = [],
           hold = [];
-        /* two clicks of the scope: 5x, then 10x */
-        if ((this.z === 0 && st > 0.04) || (this.z === 1 && st > 0.42)) {
-          press.push("aim");
+        /* the scope held up: 5x, then the extra zoom to 10x */
+        if (st > 0.04) hold.push("aim");
+        if (this.z === 0 && st > 0.42) {
+          press.push("zoom");
           this.z++;
         }
         /* tracking the head, a little behind it, then on it for the shot */

@@ -161,7 +161,8 @@ function padActions() {
     }
     if (a === "sprint") {
       if (SET.padSprint === "toggle") {
-        if (down) GP.sprint = !GP.sprint;
+        /* (while a two-level scope is up the stick click is the extra zoom instead) */
+        if (down && !(aiming && W().zoom.length > 1)) GP.sprint = !GP.sprint;
       } else GP.sprint = held;
       continue;
     }

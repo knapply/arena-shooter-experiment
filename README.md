@@ -119,7 +119,8 @@ All bindings can be changed in **Settings → Keys / Controller**.
 | Sprint | Left Shift | Left stick click |
 | Thrust | Q | LB |
 | Fire | Left click | RT |
-| Aim · zoom · stabilize in air | Right click | LT |
+| Aim (hold) · stabilize in air | Right click | LT |
+| Sniper: second zoom level while scoped | Shift | Left stick click |
 | Melee · charge (while sprinting) | F / Mouse 4 | Right stick click |
 | Reload | R | X |
 | Pick up weapon (hold) | E | X (hold) |
@@ -141,7 +142,7 @@ Touch controls appear automatically on touchscreen devices.
 |---|---|---|---|---|
 | **M9 magnum** | Default, precision | 12 + 36 reserve | 5 shots, 1.04 s | Semi-auto, no random spread. Smart-scope zoom (1.8×). |
 | **VK-7 pulse carbine** | Automatic | 32 + 96 reserve | 12 shots, 1.1 s | Holographic sight (1.4×). Spread and bloom; steady damage at mid range. |
-| **SRS-9 sniper rifle** | Power weapon | 4 + 8 reserve | 1 headshot / 2 body shots | No random spread. Two zoom levels (5× / 10×). |
+| **SRS-9 sniper rifle** | Power weapon | 4 + 8 reserve | 1 headshot / 2 body shots | No random spread. Two zoom levels (5× / 10×): hold aim for the first, the Extra zoom button for the second (the scope shows which). |
 | **HX-2 rocket launcher** | Power weapon | 2 + 4 reserve | 1 direct hit, or the blast | Rockets fly at 32 m/s and burst on contact; the 4.2 m blast falls off with distance, breaks cover and can kill you too. |
 | **SG-12 scattergun** | Power weapon | 6 + 12 reserve | 1 shot up close | Nine pellets in a cone: full damage to 5 m, a quarter by 16 m. A pump between shots. |
 
@@ -157,7 +158,9 @@ Combat rules:
 - **Precision weapons go exactly where the reticle is**, moving or airborne. Their recoil is a visual kick that returns to center before your next shot.
 - **Perfect medal:** a kill in a precision weapon's minimum shots with no misses.
 - **Taking damage while zoomed** knocks scoped weapons out of zoom, or makes your aim jerk on low-zoom weapons.
-- **The reticle turns red** when an enemy is under it and within the weapon's effective range.
+- **Every weapon has its own reticle and sight:** a ring and dot on the pistol, four arcs round a split cross on the carbine (they open as its fire spreads), a ticked ring on the sniper, a wider ring with three level lines on the rocket launcher and one wide ring showing the shotgun's spread. Aiming brings up the weapon's sight over the view: a glowing smart-link ring on the pistol and shotgun, a holographic ring with range lines on the carbine, a round scope with a dark rim on the rocket launcher, and on the sniper a full visor with its own crosshair, the zoom levels and the range. The motion tracker fades out while you zoom.
+- **The reticle turns red** when an enemy is under it and within the weapon's effective range, and hits flash short ticks just outside it (blue-white for a shield break, gold for a headshot, red for a kill).
+- **Aim is hold by default** on keyboard, mouse and controller, with toggle in the settings (and, on keyboard and mouse, a mode where each click steps the sniper's zoom: 5×, 10×, off).
 - **A shoulder charge is an instant kill** on a target with no shields.
 - **Ground pound** damage falls off with distance from the impact. A landing marker shows where and how wide it will hit.
 - **Sticking a plasma grenade** to someone is lethal.

@@ -52,6 +52,46 @@ function easeZoom(dt) {
   zoomNow = Math.exp(z.at);
   adsP = clamp(z.at / Math.log(W().zoom[0]), 0, 1);
 }
+/* aiming down sights: hold (the default) or toggle, set apart for the keyboard and mouse (aimMode) and
+   the controller (padAimMode); a scope with a second level (the sniper) steps to it with the Extra zoom
+   button while the sights are up, and back. The keyboard's "cycle" mode keeps the old click-to-step:
+   each Aim click goes one level further (5x, 10x, off). Returns whether aim is held (it also stabilizes) */
+function aimInput() {
+  const multi = W().zoom.length > 1,
+    padP = (PADB.aim || []).some(i => gpDown(i)),
+    kbHeld = (BIND.aim || []).some(c => codesDown.has(c)),
+    kbP = P("aim") && !padP,
+    kbToggle = SET.aimMode === "toggle" || (SET.aimMode === "cycle" && !multi),
+    cycling = SET.aimMode === "cycle" && multi;
+  if (kbToggle) {
+    if (kbP) aimLatch = !aimLatch;
+  } else aimLatch = false;
+  if (SET.padAimMode === "toggle") {
+    if (padP) padAimLatch = !padAimLatch;
+  } else padAimLatch = false;
+  const aimHeld =
+    (kbToggle ? aimLatch : !cycling && kbHeld) ||
+    (SET.padAimMode === "toggle" ? padAimLatch : virtHeld.has("aim")) ||
+    touch.aim;
+  if (descoped && (!aimHeld || P("aim"))) descoped = false;
+  const canAim = !me.dead && reloadT <= 0 && !me.sprint && switchT <= 0;
+  const step = l => (l >= W().zoom.length ? 1 : l + 1);
+  let lvl = 0;
+  if (aimHeld && canAim && !descoped) {
+    lvl = Math.max(1, Math.min(zoomLvl, W().zoom.length));
+    if (multi && P("zoom") && zoomLvl > 0) lvl = step(zoomLvl);
+  }
+  if (cycling) {
+    if (kbP && canAim) cycleLvl = (cycleLvl + 1) % (W().zoom.length + 1);
+    else if (cycleLvl && P("zoom")) cycleLvl = step(cycleLvl);
+    if (!canAim || descoped) cycleLvl = 0;
+    if (cycleLvl) lvl = cycleLvl;
+  } else cycleLvl = 0;
+  zoomLvl = lvl;
+  aiming = zoomLvl > 0;
+  if (!aiming && (me.sprint || reloadT > 0)) aimLatch = padAimLatch = false;
+  return aimHeld || cycleLvl > 0;
+}
 function meEvent(type, d) {
   if (type === "thrust") {
     sfx("thrust");
@@ -65,7 +105,8 @@ function meEvent(type, d) {
     if (aiming) {
       zoomLvl = 0;
       descoped = true;
-      aimLatch = false;
+      aimLatch = padAimLatch = false;
+      cycleLvl = 0;
     }
     const side = d.dir.x * Math.cos(me.yaw) - d.dir.z * Math.sin(me.yaw),
       fwd = -d.dir.x * Math.sin(me.yaw) - d.dir.z * Math.cos(me.yaw);
@@ -451,28 +492,16 @@ function frameBody(t) {
     renderFrame();
     return;
   }
-  /* the sniper's own scope takes over once it is most of the way to the eye */
-  vmRoot.visible = !me.dead && !(wi === 2 && adsP > 0.6);
+  /* the sniper's and the rocket's own scopes take over once they are most of the way to the eye */
+  vmRoot.visible = !me.dead && !((W().key === "sniper" || W().key === "rocket") && adsP > 0.6);
   vmCarry(carried());
-  if (SET.aimMode === "toggle") {
-    if (P("aim")) aimLatch = !aimLatch;
-  } else aimLatch = false;
   if (SET.crouchMode === "toggle") {
     if (P("crouch")) crouchLatch = !crouchLatch;
   } else crouchLatch = false;
-  if (SET.sprintMode === "toggle" && P("sprint")) sprintLatch = !sprintLatch;
-  const aimHeld =
-    (SET.aimMode === "toggle" ? aimLatch : A("aim")) ||
-    touch.aim ||
-    (SET.aimMode === "toggle" && virtHeld.has("aim"));
-  if (descoped && (!aimHeld || P("aim"))) descoped = false;
-  const canAim = !me.dead && reloadT <= 0 && !me.sprint && switchT <= 0;
-  if (W().zoom.length > 1) {
-    if (P("aim") && canAim) zoomLvl = (zoomLvl + 1) % (W().zoom.length + 1);
-    if (!canAim) zoomLvl = 0;
-  } else zoomLvl = aimHeld && canAim && !descoped ? 1 : 0;
-  aiming = zoomLvl > 0;
-  if (!aiming && (me.sprint || reloadT > 0)) aimLatch = false;
+  /* (while a two-level scope is up the sprint button is the extra zoom: it doesn't latch a sprint) */
+  if (SET.sprintMode === "toggle" && P("sprint") && !(aiming && W().zoom.length > 1))
+    sprintLatch = !sprintLatch;
+  const aimHeld = aimInput();
   if (!Number.isFinite(mdx) || !Number.isFinite(mdy)) {
     mdx = 0;
     mdy = 0;

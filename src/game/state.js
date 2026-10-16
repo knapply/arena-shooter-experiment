@@ -365,7 +365,8 @@ function hurtMe(n, src) {
   if (aiming) {
     zoomLvl = 0;
     descoped = true;
-    aimLatch = false;
+    aimLatch = padAimLatch = false;
+    cycleLvl = 0;
   } else flinch = Math.min(0.06, flinch + n * 0.0016);
   const hadShield = me.shield > 0;
   const died = me.damage(n, now);

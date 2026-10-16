@@ -16,8 +16,13 @@ const TFP = {
    */
   begin(o) {
     if (!TFP.on) {
-      TFP.keep = { aimMode: SET.aimMode, crouchMode: SET.crouchMode, sprintMode: SET.sprintMode };
-      Object.assign(SET, { aimMode: "hold", crouchMode: "hold", sprintMode: "hold" });
+      TFP.keep = {
+        aimMode: SET.aimMode,
+        padAimMode: SET.padAimMode,
+        crouchMode: SET.crouchMode,
+        sprintMode: SET.sprintMode,
+      };
+      Object.assign(SET, { aimMode: "hold", padAimMode: "hold", crouchMode: "hold", sprintMode: "hold" });
     }
     TFP.on = true;
     playing = true;

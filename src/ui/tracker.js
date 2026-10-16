@@ -168,6 +168,8 @@ function updTracker(dt) {
   }
   const on = SET.tracker && playing && !me.dead;
   trackEl.hidden = !on;
+  /* it fades out as you zoom in, as the references' radar does */
+  trackEl.style.opacity = String(1 - adsP);
   if (!on) {
     trackEcho.clear();
     return;

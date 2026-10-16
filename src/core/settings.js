@@ -10,6 +10,7 @@ const ACTIONS = [
   ["thrust", "Thrust"],
   ["fire", "Fire"],
   ["aim", "Aim · stabilize"],
+  ["zoom", "Extra zoom (sniper, while scoped)"],
   ["melee", "Melee · charge"],
   ["reload", "Reload"],
   ["grenade", "Throw grenade"],
@@ -35,6 +36,8 @@ const DEF_BIND = {
   thrust: ["KeyQ"],
   fire: ["Mouse0"],
   aim: ["Mouse2"],
+  /* only does something while a scope with a second level is up, when Shift can't sprint anyway */
+  zoom: ["ShiftLeft"],
   melee: ["KeyF", "Mouse3"],
   reload: ["KeyR"],
   grenade: ["KeyG", "Mouse4"],
@@ -79,6 +82,8 @@ const DEF_PAD = {
   fire: [7],
   roster: [8],
   sprint: [10],
+  /* the left stick click: sprinting is off while scoped, so it is free for the sniper's second zoom */
+  zoom: [10],
   melee: [11],
   switchTeam: [12],
   swapNade: [14, 15],
@@ -826,8 +831,9 @@ const SCHEMA = [
     opts: [
       ["hold", "Hold"],
       ["toggle", "Toggle"],
+      ["cycle", "Click steps the zoom"],
     ],
-    desc: "Hold: aim down sights while the button is held. Toggle: press once to aim, again to stop.",
+    desc: "Keyboard and mouse. Hold: aim down sights while the button is held; the Extra zoom key takes the sniper to its second level. Toggle: press once to aim, again to stop. Click steps the zoom: each click of Aim goes one zoom level further on the sniper (5×, 10×, off) and toggles other sights.",
   },
   {
     k: "padSens",
@@ -973,6 +979,18 @@ const SCHEMA = [
     step: 0.05,
     fmt: v => Math.round(v * 100) + "%",
     desc: "Controller vibration strength. 0 turns it off.",
+  },
+  {
+    k: "padAimMode",
+    tab: T_PAD,
+    label: "Aim",
+    type: "select",
+    def: "hold",
+    opts: [
+      ["hold", "Hold"],
+      ["toggle", "Toggle"],
+    ],
+    desc: "Hold: the sights stay up while the aim trigger is held; the Extra zoom button (left stick click) takes the sniper to its second level, and the scope shows which button that is. Toggle: pull once to aim, again to stop.",
   },
   {
     k: "padSprint",

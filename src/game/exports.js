@@ -12,6 +12,9 @@ const KA_API = {
   },
   updPickups,
   giveWeapon,
+  hitMarker,
+  /** the controller's state (core/gamepad.js) */
+  GP,
   refill,
   DESTR,
   damageBox,

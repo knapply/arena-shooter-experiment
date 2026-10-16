@@ -11,7 +11,6 @@ function renderScores() {
   scoresT = now;
   renderStatsRoster();
 }
-const xhEls = ["t", "b", "l", "r"].map(c => /** @type {HTMLElement} */ (document.querySelector("#xh ." + c)));
 /** the input device the HUD's hints are for: a controller if it was used since the keyboard or mouse */
 function hudDevice() {
   if (pad.on && GP.lastT >= keysT) return "pad";
@@ -163,10 +162,6 @@ function hud() {
     );
   } else pa.style.opacity = "0";
   const sp = 9 - 5 * adsP + bloom * 400 + recoil * 200;
-  xhEls[0].style.transform = `translateY(${-sp / 3}px)`;
-  xhEls[1].style.transform = `translateY(${sp / 3}px)`;
-  xhEls[2].style.transform = `translateX(${-sp / 3}px)`;
-  xhEls[3].style.transform = `translateX(${sp / 3}px)`;
-  $("xh").style.opacity = String(1 - adsP);
+  xhBloom(sp);
   if (!$("scores").hidden) renderScores();
 }
