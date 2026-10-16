@@ -133,13 +133,13 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     { score: G.teams.map(t => t.score), kills, t: G.t | 0, nav: CTF.NAV.mapId }
   );
   K.STORE.setBackend(K.STORE.memoryBackend());
-  const H = CTF.Game({ mode: "sim", render: false, seed: 1 });
+  const H = CTF.Game({ mode: "sim", render: false, seed: 2 });
   let flags = 0;
   H.onEvent = t => {
     if (t === "flagTaken") flags++;
   };
   H.start();
-  /* up to 4 of the match's 8 minutes, until the first grab (this seed's first comes at 3 minutes) */
+  /* up to 4 of the match's 8 minutes, until the first grab (this seed's first comes inside 20 s; seed 1's moved to 5½ minutes with the measured weapons) */
   for (let i = 0; i < 30 * 240 && !H.over && !flags; i++) H.step(1 / 30);
   check(
     !H.tdm && H.flags.length === 2 && flags > 0,
@@ -147,8 +147,8 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     flags
   );
 }
-/* the AI fires at the weapon's real rate even though it thinks in 30 Hz steps (the carbine's 0.1 s
-   interval used to round up to 4 steps: 7.5 rounds a second) */
+/* the AI fires at the weapon's real rate even though it thinks in 30 Hz steps: the carbine's three-round
+   bursts come with their short gap inside and the burst interval between them */
 {
   K.STORE.setBackend(K.STORE.memoryBackend());
   const G = CTF.Game({ mode: "sim", render: false, seed: 3, map: "arena", scoreLimit: 1e9, lock: "carbine" });
@@ -157,16 +157,25 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
   G.onEvent = (t, d) => {
     if (t !== "shot") return;
     const p = last.get(d.by);
-    if (p != null && G.t - p < 0.15) gaps.push(G.t - p);
+    if (p != null && G.t - p < 0.6) gaps.push(G.t - p);
     last.set(d.by, G.t);
   };
   G.start();
   for (let i = 0; i < 30 * 30; i++) G.step(1 / 30);
-  const rate = gaps.length / gaps.reduce((a, b) => a + b, 0);
+  const C = K.WEAPON_DATA[0],
+    mean = a => a.reduce((s, x) => s + x, 0) / a.length,
+    inside = gaps.filter(g => g < 0.1),
+    between = gaps.filter(g => g > 0.2 && g < 0.45);
+  const gi = mean(inside),
+    gb = mean(between),
+    want = C.rate - (C.burst - 1) * C.burstGap;
   check(
-    gaps.length > 100 && rate > 9,
-    "AI carbine fire holds close to 10 rounds a second (pauses to re-aim aside)",
-    rate.toFixed(2)
+    inside.length > 60 &&
+      between.length > 30 &&
+      Math.abs(gi - C.burstGap) < 0.015 &&
+      Math.abs(gb - want) < 0.03,
+    "AI carbine fire holds the burst rhythm (pauses to re-aim aside)",
+    gi.toFixed(3) + " " + gb.toFixed(3) + " " + inside.length + "/" + between.length
   );
 }
 /* blast gates (world/gates.js) on Twin Foundry: the AI paths through an open gate and around a shut one,

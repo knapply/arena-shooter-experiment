@@ -1481,7 +1481,7 @@ const podSeats = map => {
     ]);
     check(
       classic[0] === 7 &&
-        classic[1] === 12.3 &&
+        classic[1] === 14.5 &&
         classic[2] > 0 &&
         classic[3] === 7 &&
         classic[4] === 0.57 &&

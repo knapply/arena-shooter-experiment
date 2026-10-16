@@ -69,9 +69,7 @@ function applySandbox() {
     reload: v.sbCarbReload,
     recoil: v.sbCarbRecoil,
     rate: v.sbCarbRate,
-    spread: v.sbCarbSpread,
-    adsSpread: v.sbCarbSpread / 3,
-    bloom: v.sbCarbBloom,
+    burstGap: v.sbCarbGap,
   });
   set("pistol", {
     body: v.sbMagDmg,
@@ -87,6 +85,15 @@ function applySandbox() {
   NADE_TUNE.bounce = v.sbNadeBounce;
   NADES.frag.fuse = v.sbNadeFuse;
   NADES.frag.r = v.sbNadeRadius;
+  NADE_TUNE.grav = v.sbNadeGrav;
+  NADES.frag.contact = v.sbNadeContact;
+  NADES.frag.dmg = v.sbFragDmg;
+  Object.assign(NADES.plasma, {
+    land: v.sbPlasmaLand,
+    stick: v.sbPlasmaStick,
+    dmg: v.sbPlasmaDmg,
+    r: v.sbPlasmaRadius,
+  });
 }
 /** the Labs settings into LABS (data/weapons.js); they take effect from the next match or respawn */
 function applyLabs() {

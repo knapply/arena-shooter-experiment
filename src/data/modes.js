@@ -214,9 +214,10 @@ export const SANDBOX_PRESETS = {
       /* softer ground grip: 0.2 s to start or stop, 0.4 s to reverse a strafe */
       sbAccel: 35,
       sbReverse: 35,
-      /* a jump of about 1.5 body heights, 1.33 s in the air */
-      sbJump: 8.2,
-      sbGrav: 12.3,
+      /* a fast, heavy jump: about 1.7 eye heights (1.55 body heights), at the top in 0.62 s, down in
+         1.24 s, with no hang */
+      sbJump: 9,
+      sbGrav: 14.5,
       /* a shorter thrust (about 1.6 body heights) on a 4 s recharge, a 0.5 s slide, a 0.6 s clamber */
       sbThrust: 12,
       sbThrustCD: 4,
@@ -234,20 +235,7 @@ export const SANDBOX_PRESETS = {
       sbShieldRate: 37,
       sbHealthRate: 7.5,
       sbMeleeShield: 70,
-      /* magnum: 0.3 s between shots, 1.5x sight, 1.15 s reload, a small kick */
-      sbMagRate: 0.3,
-      sbMagZoom: 1.5,
-      sbMagReload: 1.15,
-      sbMagRecoil: 0.009,
-      /* carbine (the automatic rifle): 7.8 a round, headshots double once shields are down, a tight
-         first shot that blooms, 1.5 s reload, a small kick */
-      sbCarbDmg: 7.8,
-      sbCarbHead: 2,
-      sbCarbSpread: 0.003,
-      sbCarbReload: 1.5,
-      sbCarbRecoil: 0.006,
-      /* sniper: 0.78 s between shots */
-      sbSnipeRate: 0.78,
+      /* the weapons' measured numbers are the defaults now (docs/TUNING.md, "Five weapons from footage") */
     },
     /* the controller's look response, measured from input-display footage (your own settings, applied
        with the preset): about 105 deg/s at full tilt (from 88% of the stick's travel), a steep curve

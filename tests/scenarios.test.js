@@ -261,14 +261,14 @@ const fix = v => +v.toFixed(2);
   const [carbine, magnum, sniper] = K.WEAPON_DATA;
   const km = K.killStats(magnum);
   check(
-    km.best.shots === 5 && Math.abs(km.best.time - 1.05) < 0.05,
-    "magnum perfect kill: 5 shots in ~1.05 s",
+    km.best.shots === 5 && Math.abs(km.best.time - 1.2) < 0.05,
+    "magnum perfect kill: 5 shots in ~1.2 s (the footage's 0.3 s between shots)",
     km.best
   );
   const kc = K.killStats(carbine);
   check(
-    between(kc.best.time, 0.9, 1.4) && kc.body.time - kc.best.time <= 0.2,
-    "carbine kills in ~1.1-1.2 s",
+    kc.best.shots === 12 && between(kc.best.time, 1.2, 1.35) && kc.body.shots === 18,
+    "carbine: four bursts and a headshot (~1.27 s), six bursts to the body",
     kc
   );
   const ks = K.killStats(sniper);

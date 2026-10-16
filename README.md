@@ -36,7 +36,7 @@ A fast, movement-focused sci-fi arena shooter that runs entirely in the browser.
 ## Features
 - **Full movement kit:** sprint, slide, thruster dash, ledge clamber, crouch-jump, aerial stabilize, aimed ground pound and shoulder charge, with consistent timing you can learn
 - **Shields and health:** recharging shields that flash on impact, with headshot rules that reward finishing cracked opponents
-- **Five weapons with fixed kill times:** a precision magnum (5-shot perfect kill in about a second), an automatic pulse carbine, and three power weapons, a sniper rifle, a rocket launcher and a pump scattergun, that take turns at the map's central power spawn. Precision weapons have no random spread
+- **Five weapons with fixed kill times:** a precision magnum (5-shot perfect kill in 1.2 s), a three-round burst carbine (a four-burst kill), and three power weapons, a sniper rifle, a rocket launcher and a pump scattergun, that take turns at the map's central power spawn. Precision weapons have no random spread
 - **Grenades:** bouncing frags and sticky plasmas
 - **Drop pods:** you respawn by falling 200 m out of the sky in a pod: its nose glows white-hot and it trails a re-entry burn of flame, embers and smoke that the whole map can see, then it slams into the ground, blows its doors off and lets you out (land on someone and they're done). The longer fall costs no extra time: the pod launches earlier, so you're back exactly as soon as before. Steer it a little on the way down to pick your landing spot (in CTF, only around your own base), or press Jump to skip the pod camera. The HUD and reticle stay out of the way until you land. Classic in-place spawns are one setting away
 - **Safe spawns:** every spawn point is scored against enemy sight lines, nearby enemies and fights in the last few seconds, so you don't appear in someone's crosshair. Spawn protection ends as soon as you fire
@@ -141,11 +141,11 @@ Touch controls appear automatically on touchscreen devices.
 
 | Weapon | Role | Magazine | Best kill | Notes |
 |---|---|---|---|---|
-| **M9 magnum** | Default, precision | 12 + 36 reserve | 5 shots, 1.04 s | Semi-auto, no random spread. Smart-scope zoom (1.8×). |
-| **VK-7 pulse carbine** | Automatic | 32 + 96 reserve | 12 shots, 1.1 s | Holographic sight (1.4×). Spread and bloom; steady damage at mid range. |
-| **SRS-9 sniper rifle** | Power weapon | 4 + 8 reserve | 1 headshot / 2 body shots | No random spread. Two zoom levels (5× / 10×): hold aim for the first, the Extra zoom button for the second (the scope shows which). |
+| **M9 magnum** | Default, precision | 12 + 48 reserve | 5 shots, 1.2 s | Semi-auto, no random spread. Smart-scope zoom (1.5×). |
+| **VK-7 pulse carbine** | Burst, precision | 36 + 108 reserve | 4 bursts, 1.27 s | Three rounds a burst, a burst every 0.4 s while the trigger is held; no random spread. 11 rounds take the shield, then a headshot kills. Holographic sight (2×). |
+| **SRS-9 sniper rifle** | Power weapon | 4 + 8 reserve | 1 headshot / 2 body shots | No random spread. Two zoom levels (4.5× / 10×): hold aim for the first, the Extra zoom button for the second (the scope shows which). |
 | **HX-2 rocket launcher** | Power weapon | 2 + 4 reserve | 1 direct hit, or the blast | Rockets fly at 32 m/s and burst on contact; the 4.2 m blast falls off with distance, breaks cover and can kill you too. |
-| **SG-12 scattergun** | Power weapon | 6 + 12 reserve | 1 shot up close | Nine pellets in a cone: full damage to 5 m, a quarter by 16 m. A pump between shots. |
+| **SG-12 scattergun** | Power weapon | 6 + 12 reserve | 1 shot up close | Nine pellets in a cone: full damage to 7 m, a quarter by 16 m. A pump between shots. |
 
 No weapon has endless ammo: the starting guns carry about what a pilot fires in a long life (the 95th percentile of simulated lives, [docs/TUNING.md](docs/TUNING.md)), so you rarely run dry, but drops and ammo pickups matter. An empty gun with nothing to reload clicks and brings up your other weapon.
 

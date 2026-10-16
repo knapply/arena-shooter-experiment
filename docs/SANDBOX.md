@@ -6,9 +6,9 @@ Every pilot has 70 shield and 45 health. Shields absorb everything and damage pa
 
 | Weapon | Body | Head | Fire interval | Best kill (shots / time) | Body shots only | Precision |
 |---|---|---|---|---|---|---|
-| VK-7 pulse carbine | 9 | 11 | 0.1 s | 12 / 1.1 s | 13 / 1.2 s | no (spread and bloom) |
-| M9 magnum | 20 | 50 | 0.26 s | 5 / 1.04 s | 6 / 1.3 s | yes |
-| SRS-9 sniper rifle | 60 | kill (head always) | 0.62 s | 1 / 0 s | 2 / 0.62 s | yes |
+| VK-7 pulse carbine | 6.5 | 45 | 0.4 s | 12 / 1.27 s | 18 / 2.07 s | yes |
+| M9 magnum | 20 | 50 | 0.3 s | 5 / 1.2 s | 6 / 1.5 s | yes |
+| SRS-9 sniper rifle | 60 | kill (head always) | 0.78 s | 1 / 0 s | 2 / 0.78 s | yes |
 | HX-2 rocket launcher | 999 | kill | 0.9 s | 1 / 0 s | 1 / 0 s | yes |
 | SG-12 scattergun (9 pellets, at close range) | 14 | 14 | 0.8 s | 1 / 0 s | 1 / 0 s | no (spread and bloom) |
 
