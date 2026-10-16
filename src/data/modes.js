@@ -211,20 +211,27 @@ export const SANDBOX_PRESETS = {
       sbRun: 7,
       sbSprint: 9.1,
       sbSprintRamp: 0.9,
-      /* softer ground grip: 0.2 s to start or stop, 0.4 s to reverse a strafe */
-      sbAccel: 35,
+      /* ground grip from synced input-overlay footage and a Forge speed readout: 0.29 s from a standstill
+         to full run, about 0.1 s to stop, about 0.5 s to reverse a strafe */
+      sbAccel: 24,
       sbReverse: 35,
+      sbDecel: 65,
       /* a fast, heavy jump: about 1.7 eye heights (1.55 body heights), at the top in 0.62 s, down in
          1.24 s, with no hang */
       sbJump: 9,
       sbGrav: 14.5,
-      /* a shorter thrust (about 1.6 body heights) on a 4 s recharge, a 0.5 s slide, a 0.6 s clamber */
-      sbThrust: 12,
+      /* measured on Forge test footage: a thrust is a 0.58 s burst at 13 m/s (about 7.5 m) on a 4 s
+         recharge (synced input overlay); a slide holds sprint speed for 0.8 s with no boost; a 0.6 s
+         clamber; the ground pound kills out to about 3.4 m (pro-match kill positions) */
+      sbThrust: 13,
+      sbThrustT: 0.58,
       sbThrustCD: 4,
-      sbSlideT: 0.5,
+      sbSlide: 0,
+      sbSlideT: 0.8,
+      sbSlideKeep: 1,
       sbClamber: 2.3,
       sbPoundCharge: 0.65,
-      sbPoundRadius: 3.2,
+      sbPoundRadius: 3.4,
       /* the trigger breaks a sprint and the shot leaves about 2 frames later (no raise delay); a sprint
          comes back only with a fresh sprint press; no slowdown while scoped */
       sbSprintResume: 0,
@@ -237,12 +244,15 @@ export const SANDBOX_PRESETS = {
       sbMeleeShield: 70,
       /* the weapons' measured numbers are the defaults now (docs/TUNING.md, "Five weapons from footage") */
     },
-    /* the controller's look response, measured from input-display footage (your own settings, applied
-       with the preset): about 105 deg/s at full tilt (from 88% of the stick's travel), a steep curve
-       below it, then a boost that ramps evenly with no wait to about 360 deg/s over about 1 s; vertical at half */
+    /* the controller's look response, measured from synced input-display footage (your own settings,
+       applied with the preset): about 105 deg/s at full tilt (from 88% of the stick's travel); below it
+       almost nothing to about 45% of the throw, then steep (a 30% dead zone and curve 2.6, fitted to
+       about 9,000 frames); then a boost that ramps evenly with no wait to about 360 deg/s over about
+       1 s; vertical at half */
     look: {
       padSens: 0.57,
-      padCurve: 3,
+      padCurve: 2.6,
+      padDeadzone: 0.3,
       padEdge: 0.88,
       padAccel: 2.4,
       padAccelDelay: 0,

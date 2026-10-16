@@ -1471,6 +1471,8 @@ const podSeats = map => {
       KA.SET.sbRun,
       KA.SET.padSens,
       KA.SET.padAccelTime,
+      KA.SET.padDeadzone,
+      KA.TUNE.decel,
     ]);
     await p.click('#setBody .dbtn:has-text("Defaults")');
     await p.waitForTimeout(100);
@@ -1480,6 +1482,8 @@ const podSeats = map => {
       KA.TUNE.sprintRamp,
       KA.SET.padSens,
       KA.SET.padAccelTime,
+      KA.SET.padDeadzone,
+      KA.TUNE.decel,
     ]);
     check(
       classic[0] === 7 &&
@@ -1488,7 +1492,9 @@ const podSeats = map => {
         classic[3] === 7 &&
         classic[4] === 0.57 &&
         classic[5] === 1.05 &&
-        backDef.join() === "6.4,24,0,1,0.3",
+        classic[6] === 0.3 &&
+        classic[7] === 65 &&
+        backDef.join() === "6.4,24,0,1,0.3,0.12,0",
       "Sandbox presets: Classic feel applies (with its controller look), Defaults restores",
       [classic, backDef]
     );
