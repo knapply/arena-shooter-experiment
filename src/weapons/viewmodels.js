@@ -112,7 +112,7 @@ const HOLO = new V3(0, 0.128, -0.08);
 // magnum iron sights: front post and rear notch tops share y = PIS.y
 const PIS = new V3(0, 0.0585, -0.135);
 /* a grenade throw: how long it lasts (s), and the off hand's path through it (camera space, by time) */
-const THROW_T = 0.42;
+const THROW_T = 0.5;
 /** @type {[number, number[]][]} */
 const THROW_KEYS = [
   [0, [-0.26, 0.12, -0.2]],

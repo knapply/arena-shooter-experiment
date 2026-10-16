@@ -204,6 +204,8 @@ const NADE_TYPES = ["frag", "plasma"];
 function nadeRefill() {
   nadeInv.frag = 2;
   nadeInv.plasma = 2;
+  /* every spawn starts with frags selected, whatever was up before */
+  nadeSel = "frag";
   updNadeHud();
 }
 /** the HUD's grenade panel (ui/hud.js draws it) */

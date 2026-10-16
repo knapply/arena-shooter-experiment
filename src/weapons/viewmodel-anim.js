@@ -143,9 +143,13 @@ function updVM(dt, c) {
     _c.x -= c.lr * 0.004;
     _e1.z += c.lr * 0.01;
   }
-  _c.y -= c.landDip * (ads ? 0.06 : 0.25);
+  /* a landing: the gun follows the camera's landing dip (sink, hold, ease back: game/loop.js), a few
+     centimetres at most, with no bounce of its own */
+  _c.y -= c.landDip * (ads ? 0.04 : 0.15);
   _e1.z += c.strafe * (ads ? 0.008 : 0.06);
-  /* inertia: the weapon lags behind changes in velocity (springs), floats up on a jump and settles on landing */
+  /* inertia: the weapon lags behind changes in velocity (springs) and floats a little in the air; the
+     vertical spring is critically damped, and the stop of a landing is left to the dip above (a
+     kick there swung the gun back past rest: a bounce the reference doesn't have) */
   if (c.vel) {
     const cy = Math.cos(c.yaw),
       sy = Math.sin(c.yaw),
@@ -159,15 +163,14 @@ function updVM(dt, c) {
     vmS.lvy = c.vel.y;
     vmS.lfw = vf;
     vmS.inX.v -= ar * 0.0009;
-    vmS.inY.v -= au * 0.0006;
+    if (!(vmS.air && c.ground)) vmS.inY.v -= au * 0.0006;
     vmS.inZ.v += af * 0.0006;
-    if (vmS.air && c.ground) vmS.inY.v -= 0.12;
     vmS.air = !c.ground;
   }
   const ik = ads ? 0.25 : 1;
   _c.x += spring(vmS.inX, 0, dt, 3.2, 0.55) * ik;
   _c.y +=
-    (spring(vmS.inY, 0, dt, 3, 0.5) + (c.ground ? 0 : clamp(-(c.vel ? c.vel.y : 0) * 0.0025, -0.02, 0.03))) *
+    (spring(vmS.inY, 0, dt, 3, 1) + (c.ground ? 0 : clamp(-(c.vel ? c.vel.y : 0) * 0.0012, -0.01, 0.015))) *
     ik;
   _c.z += spring(vmS.inZ, 0, dt, 3.5, 0.6) * ik;
   _e1.z -= vmS.inX.x * 1.6 * ik;
@@ -231,11 +234,11 @@ function updVM(dt, c) {
     ao = u > 0 && u < 1 ? V.cyc[0] * Math.sin(Math.PI * Math.sqrt(u)) : 0;
   V.act.position.z = ao;
   /* a grenade throw: the gun dips down and to the right as the off hand swings through, and is back
-     up by about 0.4 s (the reference's throws: hand in, release about 0.1 s later, the arm gone by
+     up by about 0.5 s (the reference's throws: hand in, release about 0.1 s later, the arm gone by
      0.15-0.2 s, the gun back by 0.35-0.5 s) */
   const tu = vmS.throwT > 0 ? THROW_T - vmS.throwT : -1;
   if (tu >= 0) {
-    const d = Math.min(1, tu / 0.05) * Math.max(0, 1 - Math.max(0, tu - 0.12) / 0.28);
+    const d = Math.min(1, tu / 0.05) * Math.max(0, 1 - Math.max(0, tu - 0.12) / 0.38);
     _c.x += 0.03 * d;
     _c.y -= 0.06 * d;
     _e1.x -= 0.18 * d;
