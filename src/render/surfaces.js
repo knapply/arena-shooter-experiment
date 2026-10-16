@@ -121,7 +121,7 @@ roughnessFactor=clamp(roughnessFactor+sRough,.04,1.);if(sMetal>0.)metalnessFacto
 #ifdef SURF
 {vec3 dpx=dFdx(vWP),dpy=dFdy(vWP);float hx=dFdx(sH),hy=dFdy(sH);
 vec3 sR1=cross(dpy,sN),sR2=cross(sN,dpx);float sDet=dot(dpx,sR1);
-vec3 bn=normalize(abs(sDet)*sN-sign(sDet)*(hx*sR1+hy*sR2)*.012);
+vec3 bn=abs(sDet)>1e-12?normalize(abs(sDet)*sN-sign(sDet)*(hx*sR1+hy*sR2)*.012):sN;
 normal=normalize((viewMatrix*vec4(faceDirection*bn,0.)).xyz);}
 #endif`
       )

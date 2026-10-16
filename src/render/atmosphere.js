@@ -79,7 +79,7 @@ function updAtmosphere(dt) {
     }
   }
   SKY_U.flash.value = f;
-  hemi.intensity = LOOK_NOW.hemiI * LIGHT_K * (1 + f * 1.8);
+  hemi.intensity = LOOK_NOW.hemiI * LOOK_NOW.hemiShare * LIGHT_K * (1 + f * 1.8);
   PROP_T.value = ATMO.t;
   /* the dust: made on first use, remade when the Particles setting changes */
   const want = Math.round(420 * Math.min(1.5, SET.particles));

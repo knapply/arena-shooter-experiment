@@ -29,6 +29,8 @@ const GFX = {
   split: 0,
   /* the environment capture is waiting for the first frames (render/environment.js) */
   envWait: false,
+  /* environment light's strength before the map's look scales it */
+  envI: 1,
   frame: 0,
   /* SMAA (three's addon, loaded from the CDN the first time it is chosen): the pass, the composite's
      output it reads (ldr), and whether loading failed (then FXAA stands in) */
@@ -206,13 +208,15 @@ const MAP_LOOK = {
     hemi: ["#3a4868", "#85522a", 1.35],
     fog: ["#2b2118", 0.55, 0.85],
     storm: true,
+    envK: 0.8,
+    envSky: 0.35,
     sky: {
-      lo: [0.17, 0.1, 0.05],
+      lo: [0.13, 0.08, 0.045],
       mid: [0.1, 0.07, 0.06],
       hi: [0.015, 0.02, 0.04],
       k: [0, 0.35, 1, 0],
       cloudA: [0.05, 0.045, 0.055],
-      cloudB: [0.42, 0.24, 0.11],
+      cloudB: [0.3, 0.17, 0.08],
       sun: [0.75, 0.82, 1, 0.45],
       glow: [1, 0.62, 0.25],
     },
@@ -239,7 +243,7 @@ const MAP_LOOK = {
   },
 };
 /* the look in effect: its id, base ambient (lightning adds to it), fog shares, storm */
-const LOOK_NOW = { id: "", hemiI: 1.35, fogNear: 1, fogFar: 1, storm: false };
+const LOOK_NOW = { id: "", hemiI: 1.35, hemiShare: 1, envK: 1, fogNear: 1, fogFar: 1, storm: false };
 function applyLook(id) {
   const L = MAP_LOOK[id] || MAP_LOOK.arena;
   LOOK_NOW.id = id;
@@ -255,6 +259,9 @@ function applyLook(id) {
   LOOK_NOW.fogFar = L.fog[2];
   applyFog();
   LOOK_NOW.storm = !!L.storm;
+  /* how strongly the captured surroundings light and reflect (a storm-lit sky would flood the floor) */
+  LOOK_NOW.envK = L.envK || 1;
+  scene.environmentIntensity = GFX.envI * LOOK_NOW.envK;
   const S = L.sky;
   SKY_U.skyLo.value.fromArray(S.lo);
   SKY_U.skyMid.value.fromArray(S.mid);
@@ -566,6 +573,7 @@ function renderFrame() {
     const lookId = GFX.lookId || (cur && cur.id);
     if (lookId && lookId !== LOOK_NOW.id && !GFX.look) applyLook(lookId);
     const look = lookId && MAP_LOOK[lookId];
+    mapEnvFrame(cur);
     U.tTone.value = toneLut(GFX.tone || (look && look.tone) || "aces");
     const gr = SET.grade && !GFX.look && look;
     U.gOn.value = gr ? 1 : 0;

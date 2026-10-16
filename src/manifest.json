@@ -16,6 +16,7 @@
     "render/tone.js",
     "render/pipeline.js",
     "render/environment.js",
+    "render/map-env.js",
     "render/surfaces.js",
     "render/perf.js",
     "data/modes.js",
