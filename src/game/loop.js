@@ -216,7 +216,12 @@ function perf(raw) {
 }
 /* each animation frame: measured for the performance overlay */
 /** add your own pose to this frame's recording (you have no third-person rig to record from) */
+/* when your last grenade throw began (the viewmodel's throw timer jumping up marks it, whatever its length) */
+let recThrowAt = -9,
+  recThrowLast = 0;
 function recLocal() {
+  if (vmS.throwT > recThrowLast + 0.05) recThrowAt = now;
+  recThrowLast = vmS.throwT;
   if (!REC.sampling || !playing) return;
   if (!REC.hasMeta("local")) REC.setMeta("local", { color: myArmor, name: myName });
   REC.put(
@@ -229,6 +234,8 @@ function recLocal() {
       /* (what you carry shows in replays and kill cams: your ghost holds it in both hands) */
       flag: !!carried(),
       skull: carried() === "skull",
+      /* (your grenade throw shows on your ghost too) */
+      throw: now - recThrowAt < 0.6 ? now - recThrowAt : -1,
     })
   );
 }

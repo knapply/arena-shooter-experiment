@@ -149,6 +149,32 @@ const POSE = {
   /* the magnum: two hands, out in front on the centerline, elbows wide */
   pistol: { p: new V3(0.05, 0.1, -0.38), r: [0, 0, 0] },
 };
+/* the free hand's path through a grenade throw (chest frame), t in seconds */
+const RIG_THROW_KEYS = [
+  [0, -0.18, 0.05, -0.3],
+  [0.08, -0.22, 0.45, 0.08],
+  [0.13, -0.06, 0.32, -0.5],
+  [0.24, -0.3, -0.2, -0.12],
+  [0.45, -0.22, -0.05, -0.28],
+];
+function throwHand(t, out) {
+  const K = RIG_THROW_KEYS;
+  let i = 0;
+  while (i < K.length - 2 && t > K[i + 1][0]) i++;
+  const a = K[i],
+    b = K[i + 1],
+    u = sstep(a[0], b[0], t);
+  return out.set(a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u, a[3] + (b[3] - a[3]) * u);
+}
+/** the torso's turn through a throw: the free shoulder goes back, then drives through */
+const throwTwist = t =>
+  t >= 0.45
+    ? 0
+    : t < 0.09
+      ? 0.3 * sstep(0, 0.09, t)
+      : t < 0.25
+        ? 0.3 - 0.55 * sstep(0.09, 0.2, t)
+        : -0.25 * (1 - sstep(0.25, 0.45, t));
 /* a blow in three parts over its 0..1: the wind-up (w, cocking back), the strike (s, fast out to full
    reach and held), the follow-through past it (f), then the recovery; contact is at MEL_HIT */
 const sstep = (a, b, x) => {
@@ -769,6 +795,8 @@ function makePilot(color, label) {
     /* the gun comes up to the shoulder while firing or aiming (and for a moment after), and is
        carried at the chest otherwise */
     hotT: 0,
+    /* a grenade throw: seconds since it began (9: none) */
+    thT: 9,
     carry: 1,
     spTw: spr(),
     spTs: spr(),
@@ -979,6 +1007,10 @@ function makePilot(color, label) {
       ANIM.reset(S.loco);
     },
     /** a short emote (cheer, flex, wave, shrug), only standing; false if the pilot is busy */
+    /** a grenade leaves this pilot's hand: the free arm throws it overhand */
+    throwNade() {
+      if (!rig.dead) S.thT = 0;
+    },
     emote(name) {
       return !rig.dead && ANIM.emote(S.loco, name);
     },
@@ -994,6 +1026,13 @@ function makePilot(color, label) {
     },
     update(dt, st) {
       S.t += dt;
+      /* a throw: from rig.throwNade, or played back from a recording (st.throw, which a live throw
+         writes into the state it is drawn with, so replays and kill cams keep it) */
+      if (st.throw >= 0 && (S.thT >= 0.5 || st.throw < S.thT - 0.1)) S.thT = st.throw;
+      if (S.thT < 0.5) {
+        S.thT += dt;
+        if (!(st.throw >= 0)) st.throw = S.thT;
+      }
       const k = 1 - Math.exp(-14 * dt),
         kf = 1 - Math.exp(-26 * dt);
       let ev = null;
@@ -1188,7 +1227,8 @@ function makePilot(color, label) {
       S.pel += (pel - S.pel) * k;
       const leanS = spring(S.spLean, lean, dt, 4.5, 0.6) + spring(S.spFl, 0, dt, 3.2, 0.35),
         rollS = spring(S.spRoll, roll, dt, 4, 0.55) + spring(S.spFr, 0, dt, 3.2, 0.35);
-      const pOff = clamp(spring(S.spP, 0, dt, 4.2, 0.42), -0.32, 0.12);
+      /* (critically damped: a landing sinks and comes back up without bouncing past rest) */
+      const pOff = clamp(spring(S.spP, 0, dt, 4.2, 1), -0.32, 0.12);
       if (!mocap) {
         S.gL *= 1 - kf;
         S.gR *= 1 - kf;
@@ -1209,7 +1249,7 @@ function makePilot(color, label) {
       /* the upper body follows through: the twist of a blow and the rock of a shot carry on a spring */
       const mtw = spring(
           S.spTw,
-          strike * 0.85 + fol * 0.3 - wind * 0.5 + (st.charge ? 0.4 : 0),
+          strike * 0.85 + fol * 0.3 - wind * 0.5 + (st.charge ? 0.4 : 0) + throwTwist(S.thT),
           dt,
           3.4,
           0.5
@@ -1488,6 +1528,14 @@ function makePilot(color, label) {
         _c.lerp(_kA.sub(_kB.multiplyScalar(0.12)), em);
         _q2.slerp(_q1, em);
       }
+      /* a throw: the gun stays in the right hand, dipping down and to the right while the free arm
+         swings, back up by about 0.45 s */
+      if (S.thT < 0.45) {
+        const d = Math.sin(Math.PI * Math.min(1, S.thT / 0.45));
+        _c.y -= 0.09 * d;
+        _c.x += 0.05 * d;
+        _q2.multiply(_q1.setFromEuler(_e1.set(-0.3 * d, -0.15 * d, 0)));
+      }
       const kg = Math.min(1, k * 1.5);
       gun.position.lerp(_c, kg);
       gun.quaternion.slerp(_q2, kg);
@@ -1586,6 +1634,13 @@ function makePilot(color, label) {
           const h = S.loco.hand;
           _lk.lerp(_kA.set(h[0], h[1], h[2]), S.loco.emote);
           curlL = 1 - 0.6 * S.loco.emote;
+        }
+        /* a grenade, overhand with the free hand: up beside the helmet, forward to the centre (it
+           leaves the hand at about 0.12 s), down and across to the hip, then back to the gun */
+        if (S.thT < 0.45) {
+          throwHand(S.thT, _kA);
+          _lk.lerp(_kA, sstep(0, 0.04, S.thT) * (1 - sstep(0.3, 0.45, S.thT)));
+          curlL = S.thT < 0.12 ? 1 : 0.35;
         }
       }
       if (air && !st.thrust && !st.stab && st.vy < -6) curlL = Math.min(curlL, 0.4);
@@ -1809,5 +1864,7 @@ function bodyState(B, extra) {
     flagColor: extra && extra.flagColor,
     /* the carried thing is the oddball skull, not a flag */
     skull: !!(extra && extra.skull),
+    /* seconds since a grenade left the hand (-1: none) */
+    throw: extra && extra.throw != null ? extra.throw : -1,
   };
 }

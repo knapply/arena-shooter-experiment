@@ -438,6 +438,7 @@ const ANIM = (() => {
       sprintW: 0,
       drop: 0,
       ready: 1,
+      hd: 0.075,
       tuck: 0,
       feet: [foot(), foot()],
       /** the clips in play: B.n of them */
@@ -556,9 +557,13 @@ const ANIM = (() => {
         /* (how hard by how far it fell, whatever the gravity: the same drop lands the same on a floaty
            preset as on the defaults) */
         const drop = (L.vyLast * L.vyLast) / (2 * Math.max(1, TUNE.grav));
-        L.landW = clamp(0.2 + drop * 0.45, 0.2, 1);
+        /* (and against this preset's own jump: an ordinary jump always lands light and quick, only a
+           drop well beyond one lands deep) */
+        const hj = Math.max(0.6, (TUNE.jump * TUNE.jump) / (2 * Math.max(1, TUNE.grav))),
+          rj = drop / hj;
+        L.landW = clamp(0.45 + 0.45 * rj, 0.45, 1);
         /* a long drop lands deep, from the capture of a jump off a ledge */
-        L.landH = smooth(1.6, 4, drop);
+        L.landH = smooth(1.4, 2.6, rj) * smooth(1.2, 2.5, drop);
         L.fade = L.fadeD = 0.06;
       }
       L.mode = mode;
@@ -590,6 +595,9 @@ const ANIM = (() => {
       if (I.vy < -3 && I.gd < 1.6) u = Math.max(u, 0.92);
       sample(J, J.up + u * (J.down - J.up), 1, P, false);
       finish(P);
+      /* (the body rides the jump's own arc: the capture's hips may sink as the legs reach, never rise
+         above the standing height) */
+      P[NB * 4 + 1] = Math.min(0, P[NB * 4 + 1]);
       L.contact[0] = L.contact[1] = 0;
       L.moving = 0;
     } else {
@@ -779,7 +787,11 @@ const ANIM = (() => {
        feet with the knees pushed out (narrowing as the pace picks up, less of it at a sprint); in
        the air the knees tuck until the feet reach for the ground */
     L.ready += ((mode === 0 ? 1 - 0.45 * L.sprintW : 0) - L.ready) * Math.min(1, dt * 6);
-    L.tuck += ((mode === 1 && (I.vy > -3 || I.gd > 1.6) ? 1 : 0) - L.tuck) * Math.min(1, dt * 8);
+    /* (the knees tuck toward the top of a jump and reach down again on the way down: no tuck held
+       through a long, floaty flight) */
+    const tuckT =
+      mode === 1 && !(I.vy < 0 && I.gd < 1.2) ? 1 - smooth(0, 0.75 * Math.max(4, L.v0), Math.abs(I.vy)) : 0;
+    L.tuck += (tuckT - L.tuck) * Math.min(1, dt * 8);
     const wide = 0.05 * L.ready * (1 - 0.7 * smooth(0.5, 3.5, I.spd));
     /* ---- orientation warping: the hips turn toward the travel, the rest is done by the feet ---- */
     const natA = Math.atan2(natX, -natZ);
@@ -935,7 +947,10 @@ const ANIM = (() => {
       }
     }
     /* (reach follows the pose exactly: it is as smooth as the pose is) */
-    const dropT = Math.min(0, I.gL, I.gR) + sink - 0.075 * L.ready;
+    /* (the stance's lowered hips are held through a jump: the body leaves and lands at the height it
+       stands at, instead of popping up on its legs in the air) */
+    if (mode === 0) L.hd += (0.075 * (1 - 0.45 * L.sprintW) - L.hd) * Math.min(1, dt * 6);
+    const dropT = Math.min(0, I.gL, I.gR) + sink - L.hd;
     L.drop += (dropT - L.drop) * Math.min(1, dt * (dropT < L.drop ? 30 : 10));
     L.pelP[1] += L.drop + Math.max(-0.3, need);
     /* ---- results in the pelvis' frame ---- */

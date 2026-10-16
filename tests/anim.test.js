@@ -406,6 +406,58 @@ const chestUp = L => {
     `hips down to ${fix(hard, 2)} vs ${fix(soft, 2)} m`
   );
 }
+/* an ordinary jump, on the defaults and on a floatier preset (the Classic feel's 9 m/s and 14.5 m/s2):
+   the body rides the arc at standing height, then sinks at most 0.1 body heights on landing and is
+   back up within 0.4 s, without bouncing past rest; the two presets land alike */
+{
+  const jumpLand = (v0, g) => {
+    const keep = [TUNE.jump, TUNE.grav];
+    TUNE.jump = v0;
+    TUNE.grav = g;
+    const L = ANIM.make(),
+      I = stand();
+    L.idleA = ANIM.clips.idle;
+    L.idleT = 0;
+    L.idleNext = 99;
+    for (let i = 0; i < 120; i++) ANIM.update(L, I);
+    const rest = L.pelP[1];
+    let t = 0,
+      airHi = -9;
+    I.air = true;
+    for (;;) {
+      const h = v0 * t - (g * t * t) / 2;
+      if (t > 0.05 && h <= 0) break;
+      I.vy = v0 - g * t;
+      I.gd = h;
+      ANIM.update(L, I);
+      if (t > 0.15) airHi = Math.max(airHi, L.pelP[1] - rest);
+      t += 1 / 60;
+    }
+    I.air = false;
+    I.vy = 0;
+    let low = 0,
+      over = 0,
+      at4 = 0;
+    for (let i = 0; i < 60; i++) {
+      ANIM.update(L, I);
+      const d = L.pelP[1] - rest;
+      low = Math.min(low, d);
+      if (i > 12) over = Math.max(over, d);
+      if (i === 24) at4 = d;
+    }
+    TUNE.jump = keep[0];
+    TUNE.grav = keep[1];
+    return { low, over, at4, airHi };
+  };
+  const dflt = jumpLand(TUNE.jump, TUNE.grav),
+    floaty = jumpLand(9, 14.5);
+  const ok = r => r.low > -0.19 && r.low < -0.04 && Math.abs(r.at4) < 0.03 && r.over < 0.03 && r.airHi < 0.03;
+  check(
+    ok(dflt) && ok(floaty) && Math.abs(dflt.low - floaty.low) < 0.02,
+    "a jump lands light and settles without a bounce, on any preset",
+    `dip ${fix(dflt.low, 3)} / ${fix(floaty.low, 3)} m, at 0.4 s ${fix(dflt.at4, 3)} / ${fix(floaty.at4, 3)}, overshoot ${fix(dflt.over, 3)} / ${fix(floaty.over, 3)}, hips in the air ${fix(dflt.airHi, 3)} / ${fix(floaty.airHi, 3)}`
+  );
+}
 /* ---------- the cost: one pilot's animation per frame ---------- */
 {
   const L = ANIM.make();

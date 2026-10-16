@@ -312,6 +312,8 @@
   UI.teamName = teamName;
   function onEvent(type, d) {
     forward(type, d || {});
+    /* a grenade (not a rocket) leaves an agent's hand: its free arm throws it */
+    if (type === "nade" && d && d.type !== "rocket" && d.by && d.by.rig) d.by.rig.throwNade();
     const hum = G.human,
       ht = hum ? hum.team : -1;
     switch (type) {

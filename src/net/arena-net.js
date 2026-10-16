@@ -365,7 +365,11 @@ function applyPeer1(pe) {
     )
       r.pod.at.copy(a);
     else if ((f.k === "drop" || f.k === "take") && Array.isArray(f.b)) remoteItem(f.k, a, f.b, f.g | 0);
-    else if (f.k === "nade" && a && b) remoteProjectile(f.g | 0, a, b);
+    else if (f.k === "nade" && a && b) {
+      remoteProjectile(f.g | 0, a, b);
+      /* (a grenade, not a rocket: their free arm throws it) */
+      if ((f.g | 0) !== 2 && r.rig) r.rig.throwNade();
+    }
   }
   if (dt_ && (dt_.s | 0) > r.seenDth) {
     r.seenDth = dt_.s | 0;
