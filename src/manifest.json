@@ -59,6 +59,7 @@
     "net/hitcheck.js",
     "net/arena-net.js",
     "ui/hud.js",
+    "ui/feed-icons.js",
     "ui/net-panel.js",
     "ui/tracker.js",
     "weapons/viewmodel-anim.js",

@@ -844,11 +844,17 @@ function frameBody(t) {
   updPoundRing();
   hitmT -= dt;
   $("hitm").style.opacity = String(hitmT > 0 ? 1 : 0);
-  vigT = Math.max(0, vigT - dt);
   const down = me.shield <= 0 && !me.dead && playing;
   $("vig").classList.toggle("down", down);
   $("vig").classList.toggle("warn", !down && me.shield < 21 && !me.dead && playing);
-  $("vig").style.opacity = down || $("vig").classList.contains("warn") ? "" : String(vigT * 1.8);
+  /* the hit flash over the shield-down and low-shield edges (state.js hurtMe) */
+  hitVigT = Math.max(0, hitVigT - dt);
+  const hv = $("hitVig");
+  if (hv.dataset.k !== hitVigK) hv.dataset.k = hitVigK;
+  hv.style.opacity = String(Math.min(1, hitVigT * 2.6));
+  /* the shield break's colour split: strongest at once, gone in SPLIT_T (half with reduced motion) */
+  splitT = Math.max(0, splitT - dt * (reduceMotion ? 2 : 1));
+  GFX.split = splitT > 0 ? 0.022 * Math.pow(splitT / SPLIT_T, 2) : 0;
   sflashT = Math.max(0, sflashT - dt * 2.2);
   shbHit = Math.max(0, shbHit - dt);
   rechargeShown = Math.max(0, rechargeShown - dt);

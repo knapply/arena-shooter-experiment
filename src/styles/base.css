@@ -658,6 +658,41 @@ body:has(#ctfHud.play:not([hidden])) .vitals {
 #feed .me {
   color: var(--thrust);
 }
+/* how each kill happened (ui/feed-icons.js): the weapon's silhouette, a grenade or a glyph, and a
+   headshot mark; masks, so they take the text colour, with a dark edge to read on bright walls */
+#feed .fi {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 8px;
+  vertical-align: -3px;
+  color: var(--ink);
+  filter: drop-shadow(0 0 1px #000c);
+}
+#feed .fi i {
+  display: inline-block;
+  width: 46px;
+  height: 15px;
+  background: currentColor;
+  -webkit-mask: var(--m) center / contain no-repeat;
+  mask: var(--m) center / contain no-repeat;
+}
+#feed .fi i.nade {
+  width: 13px;
+}
+#feed .fi i.glyph {
+  width: 22px;
+}
+#feed .fi .hs {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  background: #ffd36b;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20d%3D%22M10%201a8%208%200%200%201%208%208v4l-3%203H5l-3-3V9a8%208%200%200%201%208-8zm-5%207v3h10V8z%22%20fill-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20d%3D%22M10%201a8%208%200%200%201%208%208v4l-3%203H5l-3-3V9a8%208%200%200%201%208-8zm-5%207v3h10V8z%22%20fill-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E")
+    center / contain no-repeat;
+}
 #feed .x {
   color: var(--dim);
   font-family: var(--f-mono);
@@ -714,6 +749,24 @@ body:has(#ctfHud.play:not([hidden])) .vitals {
   inset: 0;
   background: radial-gradient(ellipse at center, transparent 55%, var(--hull) 140%);
   opacity: 0;
+}
+/* a hit (game/state.js hurtMe): the shield's is bright, cool and lined like an energy field, the
+   hull's dark, heavy and smooth, so they read apart by brightness and texture, not only colour */
+#hitVig {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+#hitVig[data-k="sh"] {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 3px, #eef9ff80 3px 4.5px),
+    radial-gradient(ellipse at center, transparent 46%, #8fdcffa0 86%, #f2fbff 125%);
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 40%, #000 88%);
+  mask-image: radial-gradient(ellipse at center, transparent 40%, #000 88%);
+}
+#hitVig[data-k="hp"] {
+  background: radial-gradient(ellipse at center, transparent 38%, #3a000466 72%, #b0101aee 118%);
 }
 /* your shield down: the edge glows red and pulses with the alarm until it recharges */
 #vig.down {

@@ -379,10 +379,16 @@ function hurtMe(n, src) {
     shieldBroken: hadShield && me.shield <= 0,
   });
   damageArc(src, hadShield);
+  /* the edge of the view flashes: cool, bright and lined for the shield, dark heavy red for hull
+     (they differ in brightness and texture as well as colour); a bigger hit flashes harder */
+  hitVigK = hadShield ? "sh" : "hp";
+  hitVigT = Math.max(hitVigT, clamp(n / 40, 0.5, 1) * (hadShield ? 0.38 : 0.55));
   if (hadShield) {
-    sflashT = Math.max(sflashT, me.shield <= 0 ? 1 : 0.55);
     sfx(me.shield <= 0 ? "shbreak" : "shieldhit");
     if (me.shield <= 0) {
+      sflashT = 1;
+      /* and the image splits into its colours for a moment (render/pipeline.js) */
+      splitT = SPLIT_T;
       shakeT = Math.max(shakeT, 0.3);
       /* the screen's edge shatters: a white-blue burst with cracks, once (styles: #shbreak) */
       const b = $("shbreak");
@@ -391,10 +397,7 @@ function hurtMe(n, src) {
       b.classList.add("on");
       rumble(1, 0.8, 220);
     }
-  } else {
-    sfx("hurt");
-    vigT = 0.35;
-  }
+  } else sfx("hurt");
   shbHit = 0.12;
   if (died) {
     deaths++;
@@ -436,14 +439,21 @@ function hurtMe(n, src) {
 /* the kill feed is a subscriber; spectator modes keep it quiet */
 EVENTS.on("kill", e => {
   if (!/spectate|trailer/.test(e.mode))
-    pushFeed(e.killerName, e.victimName, e.killer === "local", e.victim === "local", e.zone || "", [
-      pilotKind(e.killer),
-      pilotKind(e.victim),
-    ]);
+    pushFeed(
+      e.killerName,
+      e.victimName,
+      e.killer === "local",
+      e.victim === "local",
+      e.zone || "",
+      [pilotKind(e.killer), pilotKind(e.victim)],
+      e.weapon,
+      !!e.head
+    );
 });
-/** zone: where it happened (the map's callout zones), shown small after the names */
-function pushFeed(a, b, mine, victim, zone, kinds) {
-  feed.unshift({ a, b, mine, victim, z: zone || "", t: now, k: kinds || ["", ""] });
+/** zone: where it happened (the map's callout zones), shown small after the names; w and head: the
+    weapon (an event's damage type) and a headshot, drawn as an icon between the names (ui/feed-icons.js) */
+function pushFeed(a, b, mine, victim, zone, kinds, w, head) {
+  feed.unshift({ a, b, mine, victim, z: zone || "", t: now, k: kinds || ["", ""], w: w || "", hd: !!head });
   if (feed.length > 5) feed.pop();
   renderFeed();
 }
@@ -455,9 +465,13 @@ function renderFeed() {
     /* players, AI and you, marked (ui/pilot-kind.js) */
     const A = pilotName(f.a, f.k[0]);
     if (f.mine) A.classList.add("me");
-    const X = document.createElement("span");
-    X.className = "x";
-    X.textContent = "›";
+    let X;
+    if (f.w) X = feedIcon(f.w, f.hd);
+    else {
+      X = document.createElement("span");
+      X.className = "x";
+      X.textContent = "›";
+    }
     const Bn = pilotName(f.b, f.k[1]);
     if (f.victim) Bn.classList.add("me");
     d.append(A, X, Bn);
@@ -498,8 +512,13 @@ function hitMarker(kind) {
 function hitKind(died, had, after, head) {
   return died ? "kill" : had && after <= 0 ? "brk" : head && !had ? "head" : had ? "sh" : "";
 }
-let vigT = 0,
-  sflashT = 0,
+/** the hit flash at the edge of the view (#hitVig): seconds left and its kind ("sh" or "hp") */
+let hitVigT = 0,
+  hitVigK = "hp";
+/** the shield break's colour split: seconds left of SPLIT_T */
+const SPLIT_T = 0.24;
+let splitT = 0;
+let sflashT = 0,
   shakeT = 0,
   shbHit = 0,
   alarmT = 0,

@@ -236,6 +236,64 @@ const podSeats = map => {
     const hurt = await lvlIs(0);
     await p.mouse.up({ button: "right" });
     check(hurt === 0, "taking damage descopes");
+    /* hit feedback: a shield hit and a hull hit flash the edge differently; a shield break splits the
+       image's colours for a moment, then it is gone (waits on game time) */
+    const hv = await p.evaluate(async () => {
+      const out = {},
+        el = document.getElementById("hitVig"),
+        frame = () => new Promise(r => requestAnimationFrame(() => r()));
+      KA.me.spawnT = -99;
+      KA.me.shield = 70;
+      KA.me.health = 45;
+      KA.hurtMe(10, { name: "test", w: "rifle" });
+      await frame();
+      out.sh = [el.dataset.k, +el.style.opacity > 0];
+      KA.me.shield = 5;
+      KA.hurtMe(10, { name: "test", w: "rifle" });
+      await frame();
+      out.split = KA.GFX.split > 0;
+      for (let i = 0; i < 60 && KA.GFX.split > 0; i++) await new Promise(r => setTimeout(r, 50));
+      out.splitGone = KA.GFX.split === 0;
+      KA.me.shield = 0;
+      KA.hurtMe(5, { name: "test", w: "rifle" });
+      await frame();
+      out.hp = [el.dataset.k, +el.style.opacity > 0];
+      KA.me.shield = 70;
+      KA.me.health = 45;
+      return out;
+    });
+    check(
+      hv.sh[0] === "sh" && hv.sh[1] && hv.hp[0] === "hp" && hv.hp[1],
+      "shield hits and hull hits flash the edge of the view in their own looks",
+      hv
+    );
+    check(hv.split && hv.splitGone, "a shield break splits the colours briefly, then it clears", hv);
+    /* the kill feed shows how each kill happened: the weapon's icon, a headshot mark, glyphs for the rest */
+    const fd = await p.evaluate(async () => {
+      for (const [w, hd] of [
+        ["melee", false],
+        ["frag", false],
+        ["sniper", true],
+      ])
+        KA.EVENTS.emit("kill", {
+          killer: "bot:0",
+          killerName: "A",
+          victim: "bot:1",
+          victimName: "B",
+          weapon: w,
+          head: hd,
+        });
+      const rows = [...document.querySelectorAll("#feed > div")].slice(0, 3);
+      return rows.map(r => {
+        const i = r.querySelector(".fi i");
+        return [i && i.className, !!(i && i.style.getPropertyValue("--m")), !!r.querySelector(".fi .hs")];
+      });
+    });
+    check(
+      fd[0][0] === "gun" && fd[0][1] && fd[0][2] && fd[1][0] === "nade" && !fd[1][2] && fd[2][0] === "glyph",
+      "kill feed rows carry the weapon's icon (or grenade, or glyph) and a headshot mark",
+      fd
+    );
     check(
       await p.evaluate(() => Number.isFinite(KA.camera.fov) && KA.camera.fov > 10),
       "camera FOV stays valid"
