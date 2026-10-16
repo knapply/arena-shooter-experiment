@@ -64,7 +64,9 @@
   const HOLDS = new Map();
   function holdSpots() {
     const doc = CTF.MAP;
-    if (HOLDS.has(doc.id)) return HOLDS.get(doc.id);
+    /* (the skull comes down somewhere new each time: holds are about where it is now) */
+    const key = doc.id + ":" + Math.round(CTF.BALL_HOME.x) + "," + Math.round(CTF.BALL_HOME.z);
+    if (HOLDS.has(key)) return HOLDS.get(key);
     const out = [];
     for (const z of doc.zones || []) {
       const x = (z.b[0] + z.b[2]) / 2,
@@ -81,7 +83,7 @@
       ok.push([q.x, q.y, q.z]);
     }
     const list = ok.length ? ok : out;
-    HOLDS.set(doc.id, list);
+    HOLDS.set(key, list);
     return list;
   }
   class Agent {

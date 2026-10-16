@@ -68,8 +68,8 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/highlights.js` | 120 | `HL` `HL_KEEP` `HL_BEFORE` `HL_AFTER` `HL_POWER` `hlConsider` `hlTick` `playOfTheGame` |
 | `src/game/stats.js` | 344 | `ASSIST_WINDOW` `GUN_WEAPONS` `STATS` `WEAPON_NAMES` `endCarry` `endBall` `statRoster` `powerHeld` `statScore` |
 | `src/game/intro.js` | 126 | `INTRO` `_ic` `centroid` `playIntro` `endIntro` `introFrame` |
-| `src/game/pods.js` | 770 | `PODS` `podsOn` `podLeft` `podSpeed` `podHeat` `podHidden` `POD_R` `POD_NOSE` `POD_BURY` `POD_EYE` `POD_BLOW` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `inSolid` `solidDepth` … (+39) |
-| `src/game/supply-pods.js` | 334 | `SUPPLY` `SUP_STATE` `SUPPLY_FALL` `SUPPLY_EARLY` `SUPPLY_H` `SUPPLY_BURY` `SUPPLY_N` `SUP_BEACON` `supplyAtlas` `atlasUv` `SUP_GREY` `SUP_STRIPE` `SUP_GLOW` `SUP_DRAW` `_spM` `supplyDraw` `launchSupply` `disposeSupply` … (+5) |
+| `src/game/pods.js` | 817 | `PODS` `podsOn` `podLeft` `podSpeed` `podHeat` `podHidden` `POD_R` `POD_NOSE` `POD_BURY` `POD_EYE` `POD_BLOW` `POD_GEO` `podGeo` `POD_MAT` `podFireMat` `skyClear` `inSolid` `solidDepth` … (+41) |
+| `src/game/supply-pods.js` | 337 | `SUPPLY` `SUP_STATE` `SUPPLY_FALL` `SUPPLY_EARLY` `SUPPLY_H` `SUPPLY_BURY` `SUPPLY_N` `SUP_BEACON` `supplyAtlas` `atlasUv` `SUP_GREY` `SUP_STRIPE` `SUP_GLOW` `SUP_DRAW` `_spM` `supplyDraw` `launchSupply` `disposeSupply` … (+5) |
 | `src/game/pod-view.js` | 292 | `PV` `PV_OPEN` `PV_RISE` `PV_END` `pvEl` `pvLerp` `pvBuild` `pvSet` `pvShow` `pvHide` `podOpening` `podEndOpening` `_pvA` `_pvB` `_pvL` `podOpeningShot` `_pvP` `podCockpit` … (+2) |
 | `src/ui/pings.js` | 153 | `PINGS` `PING_LIFE` `PING_TAP` `_pgD` `_pgO` `_pgV` `pingTarget` `dangerTarget` `dangerSfx` `addPing` `sharePing` `pingNow` `pingLayer` `updPings` |
 | `src/game/loop.js` | 916 | `pend` `prevPos` `rpos` `physAcc` `clWas` `thrK` `thrS` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `fovK` `prevReload` `stepAcc` `camRoll` `slideDustT` … (+43) |
@@ -82,20 +82,20 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 41 | `_sd` `RANGE` `updAim` |
 | `src/render/prewarm.js` | 61 | `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 326 | `KA_API` |
+| `src/game/exports.js` | 327 | `KA_API` |
 | `src/render/cine-look.js` | 90 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 150 | `TFP` |
 | `src/data/map-check.js` | 147 | `MAP_MATS` `MAP_LIMIT` `validateMap` |
-| `src/modes/ctf/map.js` | 253 |  |
+| `src/modes/ctf/map.js` | 321 |  |
 | `src/modes/ctf/nav.js` | 349 |  |
 | `src/modes/ctf/memory.js` | 169 |  |
 | `src/modes/ctf/brain.js` | 628 |  |
-| `src/modes/ctf/agent.js` | 1615 |  |
-| `src/modes/ctf/rules.js` | 1073 |  |
+| `src/modes/ctf/agent.js` | 1617 |  |
+| `src/modes/ctf/rules.js` | 1080 |  |
 | `src/modes/ctf/ui.js` | 763 |  |
 | `src/net/ctf-host.js` | 846 |  |
 | `src/net/ctf-client.js` | 778 |  |
-| `src/modes/ctf/modes.js` | 1200 |  |
+| `src/modes/ctf/modes.js` | 1232 |  |
 | `src/modes/trailer-score.js` | 1092 |  |
 | `src/modes/trailer.js` | 3319 |  |

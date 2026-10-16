@@ -316,7 +316,8 @@ function makePod(color) {
  * steer: { r, ok(x, z) } lets the rider nudge the landing point within r metres of where it was
  *   aimed, onto open ground that ok() accepts (CTF keeps you near your base); see steerPod
  * rider: this is your own pod (its hull and the burn around it are not drawn while you are inside)
- * @param {{ dur?: number, h?: number, onLand?: Function, quiet?: boolean, rider?: boolean, steer?: { r: number, ok?: (x: number, z: number) => boolean } }} [o]
+ * kind: "pilot" (the default) or "skull": the trail it leaves (POD_TRAILS)
+ * @param {{ dur?: number, h?: number, onLand?: Function, quiet?: boolean, rider?: boolean, kind?: string, steer?: { r: number, ok?: (x: number, z: number) => boolean } }} [o]
  */
 function dropPod(pos, color, o = {}) {
   const h = o.h || POD_HEIGHT;
@@ -336,6 +337,8 @@ function dropPod(pos, color, o = {}) {
     steer: o.steer || null,
     skip: false,
     rider: !!o.rider,
+    /** pilot, supply or skull: how its trail looks (POD_TRAILS) */
+    kind: o.kind || "pilot",
     /** the rider is in the cockpit (game/pod-view.js); before that the opening shot sees it from outside */
     inside: false,
     /* where it comes to rest (podSeat), and the offset it eases toward on the way down */
@@ -355,11 +358,39 @@ const _podV = new V3(),
   _podW = new V3();
 /* the re-entry burn: red, orange and ember-yellow flame shed from the nose */
 const BURN_COLS = [0xff3a14, 0xff6a1c, 0xff9a30, 0xffc45a];
+/* each kind of pod reads differently from across the map, by colour and by more than colour:
+   - a pilot: orange flame over a dark grey-brown smoke column, a plain straight trail;
+   - a supply pod (a power weapon): a white-hot blue-white flame and pale smoke, the brightest of the
+     three, with a strobe at its head (game/supply-pods.js);
+   - the skull: a violet flame under black smoke, wrapped in a bright two-strand spiral of sparks. */
+const POD_TRAILS = {
+  pilot: {
+    burn: BURN_COLS,
+    smoke: [0x4a423c, 0x5c534b],
+    ember: [0xffb347, 0xff5a1a],
+    head: [0xffc070, 0xfff0d0],
+  },
+  supply: {
+    burn: [0x9fd4ff, 0xbfe6ff, 0xe8f6ff, 0xffffff],
+    smoke: [0xd6dde4, 0xe8edf2],
+    ember: [0xbfe6ff, 0xffffff],
+    head: [0x9fd4ff, 0xffffff],
+  },
+  skull: {
+    burn: [0x7a24ff, 0xa83cff, 0xd05aff, 0x5a18e0],
+    smoke: [0x161019, 0x221a26],
+    ember: [0xe0a0ff, 0xffffff],
+    head: [0xb070ff, 0xf2e0ff],
+    spiral: true,
+  },
+};
+const podTrailOf = p => POD_TRAILS[p.kind] || POD_TRAILS.pilot;
 /** the re-entry trail between where the pod was last frame and where it is now (heat: 0..1; near
     shrinks the flame of a pod right beside the one you ride) */
 function podTrail(p, heat, near = 1) {
   const a = p.prev,
-    b = p.g.position;
+    b = p.g.position,
+    T = podTrailOf(p);
   const n = Math.min(10, pc(Math.ceil(a.distanceTo(b) / 1.6)));
   for (let i = 0; i < n; i++) {
     _podV.lerpVectors(a, b, (i + Math.random()) / n);
@@ -372,7 +403,7 @@ function podTrail(p, heat, near = 1) {
         _podV,
         new V3(rnd(-1, 1), rnd(2, 6), rnd(-1, 1)),
         rnd(2.6, 4.4) * (0.5 + heat * 0.6) * near,
-        BURN_COLS[(Math.random() * BURN_COLS.length) | 0],
+        T.burn[(Math.random() * T.burn.length) | 0],
         0.9 * heat,
         rnd(0.6, 1.4),
         { max: 1.4, grow: -0.5, drag: 2 }
@@ -384,7 +415,7 @@ function podTrail(p, heat, near = 1) {
         _podW.copy(_podV).add(_fx.set(rnd(-0.4, 0.4), 1.5, rnd(-0.4, 0.4))),
         new V3(rnd(-0.6, 0.6), rnd(0.5, 1.5), rnd(-0.6, 0.6)),
         rnd(3, 4.8) * Math.max(0.5, near),
-        Math.random() < 0.5 ? 0x4a423c : 0x5c534b,
+        T.smoke[Math.random() < 0.5 ? 0 : 1],
         0.55 * heat,
         rnd(2.5, 4),
         { max: 4, grow: 0.5, drag: 0.6 }
@@ -396,11 +427,26 @@ function podTrail(p, heat, near = 1) {
         _podV,
         new V3(rnd(-6, 6), rnd(-2, 8), rnd(-6, 6)),
         rnd(0.18, 0.35),
-        Math.random() < 0.5 ? 0xffb347 : 0xff5a1a,
+        T.ember[Math.random() < 0.5 ? 0 : 1],
         1,
         rnd(0.8, 1.6),
         { max: 1.6, g: 9, drag: 0.8 }
       );
+    /* the skull's spiral: two strands of bright sparks wound round the trail, left hanging */
+    if (T.spiral && !podHidden(p))
+      for (const s of [0, Math.PI]) {
+        const w = now * 9 + (i / n) * 1.2 + s;
+        ptAdd(
+          PTS.glow,
+          _podW.set(_podV.x + Math.cos(w) * 1.4, _podV.y, _podV.z + Math.sin(w) * 1.4),
+          new V3(0, rnd(0.5, 1.5), 0),
+          0.5,
+          T.ember[s ? 1 : 0],
+          1,
+          1.4,
+          { max: 1.4, grow: -0.2 }
+        );
+      }
   }
 }
 /* ---- steering your own pod: the landing point moves with your input, never past the pod's
@@ -677,8 +723,9 @@ function updPods(dt) {
         const f = close ? 0.2 : near;
         _podW.copy(p.g.position);
         if (close) _podW.y -= 0.5;
-        ptAdd(PTS.glow, _podW, new V3(), 7 * heat * f, 0xffc070, close ? 0.8 : near, 0.05);
-        ptAdd(PTS.glow, _podW, new V3(), 3 * heat * f, 0xfff0d0, 1, 0.05);
+        const hc = podTrailOf(p).head;
+        ptAdd(PTS.glow, _podW, new V3(), 7 * heat * f, hc[0], close ? 0.8 : near, 0.05);
+        ptAdd(PTS.glow, _podW, new V3(), 3 * heat * f, hc[1], 1, 0.05);
       }
       /* the burn lights the ground as it comes in, and the air shimmers around it */
       if (h < 70) {

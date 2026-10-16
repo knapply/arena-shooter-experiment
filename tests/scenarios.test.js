@@ -1233,15 +1233,16 @@ const fix = v => +v.toFixed(2);
       w: G.winner,
     });
   }
-  /* skull spots: each match (and each drop) picks one of the map's spots, so matches open in
-     different places, and never the same spot twice running */
+  /* skull spots: each match (and each drop) picks one of the map's skull places (CTF.skullSpots),
+     so matches open in different places, and never the same spot twice running */
   for (const map of ["arena", "ctf"]) {
-    const spots = K.MAPS[map].balls.map(p => p.join(",")),
-      firsts = new Set();
+    let spots = [];
+    const firsts = new Set();
     let repeat = false;
     for (let seed = 1; seed <= 6; seed++) {
       K.STORE.setBackend(K.STORE.memoryBackend());
       const G = CTF.Game({ mode: "sim", render: false, seed, rules: "oddball", map });
+      spots = CTF.skullSpots().map(p => p.join(","));
       firsts.add(CTF.BALL_HOME.toArray().join(","));
       const s0 = G.ballSpot;
       G.nextBallSpot();
@@ -1249,7 +1250,7 @@ const fix = v => +v.toFixed(2);
     }
     check(
       firsts.size >= 2 && [...firsts].every(p => spots.includes(p)) && !repeat,
-      `${map}: the skull opens on different spots from the map's list, never the same twice running`,
+      `${map}: the skull opens on different spots from the map's skull places, never the same twice running`,
       [...firsts]
     );
   }

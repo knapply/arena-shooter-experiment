@@ -2188,6 +2188,45 @@ const podSeats = map => {
       "every pilot lands on their own half and the match is on",
       ctfDown
     );
+    /* ---------- AI against AI: a spectated match opens on the pods coming in, nothing of yours ---------- */
+    const SP = await open(ctx, { tag: "SP", drops: true });
+    pages.push(SP);
+    await SP.waitForTimeout(600);
+    await SP.evaluate(() => {
+      Object.assign(KA.SET, { intros: false, dropIn: true });
+      KA.startMode("spectate", { rules: "oddball", map: "arena" });
+    });
+    const specOpen = await SP.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      const g = () => CTF.UI.game();
+      for (let i = 0; i < 400 && !(g() && g().t > 0.4); i++) await wait(25);
+      const c = KA.camera.position;
+      const during = {
+        shot: CTF.spectator.shot,
+        cockpit: !document.getElementById("podView").hidden,
+        podding: document.body.classList.contains("podding"),
+        myPod: !!KA.myPod,
+        pods: KA.PODS.filter(p => !p.landed).length,
+        /* the camera is in the open, not inside a crate or the floor */
+        open: KA.freeAt(c.x, c.y - 0.9, c.z, 1.8),
+      };
+      for (let i = 0; i < 800 && !(g().t > g().dropT + 1); i++) await wait(25);
+      const kinds = new Set(KA.PODS.map(p => p.kind));
+      return { during, after: CTF.spectator.shot, skull: kinds.has("skull") };
+    });
+    check(
+      specOpen.during.shot === "drop" &&
+        !specOpen.during.cockpit &&
+        !specOpen.during.podding &&
+        !specOpen.during.myPod &&
+        specOpen.during.pods >= 4 &&
+        specOpen.during.open &&
+        specOpen.after !== "drop",
+      "a spectated match opens on the pods coming in, then the director takes over",
+      specOpen
+    );
+    check(specOpen.skull, "the skull comes down in a skull pod of its own", specOpen);
+    await SP.evaluate(() => KA.extStop());
     /* ---------- the drop gives way to the pause menu, leaving and the end of a match ---------- */
     const Q = await open(ctx, { tag: "Q" });
     pages.push(Q);

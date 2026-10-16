@@ -788,6 +788,8 @@
   }
   /* ---------------- director shots ---------------- */
   const SHOTS = ["track", "shoulder", "low", "orbit"];
+  /** watching the opening drop (see camera) */
+  let dropShot = false;
   let shotType = "track",
     shotT = 0;
   function pickShot(big) {
@@ -888,7 +890,7 @@
       return TAC;
     },
     get shot() {
-      return shotType;
+      return dropShot ? "drop" : shotType;
     },
     get mode() {
       return camMode;
@@ -917,7 +919,37 @@
         TAC.at.z + Math.cos(TAC.yaw) * cp * TAC.dist
       );
       look.copy(TAC.at);
+    } else if (G.dropT && G.t < G.dropT + 0.5) {
+      /* the opening drop: nobody is down yet, so watch the pods come in. Low over the middle, turning
+         slowly, looking up at them; the view comes down with them as they land */
+      dropShot = true;
+      const B = CTF.MAP.bounds,
+        cx = (B.x0 + B.x1) / 2,
+        cz = (B.z0 + B.z1) / 2;
+      let n = 0;
+      _d.set(0, 0, 0);
+      for (const p of K.PODS)
+        if (!p.landed) {
+          _d.add(p.g.position);
+          n++;
+        }
+      if (n) _d.multiplyScalar(1 / n);
+      else _d.set(cx, 2, cz);
+      const a = 0.6 + G.t * 0.12,
+        r = Math.min(26, 0.32 * Math.min(B.x1 - B.x0, B.z1 - B.z0));
+      want.set(
+        cx + Math.sin(a) * r,
+        CTF.MAP.ball ? Math.max(9, CTF.MAP.ball[1] + 6) : 9,
+        cz + Math.cos(a) * r
+      );
+      look.set(_d.x, Math.max(1.5, Math.min(_d.y, 60)), _d.z);
     } else {
+      if (dropShot) {
+        /* everyone is down: the director takes over */
+        dropShot = false;
+        focus = null;
+        snap = true;
+      }
       let f;
       if (camMode === "follow") f = G.agents[followIdx];
       else {

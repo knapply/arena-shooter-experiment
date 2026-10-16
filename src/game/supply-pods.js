@@ -186,6 +186,7 @@ function launchSupply(p, dur) {
     open: false,
     leaving: -1,
     rider: false,
+    kind: "supply",
     lidV: new V3(),
     lidSpin: 0,
     lidRest: false,
@@ -261,6 +262,8 @@ function updSupply(dt) {
       /* a blue-white head, so it reads as a supply drop and not a pilot */
       ptAdd(PTS.glow, s.g.position, new V3(), 3.6 * heat, 0x9fd4ff, 1, 0.05);
       ptAdd(PTS.glow, s.g.position, new V3(), 1.6 * heat, 0xffffff, 1, 0.05);
+      /* and a strobe at its head, four times a second: it blinks where the others burn steady */
+      if ((now * 4) % 1 < 0.3) ptAdd(PTS.glow, s.g.position, new V3(), 6, 0xffffff, 1, 0.05);
       if (h < 50) dynLight(s.g.position, 0x9fd4ff, 3 * heat * (1 - h / 50), 0.05, 18);
       if (k >= 1) {
         s.landed = true;
