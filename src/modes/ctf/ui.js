@@ -453,7 +453,7 @@
     if (f.carrier && f.carrier.local) return "⚑ You have it";
     return `⚑ ${f.carrier ? f.carrier.name : "Taken"}`;
   }
-  const mmss = s => `${(s / 60) | 0}:${String((s % 60) | 0).padStart(2, "0")}`;
+  const mmss = K.fmtClock;
   /** where the skull is, for the team holding it (or everyone when it's loose) */
   function ballText(t) {
     const B = G.ball;

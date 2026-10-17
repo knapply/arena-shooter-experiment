@@ -140,6 +140,7 @@ const KA_API = {
   ),
   $,
   clamp,
+  fmtClock,
   rnd,
   scene,
   camera,

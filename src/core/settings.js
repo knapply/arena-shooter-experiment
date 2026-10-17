@@ -1332,7 +1332,7 @@ const SCHEMA = [
     min: 30,
     max: 300,
     step: 15,
-    fmt: v => `${(v / 60) | 0}:${String(v % 60).padStart(2, "0")}`,
+    fmt: fmtClock,
     desc: "The first team to hold the skull for this long in total wins. Every second a teammate carries it counts.",
   },
   {

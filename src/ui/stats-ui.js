@@ -3,7 +3,6 @@
    every pilot, AI included, with sortable columns (headers are buttons, so mouse, touch and the
    gamepad's menu navigation all work), your row highlighted and, in team modes, team totals. */
 const TEAM_NAMES = ["Red", "Blue"];
-const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const STAT_COLS = [
   { k: "name", h: "Pilot", title: "Pilot" },
   { k: "k", h: "K", title: "Kills" },
@@ -19,8 +18,8 @@ const STAT_COLS = [
   { k: "caps", h: "Caps", title: "Flag captures", team: true, mode: "ctf" },
   { k: "rets", h: "Ret", title: "Flag returns", team: true, mode: "ctf" },
   { k: "carries", h: "Carry", title: "Flag carries", team: true, mode: "ctf" },
-  { k: "flagT", h: "Flag", title: "Time carrying the flag", team: true, mode: "ctf", f: fmtTime },
-  { k: "ballT", h: "Skull", title: "Time holding the skull", team: true, mode: "oddball", f: fmtTime },
+  { k: "flagT", h: "Flag", title: "Time carrying the flag", team: true, mode: "ctf", f: fmtClock },
+  { k: "ballT", h: "Skull", title: "Time holding the skull", team: true, mode: "oddball", f: fmtClock },
 ];
 const SUM_KEYS = ["k", "d", "a", "dmg", "hs", "medals", "caps", "rets", "carries", "flagT", "ballT"];
 /** build the stats table into `box`; onSort re-renders after a header is chosen */
@@ -195,7 +194,7 @@ function renderPost() {
     const li = document.createElement("li");
     if (e.team >= 0) li.className = "t" + e.team;
     const tm = document.createElement("time");
-    tm.textContent = fmtTime(e.t);
+    tm.textContent = fmtClock(e.t);
     li.append(tm, e.text);
     tl.appendChild(li);
   }

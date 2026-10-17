@@ -9,7 +9,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/core/store.js` | 227 | `STORE` |
 | `src/core/rng.js` | 29 | `RNG` `rand` |
 | `src/core/vec3.js` | 94 | `Vec3` |
-| `src/core/prelude.js` | 41 | `$` `clamp` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
+| `src/core/prelude.js` | 43 | `$` `clamp` `fmtClock` `rnd` `r2` `isTouch` `reduceMotion` `V3` `COLORS` `myColor` `myArmor` |
 | `src/game/events.js` | 71 | `EVENTS` |
 | `src/game/frame-hooks.js` | 21 | `FRAME_HOOKS` `onFrame` `runFrameHooks` |
 | `src/core/settings.js` | 1717 | `ACTIONS` `DEF_BIND` `PAD_NAMES` `DEF_PAD` `T_GFX` `T_CTL` `T_PAD` `T_GAME` `T_AUD` `T_DES` `T_SBX` `T_LAB` `T_MODE` `SANDBOX_DEFS` `LAB_DEFS` `SCHEMA` `PRESETS` `PRESET_KEYS` … (+15) |
@@ -82,15 +82,15 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/ui/pings.js` | 161 | `PINGS` `PING_LIFE` `PING_TAP` `_pgD` `_pgO` `_pgV` `pingTarget` `dangerTarget` `dangerSfx` `addPing` `sharePing` `pingNow` `pingLayer` `updPings` |
 | `src/game/loop.js` | 1004 | `pend` `prevPos` `rpos` `physAcc` `clWas` `thrK` `thrS` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `landT` `landD` `fovK` `prevReload` `stepAcc` … (+49) |
 | `src/ui/settings-ui.js` | 566 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `saveSoonT` `saveSoon` `saveNow` `closeSettings` `onSetChange` `renderSettings` `sandboxPresetRow` `searchHit` `renderSearch` `settingRow` `renderKeys` `renderPadBinds` … (+8) |
-| `src/ui/menu.js` | 318 | `MENU` `MENU_SIZES` `MODE_RULE_KEY` `menuMode` `sizeList` `mapName` `mmssM` `modeGoal` `modeLimits` `saveMenu` `MCARDS` `menuHost` `pickMode` `fillSelect` `setTeam` `menuSummary` `renderMenu` `MAX_ROOM` … (+1) |
-| `src/weapons/pickups.js` | 384 | `PICKMAT` `PICKACC` `PICKHOT` `NADE_CAP` `wName` `capWord` `MODEL_PARTS` `floorParts` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `powerSpawn` `ARENA_PICKS` `ITEM_LIFE` `makeItem` `ITEMS` `itemSeq` … (+12) |
-| `src/ui/power.js` | 152 | `PW_KEYS` `pwKey` `PW_TEX` `pwTex` `PW_MARKS` `pwMark` `arenaPowerHolders` `pwCallT` `hudCallout` `powerCallout` `pwHudLast` `pwPrev` `updPower` |
+| `src/ui/menu.js` | 317 | `MENU` `MENU_SIZES` `MODE_RULE_KEY` `menuMode` `sizeList` `mapName` `modeGoal` `modeLimits` `saveMenu` `MCARDS` `menuHost` `pickMode` `fillSelect` `setTeam` `menuSummary` `renderMenu` `MAX_ROOM` `renderLobby` |
+| `src/weapons/pickups.js` | 379 | `PICKMAT` `PICKACC` `PICKHOT` `NADE_CAP` `wName` `capWord` `MODEL_PARTS` `floorParts` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `powerSpawn` `ARENA_PICKS` `ITEM_LIFE` `makeItem` `ITEMS` `itemSeq` … (+12) |
+| `src/ui/power.js` | 148 | `PW_KEYS` `pwKey` `PW_TEX` `pwTex` `PW_MARKS` `pwMark` `arenaPowerHolders` `pwCallT` `hudCallout` `powerCallout` `pwHudLast` `pwPrev` `updPower` |
 | `src/ui/damage-dir.js` | 49 | `DARCS` `DARC_LIFE` `hitSource` `damageArc` `updDamageArcs` |
-| `src/ui/stats-ui.js` | 221 | `TEAM_NAMES` `fmtTime` `STAT_COLS` `SUM_KEYS` `statsTable` `renderStatsRoster` `POST` `showPost` `renderPost` `closePost` `postAct` `updPost` |
+| `src/ui/stats-ui.js` | 220 | `TEAM_NAMES` `STAT_COLS` `SUM_KEYS` `statsTable` `renderStatsRoster` `POST` `showPost` `renderPost` `closePost` `postAct` `updPost` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 330 | `_sd` `RANGE` `SIGHT` `sightOf` `SVG_NS` `arcPath` `deg` `RETICLE` `HIT_R` `hitTicks` `xhKind` `xhSvg` `drawReticle` `xhBloom` `scKey` `scSvg` `scH` `ringTicks` … (+6) |
 | `src/render/prewarm.js` | 68 | `prewarmCompile` `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 344 | `KA_API` |
+| `src/game/exports.js` | 345 | `KA_API` |
 | `src/render/cine-look.js` | 115 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 159 | `TFP` |

@@ -308,12 +308,7 @@ function updPickups(dt) {
     if (p.power && v.label) {
       const s = Math.ceil(p.availIn);
       const nm = capWord(wName(p.type));
-      const txt =
-        sup && sup.incoming
-          ? `${nm} incoming`
-          : av
-            ? nm
-            : `${nm} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+      const txt = sup && sup.incoming ? `${nm} incoming` : av ? nm : `${nm} ${fmtClock(s)}`;
       if (txt !== v.last) {
         v.last = txt;
         v.label.userData.draw(txt, av ? "#ffc878" : "#7f939c");
