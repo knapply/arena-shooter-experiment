@@ -17,6 +17,7 @@ const KA_API = {
   feedIconMask,
   /** the post pipeline's state (render/pipeline.js): the shield break's colour split is GFX.split */
   GFX,
+  applyPreset,
   /** the controller's state (core/gamepad.js) */
   GP,
   refill,
