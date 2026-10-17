@@ -80,7 +80,7 @@ const GRID = {
   nx: 0,
   nz: 0,
   cells: [],
-  seen: [],
+  seen: new Uint32Array(0),
   mark: 0,
 };
 let solidVer = 0;

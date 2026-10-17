@@ -104,7 +104,6 @@ const KA_API = {
   },
   POWER_ROTATION,
   LABS,
-  labOn,
   falloffAt,
   mapDoc,
   MAP_MODS,
@@ -146,8 +145,6 @@ const KA_API = {
   camera,
   renderer,
   SOLID,
-  box,
-  stairs,
   ARENA_G,
   MAPS,
   buildMap,
@@ -242,7 +239,6 @@ const KA_API = {
   /* hit checks and lag compensation (net/hitcheck.js) */
   HITCHK,
   MoveHist,
-  netProf,
   timed,
   /** automated input (the network lab's players, tools/net-lab.js): hold an action, or press it once */
   input: {
@@ -268,7 +264,6 @@ const KA_API = {
     return bots;
   },
   Pilot,
-  PILOTS,
   addPilot,
   pilotById,
   posePilot,
@@ -295,7 +290,6 @@ const KA_API = {
   enclosure,
   audioSpace: space,
   say,
-  medal,
   toast,
   hurtMe,
   me,
@@ -342,7 +336,6 @@ const KA_API = {
   vmRoot,
   showWorld,
   hideBots,
-  netStats,
   pingOf,
   pingBars,
 };
