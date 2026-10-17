@@ -210,7 +210,7 @@ const stats = async p => {
         );
       /* pixels around the pilot (feet to head, from its projected position) that change by a lot when
          the pilot is hidden */
-      const standsOut = async (haze, settle = 0) => {
+      const standsOut = async (haze, settle = 0, energy = false) => {
         const box = await p.evaluate(haze => {
           KA.SET.haze = haze;
           KA.applySettings();
@@ -230,7 +230,7 @@ const stats = async p => {
         await frames(2 + settle);
         const b = await shot();
         return p.evaluate(
-          async ([a, b, box]) => {
+          async ([a, b, box, energy]) => {
             const px = async u => {
               const img = await createImageBitmap(await (await fetch(u)).blob());
               const c = document.createElement("canvas");
@@ -249,21 +249,22 @@ const stats = async p => {
               x1 = Math.ceil(box.x * W + h * 0.4),
               y0 = Math.floor(box.y0 * H - 4),
               y1 = Math.ceil(box.y1 * H + 4);
-            let n = 0;
+            let n = 0,
+              e = 0;
             for (let y = Math.max(0, y0); y < Math.min(H, y1); y++)
               for (let x = Math.max(0, x0); x < Math.min(W, x1); x++) {
                 const i = (y * W + x) * 4;
-                if (
+                const d =
                   Math.abs(A.d[i] - B.d[i]) +
-                    Math.abs(A.d[i + 1] - B.d[i + 1]) +
-                    Math.abs(A.d[i + 2] - B.d[i + 2]) >
-                  45
-                )
-                  n++;
+                  Math.abs(A.d[i + 1] - B.d[i + 1]) +
+                  Math.abs(A.d[i + 2] - B.d[i + 2]);
+                if (d > 45) n++;
+                /* (or how much the picture changes in all) */
+                e += d;
               }
-            return n;
+            return energy ? Math.round(e / 100) : n;
           },
-          [a, b, box]
+          [a, b, box, energy]
         );
       };
       for (const look of ["arena", "twin-foundry", "hadal"]) {
@@ -319,16 +320,17 @@ const stats = async p => {
         );
         await p.evaluate(() => KA.CON.run("timescale 1"));
       }
-      /* TAA never blends a distant pilot into the wall behind: once it settles, a pilot 30 m away stands
-         out about as much as with SMAA (its softer edges and leftover jitter land at 84-104% of SMAA's
-         count; a pilot blended into the background measured 70%) */
+      /* TAA never blends a distant pilot into the wall behind: once it settles, a pilot 30 m away changes
+         the picture about as much as with SMAA (93% of it, measured). Measured as the total change, not a count of strongly
+         changed pixels: TAA spreads a 1-2 pixel limb over its neighbours at partial strength (the count
+         swings 76-104% of SMAA's), which keeps the total; a pilot blended into the wall loses it */
       {
         const at = async aa => {
           await p.evaluate(aa => {
             KA.SET.aa = aa;
             KA.applySettings();
           }, aa);
-          return standsOut(true, aa === "taa" ? 12 : 0);
+          return standsOut(true, aa === "taa" ? 12 : 0, true);
         };
         const smaa = await at("smaa"),
           taa = await at("taa");
@@ -336,7 +338,7 @@ const stats = async p => {
           KA.SET.aa = "smaa";
           KA.applySettings();
         });
-        check(smaa > 20 && taa >= smaa * 0.8, "a pilot 30 m away stays as visible with TAA", { smaa, taa });
+        check(smaa > 20 && taa >= smaa * 0.85, "a pilot 30 m away stays as visible with TAA", { smaa, taa });
       }
       /* and an explosion's smoke between you and the pilot, a moment later, keeps most of them in view */
       {
