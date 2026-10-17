@@ -31,7 +31,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/world/gates.js` | 174 | `GATE_CYCLE` `GATES` `gatePeriod` `gateCycleT` `gateEase` `gateLift` `gateNavShut` `mapGates` `buildGates` `gatesAt` `gateShove` |
 | `src/render/gate-fx.js` | 150 | `GATE_TEX` `gateTex` `gateLook` `gateDraw` `_gp` `gateSounds` |
 | `src/world/maps/arena.js` | 281 | `floorTex` `crateTex` `MATS` `MAPG` `ARENA_G` `SOLID` `box` `mergeGeos` `mergeMapGroup` `strip` `stairs` `buildMap` `SPAWNS` |
-| `src/world/physics.js` | 640 | `R` `H_STAND` `H_CROUCH` `TUNE_DEF` `TUNE` `NO_PILOTS` `pilotsFn` `setPilotCollider` `ov` `freeAt` `groundBelow` `rayBox` `rayWorld` `raySphere` `rayTarget` `Body` |
+| `src/world/physics.js` | 766 | `R` `H_STAND` `H_CROUCH` `TUNE_DEF` `TUNE` `NO_PILOTS` `pilotsFn` `setPilotCollider` `GRID_CELL` `GRID` `solidVer` `solidChanged` `gridFresh` `gridCol` `solidNear` `NEAR_MOVE` `NEAR_FREE` `NEAR_GROUND` … (+9) |
 | `src/world/spawns.js` | 107 | `SPAWN_W` `_spE` `_spD` `spawnScore` `pickSpawn` `spotTaken` `noteFight` |
 | `src/data/anim-clips.js` | 280 | `ANIM_CLIPS` |
 | `src/characters/anim.js` | 1070 | `ANIM` |
