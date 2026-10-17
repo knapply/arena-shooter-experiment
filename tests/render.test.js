@@ -117,7 +117,7 @@ const stats = async p => {
       /* (its own profile: it starts from the default settings, not the Ultra page's; small, as software WebGL
          draws a frame every few seconds on CI, and the contrast is measured as a share of the clear view) */
       const hctx = await b.newContext({ viewport: { width: 640, height: 360 } });
-      const p = await open(hctx, { tag: "haze", realThree: true, hash: "#dev" });
+      const p = await open(hctx, { tag: "haze", realThree: true, hash: "#dev", init: ["seeded-random.js"] });
       await p.waitForTimeout(1500);
       await p.evaluate(() => {
         Object.assign(KA.SET, {
