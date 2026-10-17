@@ -111,6 +111,178 @@ const stats = async p => {
       }
       await p.close();
     }
+    /* haze never hides a player: under each map's look, a pilot 30 m away keeps at least 85% of the
+       contrast it has against the same view without the haze (and light cones) */
+    {
+      /* (its own profile: it starts from the default settings, not the Ultra page's; small, as software WebGL
+         draws a frame every few seconds on CI, and the contrast is measured as a share of the clear view) */
+      const hctx = await b.newContext({ viewport: { width: 640, height: 360 } });
+      const p = await open(hctx, { tag: "haze", realThree: true, hash: "#dev", init: ["seeded-random.js"] });
+      await p.waitForTimeout(1500);
+      await p.evaluate(() => {
+        Object.assign(KA.SET, {
+          preset: "custom",
+          /* (screen-space occlusion and floor reflections don't change how a pilot stands out from the air
+             around them) */
+          ao: "baked",
+          reflections: "glossy",
+          bloom: 0.7,
+          dynRes: false,
+          spawnStyle: "classic",
+        });
+        KA.applySettings();
+        document.getElementById("bots").checked = false;
+      });
+      await p.click("#deploy");
+      await p.waitForTimeout(1200);
+      /* the 3D picture only (the reticle sits right over the pilot) */
+      await p.addStyleTag({ content: "#hud, #toast, .status, #fps { visibility: hidden !important; }" });
+      const shot = async () => "data:image/png;base64," + (await p.screenshot()).toString("base64");
+      /* wait on frames drawn, not time (CI's software renderer draws about one a second) */
+      const frames = n =>
+        p.evaluate(
+          n =>
+            new Promise(r => {
+              let k = 0;
+              (function f() {
+                if (++k > n) r();
+                else requestAnimationFrame(f);
+              })();
+            }),
+          n
+        );
+      /* how much the picture around the pilot (feet to head, from its projected position) changes when the
+         pilot is hidden: the sum of every pixel's change, so a pilot a pixel or two wide counts steadily */
+      const standsOut = async haze => {
+        const box = await p.evaluate(haze => {
+          KA.SET.haze = haze;
+          KA.applySettings();
+          const T = KA.THREE,
+            q = window.__q;
+          q.rig.root.visible = true;
+          const f = q.body.pos.clone().project(KA.camera),
+            h = q.body.pos
+              .clone()
+              .add(new T.Vector3(0, 1.9, 0))
+              .project(KA.camera);
+          return { x: (f.x + 1) / 2, y0: 1 - (h.y + 1) / 2, y1: 1 - (f.y + 1) / 2 };
+        }, haze);
+        await frames(5);
+        const a = await shot();
+        await p.evaluate(() => (window.__q.rig.root.visible = false));
+        await frames(3);
+        const b = await shot();
+        return p.evaluate(
+          async ([a, b, box]) => {
+            const px = async u => {
+              const img = await createImageBitmap(await (await fetch(u)).blob());
+              const c = document.createElement("canvas");
+              c.width = img.width;
+              c.height = img.height;
+              const x = c.getContext("2d");
+              x.drawImage(img, 0, 0);
+              return { d: x.getImageData(0, 0, img.width, img.height).data, W: img.width, H: img.height };
+            };
+            const A = await px(a),
+              B = await px(b),
+              W = A.W,
+              H = A.H;
+            const h = (box.y1 - box.y0) * H,
+              x0 = Math.floor(box.x * W - h * 0.4),
+              x1 = Math.ceil(box.x * W + h * 0.4),
+              y0 = Math.floor(box.y0 * H - 4),
+              y1 = Math.ceil(box.y1 * H + 4);
+            let e = 0;
+            for (let y = Math.max(0, y0); y < Math.min(H, y1); y++)
+              for (let x = Math.max(0, x0); x < Math.min(W, x1); x++) {
+                const i = (y * W + x) * 4;
+                e +=
+                  Math.abs(A.d[i] - B.d[i]) +
+                  Math.abs(A.d[i + 1] - B.d[i + 1]) +
+                  Math.abs(A.d[i + 2] - B.d[i + 2]);
+              }
+            return Math.round(e / 100);
+          },
+          [a, b, box]
+        );
+      };
+      for (const look of ["arena", "twin-foundry", "hadal"]) {
+        await p.evaluate(look => {
+          KA.CON.run("look " + look);
+          /* from a spawn, along the first heading with 32 m of open floor at chest and eye height */
+          const T = KA.THREE;
+          let at = null;
+          for (const sp of KA.SPAWNS) {
+            for (let k = 0; k < 16 && !at; k++) {
+              const yaw = (k * Math.PI) / 8,
+                d = new T.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)),
+                eye = new T.Vector3(sp[0], 1.6, sp[2]),
+                low = eye.clone().setY(0.6),
+                far = eye.clone().addScaledVector(d, 30);
+              if (
+                sp[1] < 0.05 &&
+                KA.rayWorld(eye, d, 33) >= 32 &&
+                KA.rayWorld(low, d, 33) >= 32 &&
+                Math.abs(KA.groundBelow(far.x, far.z, 3)) < 0.05
+              )
+                at = { sp, yaw, far };
+            }
+            if (at) break;
+          }
+          KA.me.pos.set(at.sp[0], 0, at.sp[2]);
+          KA.me.vel.set(0, 0, 0);
+          KA.me.yaw = at.yaw;
+          KA.me.pitch = 0;
+          let q = KA.pilotById("actor:haze");
+          if (!q) {
+            q = KA.addPilot(new KA.Pilot({ id: "actor:haze", name: "", color: "#62cdff", ctl: "script" }));
+            q.rig.showTag(false);
+          }
+          q.body.pos.set(at.far.x, 0, at.far.z);
+          q.body.yaw = at.yaw;
+          for (let i = 0; i < 30; i++) q.pose(1 / 60, { wpn: 1 });
+          window.__q = q;
+          window.__at = at;
+          KA.CON.run("timescale 0");
+        }, look);
+        /* (a pilot that has just been added draws a frame or two late) */
+        if (look === "arena") await standsOut(false);
+        const clear = await standsOut(false),
+          hazy = await standsOut(true);
+        check(
+          clear > 20 && hazy >= clear * 0.85,
+          `a pilot 30 m away stays as visible through ${look}'s haze`,
+          {
+            clear,
+            hazy,
+          }
+        );
+        await p.evaluate(() => KA.CON.run("timescale 1"));
+      }
+      /* and an explosion's smoke between you and the pilot, a moment later, keeps most of them in view */
+      {
+        await p.evaluate(() => KA.CON.run("look arena"));
+        const clear = await standsOut(true);
+        await p.evaluate(() => {
+          const at = window.__at,
+            T = KA.THREE,
+            d = new T.Vector3(-Math.sin(at.yaw), 0, -Math.cos(at.yaw));
+          KA.blast(new T.Vector3(at.sp[0], 0.3, at.sp[2]).addScaledVector(d, 12), 0xffa040, 4);
+          window.__t0 = KA.now;
+          KA.CON.run("timescale 1");
+        });
+        await p.waitForFunction(() => KA.now - window.__t0 > 1.2, null, { timeout: 120000, polling: 50 });
+        await p.evaluate(() => KA.CON.run("timescale 0"));
+        const smoky = await standsOut(true);
+        check(clear > 20 && smoky >= clear * 0.6, "a pilot behind an explosion's smoke stays in view", {
+          clear,
+          smoky,
+        });
+      }
+      check(p.errors.length === 0, "the haze scene has no errors", p.errors.slice(0, 3));
+      await p.close();
+      await hctx.close();
+    }
     /* draw-call and triangle budgets (tests/budgets.json) */
     {
       const B = require("./budgets.json");

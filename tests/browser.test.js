@@ -58,7 +58,13 @@ const podSeats = map => {
       KA.me.pos.set(-30, 0, 30);
     });
     await p.mouse.down({ button: "right" });
-    await p.waitForTimeout(350);
+    /* (waits on the game: a slow machine draws the first aiming frames late) */
+    await p
+      .waitForFunction(() => document.getElementById("scope").className === "sc-smart", null, {
+        timeout: 5000,
+        polling: 50,
+      })
+      .catch(() => {});
     check(
       (await p.evaluate(() => document.getElementById("scope").className)) === "sc-smart",
       "pistol aims with the smart scope"

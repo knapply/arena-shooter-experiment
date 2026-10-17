@@ -89,18 +89,82 @@ const chunks = tumblers(
   0.03,
   false
 );
-function toss(T, p, v, spin, life, scale = 1, g = 9.8) {
+/** throw one: sv (optional) scales each axis, for pieces of a box */
+function toss(T, p, v, spin, life, scale = 1, g = 9.8, sv = null) {
   if (T.list.length >= T.n) T.list.shift();
   T.list.push({
     p: p.clone(),
     v,
-    r: new THREE.Euler(rnd(0, 6), rnd(0, 6), 0),
+    r: new THREE.Euler(sv ? 0 : rnd(0, 6), sv ? 0 : rnd(0, 6), 0),
     w: spin,
     life,
     s: scale,
+    sv,
     g,
     rest: false,
   });
+}
+/* cover breaks into pieces of itself: the box cut on a grid (about 35 cm pieces), each piece its own size, the
+   crate's own material, all one instanced mesh with shadows (two draw calls however many fly);
+   chipping and bullet chips throw small pieces of it too */
+const crateChunks = (() => {
+  const T = tumblers(new THREE.BoxGeometry(1, 1, 1), MATS.cover, 220, 0.5, false);
+  T.mesh.castShadow = true;
+  return T;
+})();
+/** a destructible box flying apart from `from` (render only) */
+function chunkBurst(b, from) {
+  const sx = b.x1 - b.x0,
+    sy = b.y1 - b.y0,
+    sz = b.z1 - b.z0;
+  const cut = v => Math.max(2, Math.min(6, Math.round(v / 0.35)));
+  const nx = cut(sx),
+    ny = cut(sy),
+    nz = cut(sz);
+  /* about 40 pieces at most (the rest crumble to dust) */
+  const keep = Math.min(1, SET.debris) * Math.min(1, 40 / (nx * ny * nz));
+  for (let i = 0; i < nx; i++)
+    for (let j = 0; j < ny; j++)
+      for (let k = 0; k < nz; k++) {
+        if (Math.random() > keep) continue;
+        const p = new THREE.Vector3(
+          b.x0 + ((i + 0.5) * sx) / nx,
+          b.y0 + ((j + 0.5) * sy) / ny,
+          b.z0 + ((k + 0.5) * sz) / nz
+        );
+        const v = p
+          .clone()
+          .sub(from)
+          .setY(Math.abs(p.y - from.y) + 0.8)
+          .normalize()
+          .multiplyScalar(rnd(2, 7) * (1 + j * 0.15));
+        toss(
+          crateChunks,
+          p,
+          v,
+          new THREE.Vector3(rnd(-6, 6), rnd(-6, 6), rnd(-6, 6)),
+          rnd(4, 6.5),
+          1,
+          16,
+          new THREE.Vector3((sx / nx) * rnd(0.85, 1), (sy / ny) * rnd(0.85, 1), (sz / nz) * rnd(0.85, 1))
+        );
+      }
+}
+/** small pieces of cover (a chipped corner, a bullet's chips) */
+function chunkChips(p, out, n, big) {
+  for (let i = 0; i < n; i++) {
+    const s = big ? rnd(0.1, 0.24) : rnd(0.05, 0.12);
+    toss(
+      crateChunks,
+      p,
+      new THREE.Vector3(out.x * rnd(2, 5) + rnd(-1, 1), rnd(1.5, 4), out.z * rnd(2, 5) + rnd(-1, 1)),
+      new THREE.Vector3(rnd(-9, 9), rnd(-9, 9), rnd(-9, 9)),
+      big ? rnd(2.5, 4) : rnd(0.8, 1.4),
+      1,
+      15,
+      new THREE.Vector3(s, s * rnd(0.6, 1), s * rnd(0.8, 1.2))
+    );
+  }
 }
 function ejectCasing(p, dir) {
   _cs.set(dir.z, 0, -dir.x).normalize();
@@ -129,7 +193,7 @@ function updTumblers(T, dt) {
       c.r.x += c.w.x * dt;
       c.r.y += c.w.y * dt;
       c.r.z += c.w.z * dt;
-      const fl = groundBelow(c.p.x, c.p.z, c.p.y + 0.05, 0.01) + T.rest * c.s;
+      const fl = groundBelow(c.p.x, c.p.z, c.p.y + 0.05, 0.01) + (c.sv ? c.sv.y * 0.5 : T.rest * c.s);
       if (c.p.y < fl) {
         c.p.y = fl;
         if (c.v.y < -1) {
@@ -140,14 +204,18 @@ function updTumblers(T, dt) {
           if (T.sound && Math.random() < 0.4) sfxAt("clink", c.p, 10, 0.5);
         } else {
           c.rest = true;
+          /* (settled flat: a casing on its side, a piece on its face) */
           c.r.x = T.sound ? Math.PI / 2 : 0;
+          c.r.y = c.sv ? Math.round(c.r.y / (Math.PI / 2)) * (Math.PI / 2) : c.r.y;
           c.r.z = 0;
         }
       }
     }
     L[n++] = c;
     _cq.setFromEuler(c.r);
-    _cs.setScalar(c.s * (c.life < 0.4 ? c.life / 0.4 : 1));
+    const fade = c.life < 0.4 ? c.life / 0.4 : 1;
+    if (c.sv) _cs.copy(c.sv).multiplyScalar(fade);
+    else _cs.setScalar(c.s * fade);
     _cm.compose(c.p, _cq, _cs);
     T.mesh.setMatrixAt(n - 1, _cm);
   }
@@ -181,6 +249,9 @@ float m,glow;vec3 gc;
 if(vD.y<.5){m=smoothstep(.36,.2,r)+.55*smoothstep(1.,.45,r+jag*.25)*smoothstep(.2,.4,r);
 glow=smoothstep(.35,0.,r)*exp(-age*7.);gc=vec3(1.,.55,.2);
 m*=1.-smoothstep(16.,22.,age);}
+else if(vD.y>2.5){m=0.;float g=smoothstep(.55,.2,r+jag*.15);
+glow=smoothstep(.4,0.,r)*exp(-age*6.);gc=vec3(1.,.7,.35);
+gl_FragColor=vec4(gc*glow*2.+vec3(.5,.52,.55)*g*.55*(1.-smoothstep(14.,20.,age)),g*.35*(1.-smoothstep(14.,20.,age))+smoothstep(.8,.5,r)*.25);return;}
 else if(vD.y>1.5){float s=a*1.4324+vD.z*7.;float d=abs(fract(s+.12*sin(r*11.+vD.z*30.))-.5);
 float len=.55+.45*h(floor(s+.5)+vD.z);float ck=smoothstep(.045,.0,d*r)*smoothstep(len,len-.15,r)*step(.3,r);
 float bowl=smoothstep(.5,.22,r);float ring=smoothstep(.95,.5,r+jag*.18);
@@ -226,6 +297,8 @@ function decal(p, n, kind, size) {
   decals.dd.needsUpdate = true;
 }
 /** the outward normal of the static surface a point lies on, or null (open air, a pilot) */
+/** the box a surfNormal hit landed on (what it is made of decides the impact) */
+const SURF_HIT = { box: null };
 function surfNormal(p, out) {
   let best = 0.06,
     hit = false;
@@ -244,6 +317,7 @@ function surfNormal(p, out) {
         best = d;
         out.set(nx, ny, nz);
         hit = true;
+        SURF_HIT.box = b;
       }
   }
   return hit ? out : null;
@@ -279,28 +353,42 @@ function onShotFx(a, b) {
   if (a.distanceToSquared(cam) < 625) ejectCasing(_cf2.copy(a).addScaledVector(_cf, -0.45), _cf);
   const n = surfNormal(b, _cn);
   if (!n) return;
-  decal(b, n, 0, rnd(0.09, 0.15));
-  /* sparks glance off the surface */
-  const k = pc(5);
+  /* what it hit: armored metal throws a shower of sparks and leaves a bright gouge; composite cover
+     splinters into chips and pale dust; the deck kicks up grit */
+  const mat = SURF_HIT.box ? SURF_HIT.box.mat : "",
+    cover = mat === "cover",
+    deck = mat === "floor",
+    metal = !cover && !deck;
+  decal(b, n, metal ? 3 : 0, metal ? rnd(0.1, 0.16) : rnd(0.09, 0.15));
+  const k = pc(metal ? 9 : cover ? 2 : 4);
   for (let i = 0; i < k; i++) {
     const v = _cf
       .clone()
       .reflect(n)
-      .multiplyScalar(rnd(3, 7))
+      .multiplyScalar(rnd(metal ? 4 : 3, metal ? 9 : 6))
       .add(new THREE.Vector3(rnd(-2, 2), rnd(-1, 2), rnd(-2, 2)));
-    ptAdd(PTS.glow, b, v, rnd(0.04, 0.08), 0xffd08a, 1, rnd(0.12, 0.3), { g: 9 });
+    ptAdd(PTS.glow, b, v, rnd(0.04, 0.08), metal ? 0xfff0c8 : 0xffd08a, 1, rnd(0.12, metal ? 0.4 : 0.3), {
+      g: 9,
+      kind: "spark",
+    });
   }
+  if (metal)
+    ptAdd(PTS.glow, _cf2.copy(b).addScaledVector(n, 0.04), new THREE.Vector3(), 0.35, 0xffe0b0, 0.9, 0.06, {
+      kind: "flash",
+    });
+  if (cover) chunkChips(b, n, pc(3), false);
   ptAdd(
     PTS.soft,
     _cf2.copy(b).addScaledVector(n, 0.1),
-    n.clone().multiplyScalar(0.6),
-    0.25,
-    0x8a8178,
-    0.4,
-    0.6,
+    n.clone().multiplyScalar(cover ? 1 : 0.6),
+    cover ? 0.4 : 0.25,
+    cover ? 0xc8c0b0 : deck ? 0x7a7268 : 0x8a8178,
+    cover ? 0.5 : 0.4,
+    cover ? 0.9 : 0.6,
     {
       grow: 2,
       drag: 2,
+      kind: "smoke",
     }
   );
 }
@@ -309,16 +397,17 @@ function blastFx(p, color, r) {
   heatAt(p, r * 0.8, 1.2, 0.6);
   if (!fxOn()) return;
   /* fireball: hot core blooming outward, then embers and a smoke column */
-  for (let i = 0, n = pc(8); i < n; i++)
+  /* (the flipbook's fire cools from white-hot through orange to red as each puff ages) */
+  for (let i = 0, n = pc(12); i < n; i++)
     ptAdd(
       PTS.glow,
       p,
-      new THREE.Vector3(rnd(-1, 1), rnd(-0.3, 1.2), rnd(-1, 1)).multiplyScalar(r * 0.9),
-      r * rnd(0.35, 0.6),
-      i < 3 ? 0xfff0c8 : 0xff7a2a,
-      0.9,
-      rnd(0.25, 0.45),
-      { grow: 1.8, drag: 4 }
+      new THREE.Vector3(rnd(-1, 1), rnd(-0.2, 1.4), rnd(-1, 1)).multiplyScalar(r * (i < 4 ? 0.4 : 1.1)),
+      r * rnd(0.4, 0.7),
+      0xffffff,
+      0.95,
+      rnd(0.45, 0.85),
+      { grow: 1.1, drag: 3.2, kind: "fire" }
     );
   for (let i = 0, n = pc(12); i < n; i++)
     ptAdd(
@@ -332,18 +421,20 @@ function blastFx(p, color, r) {
       {
         g: 9,
         drag: 0.6,
+        kind: "spark",
       }
     );
-  for (let i = 0, n = pc(9); i < n; i++)
+  for (let i = 0, n = pc(12); i < n; i++)
     ptAdd(
       PTS.soft,
       _cf.copy(p).add(new THREE.Vector3(rnd(-0.5, 0.5), rnd(0, 0.6), rnd(-0.5, 0.5)).multiplyScalar(r * 0.5)),
-      new THREE.Vector3(rnd(-0.6, 0.6), rnd(0.8, 2.2), rnd(-0.6, 0.6)),
-      r * rnd(0.4, 0.7),
-      0x2c2826,
-      0.55,
-      rnd(1.8, 2.8),
-      { grow: 0.7, drag: 0.9 }
+      new THREE.Vector3(rnd(-0.7, 0.7), rnd(1.6, 3.2), rnd(-0.7, 0.7)),
+      r * rnd(0.4, 0.65),
+      0x302b28,
+      /* (thin enough to see a player through: tests/render.test.js) */
+      0.18,
+      rnd(2, 3.2),
+      { grow: 0.7, drag: 0.9, kind: "smoke" }
     );
   /* debris tumbling out and bouncing */
   for (let i = 0, n = Math.round(pc(6)); i < n; i++)
@@ -521,6 +612,7 @@ function updCombatFx(dt) {
   }
   updTumblers(casings, dt);
   updTumblers(chunks, dt);
+  updTumblers(crateChunks, dt);
   for (let i = CFX.heat.length - 1; i >= 0; i--) {
     const h = CFX.heat[i];
     if (h.max && (h.life -= dt) <= 0) heatDone(i);

@@ -398,5 +398,83 @@ function bakeLight(group, solids) {
     }
     m.geometry.setAttribute("bake", new THREE.BufferAttribute(out, 4));
   }
+  lightCones(group, solids);
   BAKE.lights = [];
+}
+
+/* ---- light cones: under each light strip on a wall, a soft sheet of light falling and spreading to the
+   floor, drawn into the air (additive, brightest at the strip, fading toward the floor, the ends and when
+   seen edge-on). One mesh per map; shown with the Haze setting, as strong as the map's look says
+   (LIGHT_CONE_K, set by render/pipeline.js). ---- */
+const LIGHT_CONE_K = { value: 0 };
+const LIGHT_CONE_MAT = new THREE.ShaderMaterial({
+  uniforms: { uK: LIGHT_CONE_K },
+  vertexShader: `attribute vec3 color;varying vec3 vC;varying vec2 vUv;varying float vF;
+void main(){vC=color;vUv=uv;vec4 w=modelMatrix*vec4(position,1.);vec3 n=normalize(mat3(modelMatrix)*normal);
+vF=abs(dot(n,normalize(cameraPosition-w.xyz)));gl_Position=projectionMatrix*viewMatrix*w;}`,
+  fragmentShader: `uniform float uK;varying vec3 vC;varying vec2 vUv;varying float vF;
+void main(){float a=pow(1.-vUv.y,1.6)*pow(sin(3.14159*vUv.x),.6)*smoothstep(0.,.5,vF);
+gl_FragColor=vec4(vC*a*uK*.065,1.);}`,
+  transparent: true,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending,
+});
+function lightCones(group, solids) {
+  const items = [];
+  const inside = (x, y, z) =>
+    solids.some(b => x > b.x0 && x < b.x1 && y > b.y0 && y < b.y1 && z > b.z0 && z < b.z1);
+  for (const l of BAKE.lights) {
+    const [x, y, z] = l.p;
+    if (l.ax === 1 || y < 1 || y > 5 || l.half < 0.4) continue;
+    /* the wall it is on: the side of the strip that is inside a solid */
+    const px = l.ax === 0 ? 0 : 1,
+      pz = l.ax === 0 ? 1 : 0;
+    const a = inside(x + px * 0.25, y, z + pz * 0.25),
+      b = inside(x - px * 0.25, y, z - pz * 0.25);
+    if (a === b) continue;
+    const nx = a ? -px : px,
+      nz = a ? -pz : pz;
+    const drop = Math.min(y, 2.6),
+      out = drop * 0.75,
+      tx = l.ax === 0 ? 1 : 0,
+      tz = l.ax === 0 ? 0 : 1,
+      h0 = l.half,
+      h1 = l.half + out * 0.5;
+    const g = new THREE.BufferGeometry();
+    const v = [
+      [x + nx * 0.06 - tx * h0, y, z + nz * 0.06 - tz * h0],
+      [x + nx * 0.06 + tx * h0, y, z + nz * 0.06 + tz * h0],
+      [x + nx * out - tx * h1, y - drop, z + nz * out - tz * h1],
+      [x + nx * out + tx * h1, y - drop, z + nz * out + tz * h1],
+    ];
+    g.setAttribute("position", new THREE.Float32BufferAttribute(v.flat(), 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 1, 1], 2));
+    const n = new THREE.Vector3(v[1][0] - v[0][0], v[1][1] - v[0][1], v[1][2] - v[0][2])
+      .cross(new THREE.Vector3(v[2][0] - v[0][0], v[2][1] - v[0][1], v[2][2] - v[0][2]))
+      .normalize();
+    g.setAttribute(
+      "normal",
+      new THREE.Float32BufferAttribute(
+        [0, 1, 2, 3].flatMap(() => n.toArray()),
+        3
+      )
+    );
+    g.setAttribute(
+      "color",
+      new THREE.Float32BufferAttribute(
+        [0, 1, 2, 3].flatMap(() => l.c),
+        3
+      )
+    );
+    g.setIndex([0, 2, 1, 1, 2, 3]);
+    items.push([g, new THREE.Matrix4()]);
+  }
+  if (!items.length) return;
+  const m = new THREE.Mesh(mergeGeos(items), LIGHT_CONE_MAT);
+  m.frustumCulled = false;
+  m.renderOrder = 3;
+  group.add(m);
+  MAP_GROUPS[MAP_GROUPS.length - 1].cones = m;
+  for (const [g] of items) g.dispose();
 }
