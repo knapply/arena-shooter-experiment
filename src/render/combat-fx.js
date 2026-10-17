@@ -432,7 +432,7 @@ function blastFx(p, color, r) {
       r * rnd(0.4, 0.65),
       0x302b28,
       /* (thin enough to see a player through: tests/render.test.js) */
-      0.3,
+      0.22,
       rnd(2, 3.2),
       { grow: 0.7, drag: 0.9, kind: "smoke" }
     );

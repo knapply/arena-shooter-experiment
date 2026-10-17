@@ -114,15 +114,17 @@ const stats = async p => {
     /* haze never hides a player: under each map's look, a pilot 30 m away keeps at least 85% of the
        contrast it has against the same view without the haze (and light cones) */
     {
-      /* (its own profile: it starts from the default settings, not the Ultra page's) */
-      const hctx = await b.newContext({ viewport: { width: 960, height: 540 } });
+      /* (its own profile: it starts from the default settings, not the Ultra page's; small, as software WebGL
+         draws a frame every few seconds on CI, and the contrast is measured as a share of the clear view) */
+      const hctx = await b.newContext({ viewport: { width: 640, height: 360 } });
       const p = await open(hctx, { tag: "haze", realThree: true, hash: "#dev" });
       await p.waitForTimeout(1500);
       await p.evaluate(() => {
         Object.assign(KA.SET, {
           preset: "custom",
-          ao: "ssao",
-          /* (floor reflections don't change how a pilot stands out from the air around them) */
+          /* (screen-space occlusion and floor reflections don't change how a pilot stands out from the air
+             around them) */
+          ao: "baked",
           reflections: "glossy",
           bloom: 0.7,
           dynRes: false,
