@@ -22,6 +22,19 @@ const SCENES = (process.argv[2] || "ctf,fight").split(","),
   PRESETS = (process.argv[3] || "low,ultra").split(","),
   SECONDS = +(process.argv[4] || 20),
   TOP = 15;
+/** [first line (0-based), module path] of each engine module in out/profile.html */
+const MODS = [];
+/** the source module a call frame belongs to: a src/ path, "three.js", or "native" */
+function moduleOf(cf) {
+  if (/three\./.test(cf.url)) return "three.js";
+  if (!/profile\.html/.test(cf.url)) return "native";
+  let m = "page";
+  for (const [l, p] of MODS) {
+    if (l <= cf.lineNumber) m = p;
+    else break;
+  }
+  return m;
+}
 const START = {
   ctf: { rules: "ctf", map: "ctf" },
   fight: { rules: "slayer", map: "arena", size: 8 },
@@ -32,6 +45,12 @@ async function buildDev() {
   const f = path.join(ROOT, "out", "profile.html");
   fs.mkdirSync(path.dirname(f), { recursive: true });
   fs.writeFileSync(f, build({ dev: true }).html);
+  /* where each source module starts in the built page, for the per-module breakdown */
+  const html = fs.readFileSync(f, "utf8").split("\n");
+  html.forEach((l, i) => {
+    const m = l.match(/^\/\* ---- (\S+) ---- \*\//);
+    if (m) MODS.push([i, m[1]]);
+  });
   return "file://" + f;
 }
 /** top functions by a per-node weight; nodes are merged by name and location */
@@ -144,6 +163,19 @@ async function run(browser, url, scene, preset) {
       busy
     ),
     hotAlloc: topBy(heapNodes, n => n.selfSize, allocated),
+    /* share of the busy script time by source module */
+    byModule: (() => {
+      const m = new Map();
+      for (const n of nodes) {
+        if (/^((idle|program|garbage collector))$/.test(n.callFrame.functionName)) continue;
+        const k = moduleOf(n.callFrame);
+        m.set(k, (m.get(k) || 0) + self.get(n.id));
+      }
+      return [...m]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, TOP)
+        .map(([k, v]) => [k, +((100 * v) / busy).toFixed(1)]);
+    })(),
     errors: errors.slice(0, 3),
   };
   await ctx.close();
