@@ -726,8 +726,12 @@ function analyze(D, secs, mode) {
      only kills after the last reset, and long enough before the first read for the others to show them,
      count, or a kill caught between two reads would look missed */
   {
+    /* the longest a kill may take to show on another instance and still count as the same kill */
+    const SHOW_WINDOW = 4000;
     const from = Math.max(...D.map(d => (d.base && d.base.markT) || 0)),
-      to = Math.min(...D.map(d => d.collectT || Infinity)) - 1500;
+      /* (as long as the pairing window below: a kill another instance shows up to 4 s later is still
+         read before the end) */
+      to = Math.min(...D.map(d => d.collectT || Infinity)) - SHOW_WINDOW;
     const seen = new Map();
     for (const d of D)
       for (const [t, k, v] of d.rec.kills) {
@@ -749,7 +753,7 @@ function analyze(D, secs, mode) {
           dl = [];
         used.add(i);
         for (let j = i + 1; j < l.length; j++)
-          if (!used.has(j) && !insts.has(l[j][1]) && l[j][0] - first[0] < 4000) {
+          if (!used.has(j) && !insts.has(l[j][1]) && l[j][0] - first[0] < SHOW_WINDOW) {
             insts.add(l[j][1]);
             used.add(j);
             dl.push(l[j][0] - first[0]);

@@ -227,12 +227,18 @@ const podSeats = map => {
       [g1, g2, g3, gh, sprint]
     );
     /* the controller's toggle aim: pull once to scope, again to stop */
-    await p.evaluate(() => (KA.SET.padAimMode = "toggle"));
+    await p.evaluate(() => {
+      KA.SET.padAimMode = "toggle";
+      KA.me.spawnT = KA.now + 60;
+      KA.mag = Math.max(KA.mag, 4);
+      KA.me.vel.set(0, 0, 0);
+    });
+    /* a press and a release are each held for two game frames, so a slow frame can never miss them */
     const tap = async btns => {
       await p.evaluate(p => (window.__pad = p), pad(btns));
-      await p.waitForTimeout(120);
+      await frames(2);
       await p.evaluate(p => (window.__pad = p), pad());
-      await p.waitForTimeout(80);
+      await frames(2);
     };
     await tap({ 6: 1 });
     const t1 = await lvlIs(1);
@@ -242,6 +248,7 @@ const podSeats = map => {
     const t3 = await lvlIs(0);
     await p.evaluate(() => {
       KA.SET.padAimMode = "hold";
+      KA.me.spawnT = -99;
       window.__pad = null;
     });
     check(
@@ -1263,6 +1270,8 @@ const podSeats = map => {
       /* (on your feet and playing: out of any pod, the pause menu closed) */
       if (KA.paused) document.getElementById("resume").click();
       await until(() => !KA.paused && !KA.myPod && !me.dead);
+      /* (the drones out of the way, so nothing but this test hurts you) */
+      for (const o of KA.bots) o.body.pos.set(60, 0, 60);
       me.spawnT = -99;
       me.health = 45;
       me.shield = 15;
@@ -1284,7 +1293,13 @@ const podSeats = map => {
       const down = {
         edge: await until(() => vig.classList.contains("down")),
         label: document.getElementById("shLbl").textContent,
-        alarm: await until(() => heard.includes("alarm")),
+        /* the alarm sounds while the shield is down and you are playing: keep it that way until it does */
+        alarm: await until(() => {
+          if (KA.paused) document.getElementById("resume").click();
+          if (!me.dead) me.shield = 0;
+          return heard.includes("alarm");
+        }),
+        dead: me.dead,
       };
       KA.sfxTap(null);
       me.shield = 70;
