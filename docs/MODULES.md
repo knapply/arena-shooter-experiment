@@ -23,7 +23,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/render/perf.js` | 118 | `PERF` `GPUQ` `perfBegin` `perfEnd` |
 | `src/data/modes.js` | 264 | `MODE_DATA` `PLAY_MODES` `AI_SKILL` `POD_TIME` `POD_HEIGHT` `POD_EARLY` `SANDBOX_PRESETS` |
 | `src/data/maps.js` | 620 | `MAP_SCHEMA` `MAPS` `mapZone` `SIDE_NAMES` `zoneLabel` `PLAY_MAP` `setPlayMap` `zoneAt` `mapPieces` `ringPieces` `MAP_MODS` `MOD_DOCS` `mapDoc` |
-| `src/world/destruction.js` | 348 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `CHIP_STAGES` `_cp` `_cv` `chipGeo` `chipBox` `unchipBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` … (+5) |
+| `src/world/destruction.js` | 352 | `DESTR` `debrisGeo` `isDestructible` `boxHP` `rayWorldHit` `boxTint` `damageBox` `CHIP_STAGES` `_cp` `_cv` `chipGeo` `chipBox` `unchipBox` `damageRadius` `chips` `breakBox` `restoreBox` `bodiesNear` … (+5) |
 | `src/world/dress.js` | 183 | `DRESS_MATS` `zoneMat` `dressMap` |
 | `src/world/bake.js` | 481 | `MAP_GROUPS` `BAKE` `AO_R` `BOUNCE_R` `bakeBoxGeo` `faceHidden` `CHAMFER_MATS` `chamferOf` `bakePrep` `boxGrid` `rayBoxes` `bakeLight` `LIGHT_CONE_K` `LIGHT_CONE_MAT` `lightCones` |
 | `src/world/props.js` | 362 | `PROP_T` `PROP_MATS` `signAtlas` `withAttr` `dressProps` |

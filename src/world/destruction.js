@@ -199,7 +199,10 @@ function breakBox(b, at, render, local) {
   /* remember every solid's build order (first break of the map), so a restore puts it back in place */
   if (b.ord == null) SOLID.forEach((s, k) => s.ord == null && (s.ord = k));
   const i = SOLID.indexOf(b);
-  if (i >= 0) SOLID.splice(i, 1);
+  if (i >= 0) {
+    SOLID.splice(i, 1);
+    solidChanged();
+  }
   DESTR.broken.set(b.id, { b, t: now });
   if (local) {
     DESTR.recent.push([++DESTR.seq, b.id]);
@@ -267,6 +270,7 @@ function restoreBox(b, fx) {
     if (at < 0) at = SOLID.length;
   }
   SOLID.splice(at, 0, b);
+  solidChanged();
   DESTR.broken.delete(b.id);
   if (b.mesh) {
     b.mesh.visible = true;
