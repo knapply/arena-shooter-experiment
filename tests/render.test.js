@@ -112,7 +112,7 @@ const stats = async p => {
       await p.close();
     }
     /* haze never hides a player: under each map's look, a pilot 30 m away keeps at least 85% of the
-       pixels that stand out from the same view without them when the haze (and light cones) go on */
+       contrast it has against the same view without the haze (and light cones) */
     {
       /* (its own profile: it starts from the default settings, not the Ultra page's) */
       const hctx = await b.newContext({ viewport: { width: 960, height: 540 } });
@@ -149,8 +149,8 @@ const stats = async p => {
             }),
           n
         );
-      /* pixels around the pilot (feet to head, from its projected position) that change by a lot when
-         the pilot is hidden */
+      /* how much the picture around the pilot (feet to head, from its projected position) changes when the
+         pilot is hidden: the sum of every pixel's change, so a pilot a pixel or two wide counts steadily */
       const standsOut = async haze => {
         const box = await p.evaluate(haze => {
           KA.SET.haze = haze;
@@ -165,10 +165,10 @@ const stats = async p => {
               .project(KA.camera);
           return { x: (f.x + 1) / 2, y0: 1 - (h.y + 1) / 2, y1: 1 - (f.y + 1) / 2 };
         }, haze);
-        await frames(4);
+        await frames(5);
         const a = await shot();
         await p.evaluate(() => (window.__q.rig.root.visible = false));
-        await frames(2);
+        await frames(3);
         const b = await shot();
         return p.evaluate(
           async ([a, b, box]) => {
@@ -190,19 +190,16 @@ const stats = async p => {
               x1 = Math.ceil(box.x * W + h * 0.4),
               y0 = Math.floor(box.y0 * H - 4),
               y1 = Math.ceil(box.y1 * H + 4);
-            let n = 0;
+            let e = 0;
             for (let y = Math.max(0, y0); y < Math.min(H, y1); y++)
               for (let x = Math.max(0, x0); x < Math.min(W, x1); x++) {
                 const i = (y * W + x) * 4;
-                if (
+                e +=
                   Math.abs(A.d[i] - B.d[i]) +
-                    Math.abs(A.d[i + 1] - B.d[i + 1]) +
-                    Math.abs(A.d[i + 2] - B.d[i + 2]) >
-                  45
-                )
-                  n++;
+                  Math.abs(A.d[i + 1] - B.d[i + 1]) +
+                  Math.abs(A.d[i + 2] - B.d[i + 2]);
               }
-            return n;
+            return Math.round(e / 100);
           },
           [a, b, box]
         );
