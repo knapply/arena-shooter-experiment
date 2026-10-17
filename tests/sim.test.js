@@ -413,4 +413,77 @@ check(magKills > 0 && carbKills > 0, "the AI scores kills with both the carbine 
     b = run();
   check(a === b, "with a map memory, the same seed replays the same match", a.length);
 }
+/* the collision broad phase (a grid over the boxes) answers exactly what a scan of every box does */
+{
+  const slab = (o, d, b, maxT) => {
+    let t0 = 0,
+      t1 = maxT;
+    for (const a of ["x", "y", "z"]) {
+      if (d[a] > -1e-9 && d[a] < 1e-9) {
+        if (o[a] < b[a + "0"] || o[a] > b[a + "1"]) return -1;
+        continue;
+      }
+      let ta = (b[a + "0"] - o[a]) / d[a],
+        tb = (b[a + "1"] - o[a]) / d[a];
+      if (ta > tb) [ta, tb] = [tb, ta];
+      if (ta > t0) t0 = ta;
+      if (tb < t1) t1 = tb;
+      if (t0 > t1) return -1;
+    }
+    return t0;
+  };
+  const R = K.R;
+  let bad = 0,
+    n = 0;
+  for (const map of Object.keys(K.MAPS)) {
+    CTF.Game({ mode: "sim", render: false, seed: 5, map, rules: "slayer" });
+    let s = 12345;
+    const rnd = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648) * 2 - 1;
+    for (let i = 0; i < 4000; i++, n++) {
+      const o = { x: rnd() * 70, y: 0.2 + Math.abs(rnd()) * 10, z: rnd() * 70 },
+        d = { x: rnd(), y: rnd() * 0.5, z: rnd() };
+      if (i % 50 === 0) d.x = 0;
+      if (i % 70 === 0) d.z = 0;
+      const maxT = i % 3 ? 300 : 20;
+      let ray = maxT;
+      for (const b of K.SOLID) {
+        const t = slab(o, d, b, ray);
+        if (t >= 0 && t < ray) ray = t;
+      }
+      let g = -50,
+        free = true;
+      for (const b of K.SOLID) {
+        if (
+          o.x + R > b.x0 &&
+          o.x - R < b.x1 &&
+          o.z + R > b.z0 &&
+          o.z - R < b.z1 &&
+          b.y1 <= o.y + 0.05 &&
+          b.y1 > g
+        )
+          g = b.y1;
+        if (
+          o.x + R > b.x0 + 1e-4 &&
+          o.x - R < b.x1 - 1e-4 &&
+          o.y + K.H_STAND > b.y0 + 1e-4 &&
+          o.y < b.y1 - 1e-4 &&
+          o.z + R > b.z0 + 1e-4 &&
+          o.z - R < b.z1 - 1e-4
+        )
+          free = false;
+      }
+      if (
+        K.rayWorld(o, d, maxT) !== ray ||
+        K.groundBelow(o.x, o.z, o.y) !== g ||
+        K.freeAt(o.x, o.y, o.z, K.H_STAND) !== free
+      )
+        bad++;
+    }
+  }
+  check(
+    bad === 0,
+    "the collision grid gives the same rays, ground and free space as scanning every box",
+    `${bad} of ${n}`
+  );
+}
 finish("sim");

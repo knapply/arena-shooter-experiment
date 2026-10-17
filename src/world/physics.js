@@ -127,6 +127,14 @@ function gridCol(v, o, nc) {
   const c = Math.floor((v - o) / GRID_CELL);
   return c >= 0 ? (c < nc ? c : nc - 1) : 0;
 }
+/** a fresh stamp for GRID.seen (each query marks the boxes it has already looked at) */
+function gridMark() {
+  if (++GRID.mark === 0xffffffff) {
+    GRID.seen.fill(0);
+    GRID.mark = 1;
+  }
+  return GRID.mark;
+}
 /** fill out (an array reused by the caller) with the indices of the boxes whose footprint may touch the
     XZ rectangle [x0, x1] x [z0, z1], in SOLID order; returns how many */
 function solidNear(x0, z0, x1, z1, out) {
@@ -136,12 +144,8 @@ function solidNear(x0, z0, x1, z1, out) {
     cx1 = gridCol(x1, GRID.x0, GRID.nx),
     cz0 = gridCol(z0, GRID.z0, GRID.nz),
     cz1 = gridCol(z1, GRID.z0, GRID.nz);
-  if (++GRID.mark === 0xffffffff) {
-    GRID.seen.fill(0);
-    GRID.mark = 1;
-  }
   const seen = GRID.seen,
-    mark = GRID.mark;
+    mark = gridMark();
   let k = 0;
   for (let cz = cz0; cz <= cz1; cz++)
     for (let cx = cx0; cx <= cx1; cx++) {
@@ -244,11 +248,78 @@ function rayBox(o, d, b, maxT) {
 }
 function rayWorld(o, d, maxT) {
   let best = maxT;
-  for (const b of SOLID) {
-    const t = rayBox(o, d, b, best);
-    if (t >= 0 && t < best) best = t;
+  gridFresh();
+  /* the nearest hit over all boxes does not depend on the order they are tried in, so walk the grid
+     cells the ray crosses (nearest first) and stop once a cell starts beyond the nearest hit. Anything
+     unusual (no grid, NaN, an infinite length) takes the full scan */
+  if (
+    !GRID.n ||
+    !Number.isFinite(maxT) ||
+    !(Number.isFinite(o.x) && Number.isFinite(o.y) && Number.isFinite(o.z)) ||
+    !(Number.isFinite(d.x) && Number.isFinite(d.y) && Number.isFinite(d.z))
+  ) {
+    for (const b of SOLID) {
+      const t = rayBox(o, d, b, best);
+      if (t >= 0 && t < best) best = t;
+    }
+    return best;
   }
-  return best;
+  const C = GRID_CELL,
+    gx0 = GRID.x0,
+    gz0 = GRID.z0,
+    gx1 = gx0 + GRID.nx * C,
+    gz1 = gz0 + GRID.nz * C;
+  /* the part of the ray over the grid */
+  let ta = 0,
+    tb = maxT;
+  if (d.x === 0) {
+    if (o.x < gx0 || o.x > gx1) return best;
+  } else {
+    const t1 = (gx0 - o.x) / d.x,
+      t2 = (gx1 - o.x) / d.x;
+    ta = Math.max(ta, Math.min(t1, t2));
+    tb = Math.min(tb, Math.max(t1, t2));
+  }
+  if (d.z === 0) {
+    if (o.z < gz0 || o.z > gz1) return best;
+  } else {
+    const t1 = (gz0 - o.z) / d.z,
+      t2 = (gz1 - o.z) / d.z;
+    ta = Math.max(ta, Math.min(t1, t2));
+    tb = Math.min(tb, Math.max(t1, t2));
+  }
+  if (ta > tb) return best;
+  let cx = gridCol(o.x + d.x * ta, gx0, GRID.nx),
+    cz = gridCol(o.z + d.z * ta, gz0, GRID.nz);
+  const sx = d.x > 0 ? 1 : d.x < 0 ? -1 : 0,
+    sz = d.z > 0 ? 1 : d.z < 0 ? -1 : 0;
+  let tx = sx > 0 ? (gx0 + (cx + 1) * C - o.x) / d.x : sx < 0 ? (gx0 + cx * C - o.x) / d.x : Infinity,
+    tz = sz > 0 ? (gz0 + (cz + 1) * C - o.z) / d.z : sz < 0 ? (gz0 + cz * C - o.z) / d.z : Infinity;
+  const dtx = sx ? C / Math.abs(d.x) : Infinity,
+    dtz = sz ? C / Math.abs(d.z) : Infinity;
+  const seen = GRID.seen,
+    mark = gridMark();
+  for (;;) {
+    const cell = GRID.cells[cz * GRID.nx + cx];
+    for (let j = 0; j < cell.length; j++) {
+      const i = cell[j];
+      if (seen[i] === mark) continue;
+      seen[i] = mark;
+      const t = rayBox(o, d, SOLID[i], best);
+      if (t >= 0 && t < best) best = t;
+    }
+    const next = tx < tz ? tx : tz;
+    if (next > best || next > tb) return best;
+    if (tx < tz) {
+      cx += sx;
+      tx += dtx;
+      if (cx < 0 || cx >= GRID.nx) return best;
+    } else {
+      cz += sz;
+      tz += dtz;
+      if (cz < 0 || cz >= GRID.nz) return best;
+    }
+  }
 }
 function raySphere(o, d, c, r) {
   const ox = o.x - c.x,
