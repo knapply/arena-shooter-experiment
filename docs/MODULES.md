@@ -16,7 +16,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/render/renderer.js` | 231 | `LIGHT_K` `canvas` `renderer` `scene` `camera` `resize` `hemi` `sun` `_skyP` `skyTint` `SKY_TIME` `SKY_SUN` `SKY_Q` `SKY_U` |
 | `src/render/shadow-fit.js` | 54 | `SHADOW_FIT` `_sfC` `_sfF` `_sfR` `_sfI` `_sfO` `_sfU` `sunDir` `fitShadow` |
 | `src/render/tone.js` | 96 | `TONE` `TONE_CURVES` `toneLut` `TONE_GLSL` |
-| `src/render/pipeline.js` | 1016 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `VIEWPOS` `VIEWNRM` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `REPROJ` `taaMat` `mbMat` `MAP_LOOK` `LOOK_NOW` `applyLook` `HEAT_U` … (+28) |
+| `src/render/pipeline.js` | 1020 | `gfxReady` `GFX` `FSV` `brightMat` `blurMat` `VIEWPOS` `VIEWNRM` `ssaoMat` `aoBlurMat` `shaftMat` `ssrMat` `REPROJ` `taaMat` `mbMat` `MAP_LOOK` `LOOK_NOW` `applyLook` `HEAT_U` … (+29) |
 | `src/render/environment.js` | 199 | `buildEnv` `lastRefl` `lastShadow` `GFX_DONE` `deferEnv` `applyFog` `applyGfx` `pc` `scaleBoxUV` |
 | `src/render/map-env.js` | 116 | `MAP_ENV` `_meV` `PROBE_HEMI` `PROBE_K` `mapEnvCapture` `mapSH` `mapEnvFrame` |
 | `src/render/surfaces.js` | 328 | `SURF_MATS` `SURF_DEBUG` `SURF_U` `SURF_GLSL` `surfMat` `applySurf` `bakeMarkings` |
@@ -49,7 +49,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/render/fx.js` | 539 | `FX` `FXMAX` `POOL` `_fx` `fxGet` `fxKill` `fxPush` `PT_N` `_ptC` `_ptV2` `PT_T` `FLIPBOOK` `makePts` `PTS` `PT_KIND` `ptAdd` `updPts` `ptClearBelow` … (+21) |
 | `src/render/combat-fx.js` | 643 | `CFX` `_cf` `_cf2` `_cq` `_cm` `_cz` `_cs` `fxOn` `syncDynLights` `dynLight` `heatAt` `HEAT_POOL` `heatDone` `tumblers` `casings` `chunks` `toss` `crateChunks` … (+29) |
 | `src/render/item-models.js` | 335 | `ITEM_MAT` `ITEM_GEO` `_imAt` `ventParts` `fragGeos` `plasmaGeos` `PLASMA_HEX` `nadeModel` `nadeFloorParts` `standGeos` `ITEM_AMBER` `STAND_BEAM` `standModel` `skullGeos` `skullModel` `flagGeos` `flagBanner` |
-| `src/render/cinema.js` | 193 | `CINE` |
+| `src/render/cinema.js` | 194 | `CINE` |
 | `src/render/atmosphere.js` | 104 | `ATMO` `MOTE_BOX` `makeMotes` `updAtmosphere` |
 | `src/weapons/grenades.js` | 288 | `NADES` `NADE_TUNE` `_n1` `_n2` `plasMat` `fxPut` `losClear` `inBox` `solveThrow` `nadeDmg` `NadeWorld` `MAIN_NADES` `nadeInv` `nadeSel` `nadeCD` `NADE_TYPES` `nadeRefill` `updNadeHud` … (+4) |
 | `src/weapons/rockets.js` | 169 | `ROCKET_STATS` `_rk1` `_rk2` `rocketGeo` `rocketMat` `rocketFlame` `rocketDmg` `RocketWorld` `MAIN_ROCKETS` `playerRocketOwner` `fireRocket` `remoteProjectile` |
@@ -90,7 +90,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 330 | `_sd` `RANGE` `SIGHT` `sightOf` `SVG_NS` `arcPath` `deg` `RETICLE` `HIT_R` `hitTicks` `xhKind` `xhSvg` `drawReticle` `xhBloom` `scKey` `scSvg` `scH` `ringTicks` … (+6) |
 | `src/render/prewarm.js` | 68 | `prewarmCompile` `PREWARM` `PREWARM_AT` `prewarmEffects` `updPrewarm` |
-| `src/game/exports.js` | 351 | `KA_API` |
+| `src/game/exports.js` | 352 | `KA_API` |
 | `src/render/cine-look.js` | 115 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |
 | `src/game/trailer-fp.js` | 159 | `TFP` |
@@ -106,4 +106,4 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/net/ctf-client.js` | 782 |  |
 | `src/modes/ctf/modes.js` | 1454 |  |
 | `src/modes/trailer-score.js` | 965 |  |
-| `src/modes/trailer.js` | 3455 |  |
+| `src/modes/trailer.js` | 3417 |  |

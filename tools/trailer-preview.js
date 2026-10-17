@@ -7,6 +7,7 @@
                                                          a contact sheet of single frames
      THREE_PATH=... node tools/trailer-preview.js clip 11 15.5 [fps] [out.mp4]
                                                          a small video of a stretch, with the score
+   TRAILER_PRESET=ultra (or another graphics preset) renders with it.
    Stills and clips render at 640x360 with real WebGL, so they need three.js (THREE_PATH: three.module.min.js, three.core.min.js beside it). */
 const { launch, open } = require("../tests/lib/browser.js");
 const { trailerWav } = require("./trailer-audio.js");
@@ -21,11 +22,12 @@ const [mode = "check", ...args] = process.argv.slice(2);
   const ctx = await b.newContext({ viewport: { width: 640, height: 360 } });
   const p = await open(ctx, { realThree: draw, trailer: true });
   await p.waitForTimeout(1500);
-  await p.evaluate(() => {
+  await p.evaluate(preset => {
     KA.SET.dynRes = false;
+    if (preset) KA.applyPreset(preset);
     KA.applySettings();
     KA.trailer.record();
-  });
+  }, process.env.TRAILER_PRESET || "");
   if (mode === "audio") {
     /* the whole soundtrack (score and effects) without drawing anything */
     await p.evaluate(() => {
