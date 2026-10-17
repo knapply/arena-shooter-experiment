@@ -23,6 +23,8 @@ class Playback {
       if (ts <= b[0].ts || b.some(x => x.ts === ts)) return;
       b.push(Object.assign({ ts }, s));
       b.sort((x, y) => x.ts - y.ts);
+      /* bounded like the in-order path: a stream of late stamps cannot grow it */
+      if (b.length > 40) b.shift();
       return;
     }
     const o = now - ts;

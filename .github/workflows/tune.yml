@@ -21,8 +21,9 @@ on:
       map:
         description: ctf (capture the flag) or arena (team deathmatch)
         default: ctf
+# only the merge job writes (it commits the results to the tune-results branch)
 permissions:
-  contents: write
+  contents: read
 jobs:
   sim:
     runs-on: ubuntu-latest
@@ -41,11 +42,11 @@ jobs:
           # null controls: run speed nudged by too little to matter, so the run measures its own noise
           - "ctrl"
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - name: Simulate
         env:
           # a scheduled run has no inputs: the same defaults as a manual one
@@ -66,19 +67,21 @@ jobs:
           key=$(echo "${{ matrix.group }}" | cut -d' ' -f1)-${{ matrix.seed }}
           echo "KEY=$key" >> "$GITHUB_ENV"
           mv tools/out/tune.json "tools/out/tune-$key.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: tune-${{ env.KEY }}
           path: tools/out/tune-${{ env.KEY }}.json
   merge:
     needs: sim
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: parts
           merge-multiple: true

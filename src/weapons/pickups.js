@@ -195,6 +195,8 @@ function itemTaken(it) {
 function remoteItem(kind, a, b, id) {
   if (kind === "drop" && a && b) {
     if (ITEMS.some(i => i.id === id)) return;
+    /* a bounded floor: a flood of dropped items from the network is refused past this */
+    if (ITEMS.length >= 96) return;
     const t = b[0] | 0;
     if (t >= WEAPONS.length || t < -1) return;
     const o =
