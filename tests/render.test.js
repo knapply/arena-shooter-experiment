@@ -114,12 +114,16 @@ const stats = async p => {
     /* haze never hides a player: under each map's look, a pilot 30 m away keeps at least 85% of the
        pixels that stand out from the same view without them when the haze (and light cones) go on */
     {
-      const p = await open(ctx, { tag: "haze", realThree: true, hash: "#dev" });
+      /* (its own profile: it starts from the default settings, not the Ultra page's) */
+      const hctx = await b.newContext({ viewport: { width: 960, height: 540 } });
+      const p = await open(hctx, { tag: "haze", realThree: true, hash: "#dev" });
       await p.waitForTimeout(1500);
       await p.evaluate(() => {
         Object.assign(KA.SET, {
           preset: "custom",
           ao: "ssao",
+          /* (floor reflections don't change how a pilot stands out from the air around them) */
+          reflections: "glossy",
           bloom: 0.7,
           dynRes: false,
           spawnStyle: "classic",
@@ -161,10 +165,10 @@ const stats = async p => {
               .project(KA.camera);
           return { x: (f.x + 1) / 2, y0: 1 - (h.y + 1) / 2, y1: 1 - (f.y + 1) / 2 };
         }, haze);
-        await frames(5);
+        await frames(4);
         const a = await shot();
         await p.evaluate(() => (window.__q.rig.root.visible = false));
-        await frames(3);
+        await frames(2);
         const b = await shot();
         return p.evaluate(
           async ([a, b, box]) => {
@@ -278,6 +282,7 @@ const stats = async p => {
       }
       check(p.errors.length === 0, "the haze scene has no errors", p.errors.slice(0, 3));
       await p.close();
+      await hctx.close();
     }
     /* draw-call and triangle budgets (tests/budgets.json) */
     {
