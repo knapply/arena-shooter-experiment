@@ -2141,7 +2141,7 @@
         const pad = V(SUPPLY_AT[0], SUPPLY_AT[1] + 0.9, SUPPLY_AT[2]),
           c = this.pod && !this.pod.landed ? this.pod.g.position : pad,
           up = clamp((c.y - pad.y) / 140, 0, 1);
-        cam(V(2.6, 3.55, -3.5), c, lerp(46, 9, Math.sqrt(up)), 0, dt, 0.05);
+        cam(V(2.6, 3.55, -3.5), c, lerp(46, 22, Math.sqrt(up)), 0, dt, 0.05);
       },
       look() {
         return this.pod && !this.pod.landed
@@ -2975,10 +2975,10 @@
     if (!sh) throw new Error("trailer: no scene " + name);
     SHOTS.push(Object.assign(sh, { t: at }));
   }
-  /* the arsenal (to the supply drop) plays under Hadal's deep-sea look */
+  /* the arsenal (to the plasma throw) plays under Hadal's deep-sea look (looking up into its sky reads as a flat wash) */
   {
     const a = CUT.findIndex(c => c[0] === "card-arsenal"),
-      b = CUT.findIndex(c => c[0] === "supply");
+      b = CUT.findIndex(c => c[0] === "fp-plasma");
     for (let i = a; i <= b; i++) LIB.get(CUT[i][0]).mapLook = "hadal";
   }
   CARDS.push(
