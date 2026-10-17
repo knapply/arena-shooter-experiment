@@ -130,8 +130,9 @@ const CINE = (() => {
      * the cinematic look for the post pipeline, or null for the normal game look.
      * dof: 0..1 blur strength, focus: distance in focus (m), range: depth of field (m), near: extra
      * foreground blur; grade: split-tone strength; ca: lens fringing; streak: anamorphic flares
-     * (the trailer's look adds glitch, zoom, smear [x, y], vig and tint [r, g, b]: render/cine-look.js)
-     * @param {{dof?: number, focus?: number, range?: number, near?: number, grade?: number, ca?: number, streak?: number, glitch?: number, zoom?: number, smear?: number[], vig?: number, tint?: number[], gseed?: number} | null} l
+     * (the trailer's look adds glitch, zoom, smear [x, y], vig and tint [r, g, b]: render/cine-look.js; game:
+     * keep the game's own map look, grade, TAA and motion blur under it)
+     * @param {{dof?: number, focus?: number, range?: number, near?: number, grade?: number, ca?: number, streak?: number, glitch?: number, zoom?: number, smear?: number[], vig?: number, tint?: number[], gseed?: number, game?: boolean} | null} l
      */
     look(l) {
       GFX.look = l;

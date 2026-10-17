@@ -39,6 +39,8 @@ const GFX = {
   ldr: null,
   /* a map look shown instead of the map's own (the developer console's "look" command) */
   lookId: "",
+  /** a fixed frame time (s) for TAA and motion blur while frames are stepped rather than timed (a recording) */
+  frameDt: 0,
   /* a tone curve that overrides the map's (the developer console's "tone" command) */
   tone: "",
   /* TAA: two full-size histories (read one, write the other), this frame's sub-pixel nudge, whether the
@@ -641,9 +643,11 @@ const _taaD = new THREE.Vector3(),
  * from its depth and last frame's camera. A camera cut (a respawn, a killcam, a replay) drops the history
  * and the blur for a frame. Returns the image the composite should read.
  */
+/** a cinematic look that keeps the game's own map look, grade, TAA and motion blur (look.game) */
+const gameLook = () => !GFX.look || !!GFX.look.game;
 function temporalPasses(taa) {
   const now = performance.now(),
-    dt = Math.max(1, now - GFX.pT) / 1000;
+    dt = GFX.frameDt || Math.max(1, now - GFX.pT) / 1000;
   GFX.pT = now;
   camera.getWorldPosition(_taaP);
   camera.getWorldDirection(_taaD);
@@ -652,7 +656,7 @@ function temporalPasses(taa) {
   GFX.pPos.copy(_taaP);
   GFX.pDir.copy(_taaD);
   let out = GFX.rt.texture;
-  const mb = !!GFX.mb && !!GFX.rt.depthTexture && !GFX.look;
+  const mb = !!GFX.mb && !!GFX.rt.depthTexture && gameLook();
   if (taa || mb) {
     const tanY = Math.tan((camera.fov * Math.PI) / 360);
     for (const M of [taaMat, mbMat]) {
@@ -718,8 +722,8 @@ function renderFrame() {
       return oe.apply(console, arguments);
     };
   try {
-    /* TAA nudges the camera by a fraction of a pixel, different every frame (not under a cutscene's look) */
-    const taa = !!GFX.taaA && !!GFX.rt.depthTexture && !GFX.look;
+    /* TAA nudges the camera by a fraction of a pixel, different every frame (not under a cutscene's own look) */
+    const taa = !!GFX.taaA && !!GFX.rt.depthTexture && gameLook();
     if (taa) {
       const n = (GFX.taaN = (GFX.taaN % 8) + 1);
       GFX.jx = halton(n, 2) - 0.5;
@@ -805,11 +809,11 @@ function renderFrame() {
     }
     /* (not while a cutscene sets its own mood) */
     const lookId = GFX.lookId || (cur && cur.id);
-    if (lookId && lookId !== LOOK_NOW.id && !GFX.look) applyLook(lookId);
+    if (lookId && lookId !== LOOK_NOW.id && gameLook()) applyLook(lookId);
     const look = lookId && MAP_LOOK[lookId];
     mapEnvFrame(cur);
     U.tTone.value = toneLut(GFX.tone || (look && look.tone) || "aces");
-    const gr = SET.grade && !GFX.look && look;
+    const gr = SET.grade && gameLook() && look;
     U.gOn.value = gr ? 1 : 0;
     if (gr) {
       U.gLift.value.fromArray(gr.lift);
