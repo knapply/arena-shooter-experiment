@@ -401,11 +401,13 @@
     focus: 10,
     range: 6,
     near: 1,
-    grade: 1.1,
-    ca: 0.006,
+    grade: 0.6,
+    ca: 0.005,
     streak: 0.45,
     vig: 0.18,
-    tint: [-0.1, 0.04, 0.16],
+    tint: [-0.05, 0.02, 0.08],
+    /* the game's own map look, grade, TAA and motion blur stay on under it */
+    game: true,
   };
   /* first person is the game's own look, lightly graded */
   const LOOK_FP = { dof: 0, grade: 0.6, ca: 0.003, streak: 0.2, vig: 0.08 };
@@ -874,7 +876,6 @@
     /* dusk over the arena: three pods burn in from orbit */
     {
       name: "sky",
-      mood: "dusk",
       setup() {
         clearStage();
         K.resetDestruction();
@@ -906,7 +907,6 @@
     /* riding the hero's pod down: the arena rushing up under it */
     {
       name: "ride",
-      mood: "dusk",
       setup() {
         clearStage();
         this.pod = K.dropPod(V(LZ.hero[0], 0, LZ.hero[2]), hero.color, { h: 120, dur: 1.7 });
@@ -940,7 +940,6 @@
     {
       name: "cockpit",
       fp: true,
-      mood: "dusk",
       setup() {
         clearStage();
         const at = [-19.5, 0, 4.2];
@@ -959,7 +958,6 @@
     /* the squad's pods slam in, low and wide, in slow motion */
     {
       name: "impact",
-      mood: "dusk",
       setup() {
         clearStage();
         K.resetDestruction();
@@ -1016,7 +1014,6 @@
     /* the hero rises out of the crater, low angle, the sun behind; then a crash zoom into the visor */
     {
       name: "hero-rise",
-      mood: "dusk",
       setup() {
         hero.ctl = (a, st) => ({ ...NO, crouch: st < 0.4, aim: st > 0.8 });
         ally.ctl = (a, st) => ({ ...NO, aim: st > 0.6 });
@@ -1045,7 +1042,6 @@
     {
       name: "fp-slide",
       fp: true,
-      mood: "hot",
       setup() {
         clearStage();
         seed = 120;
@@ -1096,7 +1092,6 @@
     /* the chase cam, low behind a sprint: a jump and a thrust forward */
     {
       name: "chase-thrust",
-      mood: "hot",
       setup() {
         clearStage();
         seed = 132;
@@ -1127,7 +1122,7 @@
           p = b.pos,
           h = hand(lt * 2, 0.05);
         cam(
-          V(p.x + 0.8 + h.x, 0.55 + p.y * 0.6 + h.y, p.z - 3.3),
+          V(p.x + 0.7 + h.x, 0.75 + p.y * 0.6 + h.y, p.z - 2.4),
           V(p.x, p.y + 1.2, p.z + 6),
           66,
           10,
@@ -1142,7 +1137,6 @@
     /* a thrust sideways out of a burst, in slow motion */
     {
       name: "dodge",
-      mood: "hot",
       whipOut: 1,
       setup() {
         clearStage();
@@ -1197,7 +1191,6 @@
     {
       name: "fp-carbine",
       fp: true,
-      mood: "hot",
       setup() {
         clearStage();
         seed = 155;
@@ -1225,7 +1218,6 @@
     /* over the shoulder on the platform: the magnum's first round on a pilot below... */
     {
       name: "ots",
-      mood: "hot",
       setup() {
         clearStage();
         seed = 170;
@@ -1271,7 +1263,6 @@
     {
       name: "fp-magnum",
       fp: true,
-      mood: "hot",
       setup() {
         const b = hero.body;
         hero.on = false;
@@ -1293,7 +1284,6 @@
     /* a blast gate rises across the lane; the pilot vaults it */
     {
       name: "gate-vault",
-      mood: "hot",
       setup() {
         clearStage();
         K.resetDestruction();
@@ -1351,7 +1341,6 @@
     {
       name: "fp-hover",
       fp: true,
-      mood: "hot",
       setup() {
         clearStage();
         F.gatesAt(0, false);
@@ -1407,7 +1396,6 @@
     /* outside, in slow motion: hanging on the stabilizer over the north stairs, the camera circling */
     {
       name: "hover-orbit",
-      mood: "hot",
       setup() {
         clearStage();
         seed = 220;
@@ -1482,7 +1470,6 @@
     /* the ground pound: the dive, the slam, the crater; then a dolly zoom on the pilot in it */
     {
       name: "pound",
-      mood: "hot",
       ts() {
         if (hero.slamT == null || hero.slamT < this.t) return 1;
         const k = T - hero.slamT;
@@ -1526,7 +1513,6 @@
     {
       name: "fp-charge",
       fp: true,
-      mood: "hot",
       setup() {
         clearStage();
         seed = 250;
@@ -1563,7 +1549,6 @@
     /* and from outside: the charge in slow motion */
     {
       name: "charge",
-      mood: "hot",
       whipOut: -1,
       setup() {
         clearStage();
@@ -1629,7 +1614,6 @@
     {
       name: "fp-assassin",
       fp: true,
-      mood: "cool",
       setup() {
         clearStage();
         seed = 272;
@@ -1667,7 +1651,6 @@
     {
       name: "fp-shields",
       fp: true,
-      mood: "hot",
       setup() {
         clearStage();
         seed = 287;
@@ -1719,7 +1702,6 @@
     {
       name: "fp-sniper",
       fp: true,
-      mood: "cool",
       setup() {
         clearStage();
         seed = 307;
@@ -1767,7 +1749,6 @@
     /* the long shot from outside: sharp on the rifle, the round goes, focus racks out to the target */
     {
       name: "snipe-rack",
-      mood: "cool",
       whipIn: 1,
       setup() {
         clearStage();
@@ -1834,7 +1815,6 @@
     {
       name: "fp-rocket",
       fp: true,
-      mood: "hot",
       setup() {
         clearStage();
         K.resetDestruction();
@@ -1885,20 +1865,22 @@
     /* riding a rocket: the camera flies behind it all the way into the pair */
     {
       name: "rocket-ride",
-      mood: "hot",
       whipIn: -1,
       setup() {
         clearStage();
         K.resetDestruction();
         seed = 352;
-        put(hero, [-14, 0, 20.4], -PI / 2);
+        put(hero, [4.4, 0, 8.6], PI);
         hero.wpn = 3;
         hero.ctl = () => ({ ...NO, aim: true });
-        put(foe1, [1.6, 0, 22.2], PI / 2);
-        put(foe2, [3.2, 0, 21.0], PI / 2 + 0.2);
-        for (const f of [foe1, foe2]) f.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 3 + a.id.length) * 0.2 });
+        /* crouched behind the barrier across the north lane */
+        put(foe1, [0.4, 0, 20.1], PI);
+        put(foe2, [2.4, 0, 20.5], PI + 0.2);
+        for (const f of [foe1, foe2]) f.ctl = () => ({ ...NO, crouch: true });
         rockets.clear();
-        this.tgt = V(2.4, 0.15, 21.6);
+        this.tgt = V(1.2, 1.1, 16.9);
+        this.coverAt = V(1.2, 1.2, 18);
+        this.had = !!inside(this.coverAt);
         this.blast = null;
         this.blastT = -1;
         this.cp = null;
@@ -1906,17 +1888,14 @@
       ts(lt) {
         const r = rockets.list[0];
         if (r && r.pos.distanceTo(this.tgt) < 3.2) return 0.25;
-        if (this.blastT >= 0) return lt - this.blastT < 0.45 ? 0.25 : 1;
+        if (this.blastT >= 0) return lt - this.blastT < 0.5 ? 0.25 : 1;
         return 1;
       },
       update(lt, dt, st) {
         aimAt(hero, this.tgt, 0.6);
         drive(hero, dt);
-        for (const f of [foe1, foe2]) {
-          drive(f, dt);
-          fireAt(f, head(hero), 4, dt, 1.5);
-        }
-        if (st > 0.2 && once(hero, "rk")) {
+        for (const f of [foe1, foe2]) drive(f, dt);
+        if (st > 0.3 && once(hero, "rk")) {
           const y = hero.body.yaw,
             m = hero.body.pos
               .clone()
@@ -1937,6 +1916,8 @@
               S.blastT = T - S.t;
               CINE.shake(1);
               punch(1.4);
+              /* the cover takes the blast and comes apart; the pair behind it with it */
+              K.damageRadius(c, 4.2, 4000, true);
               for (const f of [foe1, foe2]) if (chest(f).distanceTo(c) < 4.2) kill(f, c, 4.4);
             },
           });
@@ -1945,13 +1926,13 @@
         const r = rockets.list[0],
           p = hero.body.pos;
         if (!hero.once.has("rk")) {
-          cam(V(p.x + 2.4, 1.3, p.z + 1.8), V(p.x, p.y + 1.45, p.z), 36, 0, dt);
+          cam(V(p.x + 2.2, 1.25, p.z - 1.9), V(p.x, p.y + 1.45, p.z), 36, 0, dt);
         } else if (r) {
           const d = this.tgt.clone().sub(r.pos).normalize();
           this.cp = r.pos
             .clone()
             .addScaledVector(d, -2.4)
-            .add(V(0, 0.5, 0.7));
+            .add(V(0.7, 0.5, 0));
           cam(this.cp, r.pos.clone().addScaledVector(d, 5), 58, 0, dt, 0.06);
         } else if (this.cp) {
           cam(
@@ -1972,10 +1953,14 @@
       },
       beats: [
         [
-          "the rocket lands between the pair and takes both",
+          "the rocket breaks the cover and takes the pair behind it",
           function () {
-            const mid = foe1.body.pos.clone().lerp(foe2.body.pos, 0.5);
-            return { ok: near(this.blast, mid, 2.5) && foe1.dead && foe2.dead, blast: this.blast };
+            const broke = this.had && !inside(this.coverAt);
+            return {
+              ok: near(this.blast, this.tgt, 1.5) && broke && foe1.dead && foe2.dead,
+              blast: this.blast,
+              broke,
+            };
           },
         ],
       ],
@@ -1984,7 +1969,6 @@
     {
       name: "fp-scatter",
       fp: true,
-      mood: "hot",
       setup() {
         clearStage();
         seed = 367;
@@ -2008,7 +1992,6 @@
     {
       name: "fp-frag",
       fp: true,
-      mood: "hot",
       setup() {
         clearStage();
         seed = 380;
@@ -2070,7 +2053,6 @@
     {
       name: "fp-plasma",
       fp: true,
-      mood: "cool",
       setup() {
         clearStage();
         seed = 400;
@@ -2134,7 +2116,6 @@
     /* a power weapon arrives: the supply pod punches onto its pad on the core, seen from under it */
     {
       name: "supply",
-      mood: "hot",
       setup() {
         clearStage();
         K.resetDestruction();
@@ -2160,7 +2141,7 @@
         const pad = V(SUPPLY_AT[0], SUPPLY_AT[1] + 0.9, SUPPLY_AT[2]),
           c = this.pod && !this.pod.landed ? this.pod.g.position : pad,
           up = clamp((c.y - pad.y) / 140, 0, 1);
-        cam(V(2.6, 3.55, -3.5), c, lerp(46, 9, Math.sqrt(up)), 0, dt, 0.05);
+        cam(V(2.6, 3.55, -3.5), c, lerp(46, 22, Math.sqrt(up)), 0, dt, 0.05);
       },
       look() {
         return this.pod && !this.pod.landed
@@ -2178,51 +2159,36 @@
     },
     /* the squad advances on the camera, all three firing */
     {
-      name: "squad-push",
-      mood: "dusk",
+      name: "armor",
       setup() {
         clearStage();
-        seed = 435;
-        put(hero, [-4, 0, 31], 0);
-        put(ally, [-7.6, 0, 30.4], 0);
-        put(ally2, [3.6, 0, 30.6], 0);
-        for (const a of [hero, ally, ally2]) a.ctl = (b, st) => ({ ...NO, f: 0.55, aim: true });
-        ally.wpn = 0;
-        ally2.wpn = 3;
-        put(foe1, [-5.4, 0, 15.6], PI);
-        put(foe2, [5.0, 0, 16.2], PI);
-        for (const f of [foe1, foe2])
-          f.ctl = (a, st) => ({ ...NO, s: Math.sin(st * 2.2 + a.id.length) * 0.3 });
-        this.z0 = [hero, ally, ally2].map(a => a.body.pos.z);
+        seed = 436;
+        put(hero, [-24, 2.2, -6], -PI / 2 - 0.4);
+        hero.wpn = 0;
+        hero.ctl = () => ({ ...NO, aim: true });
+        this.hov = 0;
       },
+      ts: () => 0.55,
       update(lt, dt) {
-        const ours = [hero, ally, ally2],
-          theirs = [foe1, foe2];
-        ours.forEach((a, i) => {
-          const tgt = theirs[i % 2];
-          aimAt(a, chest(tgt), 0.4);
-          drive(a, dt);
-          if (rnd() < dt * 4.5) shoot(a, null, { at: chest(tgt), miss: 1.0, snd: "shot" });
-        });
-        for (const f of theirs) {
-          drive(f, dt);
-          fireAt(f, chest(hero), 5, dt, 2.2);
-        }
-        const k = ease(lt / 1.5);
-        const mid = V(
-          (hero.body.pos.x + ally.body.pos.x + ally2.body.pos.x) / 3,
-          1.5,
-          (hero.body.pos.z + ally.body.pos.z + ally2.body.pos.z) / 3
+        drive(hero, dt);
+        if (hero.body.stabbing) this.hov += dt;
+        const p = hero.body.pos,
+          a = lerp(-1.05, 0.25, ease(lt / 1.5)),
+          r = lerp(2.3, 1.9, ease(lt / 1.5));
+        cam(
+          V(p.x - Math.sin(-PI / 2 + a) * r, p.y + 1.35, p.z - Math.cos(-PI / 2 + a) * r),
+          V(p.x, p.y + 1.2, p.z),
+          34,
+          0,
+          dt
         );
-        cam(V(lerp(-3.6, -2.4, k), 0.4, lerp(21.2, 21.8, k)), mid, 46, 4, dt, -0.03);
       },
-      look: () => af(chest(hero), 5, { streak: 0.8 }),
+      look: () => af(chest(hero), 1.2, { streak: 0.9 }),
       beats: [
         [
-          "the squad advances together",
+          "the close up: the armor hanging on the stabilizer",
           function () {
-            const moved = [hero, ally, ally2].map((a, i) => +(this.z0[i] - a.body.pos.z).toFixed(2));
-            return { ok: moved.every(m => m > 2), moved };
+            return { ok: this.hov > 0.3, hov: +this.hov.toFixed(2) };
           },
         ],
       ],
@@ -2230,7 +2196,6 @@
     /* low and side on, in slow motion: a slide with the magnum out, two rounds into a pilot */
     {
       name: "slide-shoot",
-      mood: "hot",
       whipOut: 1,
       setup() {
         clearStage();
@@ -2279,7 +2244,7 @@
         if (hero.body.slideT > 0) aimAt(hero, head(foe1), 0.4);
         const p = hero.body.pos;
         this.cx = this.cx == null ? p.x - 1.2 : lerp(this.cx, p.x - 1.2, Math.min(1, dt * 8));
-        cam(V(this.cx, 0.32, 8.25), V(p.x - 0.4, p.y + 0.8, p.z), 38, 0, dt, 0.05);
+        cam(V(this.cx, 0.32, 7.3), V(p.x - 0.4, p.y + 0.8, p.z), 40, 0, dt, 0.05);
       },
       look: () => af(chest(hero), 2.4, { streak: 0.9 }),
       beats: [
@@ -2296,7 +2261,6 @@
     /* a drone high over the core: a blast gate rises out of the floor (the map moves while you play) */
     {
       name: "drone-gates",
-      mood: "cool",
       setup() {
         stopCTF();
         clearStage();
@@ -2327,7 +2291,6 @@
     {
       name: "ctf-capture",
       ctf: true,
-      mood: null,
       setup() {
         /* play the seeded match to its first capture, then the same match again to just before it */
         startCTF("ctf", undefined, 21, g => g.teams.some(t => t.score > 0), 9000);
@@ -2456,7 +2419,6 @@
       name: "freecam",
       ctf: true,
       spec: true,
-      mood: null,
       setup() {
         startCTF("ctf", undefined, 12);
       },
@@ -2482,7 +2444,6 @@
     /* two squads meet across the north lane at dusk */
     {
       name: "clash",
-      mood: "dusk",
       whipOut: -1,
       setup() {
         stopCTF();
@@ -2550,7 +2511,6 @@
     {
       name: "fp-clash",
       fp: true,
-      mood: "dusk",
       setup() {
         const b = hero.body;
         hero.on = false;
@@ -2584,7 +2544,6 @@
     /* a rocket bursts in front of the hero: a thrust straight back out of it, in slow motion */
     {
       name: "blast-thrust",
-      mood: "dusk",
       whipIn: 1,
       setup() {
         clearStage();
@@ -2645,7 +2604,6 @@
     /* the chase cam up the core stairs at a sprint */
     {
       name: "core-run",
-      mood: "dusk",
       setup() {
         clearStage();
         seed = 638;
@@ -2693,7 +2651,6 @@
     /* off the edge: the leap and a thrust, from below, against the sky */
     {
       name: "leap-off",
-      mood: "dusk",
       update(lt, dt) {
         drive(hero, dt);
         const p = hero.body.pos;
@@ -2715,7 +2672,6 @@
     /* bullet time: hanging on the stabilizer, time all but stops; three rounds, the camera circling */
     {
       name: "freeze",
-      mood: "dusk",
       setup() {
         seed = 660;
         BELOW.forEach((p, i) => {
@@ -2779,7 +2735,6 @@
     /* time snaps back: the three drop at once, and the hero dives into a ground pound */
     {
       name: "snap",
-      mood: "dusk",
       setup() {
         for (const [i, f] of [foe1, foe2, foe3].entries()) {
           K.shieldPop(chest(f));
@@ -2822,7 +2777,6 @@
     /* the slam: the crater, and a dolly zoom on the pilot in it */
     {
       name: "slam",
-      mood: "dusk",
       ts() {
         if (hero.slamT == null) return 1;
         const k = T - hero.slamT;
@@ -2851,7 +2805,6 @@
     /* low and slow: the hero stands in the dust and walks out of it, the sun behind */
     {
       name: "hero-walk",
-      mood: "dusk",
       setup() {
         hero.ctl = (a, st) => ({ ...NO, f: st > 0.35 ? 0.22 : 0, aim: false });
         hero.body.yaw = yawTo(hero.body.pos, V(-5.6, 0, -17.5));
@@ -2869,7 +2822,6 @@
     /* the play of the game: the replay, over the shoulder... */
     {
       name: "potg",
-      mood: "dusk",
       replay: true,
       setup() {
         clearStage();
@@ -2917,7 +2869,6 @@
     {
       name: "potg-fp",
       fp: true,
-      mood: "dusk",
       replay: true,
       setup() {
         const b = hero.body;
@@ -2944,7 +2895,6 @@
     /* ===== the title over a slow aerial ===== */
     {
       name: "title",
-      mood: "dusk",
       setup() {
         clearStage();
         K.resetDestruction();
@@ -2994,7 +2944,7 @@
     ["fp-frag", 38],
     ["fp-plasma", 40],
     ["supply", 41.75],
-    ["squad-push", 43.5],
+    ["armor", 43.5],
     ["slide-shoot", 45],
     /* the arena */
     ["drone-gates", 46],
@@ -3024,6 +2974,12 @@
     const sh = LIB.get(name);
     if (!sh) throw new Error("trailer: no scene " + name);
     SHOTS.push(Object.assign(sh, { t: at }));
+  }
+  /* the arsenal (to the plasma throw) plays under Hadal's deep-sea look (looking up into its sky reads as a flat wash) */
+  {
+    const a = CUT.findIndex(c => c[0] === "card-arsenal"),
+      b = CUT.findIndex(c => c[0] === "fp-plasma");
+    for (let i = a; i <= b; i++) LIB.get(CUT[i][0]).mapLook = "hadal";
   }
   CARDS.push(
     {
@@ -3278,7 +3234,9 @@
         fpCarry = "";
       }
       if (shot.setup) shot.setup();
-      if (shot.mood !== undefined) setMood(shot.mood);
+      /* the map's own look (time of day, weather, grade): the arena's dusk unless the scene picks
+         another; a live match on Twin Foundry brings its storm */
+      K.GFX.lookId = shot.ctf ? "" : shot.mapLook || "arena";
     }
     const S = shot,
       lt = T - S.t,
@@ -3417,6 +3375,8 @@
     K.camera.updateProjectionMatrix();
     K.camera.rotation.z = 0;
     K.setPilotCollider(null);
+    K.GFX.frameDt = 0;
+    K.GFX.lookId = "";
   }
   function stop() {
     if (TR.active) K.extStop();
@@ -3426,6 +3386,8 @@
   /* capture: step the timeline by a fixed amount and render, without audio */
   TR.record = () => begin(true);
   TR.step = (dt, render = true) => {
+    /* stepped frames: TAA and motion blur run on trailer time, not on how long a frame took to draw */
+    K.GFX.frameDt = TR.recording ? dt : 0;
     T += dt;
     frame(dt, render);
     if (T >= TR.END && shot && !shot.judged) {

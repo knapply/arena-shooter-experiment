@@ -18,6 +18,9 @@ const FPS = 30,
   await p.waitForTimeout(2000);
   /* 1. picture: step the timeline at a fixed rate and capture each frame, overlays included */
   await p.evaluate(() => {
+    /* the Ultra preset (TAA, motion blur, GTAO, screen-space reflections, the heaviest effects), at a fixed
+       full resolution */
+    KA.applyPreset("ultra");
     KA.SET.dynRes = false;
     KA.SET.renderScale = 1;
     KA.SET.upscale = "native";
