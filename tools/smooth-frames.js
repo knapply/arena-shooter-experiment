@@ -77,7 +77,7 @@ function instrument() {
     };
   }
   try {
-    new PerformanceObserver(l => {
+    new window.PerformanceObserver(l => {
       if (S.on) for (const e of l.getEntries()) S.long.push(+e.duration.toFixed(1));
     }).observe({ type: "longtask", buffered: false });
   } catch (e) {}
