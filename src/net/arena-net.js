@@ -248,12 +248,12 @@ function onFastPacket1(from, buf) {
   if (!r || !r.has || !r.rig) return;
   const d = m.data,
     t = performance.now() / 1000;
-  r.pb.push(d.ts / 1000, { p: d.p, v: d.v, y: d.y, pt: d.pt, st: d.st }, t);
+  r.pb.push(d.ts / 1000, { p: d.p, v: d.v, y: d.y, pt: d.pt, st: d.st, sh: d.sh, dead: d.dead }, t);
   r.hist.push(d.ts / 1000, d.p, d.y, d.pt, d.st, d.dead);
-  /* only the newest packet changes discrete state (packets can arrive out of order) */
+  /* the newest packet: scores. Discrete state (dead, crouch, reload, the shield) changes when the
+     drawn pilot reaches that moment (game/loop.js updRigs), so a death plays where they die */
   if (r.pb.buf[r.pb.buf.length - 1].ts === d.ts / 1000) {
     r.fastAt = t;
-    remoteState(r, d.st, d.sh, d.dead);
     r.k = d.k;
     r.d = d.d;
   }

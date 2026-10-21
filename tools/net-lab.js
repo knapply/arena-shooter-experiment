@@ -30,6 +30,7 @@ const arg = (k, d) => {
       secs: +arg("secs", 45),
       render: !!arg("render", false),
       migrate: !!arg("migrate", false),
+      script: !!arg("script", false),
       log: s => console.log(`[${profile}] ${s}`),
     });
     const base = writeReport(R, out);

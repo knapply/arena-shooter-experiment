@@ -196,7 +196,8 @@ async function poll(p, fn, arg, ms) {
 async function launchInstance(i, o) {
   const args = ["--mute-audio", "--enable-precise-memory-info"];
   if (o.transport === "webrtc") args.push("--disable-features=WebRtcHideLocalIpsWithMdns");
-  if (o.render)
+  if (o.render === "hw") args.push("--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist");
+  else if (o.render)
     args.push(
       "--use-gl=angle",
       "--use-angle=swiftshader",
@@ -204,7 +205,14 @@ async function launchInstance(i, o) {
       "--ignore-gpu-blocklist"
     );
   const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined, args });
-  const ctx = await browser.newContext({ viewport: { width: 480, height: 270 } });
+  const ctx = await browser.newContext(
+    o.video
+      ? {
+          viewport: { width: 640, height: 360 },
+          recordVideo: { dir: o.video + "/i" + i, size: { width: 640, height: 360 } },
+        }
+      : { viewport: { width: 480, height: 270 } }
+  );
   /* nothing leaves this machine */
   await ctx.route(/^(https?|wss?):\/\//, r => {
     const h = new URL(r.request().url()).hostname;
@@ -215,6 +223,8 @@ async function launchInstance(i, o) {
     url: o.url + "?inst=" + i,
     inst: i,
     bot: o.bot !== false,
+    script: !!o.script,
+    watch: !!o.video,
   });
   const init = ["lab-bot.js"];
   if (o.transport === "webrtc")
@@ -516,10 +526,10 @@ const r3 = v => (v == null ? null : Math.round(v * 1000) / 1000);
 function truthOf(D) {
   const T = new Map();
   for (const d of D)
-    for (const [t, id, x, z, alive] of d.rec.truth) {
+    for (const [t, id, x, z, alive, yaw] of d.rec.truth) {
       let s = T.get(id);
       if (!s) T.set(id, (s = { owner: d.i, pts: [] }));
-      if (s.owner === d.i) s.pts.push([t, x, z, alive]);
+      if (s.owner === d.i) s.pts.push([t, x, z, alive, yaw || 0]);
     }
   for (const s of T.values()) s.pts.sort((a, b) => a[0] - b[0]);
   return T;
@@ -538,8 +548,10 @@ function at(pts, t) {
   /* skip respawns, deaths and gaps: no smooth truth to compare with */
   if (!a[3] || !b[3] || b[0] - a[0] > 250 || Math.hypot(b[1] - a[1], b[2] - a[2]) > 4) return null;
   const k = (t - a[0]) / (b[0] - a[0] || 1);
-  return [a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+  return [a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, a[4] + angd(b[4], a[4]) * k];
 }
+/** the shortest signed angle from b to a */
+const angd = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 /** how one instance draws one pilot: delay that fits best, error at it, pops */
 function pair(truth, seen0, stalled) {
   /* moments right after any instance stalled (a long frame: the CPU, not the network) are left out:
@@ -569,9 +581,31 @@ function pair(truth, seen0, stalled) {
       dt = [a1[0] - a0[0], a1[1] - a0[1]];
     if (Math.hypot(ds[0] - dt[0], ds[1] - dt[1]) > 0.5) pops++;
   }
-  return { delay: best.off, med: best.med, p95: best.p95, n: best.n, pops };
+  /* how the motion reads, at the fitted delay: speed and turn rate against the truth's, and how far
+     ahead along its path the drawn pilot runs (extrapolation overshoot) */
+  const spd = [],
+    turn = [],
+    over = [];
+  for (let i = 1; i < seen.length; i++) {
+    const w = (seen[i][0] - seen[i - 1][0]) / 1000;
+    if (w <= 0.005 || w > 0.1) continue;
+    const a0 = at(truth, seen[i - 1][0] - best.off),
+      a1 = at(truth, seen[i][0] - best.off);
+    if (!a0 || !a1) continue;
+    const ds = Math.hypot(seen[i][1] - seen[i - 1][1], seen[i][2] - seen[i - 1][2]) / w,
+      dt = Math.hypot(a1[0] - a0[0], a1[1] - a0[1]) / w;
+    spd.push(Math.abs(ds - dt));
+    if (seen[i].length > 3 && seen[i - 1].length > 3)
+      turn.push(Math.abs(angd(seen[i][3], seen[i - 1][3]) - angd(a1[2], a0[2])) / w);
+    if (dt > 1) {
+      const ux = (a1[0] - a0[0]) / (dt * w),
+        uz = (a1[1] - a0[1]) / (dt * w);
+      over.push(Math.max(0, (seen[i][1] - a1[0]) * ux + (seen[i][2] - a1[1]) * uz));
+    }
+  }
+  return { delay: best.off, med: best.med, p95: best.p95, n: best.n, pops, spd, turn, over };
 }
-function analyze(D, secs, mode) {
+function analyze(D, secs, mode, scriptOnly) {
   const T = truthOf(D);
   const hitches = D.flatMap(d => d.rec.hitches || []).sort((a, b) => a[0] - b[0]);
   /* a stall ending in the last 1.2 s (the drawing delay plus time to catch up) */
@@ -584,14 +618,16 @@ function analyze(D, secs, mode) {
   const all = [];
   for (const d of D) {
     const by = new Map();
-    for (const [t, id, x, z] of d.rec.drawn) {
+    for (const [t, id, x, z, yaw] of d.rec.drawn) {
       let s = by.get(id);
       if (!s) by.set(id, (s = []));
-      s.push([t, x, z]);
+      s.push(yaw == null ? [t, x, z] : [t, x, z, yaw]);
     }
     for (const [id, seen] of by) {
       const tr = T.get(id);
       if (!tr || tr.owner === d.i) continue;
+      /* scripted runs: only the scripted players (the AI still plays freely) */
+      if (scriptOnly && !(mode === "arena" || String(id).startsWith("h:"))) continue;
       const r = pair(tr.pts, seen, stalled);
       if (r)
         all.push(
@@ -606,6 +642,27 @@ function analyze(D, secs, mode) {
   rep.pos = {
     pairs: all.length,
     /* long frames on any instance, and the share of drawn samples left out after them */
+    /* motion quality, pooled over every pair: speed (m/s) and turn rate (rad/s) against the truth,
+       and overshoot (m ahead along the path), at the 95th percentile */
+    ownSnapsPerMin: r1(mean(D.map(d => ((d.rec.ownSnaps || 0) / secs) * 60))),
+    speedErrP95: r3(
+      pct(
+        all.flatMap(r => r.spd),
+        0.95
+      )
+    ),
+    turnErrP95: r3(
+      pct(
+        all.flatMap(r => r.turn),
+        0.95
+      )
+    ),
+    overshootP95: r3(
+      pct(
+        all.flatMap(r => r.over),
+        0.95
+      )
+    ),
     stalls: hitches.length,
     relayLate: hitches.filter(h => h[2] === "relay").length,
     /* each observer's playback (mean delay, packet gap, jitter in ms): when one observer draws
@@ -676,6 +733,7 @@ function analyze(D, secs, mode) {
       parts,
       scriptMsPerSec: r1((d.cpu.script * 1000) / secs),
       gcPerMin: r1((d.rec.heap.gcs / secs) * 60),
+      ownSnapsPerMin: r1(((d.rec.ownSnaps || 0) / secs) * 60),
       heapChurnMBps: r3(d.rec.heap.freed / 1048576 / secs),
       errors: d.errors,
     });
@@ -806,7 +864,13 @@ async function runLab(o) {
   const report = { n, profile, transport, secs, startedAt: new Date().toISOString(), modes: {} };
   let peerServer = null;
   const port = await relay.start();
-  const opts = { url: "ws://127.0.0.1:" + port + "/", transport, render: o.render };
+  const opts = {
+    url: "ws://127.0.0.1:" + port + "/",
+    transport,
+    render: o.render,
+    script: o.script,
+    video: o.video,
+  };
   if (transport === "webrtc") {
     const { PeerServer } = require("peer");
     opts.peerPort = 19000 + Math.floor(Math.random() * 900);
@@ -848,7 +912,7 @@ async function runLab(o) {
         d.rec.hitches = (d.rec.hitches || []).concat(late);
       }
       relay.late = [];
-      const rep = analyze(D, played, mode);
+      const rep = analyze(D, played, mode, !!o.script);
       rep.playedSecs = played;
       if (o.raw) rep.raw = D;
       rep.joinMs = room.joinMs;

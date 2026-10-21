@@ -890,6 +890,9 @@ function updRigs(dt) {
       r.tgt.copy(_est);
       r.pitch = _pbs.pitch;
       root.rotation.y = _pbs.yaw;
+      /* their state as of the moment drawn (net/arena-net.js) */
+      const s = _pbs.s;
+      if (s && s.st != null) remoteState(r, s.st, s.sh, !!s.dead);
     } else {
       const age = Math.min(0.15, tnow - r.rx);
       const est = _est.copy(r.tgt).addScaledVector(r.vel, age);

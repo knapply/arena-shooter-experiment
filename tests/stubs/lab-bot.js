@@ -12,7 +12,18 @@
    Times are Date.now(): every instance runs on this machine, so they share the clock. */
 (function () {
   const LAB = window.__LAB || {};
-  const rec = { truth: [], drawn: [], pb: [], kills: [], state: [], hitches: [], frames: 0, ft: 0 };
+  const rec = {
+    truth: [],
+    drawn: [],
+    pb: [],
+    kills: [],
+    state: [],
+    hitches: [],
+    frames: 0,
+    ft: 0,
+    ownSnaps: 0,
+  };
+  const own = { x: 0, z: 0, alive: false };
   const heap = { gcs: 0, freed: 0, last: 0 };
   let lastS = 0,
     lastState = 0,
@@ -229,6 +240,40 @@
       bot.kitT = 1.5 + Math.random() * 3;
     }
   }
+  /** scripted motion (the lab's --script): a fixed path with sweeping turns, a sharp cut and a stop,
+      the same every run, so changes to the netcode can be compared without the bots' randomness */
+  function scripted(i) {
+    const me = KA.me;
+    if (me.dead) return KA.input.press("jump");
+    /* a figure-eight with the speed swinging between about 3 and 11 m/s: position, velocity and
+       heading all from the same smooth function of time (no frame-to-frame differences) */
+    const cx = -8 + (i % 3) * 3,
+      cz = 24 - Math.floor(i / 3) * 3;
+    const path = t => {
+      const u = t * 1.1 - 0.35 * Math.sin(t * 1.05);
+      return [cx + 6 * Math.sin(u), cz + 3 * Math.sin(u * 2)];
+    };
+    const t = Date.now() / 1000 + i * 1.7,
+      e = 0.005;
+    const [x, z] = path(t),
+      [x1, z1] = path(t + e),
+      [x0, z0] = path(t - e);
+    const vx = (x1 - x0) / (2 * e),
+      vz = (z1 - z0) / (2 * e);
+    me.pos.set(x, me.pos.y, z);
+    me.vel.set(vx, me.vel.y, vz);
+    me.yaw = Math.atan2(-vx, -vz);
+    me.spawnT = 1e9;
+  }
+  /** the lab's recording view: stand off to the side of the scripted path and watch it */
+  function watching() {
+    const me = KA.me;
+    me.pos.set(-8, me.pos.y, 16);
+    me.vel.set(0, me.vel.y, 0);
+    me.yaw = Math.PI; /* toward +z, where the path runs */
+    me.pitch = -0.05;
+    me.spawnT = 1e9;
+  }
   function ids(c) {
     if (c.kind === "arena") return { me: myPeer() };
     return { me: c.meA ? c.meA.id : "local" };
@@ -236,12 +281,12 @@
   function sample(c, t) {
     const me = KA.me;
     const id = ids(c).me;
-    rec.truth.push([t, id, +me.pos.x.toFixed(3), +me.pos.z.toFixed(3), me.dead ? 0 : 1]);
+    rec.truth.push([t, id, +me.pos.x.toFixed(3), +me.pos.z.toFixed(3), me.dead ? 0 : 1, +me.yaw.toFixed(3)]);
     if (c.kind === "arena") {
       for (const [peer, r] of KA.remotes)
         if (r.has && r.rig && !r.dead) {
           const p = r.rig.root.position;
-          rec.drawn.push([t, peer, +p.x.toFixed(3), +p.z.toFixed(3)]);
+          rec.drawn.push([t, peer, +p.x.toFixed(3), +p.z.toFixed(3), +r.rig.root.rotation.y.toFixed(3)]);
         }
       return;
     }
@@ -250,8 +295,10 @@
       const p = a.body.pos;
       const alive = a.alive !== false && !a.dead;
       /* the authority's own AI is truth; everyone else is drawn from the network */
-      if (!c.client && !a.human) rec.truth.push([t, a.id, +p.x.toFixed(3), +p.z.toFixed(3), alive ? 1 : 0]);
-      else if (alive) rec.drawn.push([t, a.id, +p.x.toFixed(3), +p.z.toFixed(3)]);
+      const y = +(a.body.yaw || 0).toFixed(3);
+      if (!c.client && !a.human)
+        rec.truth.push([t, a.id, +p.x.toFixed(3), +p.z.toFixed(3), alive ? 1 : 0, y]);
+      else if (alive) rec.drawn.push([t, a.id, +p.x.toFixed(3), +p.z.toFixed(3), y]);
     }
   }
   function samplePb(c, t) {
@@ -291,6 +338,19 @@
     lastT = now;
     rec.frames++;
     rec.ft += dt;
+    /* your own pilot jumping (a correction snap): a frame-to-frame move well beyond its speed, while
+       alive (respawns are not snaps) */
+    if (window.KA && KA.me && KA.playing) {
+      const me = KA.me,
+        p = me.pos;
+      if (own.alive && !me.dead && dt > 0) {
+        const jump = Math.hypot(p.x - own.x, p.z - own.z) - Math.hypot(me.vel.x, me.vel.z) * dt;
+        if (jump > 0.5 && jump < 10) rec.ownSnaps++;
+      }
+      own.x = p.x;
+      own.z = p.z;
+      own.alive = !me.dead;
+    }
     if (performance.memory) {
       const h = performance.memory.usedJSHeapSize;
       if (heap.last && h < heap.last - 64 * 1024) {
@@ -317,7 +377,9 @@
     }
     const c = ctx();
     if (!c) return release();
-    if (bot.on) play(c, dt);
+    if (LAB.watch && (LAB.inst | 0) === 1) watching();
+    else if (LAB.script) scripted(LAB.inst | 0);
+    else if (bot.on) play(c, dt);
     const t = Date.now();
     if (t - lastS >= 33) {
       lastS = t;
@@ -365,7 +427,7 @@
     collect() {
       const out = Object.assign({}, rec, { heap: Object.assign({}, heap) });
       for (const k of ["truth", "drawn", "pb", "kills", "state", "hitches"]) rec[k] = [];
-      rec.frames = rec.ft = 0;
+      rec.frames = rec.ft = rec.ownSnaps = 0;
       heap.gcs = heap.freed = 0;
       return out;
     },

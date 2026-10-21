@@ -9,7 +9,8 @@ node tools/net-lab.js --profile all                     # good, wifi, bad, asym 
 node tools/net-lab.js --modes ctf,oddball --secs 90     # some modes, longer matches
 node tools/net-lab.js --transport webrtc                # real WebRTC between the browsers, local signalling server
 node tools/net-lab.js --render                          # real three.js (THREE_PATH) instead of the stub renderer
-node tools/net-lab-compare.js <before-dir> <after-dir>  # a before/after table of two runs
+node tools/net-lab-compare.js <before-dir> <after-dir>  # a before/after table of two runs (--smooth: motion)
+node tools/net-lab.js --script --profile spikes          # scripted players on a fixed path: low-noise A/B of playback
 ```
 
 Reports (JSON and markdown) go to `tools/out/net-lab/`. `tests/netlab.test.js` runs a CI-sized lab: 3 instances on bad links, arena and capture the flag for 20 s each, then the host leaves.

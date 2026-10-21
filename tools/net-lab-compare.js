@@ -22,6 +22,26 @@ const up = r => {
   return [h ? h.upKBps : null, c.length ? c.reduce((s, x) => s + x.upKBps, 0) / c.length : null];
 };
 const f = (v, d = 1) => (v == null ? "–" : (+v).toFixed(d));
+const sm = [
+  "| profile | mode | p95 err m | pops/min | speed err p95 m/s | turn err p95 rad/s | overshoot p95 m | own snaps/min | delay ms |",
+  "|---|---|---|---|---|---|---|---|---|",
+];
+for (const p of Object.keys(a)) {
+  if (!b[p]) continue;
+  for (const m of Object.keys(a[p].modes)) {
+    const x = a[p].modes[m],
+      y = b[p].modes[m];
+    if (!x || !y || x.error || y.error) continue;
+    const g = (r, k, d = 2) => f(r.pos[k], d);
+    sm.push(
+      `| ${p} | ${m} | ${g(x, "p95ErrM")} → ${g(y, "p95ErrM")} | ${g(x, "popsPerMin", 1)} → ${g(y, "popsPerMin", 1)} | ${g(x, "speedErrP95")} → ${g(y, "speedErrP95")} | ${g(x, "turnErrP95")} → ${g(y, "turnErrP95")} | ${g(x, "overshootP95")} → ${g(y, "overshootP95")} | ${g(x, "ownSnapsPerMin", 1)} → ${g(y, "ownSnapsPerMin", 1)} | ${x.pos.delayMs} → ${y.pos.delayMs} |`
+    );
+  }
+}
+if (process.argv.includes("--smooth")) {
+  console.log(sm.join(String.fromCharCode(10)));
+  process.exit(0);
+}
 const out = [
   "| profile | mode | host up KB/s | client up KB/s | delay ms | p95 err m | pops/min | false rejects | kill→display p50 ms | desync | migration ms | GC/min (host) |",
   "|---|---|---|---|---|---|---|---|---|---|---|---|",
