@@ -1,6 +1,8 @@
 /** @type {(id: string) => El} */
 const $ = id => /** @type {El} */ (document.getElementById(id));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+/** seconds as a clock: 75 → "1:15" */
+const fmtClock = s => `${(s / 60) | 0}:${String((s % 60) | 0).padStart(2, "0")}`;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const r2 = v => Math.round(v * 100) / 100;
 const isTouch = matchMedia("(pointer:coarse)").matches;

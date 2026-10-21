@@ -45,12 +45,11 @@ MENU.size = () => {
   return sizeList(P).includes(s) ? s : P.teams ? MODE_DATA[P.data].teamSize : MODE_DATA.ffa.pilots;
 };
 const mapName = key => (MAPS[key] ? MAPS[key].name : key);
-const mmssM = s => `${(s / 60) | 0}:${String((s % 60) | 0).padStart(2, "0")}`;
 /** what wins and how long it lasts: "first to 3 captures · 8 min" */
 function modeGoal(P) {
   const R = modeRules(P.id),
     min = Math.round(R.timeLimit / 60) + " min";
-  if (P.id === "oddball") return `hold the skull ${mmssM(R.scoreLimit)} · ${min}`;
+  if (P.id === "oddball") return `hold the skull ${fmtClock(R.scoreLimit)} · ${min}`;
   const unit = R.scoreLimit === 1 ? P.unit.replace(/s$/, "") : P.unit;
   return `first to ${R.scoreLimit} ${unit} · ${min}`;
 }

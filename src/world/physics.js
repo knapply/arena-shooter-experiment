@@ -64,6 +64,113 @@ let pilotsFn = null;
 function setPilotCollider(fn) {
   pilotsFn = fn;
 }
+/* the broad phase: an XZ grid of SOLID's indices, so a query looks at the boxes near a point instead of
+   all of them. A query returns the candidates in SOLID's own order (the scans below resolve contacts in
+   that order), so every result is exactly what a scan of the whole array gives. The grid rebuilds itself
+   when SOLID is replaced or changes length; code that swaps boxes in place calls solidChanged(). Boxes
+   only ever move vertically after they are added (blast gates), and the grid is XZ only. */
+const GRID_CELL = 4;
+const GRID = {
+  n: -1,
+  ver: -1,
+  first: null,
+  last: null,
+  x0: 0,
+  z0: 0,
+  nx: 0,
+  nz: 0,
+  cells: [],
+  seen: new Uint32Array(0),
+  mark: 0,
+};
+let solidVer = 0;
+function solidChanged() {
+  solidVer++;
+}
+function gridFresh() {
+  const n = SOLID.length;
+  if (GRID.n === n && GRID.ver === solidVer && GRID.first === SOLID[0] && GRID.last === SOLID[n - 1]) return;
+  let x0 = Infinity,
+    z0 = Infinity,
+    x1 = -Infinity,
+    z1 = -Infinity;
+  for (const b of SOLID) {
+    if (b.x0 < x0) x0 = b.x0;
+    if (b.z0 < z0) z0 = b.z0;
+    if (b.x1 > x1) x1 = b.x1;
+    if (b.z1 > z1) z1 = b.z1;
+  }
+  if (!n) x0 = z0 = x1 = z1 = 0;
+  GRID.x0 = x0;
+  GRID.z0 = z0;
+  GRID.nx = Math.max(1, Math.ceil((x1 - x0) / GRID_CELL) + 1);
+  GRID.nz = Math.max(1, Math.ceil((z1 - z0) / GRID_CELL) + 1);
+  const cells = (GRID.cells = []);
+  for (let i = 0; i < GRID.nx * GRID.nz; i++) cells.push([]);
+  /* each box goes in every cell its footprint touches (a hair wider, for the 1e-4 overlap margins) */
+  for (let i = 0; i < n; i++) {
+    const b = SOLID[i];
+    const cx0 = gridCol(b.x0 - 0.01, GRID.x0, GRID.nx),
+      cx1 = gridCol(b.x1 + 0.01, GRID.x0, GRID.nx),
+      cz0 = gridCol(b.z0 - 0.01, GRID.z0, GRID.nz),
+      cz1 = gridCol(b.z1 + 0.01, GRID.z0, GRID.nz);
+    for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) cells[cz * GRID.nx + cx].push(i);
+  }
+  GRID.seen = new Uint32Array(n);
+  GRID.mark = 0;
+  GRID.n = n;
+  GRID.ver = solidVer;
+  GRID.first = SOLID[0];
+  GRID.last = SOLID[n - 1];
+}
+function gridCol(v, o, nc) {
+  const c = Math.floor((v - o) / GRID_CELL);
+  return c >= 0 ? (c < nc ? c : nc - 1) : 0;
+}
+/** a fresh stamp for GRID.seen (each query marks the boxes it has already looked at) */
+function gridMark() {
+  if (++GRID.mark === 0xffffffff) {
+    GRID.seen.fill(0);
+    GRID.mark = 1;
+  }
+  return GRID.mark;
+}
+/** fill out (an array reused by the caller) with the indices of the boxes whose footprint may touch the
+    XZ rectangle [x0, x1] x [z0, z1], in SOLID order; returns how many */
+function solidNear(x0, z0, x1, z1, out) {
+  gridFresh();
+  if (!GRID.n) return 0;
+  const cx0 = gridCol(x0, GRID.x0, GRID.nx),
+    cx1 = gridCol(x1, GRID.x0, GRID.nx),
+    cz0 = gridCol(z0, GRID.z0, GRID.nz),
+    cz1 = gridCol(z1, GRID.z0, GRID.nz);
+  const seen = GRID.seen,
+    mark = gridMark();
+  let k = 0;
+  for (let cz = cz0; cz <= cz1; cz++)
+    for (let cx = cx0; cx <= cx1; cx++) {
+      const cell = GRID.cells[cz * GRID.nx + cx];
+      for (let j = 0; j < cell.length; j++) {
+        const i = cell[j];
+        if (seen[i] === mark) continue;
+        seen[i] = mark;
+        /* insertion sort: the lists are short */
+        let at = k++;
+        while (at > 0 && out[at - 1] > i) {
+          out[at] = out[at - 1];
+          at--;
+        }
+        out[at] = i;
+      }
+    }
+  return k;
+}
+/* one result list per kind of query, so a query made while another's results are being walked (freeAt
+   inside the movement passes) never overwrites them */
+const NEAR_MOVE = [],
+  NEAR_FREE = [],
+  NEAR_GROUND = [],
+  NEAR_CLIMB = [];
 function ov(px, py, pz, h, b) {
   return (
     px + R > b.x0 + 1e-4 &&
@@ -75,12 +182,15 @@ function ov(px, py, pz, h, b) {
   );
 }
 function freeAt(x, y, z, h) {
-  for (const b of SOLID) if (ov(x, y, z, h, b)) return false;
+  const n = solidNear(x - R, z - R, x + R, z + R, NEAR_FREE);
+  for (let k = 0; k < n; k++) if (ov(x, y, z, h, SOLID[NEAR_FREE[k]])) return false;
   return true;
 }
 function groundBelow(x, z, y, r = R) {
   let g = -50;
-  for (const b of SOLID) {
+  const n = solidNear(x - r, z - r, x + r, z + r, NEAR_GROUND);
+  for (let k = 0; k < n; k++) {
+    const b = SOLID[NEAR_GROUND[k]];
     if (x + r > b.x0 && x - r < b.x1 && z + r > b.z0 && z - r < b.z1 && b.y1 <= y + 0.05 && b.y1 > g)
       g = b.y1;
   }
@@ -138,11 +248,78 @@ function rayBox(o, d, b, maxT) {
 }
 function rayWorld(o, d, maxT) {
   let best = maxT;
-  for (const b of SOLID) {
-    const t = rayBox(o, d, b, best);
-    if (t >= 0 && t < best) best = t;
+  gridFresh();
+  /* the nearest hit over all boxes does not depend on the order they are tried in, so walk the grid
+     cells the ray crosses (nearest first) and stop once a cell starts beyond the nearest hit. Anything
+     unusual (no grid, NaN, an infinite length) takes the full scan */
+  if (
+    !GRID.n ||
+    !Number.isFinite(maxT) ||
+    !(Number.isFinite(o.x) && Number.isFinite(o.y) && Number.isFinite(o.z)) ||
+    !(Number.isFinite(d.x) && Number.isFinite(d.y) && Number.isFinite(d.z))
+  ) {
+    for (const b of SOLID) {
+      const t = rayBox(o, d, b, best);
+      if (t >= 0 && t < best) best = t;
+    }
+    return best;
   }
-  return best;
+  const C = GRID_CELL,
+    gx0 = GRID.x0,
+    gz0 = GRID.z0,
+    gx1 = gx0 + GRID.nx * C,
+    gz1 = gz0 + GRID.nz * C;
+  /* the part of the ray over the grid */
+  let ta = 0,
+    tb = maxT;
+  if (d.x === 0) {
+    if (o.x < gx0 || o.x > gx1) return best;
+  } else {
+    const t1 = (gx0 - o.x) / d.x,
+      t2 = (gx1 - o.x) / d.x;
+    ta = Math.max(ta, Math.min(t1, t2));
+    tb = Math.min(tb, Math.max(t1, t2));
+  }
+  if (d.z === 0) {
+    if (o.z < gz0 || o.z > gz1) return best;
+  } else {
+    const t1 = (gz0 - o.z) / d.z,
+      t2 = (gz1 - o.z) / d.z;
+    ta = Math.max(ta, Math.min(t1, t2));
+    tb = Math.min(tb, Math.max(t1, t2));
+  }
+  if (ta > tb) return best;
+  let cx = gridCol(o.x + d.x * ta, gx0, GRID.nx),
+    cz = gridCol(o.z + d.z * ta, gz0, GRID.nz);
+  const sx = d.x > 0 ? 1 : d.x < 0 ? -1 : 0,
+    sz = d.z > 0 ? 1 : d.z < 0 ? -1 : 0;
+  let tx = sx > 0 ? (gx0 + (cx + 1) * C - o.x) / d.x : sx < 0 ? (gx0 + cx * C - o.x) / d.x : Infinity,
+    tz = sz > 0 ? (gz0 + (cz + 1) * C - o.z) / d.z : sz < 0 ? (gz0 + cz * C - o.z) / d.z : Infinity;
+  const dtx = sx ? C / Math.abs(d.x) : Infinity,
+    dtz = sz ? C / Math.abs(d.z) : Infinity;
+  const seen = GRID.seen,
+    mark = gridMark();
+  for (;;) {
+    const cell = GRID.cells[cz * GRID.nx + cx];
+    for (let j = 0; j < cell.length; j++) {
+      const i = cell[j];
+      if (seen[i] === mark) continue;
+      seen[i] = mark;
+      const t = rayBox(o, d, SOLID[i], best);
+      if (t >= 0 && t < best) best = t;
+    }
+    const next = tx < tz ? tx : tz;
+    if (next > best || next > tb) return best;
+    if (tx < tz) {
+      cx += sx;
+      tx += dtx;
+      if (cx < 0 || cx >= GRID.nx) return best;
+    } else {
+      cz += sz;
+      tz += dtz;
+      if (cz < 0 || cz >= GRID.nz) return best;
+    }
+  }
 }
 function raySphere(o, d, c, r) {
   const ox = o.x - c.x,
@@ -463,7 +640,9 @@ class Body {
         const ax = p.x + dx * 0.55,
           az = p.z + dz * 0.55;
         let done = false;
-        for (const b of SOLID) {
+        const nc = solidNear(ax - R, az - R, ax + R, az + R, NEAR_CLIMB);
+        for (let k = 0; k < nc; k++) {
+          const b = SOLID[NEAR_CLIMB[k]];
           if (!(ax + R > b.x0 && ax - R < b.x1 && az + R > b.z0 && az - R < b.z1)) continue;
           const dy = b.y1 - p.y;
           if (dy > 0.3 && dy < (this.tuck ? 2.95 : 2.5)) {
@@ -486,7 +665,9 @@ class Body {
     this.ground = false;
     const vyPre = v.y;
     p.y += v.y * dt;
-    for (const b of SOLID) {
+    const ny = solidNear(p.x - R, p.z - R, p.x + R, p.z + R, NEAR_MOVE);
+    for (let k = 0; k < ny; k++) {
+      const b = SOLID[NEAR_MOVE[k]];
       if (ov(p.x, p.y, p.z, this.h, b)) {
         if (v.y <= 0) {
           p.y = b.y1;
@@ -501,7 +682,15 @@ class Body {
       const d = v[ax] * dt;
       if (!d) continue;
       p[ax] += d;
-      for (const b of SOLID) {
+      /* the box can push p back toward where it was, never past it: look over both */
+      let lo = ax === "x" ? Math.min(p.x, p.x - d) : p.x,
+        hi = ax === "x" ? Math.max(p.x, p.x - d) : p.x,
+        zlo = ax === "z" ? Math.min(p.z, p.z - d) : p.z,
+        zhi = ax === "z" ? Math.max(p.z, p.z - d) : p.z;
+      let nm = solidNear(lo - R, zlo - R, hi + R, zhi + R, NEAR_MOVE);
+      for (let k = 0; k < nm; k++) {
+        const i = NEAR_MOVE[k],
+          b = SOLID[i];
         if (!ov(p.x, p.y, p.z, this.h, b)) continue;
         const rise = b.y1 - p.y;
         if (
@@ -520,6 +709,14 @@ class Body {
         if (Math.abs(v[ax]) > 2.5) ev("bump", { ax, speed: Math.abs(v[ax]), box: b });
         v[ax] = 0;
         if (this.chargeT > 0) this.chargeT = 0;
+        /* a body that started inside a box can be pushed back past where it was, out of the area looked
+           over: from here on, every later box (as a scan of the whole world would) */
+        if (p.x < lo || p.x > hi || p.z < zlo || p.z > zhi) {
+          nm = k + 1;
+          for (let j = i + 1; j < SOLID.length; j++) NEAR_MOVE[nm++] = j;
+          lo = zlo = -Infinity;
+          hi = zhi = Infinity;
+        }
       }
     }
     /* walking or running down stairs (or off a kerb) keeps the feet on the ground: a body that was

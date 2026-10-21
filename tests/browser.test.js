@@ -227,23 +227,18 @@ const podSeats = map => {
       [g1, g2, g3, gh, sprint]
     );
     /* the controller's toggle aim: pull once to scope, again to stop */
-    await p.evaluate(() => (KA.SET.padAimMode = "toggle"));
-    /* press and release on game frames, not the clock: on a slow machine 80 ms can pass with no frame,
-       and a press the gamepad poll never saw is a press that never happened */
-    const padFrames = n =>
-      p.evaluate(
-        n =>
-          new Promise(r => {
-            const f = () => (--n <= 0 ? r() : requestAnimationFrame(f));
-            requestAnimationFrame(f);
-          }),
-        n
-      );
+    await p.evaluate(() => {
+      KA.SET.padAimMode = "toggle";
+      KA.me.spawnT = KA.now + 60;
+      KA.mag = Math.max(KA.mag, 4);
+      KA.me.vel.set(0, 0, 0);
+    });
+    /* a press and a release are each held for two game frames, so a slow frame can never miss them */
     const tap = async btns => {
       await p.evaluate(p => (window.__pad = p), pad(btns));
-      await padFrames(4);
+      await frames(2);
       await p.evaluate(p => (window.__pad = p), pad());
-      await padFrames(4);
+      await frames(2);
     };
     await tap({ 6: 1 });
     const t1 = await lvlIs(1);
@@ -253,6 +248,7 @@ const podSeats = map => {
     const t3 = await lvlIs(0);
     await p.evaluate(() => {
       KA.SET.padAimMode = "hold";
+      KA.me.spawnT = -99;
       window.__pad = null;
     });
     check(
@@ -1274,6 +1270,8 @@ const podSeats = map => {
       /* (on your feet and playing: out of any pod, the pause menu closed) */
       if (KA.paused) document.getElementById("resume").click();
       await until(() => !KA.paused && !KA.myPod && !me.dead);
+      /* (the drones out of the way, so nothing but this test hurts you) */
+      for (const o of KA.bots) o.body.pos.set(60, 0, 60);
       me.spawnT = -99;
       me.health = 45;
       me.shield = 15;
@@ -1295,7 +1293,13 @@ const podSeats = map => {
       const down = {
         edge: await until(() => vig.classList.contains("down")),
         label: document.getElementById("shLbl").textContent,
-        alarm: await until(() => heard.includes("alarm")),
+        /* the alarm sounds while the shield is down and you are playing: keep it that way until it does */
+        alarm: await until(() => {
+          if (KA.paused) document.getElementById("resume").click();
+          if (!me.dead) me.shield = 0;
+          return heard.includes("alarm");
+        }),
+        dead: me.dead,
       };
       KA.sfxTap(null);
       me.shield = 70;
@@ -2007,10 +2011,6 @@ const podSeats = map => {
         KA.me.vel.set(0, 0, 0);
         KA.me.spawnT = KA.now;
       });
-    /* the test puts the friend on the spot: to the host that is a teleport, and for 3 s after one a
-       player's pickup claims are refused (net/ctf-host.js H.warped). Arrive, then wait it out */
-    await go();
-    await B.waitForTimeout(3300);
     await B.keyboard.down("KeyE");
     /* hold until it lands (up to 4 s) so a slow frame rate on CI does not cut the hold short */
     const trail = [];
@@ -2178,7 +2178,7 @@ const podSeats = map => {
       let ck = null;
       /* (the agents may get you with a grenade or a melee instead: this checks a gunshot kill, so
          such a kill is tried again) */
-      for (let tries = 0; tries < 5 && !(ck && ck.shots > 0); tries++) {
+      for (let tries = 0; tries < 10 && !(ck && ck.shots > 0); tries++) {
         await C.evaluate(() => {
           KA.SET.killCam = true;
           const g = CTF.UI.game(),

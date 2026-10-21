@@ -1328,7 +1328,8 @@ function makePilot(color, label) {
       /* travel direction in the body's frame, for the jetpack's legs */
       const mx = spd > 0.05 ? lr / spd : 0,
         mz = spd > 0.05 ? -lf / spd : -1;
-      legs.forEach((g, i) => {
+      for (let i = 0; i < legs.length; i++) {
+        const g = legs[i];
         const side = g.side;
         let roll = 0,
           toe = 0;
@@ -1410,7 +1411,7 @@ function makePilot(color, label) {
           5,
           0.35
         );
-      });
+      }
       /* the tabard: the thighs kick its flaps out as they swing, the run drags them back, and each
          lower half trails its upper on a spring */
       {
@@ -1455,7 +1456,7 @@ function makePilot(color, label) {
         S.wp = wp;
         S.flag = !!st.flag;
         S.skull = !!st.skull;
-        wpnG.forEach((g, i) => (g.visible = i === wp && !S.flag));
+        for (let i = 0; i < wpnG.length; i++) wpnG[i].visible = i === wp && !S.flag;
         flagG.visible = S.flag;
         if (S.flag && !cloth) {
           cloth = flagCloth(st.flagColor || "#ffffff");

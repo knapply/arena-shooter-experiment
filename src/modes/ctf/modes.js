@@ -51,7 +51,7 @@
   }
   const PM = id => K.PLAY_MODES.find(p => p.id === id) || K.PLAY_MODES[0];
   const mapName = key => (K.MAPS[key] ? K.MAPS[key].name : key);
-  const mmss = s => `${(s / 60) | 0}:${String((s % 60) | 0).padStart(2, "0")}`;
+  const mmss = K.fmtClock;
   /** a team or pilot's name in lines and banners: "Red", "Blue", or the pilot in free-for-all */
   const sideName = t => UI.teamName(t);
 
