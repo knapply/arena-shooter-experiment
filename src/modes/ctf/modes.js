@@ -547,6 +547,8 @@
     host.mapKey = M.mapKey;
     host.wrap();
     const mine = G;
+    /* the players who were in this match: only one of them can be a rival host for it */
+    host.matchPeers = new Set([...M.map.keys()].filter(id => id.startsWith("h:")).map(id => id.slice(2)));
     /* another player took over at the same moment and keeps the match: join theirs */
     host.onRival = h => {
       if (G !== mine) return;

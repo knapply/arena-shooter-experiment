@@ -2,17 +2,20 @@ name: CI
 on:
   push:
   pull_request:
+# the tests only read the repository
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
       - name: Install tools
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Formatting
         run: npm run format:check
       - name: Lint
@@ -48,7 +51,10 @@ jobs:
           for f in three.module.min.js three.core.min.js; do
             curl -sSfL -o /tmp/three/$f "https://cdn.jsdelivr.net/npm/three@$v/build/$f"
           done
+          node tools/check-three.js /tmp/three
           THREE_PATH=/tmp/three/three.module.min.js node tests/render.test.js
+      - name: Security (integrity of three.js, links, hostile players)
+        run: THREE_PATH=/tmp/three/three.module.min.js node tests/security.test.js
       - name: Visual regression (approved screenshots in tests/visual)
         run: THREE_PATH=/tmp/three/three.module.min.js node tests/visual.test.js
       - name: Trailer beats (every scripted shot, throw and jump lands)

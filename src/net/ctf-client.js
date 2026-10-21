@@ -213,7 +213,13 @@
         over at once): follow them. True if we did */
     M.follow = function (now) {
       const nh = NET.ctfPeers().find(
-        p => p.presence.ph === "host" && p.presence.H && p.presence.H.id === mid && p.peer !== M.hostPeer
+        p =>
+          p.presence.ph === "host" &&
+          p.presence.H &&
+          p.presence.H.id === mid &&
+          p.peer !== M.hostPeer &&
+          /* a player in this match (as the host listed it): not anyone claiming its id */
+          M.map.has("h:" + p.peer)
       );
       if (!nh) return false;
       M.hostPeer = nh.peer;
@@ -234,7 +240,13 @@
         mine,
         ...NET.ctfPeers()
           /* everyone in this match, whether still a client or already taking over */
-          .filter(p => p.presence.mid === mid || (p.presence.H && p.presence.H.id === mid))
+          .filter(
+            p =>
+              (p.presence.mid === mid || (p.presence.H && p.presence.H.id === mid)) &&
+              /* in the match as the host listed it: a stranger setting this match id cannot become
+                 everyone's successor */
+              M.map.has("h:" + p.peer)
+          )
           .map(p => p.peer),
       ];
       /* the lowest peer id among the players in the match: everyone agrees on it from who is in the
@@ -628,8 +640,9 @@
             const w = String(h[3] || "rifle").slice(0, 8);
             const by = p.peer === M.hostPeer && NET.okId(h[5]) ? h[5] : "h:" + p.peer;
             const shooter = M.byId(by);
-            if (shooter && shooter.team === me.team) continue;
-            if (shooter && shooter.pos && !NET.plausible(shooter.pos, me, w)) continue;
+            /* only someone in this match, on the other side, within reach of the weapon */
+            if (!shooter || shooter === me || (shooter.team === me.team && !M.ffa)) continue;
+            if (!shooter.pos || !NET.plausible(shooter.pos, me, w)) continue;
             const n = K.allowDamage(by, num(h[2], 0, 999), w);
             if (n > 0) K.hurtMe(n, { name: shooter ? shooter.name : "?", by, w, hd: !!h[4] });
           }

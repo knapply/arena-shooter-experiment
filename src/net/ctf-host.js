@@ -237,11 +237,23 @@
       if (!a) return;
       const d = m.data,
         t = performance.now() / 1000;
+      /* an impossible move (over 60 m/s across the ground between two of their own reports, alive in
+         both: a teleport) drops a carried flag and, for 3 s, refuses flag and pickup claims */
+      const last = a.hist.buf[a.hist.buf.length - 1];
+      if (last && !d.dead && !a.fastDead && d.ts / 1000 > last.ts) {
+        const dh = Math.hypot(d.p[0] - last.x, d.p[2] - last.z),
+          dts = d.ts / 1000 - last.ts;
+        if (dh > 4 && dh / dts > 60) {
+          a.warpT = t;
+          if (a.carrying) G.dropFlagBy(a);
+        }
+      }
+      a.fastDead = d.dead;
       a.pb.push(d.ts / 1000, { p: d.p, v: d.v, y: d.y, pt: d.pt, st: d.st }, t);
       a.hist.push(d.ts / 1000, d.p, d.y, d.pt, d.st, d.dead);
       if (a.pb.buf[a.pb.buf.length - 1].ts === d.ts / 1000) {
         a.fastAt = t;
-        a.body.shield = d.sh;
+        a.body.shield = Math.min(70, d.sh);
         const st = d.st;
         NET.applyBits(a.body, st);
         a.firing = !!(st & 4096);
@@ -264,6 +276,7 @@
       };
       G.netHit = (e, n, src) => {
         const by = src.by ? src.by.id : src.world ? "" : myId;
+        if (by) H.noteDmg(e.id, by);
         const k = e.id + "|" + by;
         const a = H.agg.get(k);
         if (a) {
@@ -421,6 +434,10 @@
           NET.ctfPeers().find(
             p =>
               p.peer < mine &&
+              /* only a player who was in this match (its id and match id are public: anyone else
+                 could claim them and make us hand the match over) */
+              !!H.matchPeers &&
+              H.matchPeers.has(p.peer) &&
               p.presence.ph === "host" &&
               ((p.presence.H && p.presence.H.id === H.mid) || p.presence.mid === H.mid)
           );
@@ -442,7 +459,12 @@
         const pr = p.presence;
         if (pr.ph !== "client" || pr.mid !== H.mid) continue;
         seen.add(p.peer);
-        H.ingest(p.peer, pr);
+        /* one malformed presence must not stop the host: the snapshot, leavers and everyone else */
+        try {
+          H.ingest(p.peer, pr);
+        } catch (e) {
+          console.warn("ignored a malformed update from", p.peer, e && e.message);
+        }
       }
       for (const [peer, a] of H.remote)
         if (!seen.has(peer)) {
@@ -551,6 +573,27 @@
       S.recent.push(Object.assign({ why, t: Math.round(K.now * 10) / 10 }, info));
       if (S.recent.length > 12) S.recent.shift();
     };
+    /** who damaged whom, when (match time): kills reported by a player are credited from this */
+    H.dmg = new Map();
+    H.noteDmg = function (victim, by) {
+      let m = H.dmg.get(victim);
+      if (!m) H.dmg.set(victim, (m = new Map()));
+      m.set(by, K.now);
+    };
+    H.damaged = function (victim, by, s) {
+      const m = H.dmg.get(victim),
+        t = m && m.get(by);
+      return t != null && K.now - t <= s;
+    };
+    /** at most one of this kind of request per this many seconds from a player */
+    H.coolOk = function (a, k, s) {
+      const t = performance.now() / 1000;
+      if (t - (a.cool[k] || -1e9) < s) return false;
+      a.cool[k] = t;
+      return true;
+    };
+    /** they moved impossibly fast in the last 3 s (a teleport): no flag, pickups or captures */
+    H.warped = a => performance.now() / 1000 - a.warpT < 3;
     H.snapshotRv = function () {
       const key = G.agents.map(a => a.id).join();
       if (key !== H.rosterKey) {
@@ -603,13 +646,18 @@
         a.hist = new K.MoveHist();
         a.stream = K.HITCHK.newStream();
         a.fastAt = -9;
+        /* weapons they may drop: what everyone starts with, plus what we saw them pick up */
+        a.owned = new Set([0, 1]);
+        a.warpT = -9;
+        a.cool = {};
         G.addHuman(a, team);
         H.remote.set(peer, a);
         CTF.UI.line("sys", `${name} joined ${G.ffa ? "the match" : CTF.TEAM_NAMES[team]}`);
         K.sfx("stinger", 0.4);
       }
       a.name = name;
-      if (!G.ffa && a.team !== want) {
+      /* a team switch at most every 2 s (each one rebuilds the teams) */
+      if (!G.ffa && a.team !== want && H.coolOk(a, "team", 2)) {
         G.moveHuman(a, want);
         CTF.UI.line("sys", `${name} switched to ${CTF.TEAM_NAMES[want]}`);
       }
@@ -621,7 +669,8 @@
         a.reloading = !!(st & 64);
         a.wpn = (st & 8192 ? 1 : 0) | (st & 32768 ? 2 : 0) | (st & 131072 ? 4 : 0);
       }
-      if (Array.isArray(pr.br)) K.applyBreaks(pr.br, true, "c:" + peer);
+      /* their breaks at most 4 times a second (the list is their recent ones, so nothing is lost) */
+      if (Array.isArray(pr.br) && H.coolOk(a, "br", 0.25)) K.applyBreaks(pr.br, true, "c:" + peer);
       if (Array.isArray(pr.pk) && a.init) {
         const s = num(pr.pk[0], 0, 1e9);
         if (s > (a.seenPk | 0)) {
@@ -633,8 +682,16 @@
             a.alive &&
             Math.hypot(a.pos.x - q.pos.x, a.pos.z - q.pos.z) < 2.4 &&
             Math.abs(a.pos.y - q.pos.y) < 2.2;
-          if (near(p)) G.takePickup(p, a);
-          else if (near(it)) it.take();
+          /* (not right after an impossible move: see H.warped) */
+          if (H.warped(a)) {
+            /* nothing */
+          } else if (near(p)) {
+            G.takePickup(p, a);
+            a.owned.add(p.type);
+          } else if (near(it)) {
+            if (it.type >= 0) a.owned.add(it.type);
+            it.take();
+          }
         }
       } else if (Array.isArray(pr.pk) && !a.init) a.seenPk = num(pr.pk[0], 0, 1e9);
       /* the player's drops (their death or a weapon swap), and the flag taken or let go by hand */
@@ -642,20 +699,26 @@
         a.seenDr = num(pr.dr[0], 0, 1e9);
         const at = K.vec(pr.dr.slice(1, 4), new V3());
         if (at && at.distanceTo(a.pos) < 6) {
-          const list = (Array.isArray(pr.dr[4]) ? pr.dr[4] : []).slice(0, 3).map(e =>
-            (e[0] | 0) < 0
-              ? { type: -1, nades: { frag: num(e[3], 0, 2) | 0, plasma: num(e[4], 0, 2) | 0 } }
-              : {
-                  type: Math.min(K.WEAPON_DATA.length - 1, Math.max(0, e[0] | 0)),
-                  ammo: [num(e[1], 0, 99) | 0, num(e[2], 0, 999) | 0],
-                }
-          );
-          G.addItems(list, at);
+          /* only weapons they could be carrying (no power weapons out of nothing), with no more
+             ammo than the weapon holds */
+          const list = (Array.isArray(pr.dr[4]) ? pr.dr[4] : [])
+            .slice(0, 3)
+            .filter(e => Array.isArray(e))
+            .map(e => {
+              if ((e[0] | 0) < 0)
+                return { type: -1, nades: { frag: num(e[3], 0, 2) | 0, plasma: num(e[4], 0, 2) | 0 } };
+              const t = Math.min(K.WEAPON_DATA.length - 1, Math.max(0, e[0] | 0)),
+                W = K.WEAPON_DATA[t];
+              if (!a.owned.has(t)) return null;
+              return { type: t, ammo: [num(e[1], 0, W.mag) | 0, num(e[2], 0, W.mag + (W.reserve || 0)) | 0] };
+            })
+            .filter(Boolean);
+          if (list.length) G.addItems(list, at);
         }
       } else if (Array.isArray(pr.dr) && !a.init) a.seenDr = num(pr.dr[0], 0, 1e9);
       if (pr.fp != null && a.init && num(pr.fp, 0, 1e9) > (a.seenFp | 0)) {
         a.seenFp = num(pr.fp, 0, 1e9);
-        G.humanTakeFlag(a);
+        if (!H.warped(a)) G.humanTakeFlag(a);
       } else if (pr.fp != null && !a.init) a.seenFp = num(pr.fp, 0, 1e9);
       if (pr.fd != null && a.init && num(pr.fd, 0, 1e9) > (a.seenFd | 0)) {
         a.seenFd = num(pr.fd, 0, 1e9);
@@ -664,7 +727,8 @@
       if (Array.isArray(pr.pg) && a.init) {
         const s = num(pr.pg[0], 0, 1e9);
         const kind = ["enemy", "weapon", "place", "danger"].includes(pr.pg[1]) ? pr.pg[1] : null;
-        if (s > (a.seenPg | 0) && kind) {
+        /* (a ping a second at most) */
+        if (s > (a.seenPg | 0) && kind && H.coolOk(a, "pg", 1)) {
           a.seenPg = s;
           const pos = [num(pr.pg[2], -500, 500), num(pr.pg[3], -50, 100), num(pr.pg[4], -500, 500)];
           H.ping(a, {
@@ -794,6 +858,7 @@
           continue;
         }
         H.hitStats.ok++;
+        H.noteDmg(tgt.id, a.id);
         const n = K.allowDamage(peer, num(h[2], 0, 999), w);
         if (n <= 0) continue;
         if (tgt.local) K.hurtMe(n, { name: a.name, agent: a, w, hd });
@@ -818,7 +883,10 @@
         const s = num(dth[0], 0, 1e9);
         if (s > a.seenDth) {
           a.seenDth = s;
-          const killer = NET.okId(dth[1]) ? G.byId(dth[1]) : null;
+          /* the killer they name is credited only if we saw them damage this player in the last 8 s
+             (a player cannot hand out kills, or end a match, by reporting deaths) */
+          const named = NET.okId(dth[1]) ? G.byId(dth[1]) : null;
+          const killer = named && H.damaged(a.id, named.id, 8) ? named : null;
           const w = String(dth[2] || "rifle").slice(0, 8);
           if (!a.dead) {
             a.dead = true;

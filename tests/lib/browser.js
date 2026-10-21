@@ -137,6 +137,8 @@ async function routeThree(p, real = true) {
     });
   } else {
     const stub = fs.readFileSync(path.join(__dirname, "..", "stubs", "three-browser.js"), "utf8");
+    /* the stub is not the file the page's integrity hashes name: leave them out (build.mjs threeTags) */
+    await p.addInitScript(() => (window.__KA_NO_SRI = true));
     await p.route("**/three.module.min.js", r => r.fulfill({ ...js, body: stub }));
     /* (no addons with the stub: the page falls back to what it has built in) */
     await p.route("**/examples/jsm/**", r => r.fulfill({ ...js, body: "export {};" }));

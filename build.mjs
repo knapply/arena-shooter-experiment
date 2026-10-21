@@ -36,7 +36,7 @@ export function build({ dev = false, trailer = false } = {}) {
     .replace("<!--@trailer-->\n", () => (trailer ? markup(read(tr.html)) : ""))
     .replace(/<!--@partial ([\w./-]+)-->/g, (_, p) => markup(read(p)).replace(/\s+$/, ""))
     .replace(/<!--@script ([\w./-]+)-->/g, (_, p) => `<script>\n${js(mod(p))}</script>`)
-    .replace("<!--@three-->", () => threeTags(man.three))
+    .replace("<!--@three-->", () => threeTags(man.three, man.threeIntegrity))
     /* a module, so it runs after three.js has loaded (module scripts run in document order) */
     .replace("<!--@game-->", () => `<script type="module">\n${game}</script>\n</body>\n</html>\n`);
   const problems = [];
@@ -75,10 +75,22 @@ export function build({ dev = false, trailer = false } = {}) {
     A test stub served in its place may have set THREE already. "three" is mapped too, so addons loaded
     on demand from the same CDN (examples/jsm, e.g. SMAA in render/pipeline.js) share this instance;
     window.THREE_URL is the build folder they are found beside. */
-export function threeTags(v) {
-  const base = `https://cdn.jsdelivr.net/npm/three@${v}/build/`;
+export function threeTags(v, sri) {
+  const root = `https://cdn.jsdelivr.net/npm/three@${v}/`,
+    base = root + "build/";
+  /* Subresource Integrity for every file loaded from the CDN (manifest.threeIntegrity): a changed
+     file is refused instead of run. The map is written by a small script so the tests, which serve a
+     stub three.js in the CDN's place, can leave the hashes out (window.__KA_NO_SRI) */
+  if (!sri || sri.version !== v)
+    throw new Error(`manifest.threeIntegrity is for three ${sri && sri.version}, not ${v}`);
+  const integrity = {};
+  for (const [k, h] of Object.entries(sri)) if (k !== "version") integrity[root + k] = h;
+  const map = {
+    imports: { [base + "three.core.js"]: base + "three.core.min.js", three: base + "three.module.min.js" },
+    integrity,
+  };
   return (
-    `<script type="importmap">${JSON.stringify({ imports: { [base + "three.core.js"]: base + "three.core.min.js", three: base + "three.module.min.js" } })}</script>\n` +
+    `<script>(()=>{const m=${JSON.stringify(map)};if(window.__KA_NO_SRI)delete m.integrity;const s=document.createElement("script");s.type="importmap";s.textContent=JSON.stringify(m);document.currentScript.after(s)})()</script>\n` +
     `<script type="module">import * as THREE from "${base}three.module.min.js";window.THREE ??= THREE;window.THREE_URL = "${base}";</script>`
   );
 }

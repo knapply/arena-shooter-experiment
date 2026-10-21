@@ -23,6 +23,8 @@
     "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js",
     "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
   ];
+  const PEERJS_SRI = "sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR";
+  const BADCH = /[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g;
   const ROOM_RE = /^[a-z]{1,16}(\/[a-z]{1,16}){0,2}$/,
     ID_RE = /^[a-z0-9:_-]{1,48}$/i;
   let resolveRoom;
@@ -35,6 +37,8 @@
     hubId: null,
     hubConn: null,
     hubRtt: null,
+    /** the host's own peer id, from its member list (we may have reached it by the room code's id) */
+    hubReal: null,
     conns: new Map(),
     fast: new Map(),
     members: [],
@@ -67,7 +71,11 @@
   /* a local signalling server (the network lab, tools/net-lab.js): ?peerhost=127.0.0.1:9000. Nothing
      leaves the machine: no public broker and no STUN servers, so links use local addresses only */
   const localSignal = (() => {
-    const m = /[?&#]peerhost=([\w.-]+):(\d+)/.exec(location.search + location.hash);
+    /* this machine only: a link must not be able to send a player's signalling (their room code,
+       their address) to someone else's server */
+    const m = /[?&#]peerhost=(127\.0\.0\.1|localhost):(\d{2,5})(?![\w.])/.exec(
+      location.search + location.hash
+    );
     return m ? { host: m[1], port: +m[2], path: "/", secure: false } : null;
   })();
   const peerOpts = () => {
@@ -222,10 +230,12 @@
       if (this.fast) this.send(pingPacket(FP_PING, p.n, p.ts));
       else this.send({ t: "_pi", n: p.n, ts: p.ts }, { unreliable: true });
     }
-    gotPong(n) {
+    gotPong(n, ts) {
       const now = performance.now();
       const p = this.pings.find(x => x.n === n);
-      if (!p || p.got) return;
+      /* the pong must carry our own send time back: guessing sequence numbers ahead of time cannot
+         fake a short round trip (and with it, being picked as the backup host) */
+      if (!p || p.got || !(Math.abs(p.ts - ts) < 0.001)) return;
       p.got = true;
       const r = now - p.ts;
       this.rtt = this.rtt ? this.rtt + (r - this.rtt) * 0.25 : r;
@@ -241,6 +251,19 @@
       const now = performance.now();
       this.rx.n++;
       this.rx.last = now;
+      /* a flood from one connection is dropped: a token bucket per link, each message costing one
+         token plus one per 4 KB (well above what a real player sends) */
+      const rate = this.fast ? 400 : 600;
+      this.tok = Math.min(
+        rate * 2,
+        (this.tok == null ? rate * 2 : this.tok) + ((now - (this.tokT || now)) / 1000) * rate
+      );
+      this.tokT = now;
+      if (this.tok < 1) {
+        this.dropped = (this.dropped || 0) + 1;
+        return;
+      }
+      this.tok--;
       if (this.fast) {
         const b = asBuffer(m);
         if (!b || !b.byteLength || b.byteLength > 16384) return;
@@ -251,14 +274,22 @@
           const v = new DataView(b);
           return this.send(pingPacket(FP_PONG, v.getUint16(1), v.getFloat64(3)));
         }
-        if (k === FP_PONG && b.byteLength === 11) return this.gotPong(new DataView(b).getUint16(1));
+        if (k === FP_PONG && b.byteLength === 11)
+          return this.gotPong(new DataView(b).getUint16(1), new DataView(b).getFloat64(3));
         return this.onData(b, this);
       }
       const n = JSON.stringify(m || null).length;
       this.rx.b += n;
       count("rx", m, false, n);
-      if (m && m.t === "_pi") return this.send({ t: "_po", n: m.n, ts: m.ts }, { unreliable: true });
-      if (m && m.t === "_po") return this.gotPong(m.n);
+      if (n > 65536) return;
+      this.tok -= n / 4096;
+      /* pings: numbers only (anything else is not echoed) */
+      if (m && m.t === "_pi") {
+        if (Number.isInteger(m.n) && Number.isFinite(m.ts))
+          this.send({ t: "_po", n: m.n & 0xffff, ts: +m.ts }, { unreliable: true });
+        return;
+      }
+      if (m && m.t === "_po") return this.gotPong(m.n, m.ts);
       this.onData(m, this);
     }
     /** once a second: turn byte counters into rates */
@@ -518,7 +549,12 @@
     if (m.t === "p") {
       const s = st(m.r),
         had = s.has(m.id);
-      const p = m.d ? merge(s.get(m.id) || {}, m.p) : m.p;
+      /* a peer is in a few rooms at most (the lobby and a match room or two) */
+      if (!had && [...T.store.values()].filter(x => x.has(m.id)).length >= 6) return;
+      const p = m.d ? merge(s.get(m.id) || {}, m.p) : merge({}, m.p);
+      /* merged state is bounded like a single update: keys and size (a stream of new keys cannot
+         grow it forever) */
+      if (Object.keys(p).length > 64 || JSON.stringify(p).length > 8192) return;
       s.set(m.id, p);
       const R = T.rooms.get(m.r);
       if (R) {
@@ -551,8 +587,9 @@
   }
   function allPresence() {
     const list = [];
-    for (const [r, s] of T.store) for (const [id, p] of s) list.push({ t: "p", r, id, p });
+    /* ours first: the receiver keeps only the first 64 */
     for (const [r, p] of T.mine) list.push({ t: "p", r, id: T.myId, p });
+    for (const [r, s] of T.store) for (const [id, p] of s) list.push({ t: "p", r, id, p });
     return list;
   }
 
@@ -656,7 +693,9 @@
         if (m.to === T.myId) fastDeliver(c.peer, b);
         else {
           const o = T.conns.get(String(m.to));
-          if (o && o.open) o.send({ t: "f", from: c.peer, d: m.d }, { unreliable: true });
+          /* the checked bytes, not whatever they sent */
+          if (o && o.open)
+            o.send({ t: "f", from: c.peer, d: Array.from(new Uint8Array(b)) }, { unreliable: true });
         }
         return;
       }
@@ -674,6 +713,14 @@
     });
     whenOpen(c, () => {
       const old = T.conns.get(c.peer);
+      /* the room cap again, now: many calls at once all passed the check before any opened */
+      if (!old && T.conns.size >= MAX_PEERS - 1) {
+        try {
+          c.send({ t: "full" });
+        } catch (e) {}
+        setTimeout(() => c.close(), 300);
+        return;
+      }
       if (old && old !== link) old.close();
       T.conns.set(c.peer, link);
       link.send({ t: "all", list: allPresence() });
@@ -758,6 +805,8 @@
     }
     if (m.t === "mem" && Array.isArray(m.ids)) {
       T.members = m.ids.filter(x => typeof x === "string" && ID_RE.test(x)).slice(0, MAX_PEERS);
+      /* the host lists itself first: its own id (we may know it by the room code's id) */
+      T.hubReal = T.members[0] || null;
       T.backup = typeof m.bk === "string" && ID_RE.test(m.bk) ? m.bk : null;
       syncMesh();
       return;
@@ -857,6 +906,7 @@
         const link = await dialHub(next, 2500);
         T.hubConn = link;
         T.hubId = next;
+        T.hubReal = null;
         T.migrating = false;
         /* the new hub learns our presence again (in full); it answers with everyone else's */
         fullSync();
@@ -943,6 +993,8 @@
               const s = document.createElement("script");
               s.src = src;
               s.crossOrigin = "anonymous";
+              /* Subresource Integrity: the exact peerjs 1.5.4 build (the same file on both CDNs) */
+              s.integrity = PEERJS_SRI;
               s.onload = () => (PeerCtor() ? ok(PeerCtor()) : no());
               s.onerror = no;
               document.head.appendChild(s);
@@ -1232,7 +1284,7 @@
   function nameOf(peer) {
     for (const s of T.store.values()) {
       const p = s.get(peer);
-      if (p && typeof p.n === "string") return p.n.slice(0, 14);
+      if (p && typeof p.n === "string") return p.n.replace(BADCH, "").slice(0, 14);
     }
     return "?";
   }
@@ -1244,7 +1296,7 @@
     const rel = T.hub ? [...T.conns.values()] : T.hubConn ? [T.hubConn] : [];
     const links = [...rel, ...T.fast.values()];
     /** @type {NetStats["peers"]} */
-    const peers = {};
+    const peers = Object.create(null);
     if (T.hub) for (const l of rel) peers[l.peer] = { rtt: Math.round(l.rtt), direct: true };
     else if (T.hubConn) {
       const hubRtt = Math.round(T.hubConn.rtt);
@@ -1305,7 +1357,7 @@
         return out;
       },
       /** who hosts the room: { me: am I the host, id: the host's peer id } */
-      hub: () => ({ me: !!T.hub, id: T.hubId }),
+      hub: () => ({ me: !!T.hub, id: T.hub ? T.myId : T.hubReal || T.hubId }),
       /** host only: hand the room to another player (defaults to the suggested best host) */
       handover: to => handover(to || (T.suggest && T.suggest.peer)),
     },
@@ -1324,6 +1376,10 @@
   window.__p2p = {
     host,
     join,
+    /** the local signalling server in use (the lab's), or null: tests check a link cannot set another */
+    get signal() {
+      return localSignal && Object.assign({}, localSignal);
+    },
     get state() {
       return {
         connected: T.connected,

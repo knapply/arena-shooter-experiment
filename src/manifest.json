@@ -1,6 +1,15 @@
 {
   "_comment": "Load order. Engine modules share one scope (concatenated inside a single strict-mode closure, in this order). Mode modules are self-contained closures that talk to the engine through window.KA.",
   "three": "0.186.1",
+  "_threeIntegrity": "Subresource Integrity (sha384) of every three.js file the page loads from the CDN, for the version above: a bumped version must update these (build.mjs refuses a mismatch). openssl dgst -sha384 -binary FILE | openssl base64 -A",
+  "threeIntegrity": {
+    "version": "0.186.1",
+    "build/three.module.min.js": "sha384-EU5UWigB3OuXjAXooUegndJSqYber3YSJHDoMZs6rV96yY/ol/B4W8logw4CKWkA",
+    "build/three.core.min.js": "sha384-ktZslgpl0L71WZcQ5wKV96Z04i9QSjtmiU/kYpjDQSfJ5NJ8B79qDF63oNTbQySl",
+    "examples/jsm/postprocessing/SMAAPass.js": "sha384-XObh8MSfejI2yQTnB0uC2O1XkdLJMTe8R5UW546TuwmRjjEL0kv367zVSzbhihqr",
+    "examples/jsm/postprocessing/Pass.js": "sha384-927X5fcqlqKPsXZV1w3tv5BZx797OXX3D/TDJk0FHwJd12z58B5aqS77g5LZoprI",
+    "examples/jsm/shaders/SMAAShader.js": "sha384-OjA3eJHhEhL7Ggc/82fZIWV8f5WamiiWzpcNZbw0UHxLHSJjkz8Sy+nlT+7j7YuT"
+  },
   "_three": "three.js from jsDelivr, pinned: the page imports build/three.module.min.js (its three.core.js import mapped to the minified core) and sets window.THREE before the game module runs. tests/lib/browser.js serves both files from disk (THREE_PATH) or a stub.",
   "styles": ["styles/base.css", "styles/ctf.css", "styles/modes.css", "styles/p2p.css", "styles/cinema.css"],
   "engine": [
