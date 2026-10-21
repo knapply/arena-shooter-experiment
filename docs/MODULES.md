@@ -63,15 +63,15 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/deploy.js` | 77 | `savePrefs` `leaveGame` |
 | `src/game/modes.js` | 178 | `MODE_DEFS` `defineMode` `startMode` `modeList` `BOT_LEVELS` `BOT_DOWN` `BOT_UP` `botLevel` `botLevelName` `botAdapt` `botAdaptNote` `modeRules` `FFA` `ffaStandings` `ffaStart` `ffaTick` `ffaEnd` `ffaRestart` … (+1) |
 | `src/net/messages.js` | 362 | `MSG` `netProf` `netT0` `timed` |
-| `src/net/playback.js` | 91 | `Playback` |
-| `src/net/hitcheck.js` | 465 | `MoveHist` `HITCHK` `MY_HIST` `pctOf` `median` `hitPanel` `WHY` `postHitsShown` `postHits` |
-| `src/net/arena-net.js` | 509 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `amHub` `hubPeer` `sbSeen` `adoptSandbox` `room` `lastSend` `lastFast` `fastSeq` `sentEv` `FAST_HZ` `myBits` … (+13) |
+| `src/net/playback.js` | 93 | `Playback` |
+| `src/net/hitcheck.js` | 466 | `MoveHist` `HITCHK` `MY_HIST` `pctOf` `median` `hitPanel` `WHY` `postHitsShown` `postHits` |
+| `src/net/arena-net.js` | 550 | `BAD_CHARS` `cleanName` `num` `vec` `DMG_CAP` `budgets` `allowDamage` `amHub` `hubPeer` `sbSeen` `adoptSandbox` `room` `lastSend` `lastFast` `fastSeq` `sentEv` `FAST_HZ` `myBits` … (+16) |
 | `src/ui/hud.js` | 168 | `scoresT` `renderScores` `hudDevice` `WEAPON_SIL` `NADE_ICON` `NADE_NAME` `hudWName` `nadeHint` `nadeKey` `drawNadeHud` `weapKey` `drawWeapHud` `hud` |
 | `src/ui/feed-icons.js` | 134 | `FEED_ICON` `svgURL` `FEED_GLYPH` `feedKind` `_fiBox` `_fiV` `renderGunIcon` `feedIconMask` `feedIcon` |
 | `src/ui/net-panel.js` | 91 | `netStats` `pingOf` `pingBars` `kbps` `netLine` `netNext` `updNetHud` |
 | `src/ui/tracker.js` | 246 | `TRACK_RANGE` `TRACK_ECHO` `TRACK_PX` `trackEl` `trackT` `trackLoud` `arenaContacts` `trackerShown` `trackEcho` `trackerFace` `trackerBlip` `trackerDanger` `updTracker` `trackerGates` |
 | `src/weapons/viewmodel-anim.js` | 348 | `_cA` `_cB` `_cZ` `_cM` `carryVM` `_mlP` `_mlD` `meleeLand` `meleeFlush` `updVM` |
-| `src/ui/console.js` | 327 | `DEV` `timeScale` `godMode` `CON` |
+| `src/ui/console.js` | 333 | `DEV` `timeScale` `godMode` `CON` |
 | `src/game/replay.js` | 507 | `REPLAY` `eyesShot` `KILLCAM_T` `KILLCAM` `KILL_NAMES` `recordedNear` `killCamHolds` `killCamTick` `playKillCam` |
 | `src/game/highlights.js` | 182 | `HL` `HL_KEEP` `HL_BEFORE` `HL_AFTER` `HL_POWER` `hlConsider` `hlTick` `_hlE` `_hlD` `_hlP` `HL_SHOULDER` `overShoulder` `hlHintEl` `hlHintTxt` `hlHint` `playOfTheGame` |
 | `src/game/stats.js` | 341 | `ASSIST_WINDOW` `GUN_WEAPONS` `STATS` `WEAPON_NAMES` `endCarry` `endBall` `statRoster` `powerHeld` `statScore` |
@@ -83,7 +83,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/game/loop.js` | 1004 | `pend` `prevPos` `rpos` `physAcc` `clWas` `thrK` `thrS` `eyeCur` `smY` `rosterShown` `last` `menuT` `landDip` `landT` `landD` `fovK` `prevReload` `stepAcc` … (+49) |
 | `src/ui/settings-ui.js` | 566 | `T_KEYS` `STABS` `SUI` `el` `setMsg` `openSettings` `saveSoonT` `saveSoon` `saveNow` `closeSettings` `onSetChange` `renderSettings` `sandboxPresetRow` `searchHit` `renderSearch` `settingRow` `renderKeys` `renderPadBinds` … (+8) |
 | `src/ui/menu.js` | 318 | `MENU` `MENU_SIZES` `MODE_RULE_KEY` `menuMode` `sizeList` `mapName` `mmssM` `modeGoal` `modeLimits` `saveMenu` `MCARDS` `menuHost` `pickMode` `fillSelect` `setTeam` `menuSummary` `renderMenu` `MAX_ROOM` … (+1) |
-| `src/weapons/pickups.js` | 384 | `PICKMAT` `PICKACC` `PICKHOT` `NADE_CAP` `wName` `capWord` `MODEL_PARTS` `floorParts` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `powerSpawn` `ARENA_PICKS` `ITEM_LIFE` `makeItem` `ITEMS` `itemSeq` … (+12) |
+| `src/weapons/pickups.js` | 386 | `PICKMAT` `PICKACC` `PICKHOT` `NADE_CAP` `wName` `capWord` `MODEL_PARTS` `floorParts` `weaponModel` `labelSprite` `PK_VIS` `pkVisual` `powerSpawn` `ARENA_PICKS` `ITEM_LIFE` `makeItem` `ITEMS` `itemSeq` … (+12) |
 | `src/ui/power.js` | 152 | `PW_KEYS` `pwKey` `PW_TEX` `pwTex` `PW_MARKS` `pwMark` `arenaPowerHolders` `pwCallT` `hudCallout` `powerCallout` `pwHudLast` `pwPrev` `updPower` |
 | `src/ui/damage-dir.js` | 49 | `DARCS` `DARC_LIFE` `hitSource` `damageArc` `updDamageArcs` |
 | `src/ui/stats-ui.js` | 221 | `TEAM_NAMES` `fmtTime` `STAT_COLS` `SUM_KEYS` `statsTable` `renderStatsRoster` `POST` `showPost` `renderPost` `closePost` `postAct` `updPost` |
@@ -102,8 +102,8 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/modes/ctf/agent.js` | 1579 |  |
 | `src/modes/ctf/rules.js` | 1067 |  |
 | `src/modes/ctf/ui.js` | 747 |  |
-| `src/net/ctf-host.js` | 888 |  |
-| `src/net/ctf-client.js` | 782 |  |
-| `src/modes/ctf/modes.js` | 1454 |  |
+| `src/net/ctf-host.js` | 956 |  |
+| `src/net/ctf-client.js` | 795 |  |
+| `src/modes/ctf/modes.js` | 1456 |  |
 | `src/modes/trailer-score.js` | 965 |  |
 | `src/modes/trailer.js` | 3417 |  |

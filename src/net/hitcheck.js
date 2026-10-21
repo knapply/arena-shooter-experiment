@@ -153,6 +153,7 @@ const HITCHK = (() => {
       if (c.ft < st.lastFt - 0.001) r.flags.push("order");
       st.lastFt = Math.max(st.lastFt, c.ft);
       st.shots.push(c.ft);
+      if (st.shots.length > 64) st.shots.splice(0, st.shots.length - 64);
       while (st.shots.length && st.shots[0] < c.ft - 1) st.shots.shift();
       const limit = Math.floor((1 / Wd.rate) * T.RATE) + 2;
       if (st.shots.length > limit) fail("rate");

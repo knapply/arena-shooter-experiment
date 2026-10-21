@@ -42,7 +42,10 @@ function allowDamage(peer, n, w) {
   }
   b.tok = Math.min(320, b.tok + (t - b.t) * 230);
   b.t = t;
-  const cap = DMG_CAP[w] != null ? DMG_CAP[w] : 16;
+  /* own keys only ("toString" is not a weapon), and a finite positive amount: NaN would poison the
+     budget for good */
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const cap = Object.hasOwn(DMG_CAP, w) ? DMG_CAP[w] : 16;
   n = Math.min(n, cap);
   if (
     w === "stick" ||
@@ -312,11 +315,21 @@ function applyPeer1(pe) {
     return;
   }
   for (const h of hits) {
+    if (!h || typeof h !== "object") continue;
     const s = h.s | 0;
     if (s <= r.seenHit) continue;
     r.seenHit = s;
     const mine = !!myPeer && h.t === myPeer;
     const v = checkHit(r, h, mine);
+    /* what the hit check cannot see (no ray): the weapon must be one we know, and an explosion or a
+       blow needs evidence that they could have dealt it */
+    if (v.ok && mine) {
+      const why = arenaEvidence(r, String(h.w || "rifle").slice(0, 10), h);
+      if (why) {
+        v.ok = false;
+        v.why = why;
+      }
+    }
     if (mine && playing && !me.dead && !EXT && r.tgt.distanceTo(me.pos) < 100) {
       if (!v.ok) {
         HITCHK.me.rejected++;
@@ -341,9 +354,16 @@ function applyPeer1(pe) {
       HITCHK.me.refused++;
     }
   for (const f of fx) {
+    if (!f || typeof f !== "object") continue;
     const s = f.s | 0;
     if (s <= r.seenFx) continue;
     r.seenFx = s;
+    /* effects (pods, projectiles, dropped items) at a human rate: a flood is dropped */
+    const tn = performance.now() / 1000;
+    r.fxTok = Math.min(16, (r.fxTok == null ? 16 : r.fxTok) + (tn - (r.fxT || tn)) * 8);
+    r.fxT = tn;
+    if (r.fxTok < 1) continue;
+    r.fxTok--;
     const a = vec(f.a, new V3()),
       b = vec(f.b, new V3());
     if (f.k === "shot" && a && b) {
@@ -367,6 +387,8 @@ function applyPeer1(pe) {
       r.pod.at.copy(a);
     else if ((f.k === "drop" || f.k === "take") && Array.isArray(f.b)) remoteItem(f.k, a, f.b, f.g | 0);
     else if (f.k === "nade" && a && b) {
+      /* a launch: the evidence an explosion claim from them needs (arenaEvidence) */
+      r.launches = (r.launches || []).filter(x => tn - x.t < 10).concat([{ t: tn, at: a.clone() }]);
       remoteProjectile(f.g | 0, a, b);
       /* (a grenade, not a rocket: their free arm throws it) */
       if ((f.g | 0) !== 2 && r.rig) r.rig.throwNade();
@@ -454,6 +476,25 @@ function checkHit(r, h, mine) {
     );
   }
   return v;
+}
+/* weapons a hit may name (damage types of data/weapons.js, and the moves) */
+const ARENA_W = new Set([...Object.keys(DMG_CAP), "burst", "scatter", "beam", "plasma"]);
+const EXPLOSIVE = new Set(["frag", "stick", "plasma", "rocket"]);
+/**
+ * a hit on you without a ray to check (an explosion, a blow): "" if it could be real, else why not.
+ * An explosion needs a grenade or rocket they launched in the last 10 s, within 80 m of you; a melee,
+ * charge or pound needs them (as last reported) within reach
+ */
+function arenaEvidence(r, w, h) {
+  if (!ARENA_W.has(w)) return "weapon";
+  if (EXPLOSIVE.has(w)) {
+    const tn = performance.now() / 1000;
+    const ok = (r.launches || []).some(x => tn - x.t < 10 && x.at.distanceTo(me.pos) < 80);
+    return ok ? "" : "launch";
+  }
+  if (w === "melee" || w === "charge" || w === "pound" || w === "flag" || w === "skull")
+    return r.tgt.distanceTo(me.pos) < (w === "pound" ? 9 : 7) ? "" : "reach";
+  return "";
 }
 function updateLive() {
   const n = [...remotes.values()].filter(r => r.has).length;

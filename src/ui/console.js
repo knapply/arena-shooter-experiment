@@ -35,7 +35,7 @@ const CON = (() => {
           hist.push(line);
           hi = hist.length;
           print("> " + line, "cmd");
-          run(line);
+          run(line, true);
         }
       } else if (e.key === "ArrowUp" && hist.length) {
         hi = Math.max(0, hi - 1);
@@ -181,7 +181,7 @@ const CON = (() => {
     give: [
       "give carbine|pistol|sniper|rocket|scatter",
       a => {
-        const w = WEAPON_NAMES[a[0]];
+        const w = Object.hasOwn(WEAPON_NAMES, a[0]) ? WEAPON_NAMES[a[0]] : undefined;
         if (w == null) return "unknown weapon";
         giveWeapon(w);
         return "gave " + a[0];
@@ -287,10 +287,16 @@ const CON = (() => {
     ],
     kill: ["kill yourself", () => (hurtMe(999, { name: "Console", w: "self" }), "")],
   };
-  function run(line) {
+  const CHEATS = new Set(["tp", "give", "god", "timescale", "bots"]);
+  /** run a command; typed: from the console's input (the page's own scripts and tests call it directly) */
+  function run(line, typed) {
     const [cmd, ...args] = line.split(/\s+/);
-    const c = CMDS[cmd.toLowerCase()];
+    const k = cmd.toLowerCase();
+    const c = Object.hasOwn(CMDS, k) ? CMDS[k] : null;
     if (!c) return print(`unknown command "${cmd}" (try help)`, "err");
+    /* in an online room the console only looks: commands that change the match (where you are, your
+       health and weapons, time, bots) are for offline testing */
+    if (typed && room && CHEATS.has(k)) return print(`"${k}" is offline only (you are in a room)`, "err");
     try {
       const r = c[1](args);
       if (r != null && r !== "") print(String(r));

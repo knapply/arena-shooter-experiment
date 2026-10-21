@@ -228,11 +228,22 @@ const podSeats = map => {
     );
     /* the controller's toggle aim: pull once to scope, again to stop */
     await p.evaluate(() => (KA.SET.padAimMode = "toggle"));
+    /* press and release on game frames, not the clock: on a slow machine 80 ms can pass with no frame,
+       and a press the gamepad poll never saw is a press that never happened */
+    const padFrames = n =>
+      p.evaluate(
+        n =>
+          new Promise(r => {
+            const f = () => (--n <= 0 ? r() : requestAnimationFrame(f));
+            requestAnimationFrame(f);
+          }),
+        n
+      );
     const tap = async btns => {
       await p.evaluate(p => (window.__pad = p), pad(btns));
-      await p.waitForTimeout(120);
+      await padFrames(4);
       await p.evaluate(p => (window.__pad = p), pad());
-      await p.waitForTimeout(80);
+      await padFrames(4);
     };
     await tap({ 6: 1 });
     const t1 = await lvlIs(1);
@@ -1996,6 +2007,10 @@ const podSeats = map => {
         KA.me.vel.set(0, 0, 0);
         KA.me.spawnT = KA.now;
       });
+    /* the test puts the friend on the spot: to the host that is a teleport, and for 3 s after one a
+       player's pickup claims are refused (net/ctf-host.js H.warped). Arrive, then wait it out */
+    await go();
+    await B.waitForTimeout(3300);
     await B.keyboard.down("KeyE");
     /* hold until it lands (up to 4 s) so a slow frame rate on CI does not cut the hold short */
     const trail = [];
