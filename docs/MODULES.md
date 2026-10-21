@@ -89,7 +89,7 @@ Engine modules share one scope and load in this order; mode modules are self-con
 | `src/ui/stats-ui.js` | 220 | `TEAM_NAMES` `STAT_COLS` `SUM_KEYS` `statsTable` `renderStatsRoster` `POST` `showPost` `renderPost` `closePost` `postAct` `updPost` |
 | `src/player/assists.js` | 65 | `poundRing` `_pd` `_po` `updPoundRing` `assistTarget` |
 | `src/ui/reticle.js` | 330 | `_sd` `RANGE` `SIGHT` `sightOf` `SVG_NS` `arcPath` `deg` `RETICLE` `HIT_R` `hitTicks` `xhKind` `xhSvg` `drawReticle` `xhBloom` `scKey` `scSvg` `scH` `ringTicks` … (+6) |
-| `src/render/prewarm.js` | 142 | `prewarmCompile` `PREWARM` `PREWARM_AT` `prewarmSpawn` `prewarmClear` `prewarmEffects` `prewarmDraw` `PV_STATES` `prewarmOverlays` `updPrewarm` |
+| `src/render/prewarm.js` | 152 | `prewarmCompile` `PREWARM` `PREWARM_AT` `prewarmSpawn` `prewarmClear` `prewarmEffects` `prewarmDraw` `PV_STATES` `prewarmOverlays` `updPrewarm` |
 | `src/game/exports.js` | 346 | `KA_API` |
 | `src/render/cine-look.js` | 115 | `DOF_COC` `cocMat` `blur4Mat` |
 | `src/core/audio-offline.js` | 42 | `renderSfx` |

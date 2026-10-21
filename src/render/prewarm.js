@@ -115,7 +115,7 @@ function prewarmOverlays(i) {
     });
   }
   const pv = PREWARM.clones[1];
-  if (i < PV_STATES.length && !playing) {
+  if (i < PV_STATES.length) {
     pv.className = PV_STATES[i].cls;
     for (const k in PV_STATES[i].vars) pv.style.setProperty(k, PV_STATES[i].vars[k]);
   } else {
@@ -127,9 +127,19 @@ function updPrewarm() {
   /* after the environment capture, which changes every lit material's program */
   if (PREWARM.step > 5 || GFX.envWait || ++PREWARM.frames < 20) return;
   /* (the draw waits a second, for the driver to finish what compileAsync handed it; the overlays
-     hold for a few frames each, and go at once if a match starts) */
+     hold for a few frames each) */
   if (PREWARM.step === 2 && PREWARM.frames < 80) return;
-  if (PREWARM.step > 2 && PREWARM.frames < 80 + (PREWARM.step - 2) * 6 && !playing) return;
+  if (PREWARM.step > 2 && PREWARM.frames < 80 + (PREWARM.step - 2) * 6) return;
+  /* the drawing steps are a heavy frame of their own: only at the menu. A match (or spectating) first puts
+     them off (and takes any overlay copies away) until you are back there */
+  if (PREWARM.step >= 2 && (playing || EXT)) {
+    if (PREWARM.clones) {
+      for (const c of PREWARM.clones) c.remove();
+      PREWARM.clones = null;
+      PREWARM.step = 3;
+    }
+    return;
+  }
   try {
     if (PREWARM.step === 0) prewarmCompile();
     else if (PREWARM.step === 1) prewarmEffects();
