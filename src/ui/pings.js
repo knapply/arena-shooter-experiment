@@ -39,7 +39,8 @@ function pingTarget(origin, dir) {
     if (p.pos.distanceTo(hit) < 4 || p.pos.distanceTo(o) < 3)
       return {
         kind: "weapon",
-        label: WEAPONS[p.type].name.split(" ").slice(1).join(" ") || "Weapon",
+        /* (grenades dropped on the floor are type -1: not a weapon in the list) */
+        label: WEAPONS[p.type] ? WEAPONS[p.type].name.split(" ").slice(1).join(" ") || "Weapon" : "Grenades",
         pos: p.pos.clone(),
       };
   if (wall >= 150) return null;

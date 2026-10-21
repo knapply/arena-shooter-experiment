@@ -569,6 +569,37 @@ const podSeats = map => {
       "a new ping replaces your last one and leaves teammates' alone",
       mk
     );
+    /* pinging grenades lying on the floor (an item of type -1, not a weapon in the list) */
+    const gp = await p.evaluate(() => {
+      const V = KA.THREE.Vector3,
+        me = KA.me;
+      const f = new V(-Math.sin(me.yaw), 0, -Math.cos(me.yaw));
+      /* only these on the floor (other drops nearby would be pinged instead) */
+      for (const it of KA.ITEMS) it.gone = true;
+      KA.ITEMS.length = 0;
+      KA.dropItems(
+        [{ type: -1, nades: { frag: 1, plasma: 0 } }],
+        me.pos.clone().addScaledVector(f, 2),
+        false
+      );
+      /* right under the eye, ready to take (a drop arcs out first) */
+      const it = KA.ITEMS[KA.ITEMS.length - 1];
+      KA.camera.updateMatrixWorld();
+      it.pos.copy(KA.camera.getWorldPosition(new V())).addScaledVector(f, 1);
+      it.pos.y -= 1;
+      it.avail = true;
+      KA.me.pitch = -0.6;
+      KA.PINGS.lastT = -9;
+      KA.PINGS.tapT = -9;
+      try {
+        KA.pingNow();
+      } catch (e) {
+        return "threw: " + e.message;
+      }
+      const q = KA.PINGS.list.filter(x => x.by === "local").pop();
+      return q ? q.kind + ":" + q.label : "none";
+    });
+    check(gp === "weapon:Grenades", "pinging grenades on the floor marks them", gp);
     /* the default layout: grenades top left, shield top middle, weapons top right, tracker bottom left;
        nothing overlaps or leaves the screen, at desktop width, at 375 px and at the largest HUD size */
     const layout = () =>
