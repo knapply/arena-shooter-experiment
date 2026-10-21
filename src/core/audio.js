@@ -510,15 +510,12 @@ const BODY_KINDS = new Set(
     " "
   )
 );
-function space() {
-  /* the trailer's offline render swaps AC: it gets no reverb */
-  if (!AC || AC !== LIVE_AC) return null;
-  if (SPACE || !AC.createConvolver) return SPACE;
-  const sr = AC.sampleRate,
-    len = Math.round(sr * 0.9),
-    ir = AC.createBuffer(2, len, sr);
+/** the reverb's impulse response for a sample rate: two channels of decaying, darkening noise */
+function spaceImpulse(sr) {
+  const len = Math.round(sr * 0.9),
+    out = [new Float32Array(len), new Float32Array(len)];
   for (let c = 0; c < 2; c++) {
-    const d = ir.getChannelData(c);
+    const d = out[c];
     const kd = Math.exp(-7.5 / sr),
       kb = Math.exp(-6 / sr);
     let lp = 0,
@@ -539,6 +536,22 @@ function space() {
     ])
       d[Math.round(((ms + c * 1.9) * sr) / 1000)] += c ? -g : g;
   }
+  return out;
+}
+/* made while the page is idle, for the usual output rates, so the first click doesn't wait for it */
+const SPACE_IR = new Map();
+{
+  const idle = /** @type {any} */ (window).requestIdleCallback || (f => setTimeout(f, 200));
+  for (const sr of [48000, 44100]) idle(() => SPACE_IR.has(sr) || SPACE_IR.set(sr, spaceImpulse(sr)));
+}
+function space() {
+  /* the trailer's offline render swaps AC: it gets no reverb */
+  if (!AC || AC !== LIVE_AC) return null;
+  if (SPACE || !AC.createConvolver) return SPACE;
+  const sr = AC.sampleRate,
+    data = SPACE_IR.get(sr) || spaceImpulse(sr),
+    ir = AC.createBuffer(2, data[0].length, sr);
+  for (let c = 0; c < 2; c++) ir.getChannelData(c).set(data[c]);
   const conv = AC.createConvolver();
   conv.buffer = ir;
   const send = AC.createGain(),

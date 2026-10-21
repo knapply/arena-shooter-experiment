@@ -127,7 +127,25 @@ function feedIcon(w, head) {
   }
   return s;
 }
-/* the guns are rendered as a match starts, not at the first kill (a readback stalls the GPU briefly) */
+/* the guns are rendered before the first kill needs one (a readback stalls the GPU briefly): one at a
+   time while the menu is idle, a few seconds after the page loads, and any still missing as a match
+   starts */
 EVENTS.on("matchStart", () => {
   for (let t = 0; t < WEAPONS.length; t++) feedIconMask(WEAPONS[t].dmg);
 });
+let feedIdleAt = 0;
+onFrame(
+  () => {
+    if (feedIdleAt < 0 || ++feedIdleAt < 180) return;
+    feedIdleAt = -1;
+    const idle = /** @type {any} */ (window).requestIdleCallback || (f => setTimeout(f, 50));
+    let t = 0;
+    const next = () => {
+      if (playing) return;
+      if (t < WEAPONS.length) feedIconMask(WEAPONS[t++].dmg);
+      if (t < WEAPONS.length) idle(next);
+    };
+    idle(next);
+  },
+  { menu: true }
+);

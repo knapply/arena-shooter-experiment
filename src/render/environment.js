@@ -2,10 +2,17 @@
    buildEnv captures a small sky into a PMREM environment map once (metal reflections); applyGfx turns the
    graphics settings (shadows, reflections, draw distance, fog, texture filtering, pixel ratio) into
    renderer and material state; pc() scales particle counts by the Particles setting. */
+/* one PMREM generator for every capture (the sky here, each map's own in render/map-env.js): disposing
+   it would release its blur and cube programs, so the next capture compiled them again in the middle of
+   play (a map's first capture, as a match opens, stalled for half a second on it) */
+let PMREM = null;
+function pmrem() {
+  return PMREM || (PMREM = new THREE.PMREMGenerator(renderer));
+}
 function buildEnv() {
   if (GFX.env) return GFX.env;
   try {
-    const pm = new THREE.PMREMGenerator(renderer);
+    const pm = pmrem();
     const es = new THREE.Scene();
     // vertex-colored sky built from standard materials, so the capture is encoded the way the reflection shader expects
     {
@@ -48,7 +55,6 @@ function buildEnv() {
     strip(0xffb347, -30, -6, 0, 1, 0.5, 40);
     strip(0x62cdff, 30, -6, 0, 1, 0.5, 40);
     GFX.env = pm.fromScene(es, 0.03).texture;
-    pm.dispose();
   } catch (e) {
     GFX.env = null;
   }

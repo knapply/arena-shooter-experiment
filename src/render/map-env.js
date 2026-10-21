@@ -19,9 +19,12 @@ const PROBE_HEMI = 0.7,
 function mapEnvCapture(entry) {
   if (entry.env || MAP_ENV.busy) return;
   MAP_ENV.busy = true;
-  const go = () => {
-    MAP_ENV.busy = false;
-    if (entry.env || !entry.g.visible) return;
+  /* the capture renders in a state of its own (a half-float target, its own camera and clears), so the
+     first one on a map compiled a set of programs right there, half a second in a match's opening. A
+     dry run first hands exactly those programs to the driver's threads (every draw it would make becomes
+     a compileAsync), and the capture itself waits until they are ready */
+  const run = dry => {
+    if (entry.env || !entry.g.visible) return null;
     /* only the map, the sky and the lights */
     const hidden = [];
     for (const o of scene.children)
@@ -35,22 +38,50 @@ function mapEnvCapture(entry) {
     skyTint.multiplyScalar(dim);
     const box = new THREE.Box3().setFromObject(entry.g);
     const at = box.getCenter(_meV).setY(Math.max(box.min.y, 0) + 2.5);
+    let waits = null;
     try {
-      const pm = new THREE.PMREMGenerator(renderer);
-      entry.env = pm.fromScene(scene, 0.02, 0.1, 160, { size: 128, position: at }).texture;
-      pm.dispose();
-      entry.sh = mapSH(at);
+      if (dry) {
+        const real = renderer.render;
+        waits = [];
+        renderer.render = (sc, cam) => waits.push(renderer.compileAsync(sc, cam).catch(() => {}));
+        try {
+          pmrem().fromScene(scene, 0.02, 0.1, 160, { size: 128, position: at }).dispose();
+        } finally {
+          renderer.render = real;
+        }
+      } else {
+        entry.env = pmrem().fromScene(scene, 0.02, 0.1, 160, { size: 128, position: at }).texture;
+        entry.sh = mapSH(at);
+      }
     } catch (e) {
-      entry.env = GFX.env || null;
-      entry.sh = null;
+      if (!dry) {
+        entry.env = GFX.env || null;
+        entry.sh = null;
+      }
     }
     for (const o of hidden) o.visible = true;
     skyTint.divideScalar(dim);
-    MAP_ENV.cur = null;
+    if (!dry) MAP_ENV.cur = null;
+    return waits && Promise.all(waits);
+  };
+  const go = () => {
+    MAP_ENV.busy = false;
+    run(false);
   };
   const idle = /** @type {any} */ (window).requestIdleCallback;
+  const later = () => (idle ? idle(go, { timeout: 800 }) : setTimeout(go, 0));
   requestAnimationFrame(() =>
-    requestAnimationFrame(() => (idle ? idle(go, { timeout: 800 }) : setTimeout(go, 0)))
+    requestAnimationFrame(() => {
+      let warm = null;
+      if (renderer.compileAsync)
+        try {
+          warm = run(true);
+        } catch (e) {
+          warm = null;
+        }
+      if (warm) warm.then(later, later);
+      else later();
+    })
   );
 }
 /** nine SH coefficients of the light around a point: a 16 px cube, read back, projected (as three's

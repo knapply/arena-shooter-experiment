@@ -245,16 +245,24 @@ let fpsAcc = 0,
   fpsN = 0,
   fpsVal = 60,
   fpsMax = 60,
-  prGood = 0;
+  prGood = 0,
+  prBad = 0;
+/* the frame times of this half second: dynamic resolution goes by the typical frame (the median), not
+   the mean, so one hitch (a garbage collection, a first upload) never resizes, which would stall again */
+const fpsWin = [];
 const fpsEl = $("fps");
 function perf(raw) {
   fpsAcc += raw;
   fpsN++;
+  fpsWin.push(raw);
   if (fpsAcc < 0.5) return;
   fpsVal = fpsN / fpsAcc;
   fpsAcc = 0;
   fpsN = 0;
-  fpsMax = Math.max(fpsMax * 0.995, fpsVal);
+  fpsWin.sort((a, b) => a - b);
+  const typ = 1 / Math.max(1e-4, fpsWin[fpsWin.length >> 1]);
+  fpsWin.length = 0;
+  fpsMax = Math.max(fpsMax * 0.995, typ);
   const sc = gfxScale();
   if (fpsEl)
     fpsEl.textContent =
@@ -268,17 +276,22 @@ function perf(raw) {
     return;
   }
   const tgt = Math.min(+SET.targetFps, fpsMax * 0.97);
-  if (fpsVal < tgt * 0.9 && GFX.dyn > 0.5) {
-    GFX.dyn = Math.max(0.5, GFX.dyn - 0.1);
-    gfxResize();
+  /* down after a second of slow frames, up after three seconds of headroom */
+  if (typ < tgt * 0.9 && GFX.dyn > 0.5) {
     prGood = 0;
-  } else if (fpsVal > tgt * 0.98 && GFX.dyn < 1) {
+    if (++prBad >= 2) {
+      GFX.dyn = Math.max(0.5, GFX.dyn - 0.1);
+      gfxResize();
+      prBad = 0;
+    }
+  } else if (typ > tgt * 0.98 && GFX.dyn < 1) {
+    prBad = 0;
     if (++prGood >= 6) {
       GFX.dyn = Math.min(1, GFX.dyn + 0.1);
       gfxResize();
       prGood = 0;
     }
-  } else prGood = 0;
+  } else prGood = prBad = 0;
 }
 /* each animation frame: measured for the performance overlay */
 /** add your own pose to this frame's recording (you have no third-person rig to record from) */
@@ -447,8 +460,12 @@ function frameBody(t) {
   now += dt;
   REC.tick(now);
   perf(raw);
+  /* this frame's presses become the ones read; last frame's set is emptied for the next (two sets
+     swapped, not a new one a frame) */
+  const was = frameHits;
   frameHits = hitActs;
-  hitActs = new Set();
+  hitActs = was;
+  hitActs.clear();
   destrTick();
   /* the arena's blast gates run on the match clock (behind the menu, on the page clock); a mode moves
      its own (CTF: G.t) */
@@ -731,7 +748,10 @@ function frameBody(t) {
   const eyeT = me.slideT > 0 ? 0.76 - 0.12 * Math.sin(Math.PI * slid) : me.h === H_STAND ? 1.62 : 1.02;
   eyeCur += (eyeT - eyeCur) * Math.min(1, dt * (me.slideT > 0 ? 24 : 14));
   const eyeH = eyeCur;
-  if (me.ground && rpos.y > smY && rpos.y - smY < 0.7) smY += (rpos.y - smY) * Math.min(1, dt * 16);
+  /* a step up or down on your feet (stairs, a kerb: the body sets down on each step at once) eases the
+     eye there instead of jumping it; anything bigger, or in the air, follows the body exactly */
+  const stepY = rpos.y - smY;
+  if (me.ground && stepY > -0.5 && stepY < 0.7) smY += stepY * Math.min(1, dt * 16);
   else smY = rpos.y;
   /* clambering, the view pulls up in an eased arc (slow off the wall, slowing again over the top)
      and nods toward the hands on the ledge; it settles once you are over */
