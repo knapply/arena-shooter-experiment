@@ -2011,6 +2011,10 @@ const podSeats = map => {
         KA.me.vel.set(0, 0, 0);
         KA.me.spawnT = KA.now;
       });
+    /* the test puts the friend on the spot: to the host that is a teleport, and for 3 s after one a
+       player's pickup claims are refused (net/ctf-host.js H.warped). Arrive, then wait it out */
+    await go();
+    await B.waitForTimeout(3300);
     await B.keyboard.down("KeyE");
     /* hold until it lands (up to 4 s) so a slow frame rate on CI does not cut the hold short */
     const trail = [];
